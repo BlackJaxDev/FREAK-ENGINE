@@ -1,0 +1,67 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net7.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <RootNamespace>XREDITOR</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.Cloud.Speech.V1" Version="3.4.0" />
+    <PackageReference Include="Google.Cloud.TextToSpeech.V1" Version="3.2.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Silk.NET" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.Assimp" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.Core.Win32Extras" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.DirectStorage" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.DirectStorage.Native" Version="1.1.1" />
+    <PackageReference Include="Silk.NET.GLFW" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.Input" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.Input.Common" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.Input.Extensions" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.OpenAL" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.OpenAL.Extensions.Creative" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.OpenAL.Extensions.EXT" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.OpenAL.Extensions.Soft" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.OpenXR" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.OpenXR.Extensions.EXT" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.OpenXR.Extensions.HTC" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.OpenXR.Extensions.HTCX" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.OpenXR.Extensions.KHR" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.OpenXR.Extensions.MSFT" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.OpenXR.Extensions.VALVE" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.Vulkan" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.AMD" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.ARM" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.EXT" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.FB" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.HUAWEI" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.INTEL" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.KHR" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.NV" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.NVX" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.QNX" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.VALVE" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.Vulkan.Loader.Native" Version="2023.3.31" />
+    <PackageReference Include="Silk.NET.Windowing" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.Windowing.Common" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.Windowing.Glfw" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.XInput" Version="2.17.1" />
+    <PackageReference Include="SkiaSharp" Version="2.88.3" />
+    <PackageReference Include="YamlDotNet" Version="13.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DataStructures\XREngine.Data.csproj" />
+    <ProjectReference Include="..\Engine\XREngine.csproj" />
+    <ProjectReference Include="..\Extensions\XREngine.Extensions.csproj" />
+    <ProjectReference Include="..\XREngine.Audio\XREngine.Audio.csproj" />
+    <ProjectReference Include="..\XREngine.Files\XREngine.Files.csproj" />
+    <ProjectReference Include="..\XREngine.Modeling\XREngine.Modeling.csproj" />
+    <ProjectReference Include="..\XREngine.Rendering\XREngine.Rendering.csproj" />
+  </ItemGroup>
+
+</Project>
