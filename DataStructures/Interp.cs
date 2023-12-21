@@ -2,7 +2,7 @@
 using System.Drawing;
 using XREngine.Data.Transforms.Rotations;
 using XREngine.Data.Transforms.Vectors;
-using static System.Math;
+using static System.MathF;
 
 namespace XREngine.Data
 {
@@ -53,21 +53,13 @@ namespace XREngine.Data
             return second * x2 + first * x + zero;
         }
         public static float EvaluatePolynomial(float first, float zero, float x)
-        {
-            return first * x + zero;
-        }
+            => first * x + zero;
         public static Vec2 EvaluatePolynomial(Vec2 first, Vec2 zero, Vec2 x)
-        {
-            return first * x + zero;
-        }
+            => first * x + zero;
         public static Vec3 EvaluatePolynomial(Vec3 first, Vec3 zero, Vec3 x)
-        {
-            return first * x + zero;
-        }
+            => first * x + zero;
         public static Vec4 EvaluatePolynomial(Vec4 first, Vec4 zero, Vec4 x)
-        {
-            return first * x + zero;
-        }
+            => first * x + zero;
         #endregion
 
         #region Bezier
@@ -580,18 +572,13 @@ namespace XREngine.Data
         /// <param name="bounces"></param>
         /// <param name="bounceFalloff"></param>
         /// <returns></returns>
-        public static float BounceTimeModifier(float time, int bounces, double bounceFalloff)
-            => 1.0f - (float)(Pow(E, -bounceFalloff * time) * Abs(Cos(PI * (0.5 + bounces) * time)));
+        public static float BounceTimeModifier(float time, int bounces, float bounceFalloff)
+            => 1.0f - (Pow(E, -bounceFalloff * time) * Abs(Cos(PI * (0.5f + bounces) * time)));
         /// <summary>
         /// Maps a linear time value from 0.0f to 1.0f to a cosine time value that eases in and out.
         /// </summary>
         public static float CosineTimeModifier(float time)
-            => (1.0f - (float)Cos(time * PIf)) * 0.5f;
-        public static float TimeModifier(float time, EAnimBlendType type)
-        {
-            //TODO
-            return time;
-        }
+            => (1.0f - (float)Cos(time * PI)) * 0.5f;
 
         #endregion
 
@@ -628,17 +615,17 @@ namespace XREngine.Data
         /// Smoothed interpolation between two points. Eases in and out.
         /// </summary>
         public static Vec2 Cosine(Vec2 start, Vec2 end, float time, float speed = 1.0f)
-            => Vec2.Lerp(start, end, CosineTimeModifier(time * speed));
+            => Lerp(start, end, CosineTimeModifier(time * speed));
         /// <summary>
         /// Smoothed interpolation between two points. Eases in and out.
         /// </summary>
         public static Vec3 CosineTo(Vec3 start, Vec3 end, float time, float speed = 1.0f)
-            => Vec3.Lerp(start, end, CosineTimeModifier(time * speed));
+            => Lerp(start, end, CosineTimeModifier(time * speed));
         /// <summary>
         /// Smoothed interpolation between two points. Eases in and out.
         /// </summary>
         public static Vec4 CosineTo(Vec4 start, Vec4 end, float time, float speed = 1.0f)
-            => Vec4.Lerp(start, end, CosineTimeModifier(time * speed));
+            => Lerp(start, end, CosineTimeModifier(time * speed));
         /// <summary>
         /// 
         /// </summary>
@@ -655,7 +642,7 @@ namespace XREngine.Data
 
             float deltaRads = DegToRad(degPerSec) * delta;
 
-            if (Abs(totalRads) > deltaRads)
+            if (MathF.Abs(totalRads) > deltaRads)
             {
                 //totalRads = totalRads.Clamp(-deltaRads, deltaRads);
                 deltaQuat = Quat.FromAxisAngleDeg(deltaAxis, deltaRads);

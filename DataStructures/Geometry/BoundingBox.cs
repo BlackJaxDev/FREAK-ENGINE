@@ -1,4 +1,6 @@
 ﻿using System.Numerics;
+using XREngine.Data.Transforms;
+using XREngine.Data.Transforms.Vectors;
 
 namespace XREngine.Data.Geometry
 {
@@ -56,16 +58,12 @@ namespace XREngine.Data.Geometry
         public float Volume => Size.X * Size.Y * Size.Z;
 
         public bool Contains(Vector3 point)
-        {
-            return Vector3.Min(Min, point) == Min && Vector3.Max(Max, point) == Max;
-        }
+            => Vector3.Min(Min, point) == Min && Vector3.Max(Max, point) == Max;
 
-        public bool Intersects(BoundingBox other)
-        {
-            return other.Min.X <= Max.X && other.Max.X >= Min.X &&
-                   other.Min.Y <= Max.Y && other.Max.Y >= Min.Y &&
-                   other.Min.Z <= Max.Z && other.Max.Z >= Min.Z;
-        }
+        public bool Intersects(BoundingBox other) => 
+            other.Min.X <= Max.X && other.Max.X >= Min.X &&
+            other.Min.Y <= Max.Y && other.Max.Y >= Min.Y &&
+            other.Min.Z <= Max.Z && other.Max.Z >= Min.Z;
 
         public void ExpandToInclude(Vector3 point)
         {
@@ -108,6 +106,20 @@ namespace XREngine.Data.Geometry
                 new Vector3(Min.X, Max.Y, Max.Z),
                 new Vector3(Max.X, Max.Y, Max.Z)
             };
+        }
+
+        public static Vec3[] GetCorners(Vec3 halfExtents, Matrix transform)
+        {
+            Vec3[] corners = new Vec3[8];
+            corners[0] = transform.TransformPoint(new Vec3(-halfExtents.X, -halfExtents.Y, -halfExtents.Z));
+            corners[1] = transform.TransformPoint(new Vec3(halfExtents.X, -halfExtents.Y, -halfExtents.Z));
+            corners[2] = transform.TransformPoint(new Vec3(-halfExtents.X, halfExtents.Y, -halfExtents.Z));
+            corners[3] = transform.TransformPoint(new Vec3(halfExtents.X, halfExtents.Y, -halfExtents.Z));
+            corners[4] = transform.TransformPoint(new Vec3(-halfExtents.X, -halfExtents.Y, halfExtents.Z));
+            corners[5] = transform.TransformPoint(new Vec3(halfExtents.X, -halfExtents.Y, halfExtents.Z));
+            corners[6] = transform.TransformPoint(new Vec3(-halfExtents.X, halfExtents.Y, halfExtents.Z));
+            corners[7] = transform.TransformPoint(new Vec3(halfExtents.X, halfExtents.Y, halfExtents.Z));
+            return corners;
         }
 
         public override string ToString()

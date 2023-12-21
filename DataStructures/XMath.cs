@@ -529,7 +529,7 @@ namespace XREngine.Data
             return nonLinearDepth;
         }
 
-        public static Vec3 JacobiMethod(Matrix3 inputMatrix, Vec3 expectedOutcome, int iterations)
+        public static Vec3 JacobiMethod(Matrix inputMatrix, Vec3 expectedOutcome, int iterations)
         {
             Vec3 solvedVector = Vec3.Zero;
             for (int step = 0; step < iterations; ++step)
@@ -569,30 +569,42 @@ namespace XREngine.Data
         }
 
         #region Transforms
-        public static Vec3 RotateAboutPoint(Vec3 point, Vec3 center, Rotator angles)
-        {
-            return point * (Matrix.CreateTranslation(center) * Matrix.CreateTranslation(-center) * angles.GetMatrix());
-        }
-        public static Vec3 RotateAboutPoint(Vec3 point, Vec3 center, Quat rotation)
-        {
-            return point * (Matrix.CreateTranslation(center) * Matrix.CreateTranslation(-center) * Matrix.CreateFromQuaternion(rotation));
-        }
-        public static Vec3 ScaleAboutPoint(Vec3 point, Vec3 center, Vec3 scale)
-        {
-            return point * (Matrix.CreateTranslation(center) * Matrix.CreateTranslation(-center) * Matrix.CreateScale(scale));
-        }
-        public static Vec2 RotateAboutPoint(Vec2 point, Vec2 center, float angle)
-        {
-            return (Vec2)((Vec3)point * (Matrix.CreateTranslation(center) * Matrix.CreateTranslation(-center) * Matrix.CreateRotationZ(angle)));
-        }
-        public static Vec2 ScaleAboutPoint(Vec2 point, Vec2 center, Vec2 scale)
-        {
-            return (Vec2)((Vec3)point * (Matrix.CreateTranslation(center) * Matrix.CreateTranslation(-center) * Matrix.CreateScale(scale.X, scale.Y, 1.0f)));
-        }
-        public static Vec3 TransformAboutPoint(Vec3 point, Vec3 center, Matrix transform)
-        {
-            return point * (Matrix.CreateTranslation(center) * Matrix.CreateTranslation(-center) * transform);
-        }
+        public static Vec3 RotateAboutPoint(Vec3 point, Vec3 center, Rotator angles) =>
+            point *
+            (Matrix.CreateTranslation(center) *
+            Matrix.CreateTranslation(-center) *
+            angles.GetMatrix());
+
+        public static Vec3 RotateAboutPoint(Vec3 point, Vec3 center, Quat rotation) =>
+            point *
+            (Matrix.CreateTranslation(center) *
+            Matrix.CreateTranslation(-center) *
+            Matrix.CreateFromQuaternion(rotation));
+
+        public static Vec3 ScaleAboutPoint(Vec3 point, Vec3 center, Vec3 scale) => 
+            point * 
+            (Matrix.CreateTranslation(center) * 
+            Matrix.CreateTranslation(-center) * 
+            Matrix.CreateScale(scale));
+
+        public static Vec2 RotateAboutPoint(Vec2 point, Vec2 center, float angle) =>
+            (Vec2)((Vec3)point * 
+            (Matrix.CreateTranslation(center) * 
+            Matrix.CreateTranslation(-center) * 
+            Matrix.CreateRotationZ(angle)));
+
+        public static Vec2 ScaleAboutPoint(Vec2 point, Vec2 center, Vec2 scale) => 
+            (Vec2)((Vec3)point * 
+            (Matrix.CreateTranslation(center) * 
+            Matrix.CreateTranslation(-center) * 
+            Matrix.CreateScale(scale.X, scale.Y, 1.0f)));
+
+        public static Vec3 TransformAboutPoint(Vec3 point, Vec3 center, Matrix transform) =>
+            point * 
+            (Matrix.CreateTranslation(center) * 
+            Matrix.CreateTranslation(-center) * 
+            transform);
+
         #endregion
 
         #region Min/Max

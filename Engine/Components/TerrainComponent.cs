@@ -7,6 +7,8 @@ namespace XREngine.Components
 {
     public class TerrainComponent : Component
     {
+        private Quadtree terrainQuadtree;
+
         public TerrainComponent(SceneNode node) : base(node)
         {
 
@@ -14,7 +16,7 @@ namespace XREngine.Components
         public override void Start()
         {
             // Create a quadtree with the terrain center at (0, 0), size 512, and maximum depth of 4.
-            Quadtree terrainQuadtree = new Quadtree(0, 0, 512, 4);
+            terrainQuadtree = new Quadtree(0, 0, 512, 4);
         }
         public override void Update()
         {
@@ -26,8 +28,6 @@ namespace XREngine.Components
         }
         public void Generate()
         {
-            
-
             // Update the LOD of the quadtree based on the camera position and a LOD distance of 100.
             float cameraX = 100;
             float cameraZ = 100;

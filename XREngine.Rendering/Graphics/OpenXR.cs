@@ -56,7 +56,7 @@ namespace XREngine.Rendering
             var xrSystemId = (uint)xrInstance.SelectActivePath(XRPath.Root, XRPath.Vulkan);
             var xrSystem = xrInstance.CreateSystem(new SystemCreateInfo { SystemId = xrSystemId });
 
-            using var enabledExtensions = new Utf8ArrayPtr(EnableExtensions(GetExtensions()));
+            using var enabledExtensions = new UTF8ArrayPtr(EnableExtensions(GetExtensions()));
 
             var createInfo = new InstanceCreateInfo
             {

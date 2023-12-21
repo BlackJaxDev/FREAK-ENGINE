@@ -1,8 +1,8 @@
 ﻿using Extensions;
 using System.ComponentModel;
-using XREngine.Data;
 using XREngine.Data.Transforms;
 using XREngine.Data.Transforms.Vectors;
+using static XREngine.Data.XMath;
 
 namespace XREngine.Components.Lights
 {
@@ -10,7 +10,6 @@ namespace XREngine.Components.Lights
     {
         private float _outerCutoff, _innerCutoff, _distance;
 
-        [Category("Spot Light Component")]
         public float Distance
         {
             get => _distance;
@@ -20,20 +19,16 @@ namespace XREngine.Components.Lights
                 UpdateCones();
             }
         }
-        [Category("Spot Light Component")]
         public float Exponent { get; set; }
-        [Category("Spot Light Component")]
         public float Brightness { get; set; }
-        [Category("Spot Light Component")]
         public float OuterCutoffAngleDegrees
         {
-            get => XMath.RadToDeg((float)Math.Acos(_outerCutoff));
+            get => RadToDeg((float)Math.Acos(_outerCutoff));
             set => SetCutoffs(InnerCutoffAngleDegrees, value, true);
         }
-        [Category("Spot Light Component")]
         public float InnerCutoffAngleDegrees
         {
-            get => XMath.RadToDeg((float)Math.Acos(_innerCutoff));
+            get => RadToDeg((float)Math.Acos(_innerCutoff));
             set => SetCutoffs(value, OuterCutoffAngleDegrees, false);
         }
 
@@ -51,13 +46,13 @@ namespace XREngine.Components.Lights
                     outerDegrees = innerDegrees + bias;
             }
             
-            float radOuter = XMath.DegToRad(outerDegrees);
-            _outerCutoff = XMath.Cosf(radOuter);
-            OuterCone.Radius = XMath.Tanf(radOuter) * _distance;
+            float radOuter = DegToRad(outerDegrees);
+            _outerCutoff = MathF.Cos(radOuter);
+            OuterCone.Radius = MathF.Tan(radOuter) * _distance;
 
-            float radInner = XMath.DegToRad(innerDegrees);
-            _innerCutoff = XMath.Cosf(radInner);
-            InnerCone.Radius = XMath.Tanf(radInner) * _distance;
+            float radInner = DegToRad(innerDegrees);
+            _innerCutoff = MathF.Cos(radInner);
+            InnerCone.Radius = MathF.Tan(radInner) * _distance;
 
             //if (ShadowCamera != null)
             //    ((PerspectiveCamera)ShadowCamera).VerticalFieldOfView = Math.Max(outerDegrees, innerDegrees) * 2.0f;
@@ -66,25 +61,25 @@ namespace XREngine.Components.Lights
         }
         private void UpdateCones()
         {
-            Vec3 dir = Transform.GetForwardVector();
+            Vec3 dir = Transform.WorldMatrix.Forward;
             Vec3 coneOrigin = Translation + dir * (_distance * 0.5f);
 
             OuterCone.UpAxis = -dir;
             OuterCone.Center.Value = coneOrigin;
             OuterCone.Height = _distance;
-            OuterCone.Radius = (float)Math.Tan(XMath.DegToRad(OuterCutoffAngleDegrees)) * _distance;
+            OuterCone.Radius = (float)Math.Tan(DegToRad(OuterCutoffAngleDegrees)) * _distance;
 
             InnerCone.UpAxis = -dir;
             InnerCone.Center.Value = coneOrigin;
             InnerCone.Height = _distance;
-            InnerCone.Radius = (float)Math.Tan(XMath.DegToRad(InnerCutoffAngleDegrees)) * _distance;
+            InnerCone.Radius = (float)Math.Tan(DegToRad(InnerCutoffAngleDegrees)) * _distance;
 
             //if (ShadowCamera != null)
             //    ShadowCamera.FarZ = _distance;
 
             Vec3 lightMeshOrigin = dir * (_distance * 0.5f);
             Matrix t = lightMeshOrigin.AsTranslationMatrix();
-            Matrix s = Matrix4.CreateScale(OuterCone.Radius, OuterCone.Radius, OuterCone.Height);
+            Matrix s = Matrix.CreateScale(OuterCone.Radius, OuterCone.Radius, OuterCone.Height);
             LightMatrix = t * WorldMatrix.Value * s;
         }
 
@@ -105,11 +100,11 @@ namespace XREngine.Components.Lights
             Vec3 direction, float outerCutoffDeg, float innerCutoffDeg, float brightness, float exponent) 
             : base(color, diffuseIntensity)
         {
-            OuterCone = new Cone(Vec3.Zero, Vec3.UnitZ, (float)Math.Tan(TMath.DegToRad(outerCutoffDeg)) * distance, distance);
-            InnerCone = new Cone(Vec3.Zero, Vec3.UnitZ, (float)Math.Tan(TMath.DegToRad(innerCutoffDeg)) * distance, distance);
+            OuterCone = new Cone(Vec3.Zero, Vec3.UnitZ, MathF.Tan(DegToRad(outerCutoffDeg)) * distance, distance);
+            InnerCone = new Cone(Vec3.Zero, Vec3.UnitZ, MathF.Tan(DegToRad(innerCutoffDeg)) * distance, distance);
 
-            _outerCutoff = (float)Math.Cos(TMath.DegToRad(outerCutoffDeg));
-            _innerCutoff = (float)Math.Cos(TMath.DegToRad(innerCutoffDeg));
+            _outerCutoff = (float)Math.Cos(DegToRad(outerCutoffDeg));
+            _innerCutoff = (float)Math.Cos(DegToRad(innerCutoffDeg));
             _distance = distance;
             Brightness = brightness;
             Exponent = exponent;
@@ -120,11 +115,11 @@ namespace XREngine.Components.Lights
             Quat rotation, float outerCutoffDeg, float innerCutoffDeg, float brightness, float exponent)
             : base(color, diffuseIntensity)
         {
-            OuterCone = new Cone(Vec3.Zero, Vec3.UnitZ, (float)Math.Tan(TMath.DegToRad(outerCutoffDeg)) * distance, distance);
-            InnerCone = new Cone(Vec3.Zero, Vec3.UnitZ, (float)Math.Tan(TMath.DegToRad(innerCutoffDeg)) * distance, distance);
+            OuterCone = new Cone(Vec3.Zero, Vec3.UnitZ, (float)Math.Tan(DegToRad(outerCutoffDeg)) * distance, distance);
+            InnerCone = new Cone(Vec3.Zero, Vec3.UnitZ, (float)Math.Tan(DegToRad(innerCutoffDeg)) * distance, distance);
 
-            _outerCutoff = (float)Math.Cos(TMath.DegToRad(outerCutoffDeg));
-            _innerCutoff = (float)Math.Cos(TMath.DegToRad(innerCutoffDeg));
+            _outerCutoff = (float)Math.Cos(DegToRad(outerCutoffDeg));
+            _innerCutoff = (float)Math.Cos(DegToRad(innerCutoffDeg));
             _distance = distance;
             Brightness = brightness;
             Exponent = exponent;
@@ -173,7 +168,7 @@ namespace XREngine.Components.Lights
         {
             targetStructName = $"{targetStructName ?? Uniform.LightsStructName}.";
 
-            program.Uniform($"{targetStructName}Direction", Transform.GetForwardVector());
+            program.Uniform($"{targetStructName}Direction", Transform.WorldMatrix.Forward);
             program.Uniform($"{targetStructName}OuterCutoff", _outerCutoff);
             program.Uniform($"{targetStructName}InnerCutoff", _innerCutoff);
             program.Uniform($"{targetStructName}Position", WorldPoint);

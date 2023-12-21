@@ -132,6 +132,14 @@
         public static Vec2 operator *(Vec2 a, float b)
             => new(a.x * b, a.y * b);
         /// <summary>
+        /// Multiplies each component.
+        /// </summary>
+        /// <param name="a"></param>
+        /// <param name="b"></param>
+        /// <returns></returns>
+        public static Vec2 operator *(float a, Vec2 b)
+            => new(b.x * a, b.y * a);
+        /// <summary>
         /// Normalizes the vector.
         /// </summary>
         /// <param name="v"></param>

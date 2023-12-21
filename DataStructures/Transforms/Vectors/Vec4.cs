@@ -1,8 +1,25 @@
-﻿namespace XREngine.Data.Transforms.Vectors
+﻿using System.Runtime.InteropServices;
+
+namespace XREngine.Data.Transforms.Vectors
 {
-    public struct Vec4
+    [StructLayout(LayoutKind.Sequential, Pack = 0)]
+    public unsafe struct Vec4
     {
         public float x, y, z, w;
+
+        public float this[int index]
+        {
+            get
+            {
+                fixed (void* ptr = &this)
+                    return ((float*)ptr)[index];
+            }
+            set
+            {
+                fixed (void* ptr = &this)
+                    ((float*)ptr)[index] = value;
+            }
+        }
 
         public Vec4(float v)
         {

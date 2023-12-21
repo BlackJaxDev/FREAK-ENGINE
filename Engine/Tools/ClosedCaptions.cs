@@ -1,15 +1,7 @@
-﻿using System;
-using System.Threading;
-using System.Collections.Concurrent;
-using System.Diagnostics;
-using NAudio.Wave;
-using Google.Cloud.Speech.V1;
-using OscCore;
+﻿using NAudio.Wave;
 using Newtonsoft.Json.Linq;
-using System.IO;
-using System.Linq;
+using System.Collections.Concurrent;
 using System.Net;
-using System.Text;
 
 namespace XREngine.Tools
 {

@@ -34,9 +34,9 @@ namespace XREngine.Data.Geometry
             {
                 Plane plane = _planes[i];
                 Vec3 xyz = new(
-                    plane.Normal.x > 0 ? boundingBox.MinX : boundingBox.MaxX,
-                    plane.Normal.y > 0 ? boundingBox.MinY : boundingBox.MaxY,
-                    plane.Normal.z > 0 ? boundingBox.MinZ : boundingBox.MaxZ);
+                    plane.Normal.x > 0 ? boundingBox.Min.X : boundingBox.Max.X,
+                    plane.Normal.y > 0 ? boundingBox.Min.Y : boundingBox.Max.Y,
+                    plane.Normal.z > 0 ? boundingBox.Min.Z : boundingBox.Max.Z);
                 if (plane.DistanceTo(xyz) < 0)
                     return false;
             }

@@ -6,7 +6,6 @@ using XREngine.Scenes.Transforms;
 
 namespace XREngine.Components.Camera
 {
-
     public class CameraComponent : Component
     {
         public CameraParameters Parameters { get; set; }
@@ -55,8 +54,6 @@ namespace XREngine.Components.Camera
             => WorldPoint.DistanceTo(point);
 
         public Frustum GetCameraFrustum()
-        {
-            return new Frustum(WorldViewProjectionMatrix);
-        }
+            => new Frustum(WorldViewProjectionMatrix);
     }
 }

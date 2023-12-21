@@ -1,5 +1,5 @@
-﻿using System.Linq;
-using Extensions;
+﻿using Extensions;
+using XREngine.Data.Transforms;
 using XREngine.Data.Transforms.Vectors;
 
 namespace XREngine.Data.Geometry
@@ -191,11 +191,11 @@ namespace XREngine.Data.Geometry
         }
         public static float DistanceSpherePoint(Vec3 sphereCenter, float sphereRadius, Vec3 point)
         {
-            return (sphereCenter.DistanceToFast(point) - sphereRadius).ClampMin(0.0f);
+            return (sphereCenter.DistanceTo(point) - sphereRadius).ClampMin(0.0f);
         }
         public static float DistanceSphereSphere(float sphere1Radius, Vec3 sphere1Pos, float sphere2Radius, Vec3 sphere2Pos)
         {
-            return Math.Max(sphere1Pos.DistanceToFast(sphere2Pos) - sphere1Radius - sphere2Radius, 0f);
+            return Math.Max(sphere1Pos.DistanceTo(sphere2Pos) - sphere1Radius - sphere2Radius, 0f);
         }
         public static bool RayIntersectsPoint(Ray ray, Vec3 point)
         {
@@ -241,7 +241,7 @@ namespace XREngine.Data.Geometry
             //Reference: Page 780
 
             Vec3 cross = Vec3.Cross(ray1.Direction, ray2.Direction);
-            float denominator = cross.LengthFast;
+            float denominator = cross.Length;
 
             //Lines are parallel.
             if (denominator.IsZero())
@@ -313,7 +313,7 @@ namespace XREngine.Data.Geometry
             return true;
         }
 
-        public static EContainment AABBContainsBox(Vec3 box1Min, Vec3 box1Max, Vec3 box2HalfExtents, Matrix4 box2Transform)
+        public static EContainment AABBContainsBox(Vec3 box1Min, Vec3 box1Max, Vec3 box2HalfExtents, Matrix box2Transform)
         {
             Vec3[] corners = BoundingBox.GetCorners(box2HalfExtents, box2Transform);
             int numIn = 0, numOut = 0;
@@ -341,8 +341,8 @@ namespace XREngine.Data.Geometry
         /// <returns>Whether the two objects intersect.</returns>
         public static bool RayIntersectsPlane(Vec3 rayStartPoint, Vec3 rayDirection, Vec3 planePoint, Vec3 planeNormal, out float distance)
         {
-            rayDirection.NormalizeFast();
-            planeNormal.NormalizeFast();
+            rayDirection.Normalize();
+            planeNormal.Normalize();
 
             //Source: Real-Time Collision Detection by Christer Ericson
             //Reference: Page 175
@@ -413,7 +413,7 @@ namespace XREngine.Data.Geometry
             //Reference: http://www.cs.virginia.edu/~gfx/Courses/2003/ImageSynthesis/papers/Acceleration/Fast%20MinimumStorage%20RayTriangle%20Intersection.pdf
 
             //Compute vectors along two edges of the triangle.
-            Vec3 edge1, edge2;
+            Vec3 edge1 = Vec3.Zero, edge2 = Vec3.Zero;
 
             //Edge 1
             edge1.X = vertex2.X - vertex1.X;
@@ -426,7 +426,7 @@ namespace XREngine.Data.Geometry
             edge2.Z = vertex3.Z - vertex1.Z;
 
             //Cross product of ray direction and edge2 - first part of determinant.
-            Vec3 directioncrossedge2;
+            Vec3 directioncrossedge2 = Vec3.Zero;
             directioncrossedge2.X = (ray.Direction.Y * edge2.Z) - (ray.Direction.Z * edge2.Y);
             directioncrossedge2.Y = (ray.Direction.Z * edge2.X) - (ray.Direction.X * edge2.Z);
             directioncrossedge2.Z = (ray.Direction.X * edge2.Y) - (ray.Direction.Y * edge2.X);
@@ -448,7 +448,7 @@ namespace XREngine.Data.Geometry
             float inversedeterminant = 1.0f / determinant;
 
             //Calculate the U parameter of the intersection point.
-            Vec3 distanceVector;
+            Vec3 distanceVector = Vec3.Zero;
             distanceVector.X = ray.StartPoint.X - vertex1.X;
             distanceVector.Y = ray.StartPoint.Y - vertex1.Y;
             distanceVector.Z = ray.StartPoint.Z - vertex1.Z;
@@ -465,7 +465,7 @@ namespace XREngine.Data.Geometry
             }
 
             //Calculate the V parameter of the intersection point.
-            Vec3 distancecrossedge1;
+            Vec3 distancecrossedge1 = Vec3.Zero;
             distancecrossedge1.X = (distanceVector.Y * edge1.Z) - (distanceVector.Z * edge1.Y);
             distancecrossedge1.Y = (distanceVector.Z * edge1.X) - (distanceVector.X * edge1.Z);
             distancecrossedge1.Z = (distanceVector.X * edge1.Y) - (distanceVector.Y * edge1.X);
@@ -518,7 +518,7 @@ namespace XREngine.Data.Geometry
             point = ray.StartPoint + (ray.Direction * distance);
             return true;
         }
-        public static bool RayIntersectsBoxDistance(Vec3 rayStartPoint, Vec3 rayDirection, Vec3 boxHalfExtents, Matrix4 boxInverseTransform, out float distance)
+        public static bool RayIntersectsBoxDistance(Vec3 rayStartPoint, Vec3 rayDirection, Vec3 boxHalfExtents, Matrix boxInverseTransform, out float distance)
         {
             //Transform ray to untransformed box space
             Vec3 rayEndPoint = rayStartPoint + rayDirection;
@@ -598,7 +598,7 @@ namespace XREngine.Data.Geometry
 
             // order the enter / exit values.
             if (tsenter > tsexit)
-                THelpers.Swap(ref tsenter, ref tsexit);
+                (tsenter, tsexit) = (tsexit, tsenter);
 
             // make sure the slab interval and the current box intersection interval overlap
             if (tbenter > tsexit || tsenter > tbexit)
@@ -637,8 +637,8 @@ namespace XREngine.Data.Geometry
             if (!RaySlabIntersect(boxMin.Z, boxMax.Z, segmentStart.Z, segmentEnd.Z, ref tenter, ref texit))
                 return false;
 
-            enterPoint = Vec3.Lerp(segmentStart, segmentEnd, tenter);
-            exitPoint = Vec3.Lerp(segmentStart, segmentEnd, texit);
+            enterPoint = Interp.Lerp(segmentStart, segmentEnd, tenter);
+            exitPoint = Interp.Lerp(segmentStart, segmentEnd, texit);
 
             // all intersections in the green.
             return true;
@@ -663,7 +663,7 @@ namespace XREngine.Data.Geometry
             point = ray.StartPoint + (ray.Direction * distance);
             return true;
         }
-        public static bool RayIntersectsBox(Vec3 rayStartPoint, Vec3 rayDirection, Vec3 boxHalfExtents, Matrix4 boxInverseTransform, out Vec3 point)
+        public static bool RayIntersectsBox(Vec3 rayStartPoint, Vec3 rayDirection, Vec3 boxHalfExtents, Matrix boxInverseTransform, out Vec3 point)
         {
             if (!RayIntersectsBoxDistance(rayStartPoint, rayDirection, boxHalfExtents, boxInverseTransform, out float distance))
             {
@@ -813,7 +813,7 @@ namespace XREngine.Data.Geometry
             Vec3 temp = plane1.Distance * plane2.Normal - plane2.Distance * plane1.Normal;
             Vec3 point = Vec3.Cross(temp, direction);
 
-            line = new Ray(point, point + direction.NormalizedFast());
+            line = new Ray(point, point + direction.Normalized());
 
             return true;
         }
@@ -843,16 +843,16 @@ namespace XREngine.Data.Geometry
 
             return EPlaneIntersection.Intersecting;
         }
-        public static EPlaneIntersection PlaneIntersectsBox(Plane plane, Vec3 boxMin, Vec3 boxMax, Matrix4 boxInverseMatrix)
+        public static EPlaneIntersection PlaneIntersectsBox(Plane plane, Vec3 boxMin, Vec3 boxMax, Matrix boxInverseMatrix)
         {
             //Source: Real-Time Collision Detection by Christer Ericson
             //Reference: Page 161
 
             //Transform plane into untransformed box space
-            plane = plane.TransformedBy(boxInverseMatrix);
+            plane = boxInverseMatrix.TransformPlane(plane);
 
-            Vec3 min;
-            Vec3 max;
+            Vec3 min = Vec3.Zero;
+            Vec3 max = Vec3.Zero;
 
             max.X = (plane.Normal.X >= 0.0f) ? boxMin.X : boxMax.X;
             max.Y = (plane.Normal.Y >= 0.0f) ? boxMin.Y : boxMax.Y;
@@ -923,32 +923,32 @@ namespace XREngine.Data.Geometry
         /// <returns>Whether the two objects intersected.</returns>
         public static bool AABBIntersectsAABB(BoundingBox box1, BoundingBox box2)
         {
-            if (box1.Minimum.X > box2.Maximum.X || box2.Minimum.X > box1.Maximum.X)
+            if (box1.Min.X > box2.Max.X || box2.Min.X > box1.Max.X)
                 return false;
 
-            if (box1.Minimum.Y > box2.Maximum.Y || box2.Minimum.Y > box1.Maximum.Y)
+            if (box1.Min.Y > box2.Max.Y || box2.Min.Y > box1.Max.Y)
                 return false;
 
-            if (box1.Minimum.Z > box2.Maximum.Z || box2.Minimum.Z > box1.Maximum.Z)
+            if (box1.Min.Z > box2.Max.Z || box2.Min.Z > box1.Max.Z)
                 return false;
 
             return true;
         }
+
         /// <summary>
         /// Determines whether there is an intersection between a <see cref="BoundingBox"/> and a <see cref="Sphere"/>.
         /// </summary>
         /// <param name="box">The box to test.</param>
         /// <param name="sphere">The sphere to test.</param>
         /// <returns>Whether the two objects intersected.</returns>
-        public static bool BoxIntersectsSphere(Vec3 boxHalfExtents, Matrix4 boxInverseTransform, Vec3 sphereCenter, float sphereRadius)
+        public static bool BoxIntersectsSphere(Vec3 boxHalfExtents, Matrix boxInverseTransform, Vec3 sphereCenter, float sphereRadius)
         {
-            sphereCenter = Vec3.TransformPosition(sphereCenter, boxInverseTransform);
+            sphereCenter = boxInverseTransform.TransformPosition(sphereCenter);
             return AABBIntersectsSphere(-boxHalfExtents, boxHalfExtents, sphereCenter, sphereRadius);
         }
+
         public static bool AABBIntersectsSphere(Vec3 boxMin, Vec3 boxMax, Vec3 sphereCenter, float sphereRadius)
-        {
-            return sphereCenter.DistanceToSquared(sphereCenter.Clamped(boxMin, boxMax)) <= sphereRadius * sphereRadius;
-        }
+            => sphereCenter.DistanceToSquared(sphereCenter.Clamped(boxMin, boxMax)) <= sphereRadius * sphereRadius;
 
         /// <summary>
         /// Determines whether there is an intersection between a <see cref="Sphere"/> and a triangle.
@@ -973,10 +973,10 @@ namespace XREngine.Data.Geometry
             float radiisum = sphere1Radius + sphere2Radius;
             return sphere1Center.DistanceToSquared(sphere2Center) <= radiisum * radiisum;
         }
-        public static bool BoxContainsPoint(Vec3 boxHalfExtents, Matrix4 boxInverseTransform, Vec3 point)
+        public static bool BoxContainsPoint(Vec3 boxHalfExtents, Matrix boxInverseTransform, Vec3 point)
         {
             //Transform point into untransformed box space
-            point = Vec3.TransformPosition(point, boxInverseTransform);
+            point = boxInverseTransform.TransformPosition(point);
             return AABBContainsPoint(-boxHalfExtents, boxHalfExtents, point);
         }
         public static bool AABBContainsPoint(Vec3 boxMin, Vec3 boxMax, Vec3 point)
@@ -1011,19 +1011,19 @@ namespace XREngine.Data.Geometry
         */
         public static EContainment BoxContainsAABB(
             Vec3 box1HalfExtents,
-            Matrix4 box1Transform,
+            Matrix box1Transform,
             Vec3 box2Min,
             Vec3 box2Max)
         {
             return FrustumContainsBox1(
                 BoundingBox.GetFrustum(box1HalfExtents, box1Transform), (box2Max - box2Min) / 2.0f,
-                Matrix4.CreateTranslation((box2Max + box2Min) / 2.0f));
+                Matrix.CreateTranslation((box2Max + box2Min) / 2.0f));
         }
         public static EContainment BoxContainsBox(
             Vec3 box1HalfExtents,
-            Matrix4 box1Transform,
+            Matrix box1Transform,
             Vec3 box2HalfExtents,
-            Matrix4 box2Transform)
+            Matrix box2Transform)
         {
             return FrustumContainsBox1(
                 BoundingBox.GetFrustum(box1HalfExtents, box1Transform), box2HalfExtents, box2Transform);
@@ -1046,7 +1046,7 @@ namespace XREngine.Data.Geometry
 
             return EContainment.Intersects;
         }
-        public static EContainment BoxContainsSphere(Vec3 boxHalfExtents, Matrix4 boxTransform, Vec3 sphereCenter, float sphereRadius)
+        public static EContainment BoxContainsSphere(Vec3 boxHalfExtents, Matrix boxTransform, Vec3 sphereCenter, float sphereRadius)
         {
             IFrustum f = BoundingBox.GetFrustum(boxHalfExtents, boxTransform);
             return FrustumContainsSphere(f, sphereCenter, sphereRadius);
@@ -1057,7 +1057,7 @@ namespace XREngine.Data.Geometry
         }
         public static EContainment AABBContainsSphere(Vec3 boxMin, Vec3 boxMax, Vec3 sphereCenter, float sphereRadius)
         {
-            Vec3 vector = Vec3.Clamp(sphereCenter, boxMin, boxMax);
+            Vec3 vector = sphereCenter.Clamp(boxMin, boxMax);
             float distance = sphereCenter.DistanceToSquared(vector);
 
             if (distance > sphereRadius * sphereRadius)
@@ -1119,7 +1119,7 @@ namespace XREngine.Data.Geometry
             Vec3 sphereCenter,
             float sphereRadius,
             Vec3 boxHalfExtents,
-            Matrix4 boxInverseTransform)
+            Matrix boxInverseTransform)
         {
             if (!BoxIntersectsSphere(boxHalfExtents, boxInverseTransform, sphereCenter, sphereRadius))
                 return EContainment.Disjoint;
@@ -1127,7 +1127,7 @@ namespace XREngine.Data.Geometry
             sphereCenter = Vec3.TransformPosition(sphereCenter, boxInverseTransform);
 
             float r2 = sphereRadius * sphereRadius;
-            Vec3[] points = BoundingBox.GetCorners(boxHalfExtents, Matrix4.Identity);
+            Vec3[] points = BoundingBox.GetCorners(boxHalfExtents, Matrix.Identity);
             foreach (Vec3 point in points)
                 if (sphereCenter.DistanceToSquared(point) > r2)
                     return EContainment.Intersects;
@@ -1192,7 +1192,7 @@ namespace XREngine.Data.Geometry
                     return false;
             return true;
         }
-        public static EContainment FrustumContainsBox1(IFrustum frustum, Vec3 boxHalfExtents, Matrix4 boxTransform)
+        public static EContainment FrustumContainsBox1(IFrustum frustum, Vec3 boxHalfExtents, Matrix boxTransform)
         {
             //if (frustum.UseBoundingSphere)
             //{
@@ -1293,5 +1293,17 @@ namespace XREngine.Data.Geometry
 
         //    return EContainment.Intersects;
         //}
+    }
+    public enum EContainment
+    {
+        Contains,
+        Disjoint,
+        Intersects
+    }
+    public enum EPlaneIntersection
+    {
+        Front,
+        Back,
+        Intersecting
     }
 }

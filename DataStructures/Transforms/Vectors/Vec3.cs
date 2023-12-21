@@ -1,8 +1,28 @@
-﻿namespace XREngine.Data.Transforms.Vectors
+﻿using Extensions;
+using System.Runtime.InteropServices;
+
+namespace XREngine.Data.Transforms.Vectors
 {
-    public struct Vec3
+    [StructLayout(LayoutKind.Sequential, Pack = 0)]
+    public unsafe struct Vec3
     {
-        public float x, y, z;
+        public float x;
+        public float y;
+        public float z;
+
+        public float this[int index]
+        {
+            get
+            {
+                fixed (void* ptr = &this)
+                    return ((float*)ptr)[index];
+            }
+            set
+            {
+                fixed (void* ptr = &this)
+                    ((float*)ptr)[index] = value;
+            }
+        }
 
         public Vec3(float v)
         {
@@ -20,11 +40,11 @@
         /// <summary>
         /// Returns the length (aka magnitude) of the vector, but without taking the square root.
         /// </summary>
-        public float LengthSquared => this | this;
+        public readonly float LengthSquared => this | this;
         /// <summary>
         /// Returns the length (aka magnitude) of the vector.
         /// </summary>
-        public float Length => (float)Math.Sqrt(LengthSquared);
+        public readonly float Length => (float)Math.Sqrt(LengthSquared);
 
         public static Vec3 UnitZ { get; } = new(0.0f, 0.0f, 1.0f);
         public static Vec3 UnitY { get; } = new(0.0f, 1.0f, 0.0f);
@@ -39,6 +59,10 @@
         public static Vec3 Left => -UnitX;
         public static Vec3 Forward => UnitZ;
         public static Vec3 Backward => -UnitZ;
+
+        public float X { get => x; set => x = value; }
+        public float Y { get => y; set => y = value; }
+        public float Z { get => z; set => z = value; }
 
         public Matrix ToScaleMatrix() => Matrix.CreateScale(this);
         public Matrix ToTranslationMatrix() => Matrix.CreateTranslation(this);
@@ -89,8 +113,28 @@
         public float Dot(Vec3 other)
             => this | other;
 
-        public float DistanceTo(Vec3 point)
-            => (point - this).Length;
+        public static Vec3 ComponentMin(Vec3 left, Vec3 right)
+            => new Vec3(
+                MathF.Min(left.x, right.x),
+                MathF.Min(left.y, right.y),
+                MathF.Min(left.z, right.z));
+
+        public static Vec3 ComponentMax(Vec3 left, Vec3 right)
+            => new Vec3(
+                MathF.Max(left.x, right.x),
+                MathF.Max(left.y, right.y),
+                MathF.Max(left.z, right.z));
+
+        public Vec3 Clamped(Vec3 min, Vec3 max)
+            => new Vec3(
+                x.Clamp(min.x, max.x),
+                y.Clamp(min.y, max.y),
+                z.Clamp(min.z, max.z));
+
+        public float DistanceTo(Vec3 other)
+            => (other - this).Length;
+        public float DistanceToSquared(Vec3 other)
+            => (other - this).LengthSquared;
 
         /// <summary>
         /// Subtracts each component individually.

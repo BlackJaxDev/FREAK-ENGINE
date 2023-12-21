@@ -1,4 +1,5 @@
 ﻿using System.Runtime.InteropServices;
+using XREngine.Data.Geometry;
 using XREngine.Data.Transforms.Rotations;
 using XREngine.Data.Transforms.Vectors;
 
@@ -473,6 +474,24 @@ namespace XREngine.Data.Transforms
             );
 
             return rotation * translation;
+        }
+
+        public Vec3 TransformPoint(Vec3 startPoint)
+        {
+            throw new NotImplementedException();
+        }
+        public Vec3 TransformVector(Vec3 startPoint)
+        {
+            throw new NotImplementedException();
+        }
+        public Plane TransformPlane(Plane plane)
+        {
+            throw new NotImplementedException();
+        }
+
+        internal Vec3 TransformPosition(Vec3 sphereCenter)
+        {
+            throw new NotImplementedException();
         }
 
         public unsafe float this[int row, int column]

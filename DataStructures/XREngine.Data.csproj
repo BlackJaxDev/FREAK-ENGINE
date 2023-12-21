@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Extensions\XREngine.Extensions.csproj" />
+    <ProjectReference Include="..\XREngine.Files\XREngine.Files.csproj" />
   </ItemGroup>
 
   <ItemGroup>

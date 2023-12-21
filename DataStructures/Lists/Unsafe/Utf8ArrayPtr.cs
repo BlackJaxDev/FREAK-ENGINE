@@ -3,14 +3,14 @@ using System.Text;
 
 namespace XREngine.Data.Lists.Unsafe
 {
-    public unsafe class Utf8ArrayPtr : IDisposable
+    public unsafe class UTF8ArrayPtr : IDisposable
     {
         private bool disposedValue;
         private readonly IntPtr[] ptrs;
         private readonly GCHandle handle;
         public IReadOnlyList<string> Strings { get; }
 
-        public Utf8ArrayPtr(List<string> strings)
+        public UTF8ArrayPtr(List<string> strings)
         {
             Strings = strings;
             ptrs = GetUtf8Pointers(strings);
@@ -51,7 +51,7 @@ namespace XREngine.Data.Lists.Unsafe
             return pointers;
         }
 
-        ~Utf8ArrayPtr()
+        ~UTF8ArrayPtr()
         {
             Dispose(disposing: false);
         }

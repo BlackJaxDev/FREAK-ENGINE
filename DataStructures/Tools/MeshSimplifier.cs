@@ -1,6 +1,7 @@
 ﻿using System.Numerics;
 using XREngine.Data.Transforms;
 using XREngine.Data.Transforms.Vectors;
+using XREngine.Files;
 
 namespace XREngine.Data.Tools
 {
@@ -23,13 +24,8 @@ namespace XREngine.Data.Tools
             {
                 _quadric = Matrix.Zero;
                 foreach (Triangle triangle in triangles)
-                {
                     if (triangle.Contains(this))
-                    {
-                        Matrix Kp = triangle.GetQuadricMatrix();
-                        _quadric += Kp;
-                    }
-                }
+                        _quadric += triangle.GetQuadricMatrix();
             }
         }
 

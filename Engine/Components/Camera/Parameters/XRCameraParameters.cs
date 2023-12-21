@@ -11,21 +11,22 @@ namespace XREngine.Components.Camera.Parameters
             Right,
         };
 
+        /// <summary>
+        /// This distance between both eye viewpoints.
+        /// </summary>
         public float EyeSeparation { get; set; }
 
         public XRCameraParameters(float eyeSeparation, float fieldOfView, float aspectRatio, float nearPlane, float farPlane)
-            : base(fieldOfView, aspectRatio, nearPlane, farPlane)
-        {
-            EyeSeparation = eyeSeparation;
-        }
+            : base(fieldOfView, aspectRatio, nearPlane, farPlane) => EyeSeparation = eyeSeparation;
 
         public override Matrix GetProjectionMatrix()
             => Matrix.CreatePerspectiveFieldOfView(FieldOfView, AspectRatio, NearPlane, FarPlane);
 
         public Matrix GetViewMatrix(CameraComponent camera, Eye eye)
         {
-            Vec3 eyePosition = camera.Transform.WorldTranslation + (eye == Eye.Left ? -camera.Right : camera.Right) * 0.5f * EyeSeparation;
-            return Matrix.CreateLookAt(eyePosition, eyePosition + camera.Forward, camera.Up);
+            var tfm = camera.Transform.WorldMatrix;
+            Vec3 pos = tfm.Translation + (eye == Eye.Left ? -tfm.Right : tfm.Right) * 0.5f * EyeSeparation;
+            return Matrix.CreateLookAt(pos, pos + tfm.Forward, tfm.Up);
         }
     }
 }

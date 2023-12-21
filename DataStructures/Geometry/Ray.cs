@@ -1,19 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using XREngine.Data.Transforms;
+﻿using XREngine.Data.Transforms;
 using XREngine.Data.Transforms.Vectors;
 
 namespace XREngine.Data.Geometry
 {
     public struct Ray
     {
-        public Ray(Vec3 startPoint, Vec3 direction, ENormalizeOption normalization = ENormalizeOption.FastSafe)
+        public Ray(Vec3 startPoint, Vec3 direction)
         {
             _startPoint = startPoint;
-            _direction = direction.Normalized(normalization);
+            _direction = direction.Normalized();
         }
         public Vec3 StartPoint
         {
@@ -31,8 +26,8 @@ namespace XREngine.Data.Geometry
 
         public Ray TransformedBy(Matrix transform)
         {
-            Vec3 newStart = StartPoint * transform;
-            Vec3 newEnd = (StartPoint + Direction) * transform;
+            Vec3 newStart = transform.TransformPoint(StartPoint);
+            Vec3 newEnd = transform.TransformPoint(StartPoint + Direction);
             return new Ray(newStart, newEnd - newStart);
         }
 
