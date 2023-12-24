@@ -2,7 +2,8 @@
 {
     public struct Vec2
     {
-        public float x, y;
+        public float x;
+        public float y;
 
         public Vec2(float v)
         {
@@ -30,6 +31,9 @@
         public static Vec2 One { get; } = new(1.0f, 1.0f);
         public static Vec2 Max { get; } = new(float.MaxValue);
         public static Vec2 Min { get; } = new(float.MinValue);
+
+        public float X { get => x; set => x = value; }
+        public float Y { get => y; set => y = value; }
 
         /// <summary>
         /// Returns a normalized version of this vector.

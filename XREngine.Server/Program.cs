@@ -1,4 +1,5 @@
 ﻿using XREngine.Server.LoadBalance;
+using XREngine.Server.LoadBalance.Balancers;
 
 namespace XREngine.Server
 {
@@ -8,12 +9,15 @@ namespace XREngine.Server
 
         public static async Task Main()
         {
-            _loadBalancingServer = new LoadBalancingServer(8000, new RoundRobinLeastLoadBalancer(new[]
-            {
-                new Server { IP = "192.168.0.2", Port = 8001 },
-                new Server { IP = "192.168.0.3", Port = 8002 },
-                new Server { IP = "192.168.0.4", Port = 8003 },
-            }));
+            _loadBalancingServer = new LoadBalancingServer(
+                8000,
+                new RoundRobinLeastLoadBalancer(new[]
+                {
+                    new Server { IP = "192.168.0.2", Port = 8001 },
+                    new Server { IP = "192.168.0.3", Port = 8002 },
+                    new Server { IP = "192.168.0.4", Port = 8003 },
+                }),
+                new Authenticator(""));
 
             await _loadBalancingServer.Start();
         }

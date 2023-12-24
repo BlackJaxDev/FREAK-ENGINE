@@ -119,15 +119,15 @@ namespace XREngine.Data.Geometry
         public void FlipNormal() => Normal = -Normal;
         public EPlaneIntersection IntersectsBox(BoundingBox box)
         {
-            Vec3 min;
-            Vec3 max;
+            Vec3 min = Vec3.Zero;
+            Vec3 max = Vec3.Zero;
 
-            max.X = (Normal.X >= 0.0f) ? box.Minimum.X : box.Maximum.X;
-            max.Y = (Normal.Y >= 0.0f) ? box.Minimum.Y : box.Maximum.Y;
-            max.Z = (Normal.Z >= 0.0f) ? box.Minimum.Z : box.Maximum.Z;
-            min.X = (Normal.X >= 0.0f) ? box.Maximum.X : box.Minimum.X;
-            min.Y = (Normal.Y >= 0.0f) ? box.Maximum.Y : box.Minimum.Y;
-            min.Z = (Normal.Z >= 0.0f) ? box.Maximum.Z : box.Minimum.Z;
+            max.X = (Normal.X >= 0.0f) ? box.Min.X : box.Max.X;
+            max.Y = (Normal.Y >= 0.0f) ? box.Min.Y : box.Max.Y;
+            max.Z = (Normal.Z >= 0.0f) ? box.Min.Z : box.Max.Z;
+            min.X = (Normal.X >= 0.0f) ? box.Max.X : box.Min.X;
+            min.Y = (Normal.Y >= 0.0f) ? box.Max.Y : box.Min.Y;
+            min.Z = (Normal.Z >= 0.0f) ? box.Max.Z : box.Min.Z;
 
             if (Normal.Dot(max) + Distance > 0.0f)
                 return EPlaneIntersection.Front;

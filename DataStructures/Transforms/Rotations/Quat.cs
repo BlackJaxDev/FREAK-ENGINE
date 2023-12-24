@@ -367,10 +367,5 @@ namespace XREngine.Data.Transforms.Rotations
         }
 
         public override string ToString() => string.Format("Quaternion({0}, {1}, {2}, {3})", x, y, z, w);
-
-        public Vec3 Rotate(object unitZ)
-        {
-            throw new NotImplementedException();
-        }
     }
 }

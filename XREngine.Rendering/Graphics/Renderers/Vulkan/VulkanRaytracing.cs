@@ -1,17 +1,16 @@
 ﻿using Silk.NET.Core.Native;
-using Silk.NET.OpenXR;
 using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.KHR;
 using System.Runtime.InteropServices;
 
 namespace XREngine.Rendering.Graphics.Renderers.Vulkan
 {
-    public partial class Vulkan : AbstractRenderer
+    public partial class VulkanRenderer : AbstractRenderer<Vk>
     {
         private const string EXT_KHR_AccelerationStructure = "VK_KHR_acceleration_structure";
 
-        private KhrAccelerationStructure accelStruct;
-        public KhrAccelerationStructure AccelStruct
+        private KhrAccelerationStructure? accelStruct;
+        public KhrAccelerationStructure? AccelStruct
         {
             get
             {
@@ -20,11 +19,8 @@ namespace XREngine.Rendering.Graphics.Renderers.Vulkan
             }
         }
 
-        private bool LoadExt<T>(out T output) where T : NativeExtension<Vk>
-        {
-            return vk!.TryGetInstanceExtension(instance, out output);
-        }
-
+        protected override bool LoadExt<T>(out T output)
+            => API!.TryGetInstanceExtension(instance, out output);
 
         public unsafe void InitBottomLevel()
         {
@@ -35,11 +31,11 @@ namespace XREngine.Rendering.Graphics.Renderers.Vulkan
             };
 
             AccelerationStructureKHR bottomLevelAccelerationStructure;
-            accel.CreateAccelerationStructure(device, &accelerationStructureCreateInfo, null, &bottomLevelAccelerationStructure);
+            AccelStruct?.CreateAccelerationStructure(device, &accelerationStructureCreateInfo, null, &bottomLevelAccelerationStructure);
 
             // Allocate memory for the acceleration structure
             MemoryRequirements memoryRequirements;
-            vk.GetAccelerationStructureMemoryRequirementsKHR(logicalDevice, new AccelerationStructureMemoryRequirementsInfoKhr
+            API!.GetAccelerationStructureMemoryRequirementsKHR(logicalDevice, new AccelerationStructureMemoryRequirementsInfoKhr
             {
                 sType = StructureType.AccelerationStructureMemoryRequirementsInfoKHR,
                 accelerationStructure = bottomLevelAccelerationStructure
@@ -218,35 +214,35 @@ namespace XREngine.Rendering.Graphics.Renderers.Vulkan
             // After creating the top-level acceleration structure, you can proceed
             // to set up the shader binding table (SBT) and perform ray tracing.
         }
-        private void CreateBuffer(VkDevice logicalDevice, VkPhysicalDevice physicalDevice, ulong size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, out VkBuffer buffer, out VkDeviceMemory bufferMemory)
-        {
-            // Create buffer
-            VkBufferCreateInfo bufferCreateInfo = new VkBufferCreateInfo
-            {
-                sType = VkStructureType.StructureTypeBufferCreateInfo,
-                size = size,
-                usage = usage,
-                sharingMode = VkSharingMode.SharingModeExclusive
-            };
+        //private void CreateBuffer(VkDevice logicalDevice, VkPhysicalDevice physicalDevice, ulong size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, out VkBuffer buffer, out VkDeviceMemory bufferMemory)
+        //{
+        //    // Create buffer
+        //    VkBufferCreateInfo bufferCreateInfo = new VkBufferCreateInfo
+        //    {
+        //        sType = VkStructureType.StructureTypeBufferCreateInfo,
+        //        size = size,
+        //        usage = usage,
+        //        sharingMode = VkSharingMode.SharingModeExclusive
+        //    };
 
-            vkCreateBuffer(logicalDevice, &bufferCreateInfo, null, out buffer);
+        //    vkCreateBuffer(logicalDevice, &bufferCreateInfo, null, out buffer);
 
-            // Allocate memory
-            vkGetBufferMemoryRequirements(logicalDevice, buffer, out VkMemoryRequirements memoryRequirements);
-            VkMemoryAllocateInfo allocInfo = new VkMemoryAllocateInfo
-            {
-                sType = VkStructureType.StructureTypeMemoryAllocateInfo,
-                allocationSize = memoryRequirements.size,
-                memoryTypeIndex = FindMemoryType(physicalDevice, memoryRequirements.memoryTypeBits, properties)
-            };
+        //    // Allocate memory
+        //    vkGetBufferMemoryRequirements(logicalDevice, buffer, out VkMemoryRequirements memoryRequirements);
+        //    VkMemoryAllocateInfo allocInfo = new VkMemoryAllocateInfo
+        //    {
+        //        sType = VkStructureType.StructureTypeMemoryAllocateInfo,
+        //        allocationSize = memoryRequirements.size,
+        //        memoryTypeIndex = FindMemoryType(physicalDevice, memoryRequirements.memoryTypeBits, properties)
+        //    };
 
-            vkAllocateMemory(logicalDevice, &allocInfo, null, out bufferMemory);
+        //    vkAllocateMemory(logicalDevice, &allocInfo, null, out bufferMemory);
 
-            // Bind buffer and memory
-            vkBindBufferMemory(logicalDevice, buffer, bufferMemory, 0);
-        }
+        //    // Bind buffer and memory
+        //    vkBindBufferMemory(logicalDevice, buffer, bufferMemory, 0);
+        //}
 
-        private uint FindMemoryType(VkPhysicalDevice physicalDevice, uint typeFilter, VkMemoryPropertyFlags properties)
+        private uint FindMemoryType(PhysicalDevice physicalDevice, uint typeFilter, VkMemoryPropertyFlags properties)
         {
             vkGetPhysicalDeviceMemoryProperties(physicalDevice, out VkPhysicalDeviceMemoryProperties memoryProperties);
 
@@ -268,23 +264,23 @@ namespace XREngine.Rendering.Graphics.Renderers.Vulkan
             // Allocate and bind memory for the top-level acceleration structure
             AllocateAndBindAccelerationStructureMemory(logicalDevice, physicalDevice, topLevelAccelerationStructure, topLevelMemoryRequirements);
         }
-        private void AllocateAndBindAccelerationStructureMemory(VkDevice logicalDevice, VkPhysicalDevice physicalDevice, VkAccelerationStructureKHR accelerationStructure, VkMemoryRequirements memoryRequirements)
+        private void AllocateAndBindAccelerationStructureMemory(Device logicalDevice, PhysicalDevice physicalDevice, AccelerationStructureKHR accelerationStructure, MemoryRequirements memoryRequirements)
         {
             // Allocate memory
-            VkMemoryAllocateInfo memoryAllocateInfo = new VkMemoryAllocateInfo
+            MemoryAllocateInfo memoryAllocateInfo = new MemoryAllocateInfo
             {
-                sType = VkStructureType.StructureTypeMemoryAllocateInfo,
+                sType = StructureType.MemoryAllocateInfo,
                 allocationSize = memoryRequirements.size,
-                memoryTypeIndex = FindMemoryType(physicalDevice, memoryRequirements.memoryTypeBits, VkMemoryPropertyFlags.MemoryPropertyDeviceLocalBit)
+                memoryTypeIndex = FindMemoryType(physicalDevice, memoryRequirements.MemoryTypeBits, MemoryPropertyFlags.DeviceLocalBit)
             };
 
-            VkDeviceMemory memory;
+            DeviceMemory memory;
             vkAllocateMemory(logicalDevice, &memoryAllocateInfo, null, &memory);
 
             // Bind memory and acceleration structure
             VkBindAccelerationStructureMemoryInfoKHR bindInfo = new VkBindAccelerationStructureMemoryInfoKHR
             {
-                sType = VkStructureType.StructureTypeBindAccelerationStructureMemoryInfoKHR,
+                sType = StructureType.StructureTypeBindAccelerationStructureMemoryInfoKHR,
                 accelerationStructure = accelerationStructure,
                 memory = memory
             };

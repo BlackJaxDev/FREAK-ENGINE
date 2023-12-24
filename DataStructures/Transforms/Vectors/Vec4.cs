@@ -5,7 +5,10 @@ namespace XREngine.Data.Transforms.Vectors
     [StructLayout(LayoutKind.Sequential, Pack = 0)]
     public unsafe struct Vec4
     {
-        public float x, y, z, w;
+        public float x;
+        public float w;
+        public float z;
+        public float y;
 
         public float this[int index]
         {
@@ -53,6 +56,11 @@ namespace XREngine.Data.Transforms.Vectors
         public static Vec4 One { get; } = new(1.0f, 1.0f, 1.0f, 1.0f);
         public static Vec4 Max { get; } = new(float.MaxValue);
         public static Vec4 Min { get; } = new(float.MinValue);
+
+        public float W { get => w; set => w = value; }
+        public float Z { get => z; set => z = value; }
+        public float Y { get => y; set => y = value; }
+        public float X { get => x; set => x = value; }
 
         /// <summary>
         /// Returns a normalized version of this vector.

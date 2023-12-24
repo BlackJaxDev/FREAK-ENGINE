@@ -9,8 +9,8 @@ namespace XREngine.Data.Geometry
     /// </summary>
     public struct BoundingBox
     {
-        public Vector3 Min;
-        public Vector3 Max;
+        private Vector3 min;
+        private Vector3 max;
 
         public BoundingBox(Vector3 min, Vector3 max)
         {
@@ -56,6 +56,9 @@ namespace XREngine.Data.Geometry
         }
 
         public float Volume => Size.X * Size.Y * Size.Z;
+
+        public Vector3 Min { get => min; set => min = value; }
+        public Vector3 Max { get => max; set => max = value; }
 
         public bool Contains(Vector3 point)
             => Vector3.Min(Min, point) == Min && Vector3.Max(Max, point) == Max;

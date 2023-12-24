@@ -38,7 +38,7 @@ namespace XREngine.Server.LoadBalance
                 var message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
 
                 // Create a new room
-                else if (
+                if (
                     message.StartsWith("create_room") ||
                     message.StartsWith("list_rooms") ||
                     message.StartsWith("select_room"))

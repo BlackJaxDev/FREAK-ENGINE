@@ -8,7 +8,7 @@ using XREngine.Rendering.Graphics.Renderers;
 
 namespace XREngine.Rendering
 {
-    public unsafe partial class OpenXR : AbstractRenderer
+    public unsafe partial class OpenXR : AbstractRenderer<XR>
     {
         /// <summary>
         /// https://registry.khronos.org/OpenXR/specs/1.0/html/xrspec.html#XR_KHR_vulkan_enable
@@ -31,8 +31,8 @@ namespace XREngine.Rendering
             XR_KHR_vulkan_enable2,
             XR_HTCX_vive_tracker_interaction,
         };
+        protected override XR GenerateAPI() => XR.GetApi();
 
-        public static XR API { get; } = XR.GetApi();
         public static ExtensionProperties[]? Extensions { get; set; }
 
         private static void EnsureResult(Result result)
@@ -131,6 +131,31 @@ namespace XREngine.Rendering
         public static void Cleanup()
         {
 
+        }
+
+        protected override bool LoadExt<T>(out T? output)
+        {
+
+        }
+
+        protected override void InitAPI()
+        {
+
+        }
+
+        protected override void CleanUp()
+        {
+
+        }
+
+        protected override void DrawFrame(double delta)
+        {
+
+        }
+
+        protected override bool LoadExt<T>(out T? output) where T : default
+        {
+            throw new NotImplementedException();
         }
     }
 }
