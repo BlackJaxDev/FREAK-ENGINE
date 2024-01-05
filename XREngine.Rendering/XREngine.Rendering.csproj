@@ -9,6 +9,15 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Pipeline\**" />
+    <Compile Remove="Shaders\SoftBody\**" />
+    <EmbeddedResource Remove="Pipeline\**" />
+    <EmbeddedResource Remove="Shaders\SoftBody\**" />
+    <None Remove="Pipeline\**" />
+    <None Remove="Shaders\SoftBody\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Remove="Graphics\Renderers\Vulkan\VulkanContext.cs" />
   </ItemGroup>
 
@@ -28,13 +37,8 @@
     <PackageReference Include="Silk.NET.Vulkan.Extensions.EXT" Version="2.17.1" />
     <PackageReference Include="SixLabors.ImageSharp" Version="3.0.1" />
     <PackageReference Include="SixLabors.ImageSharp.Web" Version="3.0.1" />
-    <PackageReference Include="SkiaSharp" Version="2.88.3" />
+    <PackageReference Include="SkiaSharp" Version="2.88.6" />
     <PackageReference Include="VulkanSharp" Version="0.1.10" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Pipeline\" />
-    <Folder Include="Shaders\SoftBody\" />
   </ItemGroup>
 
   <ItemGroup>
