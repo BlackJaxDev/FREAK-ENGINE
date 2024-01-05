@@ -1,8 +1,6 @@
 ﻿using Extensions;
 using System.Numerics;
-using XREngine.Data.Transforms;
 using XREngine.Data.Transforms.Rotations;
-using XREngine.Data.Transforms.Vectors;
 using static System.Math;
 
 namespace XREngine.Data
@@ -68,11 +66,11 @@ namespace XREngine.Data
         /// <summary>
         /// Converts the given value in degrees to radians.
         /// </summary>
-        public static Vec2 DegToRad(Vec2 degrees) => degrees * DegToRadMultf;
+        public static Vector2 DegToRad(Vector2 degrees) => degrees * DegToRadMultf;
         /// <summary>
         /// Converts the given value in radians to degrees.
         /// </summary>
-        public static Vec2 RadToDeg(Vec2 radians) => radians * RadToDegMultf;
+        public static Vector2 RadToDeg(Vector2 radians) => radians * RadToDegMultf;
         /// <summary>
         /// Converts the given value in degrees to radians.
         /// </summary>
@@ -133,25 +131,25 @@ namespace XREngine.Data
             return y * (1.5f - 0.5f * x * y * y);
         }
 
-        public static void CartesianToPolarDeg(Vec2 vector, out float angle, out float radius)
+        public static void CartesianToPolarDeg(Vector2 vector, out float angle, out float radius)
         {
-            radius = vector.Length;
-            angle = Atan2df(vector.y, vector.x);
+            radius = vector.Length();
+            angle = Atan2df(vector.Y, vector.X);
         }
-        public static void CartesianToPolarRad(Vec2 vector, out float angle, out float radius)
+        public static void CartesianToPolarRad(Vector2 vector, out float angle, out float radius)
         {
-            radius = vector.Length;
-            angle = Atan2f(vector.y, vector.x);
+            radius = vector.Length();
+            angle = Atan2f(vector.Y, vector.X);
         }
-        public static Vec2 PolarToCartesianDeg(float degree, float radius)
+        public static Vector2 PolarToCartesianDeg(float degree, float radius)
         {
             SinCosdf(degree, out float sin, out float cos);
-            return new Vec2(cos * radius, sin * radius);
+            return new Vector2(cos * radius, sin * radius);
         }
-        public static Vec2 PolarToCartesianRad(float radians, float radius)
+        public static Vector2 PolarToCartesianRad(float radians, float radius)
         {
             SinCosf(radians, out float sin, out float cos);
-            return new Vec2(cos * radius, sin * radius);
+            return new Vector2(cos * radius, sin * radius);
         }
 
         /// <summary>
@@ -172,8 +170,8 @@ namespace XREngine.Data
             Vector3 cameraRightDir)
             => ArcballTranslation(
                 Quaternion.CreateFromAxisAngle(Globals.Up, yaw) *
-                Quaternion.CreateFromAxisAngle(cameraRightDir, pitch), 
-                focusPoint, 
+                Quaternion.CreateFromAxisAngle(cameraRightDir, pitch),
+                focusPoint,
                 cameraPoint);
 
         /// <summary>
@@ -189,7 +187,7 @@ namespace XREngine.Data
             Vector3 focusPoint,
             Vector3 cameraPoint)
             => focusPoint + Vector3.Transform(cameraPoint - focusPoint, rotation);
-        
+
         /// <summary>
         /// Returns the sine and cosine of a radian angle simultaneously as doubles.
         /// </summary>
@@ -452,10 +450,10 @@ namespace XREngine.Data
         /// </summary>
         public static float AngleBetween(Vector3 vector1, Vector3 vector2)
         {
-            vector1.Normalize();
-            vector2.Normalize();
+            vector1 = Vector3.Normalize(vector1);
+            vector2 = Vector3.Normalize(vector2);
 
-            float dot = vector1 | vector2;
+            float dot = Vector3.Dot(vector1, vector2);
 
             //dot is the cosine adj/hyp ratio between the two vectors, so
             //dot == 1 is same direction
@@ -484,8 +482,8 @@ namespace XREngine.Data
             //dot == -1 is opposite direction
             //dot == 0 is a 90 degree angle
 
-            return dot > 0.999f || dot < -0.999f 
-                ? Globals.Forward 
+            return dot > 0.999f || dot < -0.999f
+                ? Globals.Forward
                 : Vector3.Cross(initialVector, finalVector);
         }
         /// <summary>
@@ -541,7 +539,7 @@ namespace XREngine.Data
             return nonLinearDepth;
         }
 
-        public static Vector3 JacobiMethod(Matrix inputMatrix, Vector3 expectedOutcome, int iterations)
+        public static Vector3 JacobiMethod(Matrix4x4 inputMatrix, Vector3 expectedOutcome, int iterations)
         {
             Vector3 solvedVector = Vector3.Zero;
             for (int step = 0; step < iterations; ++step)
@@ -560,9 +558,9 @@ namespace XREngine.Data
             }
             return solvedVector;
         }
-        public static Vec4 JacobiMethod(Matrix inputMatrix, Vec4 expectedOutcome, int iterations)
+        public static Vector4 JacobiMethod(Matrix4x4 inputMatrix, Vector4 expectedOutcome, int iterations)
         {
-            Vec4 solvedVector = Vec4.Zero;
+            Vector4 solvedVector = Vector4.Zero;
             for (int step = 0; step < iterations; ++step)
             {
                 for (int row = 0; row < 4; ++row)
@@ -580,42 +578,71 @@ namespace XREngine.Data
             return solvedVector;
         }
 
+        private static Vector2 AsVector2(Vector3 v3)
+            => new Vector2(v3.X, v3.Y);
+
+        private static Vector3 AsVector3(Vector2 v2)
+            => new Vector3(v2.X, v2.Y, 0.0f);
+
+        /// <summary>
+        /// Returns a YPR rotator looking from the origin to the end of this vector.
+        /// </summary>
+        public static Rotator LookatAngles(Vector3 vector) => new(
+            RadToDeg(GetPitchAfterYaw(vector)),
+            RadToDeg(GetYaw(vector)),
+            0.0f);
+
+        public static float GetYaw(Vector3 vector)
+            => MathF.Atan2(-vector.X, -vector.Z);
+
+        public static float GetPitchAfterYaw(Vector3 vector)
+            => MathF.Atan2(vector.Y, MathF.Sqrt(vector.X * vector.X + vector.Z * vector.Z));
+
         #region Transforms
-        public static Vector3 RotateAboutPoint(Vector3 point, Vector3 center, Rotator angles) =>
-            point *
-            (Matrix.CreateTranslation(center) *
-            Matrix.CreateTranslation(-center) *
-            angles.GetMatrix());
+        public static Vector3 RotateAboutPoint(Vector3 point, Vector3 center, Rotator angles)
+            => TransformAboutPoint(point, center, angles.GetMatrix());
+        public static Vector3 RotateAboutPoint(Vector3 point, Vector3 center, Quaternion rotation)
+            => TransformAboutPoint(point, center, Matrix4x4.CreateFromQuaternion(rotation));
+        public static Vector3 ScaleAboutPoint(Vector3 point, Vector3 center, Vector3 scale)
+            => TransformAboutPoint(point, center, Matrix4x4.CreateScale(scale));
+        public static Vector2 RotateAboutPoint2D(Vector2 point, Vector2 center, float angle)
+            => AsVector2(TransformAboutPoint(AsVector3(point), AsVector3(center), Matrix4x4.CreateRotationZ(angle)));
+        public static Vector2 ScaleAboutPoint2D(Vector2 point, Vector2 center, Vector2 scale)
+        {
+            Vector3 result = Vector3.Transform(new Vector3(point, 0.0f),
+            Matrix4x4.CreateTranslation(new Vector3(center, 0.0f)) *
+            Matrix4x4.CreateTranslation(new Vector3(-center, 0.0f)) *
+            Matrix4x4.CreateScale(scale.X, scale.Y, 1.0f));
+            return new Vector2(result.X, result.Y);
+        }
 
-        public static Vector3 RotateAboutPoint(Vector3 point, Vector3 center, Quat rotation) =>
-            point *
-            (Matrix.CreateTranslation(center) *
-            Matrix.CreateTranslation(-center) *
-            Matrix.CreateFromQuaternion(rotation));
+        public static Vector3 TransformAboutPoint(Vector3 point, Vector3 center, Matrix4x4 transform) =>
+            Vector3.Transform(point, MatrixAboutPivot(center, transform));
 
-        public static Vector3 ScaleAboutPoint(Vector3 point, Vector3 center, Vector3 scale) => 
-            point * 
-            (Matrix.CreateTranslation(center) * 
-            Matrix.CreateTranslation(-center) * 
-            Matrix.CreateScale(scale));
+        /// <summary>
+        /// Creates a transformation matrix that operates about the pivot point.
+        /// </summary>
+        /// <param name="pivot"></param>
+        /// <param name="transform"></param>
+        /// <returns></returns>
+        private static Matrix4x4 MatrixAboutPivot(Vector3 pivot, Matrix4x4 transform)
+            => FromOriginMatrix(pivot) * transform * ToOriginMatrix(pivot);
 
-        public static Vec2 RotateAboutPoint(Vec2 point, Vec2 center, float angle) =>
-            (Vec2)((Vector3)point * 
-            (Matrix.CreateTranslation(center) * 
-            Matrix.CreateTranslation(-center) * 
-            Matrix.CreateRotationZ(angle)));
+        /// <summary>
+        /// Adds back the translation from the origin
+        /// </summary>
+        /// <param name="center"></param>
+        /// <returns></returns>
+        private static Matrix4x4 FromOriginMatrix(Vector3 center)
+            => Matrix4x4.CreateTranslation(center);
 
-        public static Vec2 ScaleAboutPoint(Vec2 point, Vec2 center, Vec2 scale) => 
-            (Vec2)((Vector3)point * 
-            (Matrix.CreateTranslation(center) * 
-            Matrix.CreateTranslation(-center) * 
-            Matrix.CreateScale(scale.X, scale.Y, 1.0f)));
-
-        public static Vector3 TransformAboutPoint(Vector3 point, Vector3 center, Matrix transform) =>
-            point * 
-            (Matrix.CreateTranslation(center) * 
-            Matrix.CreateTranslation(-center) * 
-            transform);
+        /// <summary>
+        /// Removes the translation from the origin
+        /// </summary>
+        /// <param name="center"></param>
+        /// <returns></returns>
+        private static Matrix4x4 ToOriginMatrix(Vector3 center)
+            => Matrix4x4.CreateTranslation(-center);
 
         #endregion
 
@@ -683,9 +710,9 @@ namespace XREngine.Data
                 max = Math.Max(max, values[i]);
             return max;
         }
-        public static Vec2 ComponentMax(params Vec2[] values)
+        public static Vector2 ComponentMax(params Vector2[] values)
         {
-            Vec2 max = Vec2.Min;
+            Vector2 max = new Vector2(float.MinValue);
             for (int i = 0; i < 2; ++i)
                 for (int x = 0; x < values.Length; x++)
                     max[i] = Math.Max(max[i], values[x][i]);
@@ -693,15 +720,15 @@ namespace XREngine.Data
         }
         public static Vector3 ComponentMax(params Vector3[] values)
         {
-            Vector3 max = Vector3.Min;
+            Vector3 max = new Vector3(float.MinValue);
             for (int i = 0; i < 3; ++i)
                 for (int x = 0; x < values.Length; x++)
                     max[i] = Math.Max(max[i], values[x][i]);
             return max;
         }
-        public static Vec4 ComponentMax(params Vec4[] values)
+        public static Vector4 ComponentMax(params Vector4[] values)
         {
-            Vec4 max = Vec4.Min;
+            Vector4 max = new Vector4(float.MinValue);
             for (int i = 0; i < 4; ++i)
                 for (int x = 0; x < values.Length; x++)
                     max[i] = Math.Max(max[i], values[x][i]);
@@ -770,9 +797,9 @@ namespace XREngine.Data
                 min = Math.Min(min, values[i]);
             return min;
         }
-        public static Vec2 ComponentMin(params Vec2[] values)
+        public static Vector2 ComponentMin(params Vector2[] values)
         {
-            Vec2 min = Vec2.Max;
+            Vector2 min = Globals.Max.Vector2;
             for (int i = 0; i < 2; ++i)
                 for (int x = 0; x < values.Length; x++)
                     min[i] = Math.Min(min[i], values[x][i]);
@@ -780,15 +807,15 @@ namespace XREngine.Data
         }
         public static Vector3 ComponentMin(params Vector3[] values)
         {
-            Vector3 min = Vector3.Max;
+            Vector3 min = Globals.Max.Vector3;
             for (int i = 0; i < 3; ++i)
                 for (int x = 0; x < values.Length; x++)
                     min[i] = Math.Min(min[i], values[x][i]);
             return min;
         }
-        public static Vec4 ComponentMin(params Vec4[] values)
+        public static Vector4 ComponentMin(params Vector4[] values)
         {
-            Vec4 min = Vec4.Max;
+            Vector4 min = Globals.Max.Vector4;
             for (int i = 0; i < 4; ++i)
                 for (int x = 0; x < values.Length; x++)
                     min[i] = Math.Min(min[i], values[x][i]);
@@ -806,10 +833,10 @@ namespace XREngine.Data
                 max = Math.Max(max, value);
             }
         }
-        public static void ComponentMinMax(out Vec2 min, out Vec2 max, params Vec2[] values)
+        public static void ComponentMinMax(out Vector2 min, out Vector2 max, params Vector2[] values)
         {
-            min = Vec2.Max;
-            max = Vec2.Min;
+            min = Globals.Max.Vector2;
+            max = Globals.Min.Vector2;
             float value;
             for (int i = 0; i < 2; ++i)
                 for (int x = 0; x < values.Length; x++)
@@ -821,8 +848,8 @@ namespace XREngine.Data
         }
         public static void ComponentMinMax(out Vector3 min, out Vector3 max, params Vector3[] values)
         {
-            min = Vector3.Max;
-            max = Vector3.Min;
+            min = Globals.Max.Vector3;
+            max = Globals.Min.Vector3;
             float value;
             for (int i = 0; i < 3; ++i)
                 for (int x = 0; x < values.Length; x++)
@@ -832,10 +859,10 @@ namespace XREngine.Data
                     max[i] = Math.Max(max[i], value);
                 }
         }
-        public static void ComponentMinMax(out Vec4 min, out Vec4 max, params Vec4[] values)
+        public static void ComponentMinMax(out Vector4 min, out Vector4 max, params Vector4[] values)
         {
-            min = Vec4.Max;
-            max = Vec4.Min;
+            min = Globals.Max.Vector4;
+            max = Globals.Min.Vector4;
             float value;
             for (int i = 0; i < 4; ++i)
                 for (int x = 0; x < values.Length; x++)
