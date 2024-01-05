@@ -76,11 +76,11 @@ namespace XREngine.Data
         /// <summary>
         /// Converts the given value in degrees to radians.
         /// </summary>
-        public static Vec3 DegToRad(Vec3 degrees) => degrees * DegToRadMultf;
+        public static Vector3 DegToRad(Vector3 degrees) => degrees * DegToRadMultf;
         /// <summary>
         /// Converts the given value in radians to degrees.
         /// </summary>
-        public static Vec3 RadToDeg(Vec3 radians) => radians * RadToDegMultf;
+        public static Vector3 RadToDeg(Vector3 radians) => radians * RadToDegMultf;
 
         /// <summary>
         /// Returns the most significant decimal digit.
@@ -164,8 +164,18 @@ namespace XREngine.Data
         /// <param name="cameraPoint">The point to move.</param>
         /// <param name="cameraRightDir">The direction representing the right side of a camera. This is the reference axis rotated around (at the focusPoint) using the pitch value.</param>
         /// <returns></returns>
-        public static Vec3 ArcballTranslation(float pitch, float yaw, Vec3 focusPoint, Vec3 cameraPoint, Vec3 cameraRightDir)
-            => ArcballTranslation(Quat.FromAxisAngleDeg(Vec3.Up, yaw) * Quat.FromAxisAngleDeg(cameraRightDir, pitch), focusPoint, cameraPoint);
+        public static Vector3 ArcballTranslation(
+            float pitch,
+            float yaw,
+            Vector3 focusPoint,
+            Vector3 cameraPoint,
+            Vector3 cameraRightDir)
+            => ArcballTranslation(
+                Quaternion.CreateFromAxisAngle(Globals.Up, yaw) *
+                Quaternion.CreateFromAxisAngle(cameraRightDir, pitch), 
+                focusPoint, 
+                cameraPoint);
+
         /// <summary>
         /// Returns a translation value representing a rotation of the cameraPoint around the focusPoint.
         /// Assumes the Y axis is up. Yaw is performed before pitch.
@@ -174,9 +184,12 @@ namespace XREngine.Data
         /// <param name="focusPoint">The point to rotate around.</param>
         /// <param name="cameraPoint">The point to move.</param>
         /// <returns></returns>
-        public static Vec3 ArcballTranslation(Quat rotation, Vec3 focusPoint, Vec3 cameraPoint)
-            => focusPoint + rotation * (cameraPoint - focusPoint);
-
+        public static Vector3 ArcballTranslation(
+            Quaternion rotation,
+            Vector3 focusPoint,
+            Vector3 cameraPoint)
+            => focusPoint + Vector3.Transform(cameraPoint - focusPoint, rotation);
+        
         /// <summary>
         /// Returns the sine and cosine of a radian angle simultaneously as doubles.
         /// </summary>
@@ -412,18 +425,18 @@ namespace XREngine.Data
                 return false;
             }
         }
-        public static Vec3 Morph(Vec3 baseCoord, (Vec3 Position, float Weight)[] targets, bool relative = false)
+        public static Vector3 Morph(Vector3 baseCoord, (Vector3 Position, float Weight)[] targets, bool relative = false)
         {
             if (relative)
             {
-                Vec3 morphed = baseCoord;
+                Vector3 morphed = baseCoord;
                 foreach (var (Position, Weight) in targets)
                     morphed += Position * Weight;
                 return morphed;
             }
             else
             {
-                Vec3 morphed = Vec3.Zero;
+                Vector3 morphed = Vector3.Zero;
                 float weightSum = 0.0f;
                 foreach (var (Position, Weight) in targets)
                 {
@@ -437,7 +450,7 @@ namespace XREngine.Data
         /// <summary>
         /// Returns the angle between two vectors.
         /// </summary>
-        public static float AngleBetween(Vec3 vector1, Vec3 vector2)
+        public static float AngleBetween(Vector3 vector1, Vector3 vector2)
         {
             vector1.Normalize();
             vector2.Normalize();
@@ -459,32 +472,31 @@ namespace XREngine.Data
         /// <summary>
         /// Returns the rotation axis direction vector that is perpendicular to the two vectors.
         /// </summary>
-        public static Vec3 AxisBetween(Vec3 initialVector, Vec3 finalVector)
+        public static Vector3 AxisBetween(Vector3 initialVector, Vector3 finalVector)
         {
-            initialVector.Normalize();
-            finalVector.Normalize();
+            initialVector = Vector3.Normalize(initialVector);
+            finalVector = Vector3.Normalize(finalVector);
 
-            float dot = initialVector | finalVector;
+            float dot = Vector3.Dot(initialVector, finalVector);
 
             //dot is the cosine adj/hyp ratio between the two vectors, so
             //dot == 1 is same direction
             //dot == -1 is opposite direction
             //dot == 0 is a 90 degree angle
 
-            if (dot > 0.999f || dot < -0.999f)
-                return Vec3.Forward;
-            else
-                return initialVector ^ finalVector;
+            return dot > 0.999f || dot < -0.999f 
+                ? Globals.Forward 
+                : Vector3.Cross(initialVector, finalVector);
         }
         /// <summary>
         /// Returns a rotation axis and angle between two vectors.
         /// </summary>
-        public static void AxisAngleBetween(Vec3 initialVector, Vec3 finalVector, out Vec3 axis, out float angle)
+        public static void AxisAngleBetween(Vector3 initialVector, Vector3 finalVector, out Vector3 axis, out float angle)
         {
-            initialVector.Normalize();
-            finalVector.Normalize();
+            initialVector = Vector3.Normalize(initialVector);
+            finalVector = Vector3.Normalize(finalVector);
 
-            float dot = initialVector | finalVector;
+            float dot = Vector3.Dot(initialVector, finalVector);
 
             //dot is the cosine adj/hyp ratio between the two vectors, so
             //dot == 1 is same direction
@@ -493,17 +505,17 @@ namespace XREngine.Data
 
             if (dot > 0.999f)
             {
-                axis = -Vec3.Forward;
+                axis = Globals.Backward;
                 angle = 0.0f;
             }
             else if (dot < -0.999f)
             {
-                axis = -Vec3.Forward;
+                axis = -Globals.Backward;
                 angle = 180.0f;
             }
             else
             {
-                axis = initialVector ^ finalVector;
+                axis = Vector3.Cross(initialVector, finalVector);
                 angle = RadToDeg((float)Acos(dot));
             }
         }
@@ -529,9 +541,9 @@ namespace XREngine.Data
             return nonLinearDepth;
         }
 
-        public static Vec3 JacobiMethod(Matrix inputMatrix, Vec3 expectedOutcome, int iterations)
+        public static Vector3 JacobiMethod(Matrix inputMatrix, Vector3 expectedOutcome, int iterations)
         {
-            Vec3 solvedVector = Vec3.Zero;
+            Vector3 solvedVector = Vector3.Zero;
             for (int step = 0; step < iterations; ++step)
             {
                 for (int row = 0; row < 3; ++row)
@@ -569,37 +581,37 @@ namespace XREngine.Data
         }
 
         #region Transforms
-        public static Vec3 RotateAboutPoint(Vec3 point, Vec3 center, Rotator angles) =>
+        public static Vector3 RotateAboutPoint(Vector3 point, Vector3 center, Rotator angles) =>
             point *
             (Matrix.CreateTranslation(center) *
             Matrix.CreateTranslation(-center) *
             angles.GetMatrix());
 
-        public static Vec3 RotateAboutPoint(Vec3 point, Vec3 center, Quat rotation) =>
+        public static Vector3 RotateAboutPoint(Vector3 point, Vector3 center, Quat rotation) =>
             point *
             (Matrix.CreateTranslation(center) *
             Matrix.CreateTranslation(-center) *
             Matrix.CreateFromQuaternion(rotation));
 
-        public static Vec3 ScaleAboutPoint(Vec3 point, Vec3 center, Vec3 scale) => 
+        public static Vector3 ScaleAboutPoint(Vector3 point, Vector3 center, Vector3 scale) => 
             point * 
             (Matrix.CreateTranslation(center) * 
             Matrix.CreateTranslation(-center) * 
             Matrix.CreateScale(scale));
 
         public static Vec2 RotateAboutPoint(Vec2 point, Vec2 center, float angle) =>
-            (Vec2)((Vec3)point * 
+            (Vec2)((Vector3)point * 
             (Matrix.CreateTranslation(center) * 
             Matrix.CreateTranslation(-center) * 
             Matrix.CreateRotationZ(angle)));
 
         public static Vec2 ScaleAboutPoint(Vec2 point, Vec2 center, Vec2 scale) => 
-            (Vec2)((Vec3)point * 
+            (Vec2)((Vector3)point * 
             (Matrix.CreateTranslation(center) * 
             Matrix.CreateTranslation(-center) * 
             Matrix.CreateScale(scale.X, scale.Y, 1.0f)));
 
-        public static Vec3 TransformAboutPoint(Vec3 point, Vec3 center, Matrix transform) =>
+        public static Vector3 TransformAboutPoint(Vector3 point, Vector3 center, Matrix transform) =>
             point * 
             (Matrix.CreateTranslation(center) * 
             Matrix.CreateTranslation(-center) * 
@@ -679,9 +691,9 @@ namespace XREngine.Data
                     max[i] = Math.Max(max[i], values[x][i]);
             return max;
         }
-        public static Vec3 ComponentMax(params Vec3[] values)
+        public static Vector3 ComponentMax(params Vector3[] values)
         {
-            Vec3 max = Vec3.Min;
+            Vector3 max = Vector3.Min;
             for (int i = 0; i < 3; ++i)
                 for (int x = 0; x < values.Length; x++)
                     max[i] = Math.Max(max[i], values[x][i]);
@@ -766,9 +778,9 @@ namespace XREngine.Data
                     min[i] = Math.Min(min[i], values[x][i]);
             return min;
         }
-        public static Vec3 ComponentMin(params Vec3[] values)
+        public static Vector3 ComponentMin(params Vector3[] values)
         {
-            Vec3 min = Vec3.Max;
+            Vector3 min = Vector3.Max;
             for (int i = 0; i < 3; ++i)
                 for (int x = 0; x < values.Length; x++)
                     min[i] = Math.Min(min[i], values[x][i]);
@@ -807,10 +819,10 @@ namespace XREngine.Data
                     max[i] = Math.Max(max[i], value);
                 }
         }
-        public static void ComponentMinMax(out Vec3 min, out Vec3 max, params Vec3[] values)
+        public static void ComponentMinMax(out Vector3 min, out Vector3 max, params Vector3[] values)
         {
-            min = Vec3.Max;
-            max = Vec3.Min;
+            min = Vector3.Max;
+            max = Vector3.Min;
             float value;
             for (int i = 0; i < 3; ++i)
                 for (int x = 0; x < values.Length; x++)
