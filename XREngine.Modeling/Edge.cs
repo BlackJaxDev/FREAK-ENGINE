@@ -1,8 +1,8 @@
-﻿namespace XREngine.Data.XMath.Geometry
+﻿namespace XREngine.Modeling
 {
     public partial class MeshGenerator
     {
-        private struct Edge : IEquatable<Edge>
+        private readonly struct Edge : IEquatable<Edge>
         {
             public readonly int vertex1;
             public readonly int vertex2;

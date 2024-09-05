@@ -1,0 +1,54 @@
+﻿using XREngine.Data.Core;
+
+namespace XREngine.Rendering
+{
+    /// <summary>
+    /// This is the base class for all objects that are allocated by the rendering api (opengl, vulkan, etc).
+    /// </summary>
+    public abstract class AbstractRenderAPIObject : XRBase, IDisposable
+    {
+        public XRWindow Window { get; }
+
+        public AbstractRenderAPIObject(XRWindow window)
+        {
+            Window = window;
+            Generate();
+        }
+
+        private bool disposedValue;
+
+        public abstract bool IsGenerated { get; }
+        public abstract void Generate();
+        public abstract void Destroy();
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    // TODO: dispose managed state (managed objects)
+                }
+
+                // TODO: free unmanaged resources (unmanaged objects) and override finalizer
+                // TODO: set large fields to null
+                Destroy();
+                disposedValue = true;
+            }
+        }
+
+        // TODO: override finalizer only if 'Dispose(bool disposing)' has code to free unmanaged resources
+        ~AbstractRenderAPIObject()
+        {
+            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+            Dispose(disposing: false);
+        }
+
+        public void Dispose()
+        {
+            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
+    }
+}

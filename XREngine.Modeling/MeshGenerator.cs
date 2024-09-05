@@ -1,19 +1,18 @@
 ﻿using System.Numerics;
-using XREngine.Data.Transforms.Vectors;
 
-namespace XREngine.Data.XMath.Geometry
+namespace XREngine.Modeling
 {
     public partial class MeshGenerator
     {
-        public List<Vec3> Vertices { get; private set; }
+        public List<Vector3> Vertices { get; private set; }
         public List<int> Indices { get; private set; }
-        public List<Vec3> Normals { get; private set; }
+        public List<Vector3> Normals { get; private set; }
 
         private MeshGenerator()
         {
-            Vertices = new List<Vec3>();
+            Vertices = new List<Vector3>();
             Indices = new List<int>();
-            Normals = new List<Vec3>();
+            Normals = new List<Vector3>();
         }
         private int GetMiddlePoint(int p1, int p2, float radius, IDictionary<long, int> cache)
         {
@@ -21,9 +20,9 @@ namespace XREngine.Data.XMath.Geometry
             if (cache.TryGetValue(key, out int value))
                 return value;
             
-            Vec3 point1 = Vertices[p1];
-            Vec3 point2 = Vertices[p2];
-            Vec3 middle = ((point1 + point2) / 2).Normalized() * radius;
+            Vector3 point1 = Vertices[p1];
+            Vector3 point2 = Vertices[p2];
+            Vector3 middle = Vector3.Normalize((point1 + point2) * 0.5f) * radius;
 
             int newIndex = AddVertex(middle);
             cache[key] = newIndex;
@@ -39,20 +38,20 @@ namespace XREngine.Data.XMath.Geometry
         {
             float t = (1.0f + (float)Math.Sqrt(5.0)) / 2.0f;
 
-            AddVertex(new Vec3(-1, t, 0) * radius);
-            AddVertex(new Vec3(1, t, 0) * radius);
-            AddVertex(new Vec3(-1, -t, 0) * radius);
-            AddVertex(new Vec3(1, -t, 0) * radius);
+            AddVertex(new Vector3(-1, t, 0) * radius);
+            AddVertex(new Vector3(1, t, 0) * radius);
+            AddVertex(new Vector3(-1, -t, 0) * radius);
+            AddVertex(new Vector3(1, -t, 0) * radius);
 
-            AddVertex(new Vec3(0, -1, t) * radius);
-            AddVertex(new Vec3(0, 1, t) * radius);
-            AddVertex(new Vec3(0, -1, -t) * radius);
-            AddVertex(new Vec3(0, 1, -t) * radius);
+            AddVertex(new Vector3(0, -1, t) * radius);
+            AddVertex(new Vector3(0, 1, t) * radius);
+            AddVertex(new Vector3(0, -1, -t) * radius);
+            AddVertex(new Vector3(0, 1, -t) * radius);
 
-            AddVertex(new Vec3(t, 0, -1) * radius);
-            AddVertex(new Vec3(t, 0, 1) * radius);
-            AddVertex(new Vec3(-t, 0, -1) * radius);
-            AddVertex(new Vec3(-t, 0, 1) * radius);
+            AddVertex(new Vector3(t, 0, -1) * radius);
+            AddVertex(new Vector3(t, 0, 1) * radius);
+            AddVertex(new Vector3(-t, 0, -1) * radius);
+            AddVertex(new Vector3(-t, 0, 1) * radius);
 
             int[][] faces =
             {
@@ -104,9 +103,9 @@ namespace XREngine.Data.XMath.Geometry
             
             for (int i = 0; i < Vertices.Count; i++)
             {
-                Vec3 vertex = Vertices[i].Normalized() * radius;
+                Vector3 vertex = Vector3.Normalize(Vertices[i]) * radius;
                 Vertices[i] = vertex;
-                Normals.Add(vertex.Normalized());
+                Normals.Add(Vector3.Normalize(vertex));
             }
         }
         public static MeshGenerator GenerateTwoHemisphere(float radius, int detailLevel)
@@ -132,9 +131,9 @@ namespace XREngine.Data.XMath.Geometry
                     float y = (float)(Math.Cos(phi));
                     float z = (float)(Math.Sin(theta) * Math.Sin(phi));
 
-                    Vec3 vertex = new Vec3(x, y, z) * radius;
+                    Vector3 vertex = new Vector3(x, y, z) * radius;
                     Vertices.Add(vertex);
-                    Normals.Add(vertex.Normalized());
+                    Normals.Add(Vector3.Normalize(vertex));
                 }
             }
 
@@ -150,9 +149,9 @@ namespace XREngine.Data.XMath.Geometry
                     float y = (float)(Math.Cos(phi));
                     float z = (float)(Math.Sin(theta) * Math.Sin(phi));
 
-                    Vec3 vertex = new Vec3(x, y, z) * radius;
+                    Vector3 vertex = new Vector3(x, y, z) * radius;
                     Vertices.Add(vertex);
-                    Normals.Add(vertex.Normalized());
+                    Normals.Add(Vector3.Normalize(vertex));
                 }
             }
 
@@ -206,9 +205,9 @@ namespace XREngine.Data.XMath.Geometry
                     float y = (float)(Math.Cos(phi));
                     float z = (float)(Math.Sin(theta) * Math.Sin(phi));
 
-                    Vec3 vertex = new Vec3(x, y, z) * radius;
+                    Vector3 vertex = new Vector3(x, y, z) * radius;
                     Vertices.Add(vertex);
-                    Normals.Add(vertex.Normalized());
+                    Normals.Add(Vector3.Normalize(vertex));
                 }
             }
 
@@ -231,9 +230,9 @@ namespace XREngine.Data.XMath.Geometry
                 }
             }
         }
-        public int AddVertex(Vec3 vertex)
+        public int AddVertex(Vector3 vertex)
         {
-            Vertices.Add(vertex.Normalized());
+            Vertices.Add(Vector3.Normalize(vertex));
             return Vertices.Count - 1;
         }
         public void AddTriangle(int a, int b, int c)
@@ -277,12 +276,12 @@ namespace XREngine.Data.XMath.Geometry
                 }
             }
 
-            Vec3[] newVertices = new Vec3[Vertices.Count + edgeVertices.Count];
+            Vector3[] newVertices = new Vector3[Vertices.Count + edgeVertices.Count];
             Array.Copy(Vertices.ToArray(), newVertices, Vertices.Count);
 
             foreach (var edge in edgeVertices)
             {
-                Vec3 midpoint = (Vertices[edge.Key.vertex1] + Vertices[edge.Key.vertex2]) * 0.5f;
+                Vector3 midpoint = (Vertices[edge.Key.vertex1] + Vertices[edge.Key.vertex2]) * 0.5f;
                 newVertices[edge.Value] = midpoint;
             }
 
@@ -321,15 +320,15 @@ namespace XREngine.Data.XMath.Geometry
 
         public void RecalculateNormals()
         {
-            Vec3[] normals = new Vec3[Vertices.Count];
+            Vector3[] normals = new Vector3[Vertices.Count];
             for (int i = 0; i < Indices.Count; i += 3)
             {
-                Vec3 v0 = Vertices[Indices[i]];
-                Vec3 v1 = Vertices[Indices[i + 1]];
-                Vec3 v2 = Vertices[Indices[i + 2]];
-                Vec3 edge1 = v1 - v0;
-                Vec3 edge2 = v2 - v0;
-                Vec3 normal = Vec3.Cross(edge1, edge2).Normalized();
+                Vector3 v0 = Vertices[Indices[i]];
+                Vector3 v1 = Vertices[Indices[i + 1]];
+                Vector3 v2 = Vertices[Indices[i + 2]];
+                Vector3 edge1 = v1 - v0;
+                Vector3 edge2 = v2 - v0;
+                Vector3 normal = Vector3.Normalize(Vector3.Cross(edge1, edge2));
 
                 normals[Indices[i]] += normal;
                 normals[Indices[i + 1]] += normal;
@@ -337,7 +336,7 @@ namespace XREngine.Data.XMath.Geometry
             }
 
             for (int i = 0; i < normals.Length; i++)
-                normals[i].Normalize();
+                Vector3.Normalize(normals[i]);
             
             Normals = normals.ToList();
         }

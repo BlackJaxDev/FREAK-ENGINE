@@ -1,19 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net7.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Google.Cloud.Speech.V1" Version="3.4.0" />
-    <PackageReference Include="Google.Cloud.TextToSpeech.V1" Version="3.2.0" />
-    <PackageReference Include="NAudio" Version="2.1.0" />
-    <PackageReference Include="Silk.NET.OpenAL" Version="2.17.1" />
-    <PackageReference Include="Silk.NET.OpenAL.Extensions.Creative" Version="2.17.1" />
-    <PackageReference Include="Silk.NET.OpenAL.Extensions.EXT" Version="2.17.1" />
-    <PackageReference Include="Silk.NET.OpenAL.Extensions.Soft" Version="2.17.1" />
+    <PackageReference Include="Google.Cloud.Speech.V1" Version="3.8.0" />
+    <PackageReference Include="Google.Cloud.TextToSpeech.V1" Version="3.6.0" />
+    <PackageReference Include="NAudio" Version="2.2.1" />
+    <PackageReference Include="Silk.NET.OpenAL" Version="2.21.0" />
+    <PackageReference Include="Silk.NET.OpenAL.Extensions.Creative" Version="2.21.0" />
+    <PackageReference Include="Silk.NET.OpenAL.Extensions.EXT" Version="2.21.0" />
+    <PackageReference Include="Silk.NET.OpenAL.Extensions.Soft" Version="2.21.0" />
   </ItemGroup>
 
 </Project>

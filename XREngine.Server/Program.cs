@@ -1,15 +1,18 @@
-﻿using XREngine.Server.LoadBalance;
-using XREngine.Server.LoadBalance.Balancers;
+﻿using XREngine.Networking.LoadBalance.Balancers;
 
-namespace XREngine.Server
+namespace XREngine.Networking
 {
+    /// <summary>
+    /// There will be several of these programs running on different machines.
+    /// The user is first directed to a load balancer server, which will then redirect them to a game host server.
+    /// </summary>
     public class Program
     {
-        private static LoadBalancingServer? _loadBalancingServer;
+        private static readonly CommandServer _loadBalancer;
 
-        public static async Task Main()
+        static Program()
         {
-            _loadBalancingServer = new LoadBalancingServer(
+            _loadBalancer = new CommandServer(
                 8000,
                 new RoundRobinLeastLoadBalancer(new[]
                 {
@@ -18,8 +21,11 @@ namespace XREngine.Server
                     new Server { IP = "192.168.0.4", Port = 8003 },
                 }),
                 new Authenticator(""));
+        }
 
-            await _loadBalancingServer.Start();
+        public static async Task Main()
+        {
+            await _loadBalancer.Start();
         }
     }
 }

@@ -1,15 +1,8 @@
-﻿namespace XREngine.Server.LoadBalance.Balancers
+﻿namespace XREngine.Networking.LoadBalance.Balancers
 {
-    public class RoundRobinLeastLoadBalancer : LoadBalancer
+    public class RoundRobinLeastLoadBalancer(IEnumerable<Server> servers, int roundRobinThreshold = 10) : LoadBalancer(servers)
     {
-        private int _currentIndex;
-        private int _roundRobinThreshold;
-
-        public RoundRobinLeastLoadBalancer(IEnumerable<Server> servers, int roundRobinThreshold = 10) : base(servers)
-        {
-            _currentIndex = 0;
-            _roundRobinThreshold = roundRobinThreshold;
-        }
+        private int _currentIndex = 0;
 
         public override Server? GetNextServer()
         {
@@ -19,8 +12,8 @@
                     return null;
 
                 // Use Round Robin for servers with load less than the threshold
-                var roundRobinServers = _servers.Where(s => s.CurrentLoad < _roundRobinThreshold).ToList();
-                if (roundRobinServers.Any())
+                var roundRobinServers = _servers.Where(s => s.CurrentLoad < roundRobinThreshold).ToList();
+                if (roundRobinServers.Count != 0)
                 {
                     var server = roundRobinServers[_currentIndex];
                     _currentIndex = (_currentIndex + 1) % roundRobinServers.Count;

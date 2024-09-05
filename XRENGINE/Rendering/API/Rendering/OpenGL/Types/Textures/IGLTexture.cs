@@ -1,0 +1,17 @@
+﻿using XREngine.Data.Colors;
+using XREngine.Data.Rendering;
+using static XREngine.Rendering.OpenGL.OpenGLRenderer;
+
+namespace XREngine.Rendering.OpenGL
+{
+    public interface IGLTexture : IGLObject
+    {
+        ETextureTarget TextureTarget { get; }
+        bool IsInvalidated { get; }
+        void Bind();
+        void Clear(ColorF4 color, int level = 0);
+        bool Invalidate();
+        void PushData();
+        string ResolveSamplerName(int textureIndex, string? samplerNameOverride);
+    }
+}

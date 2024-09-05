@@ -1,8 +1,8 @@
-﻿namespace XREngine.Server.LoadBalance
+﻿namespace XREngine.Networking.LoadBalance
 {
     public abstract class LoadBalancer
     {
-        protected readonly List<Server> _servers = new List<Server>();
+        protected readonly List<Server> _servers = [];
 
         public LoadBalancer(IEnumerable<Server> servers)
         {
@@ -24,20 +24,19 @@
 
         public abstract Server? GetNextServer();
 
-        public IEnumerable<Room> GetAvailableRooms()
+        public IEnumerable<Guid> GetAvailableInstances()
         {
-            return _servers.SelectMany(s => s.Rooms.Where(r => r.CurrentPlayers < r.MaxPlayers));
+            return _servers.SelectMany(s => s.Instances.Where(r => r.CurrentPlayers < r.MaxPlayers));
         }
 
-        public (Server? Server, Room? Room) GetRoomInfo(Guid roomId)
+        public (Server? server, Guid? instance) RequestInstanceServer(Guid roomId)
         {
             foreach (var server in _servers)
             {
-                var room = server.Rooms.FirstOrDefault(r => r.Id == roomId);
-                if (room != null)
-                {
-                    return (server, room);
-                }
+                if (!server.Instances.Contains(roomId))
+                    continue;
+
+                return (server, roomId);
             }
             return (null, null);
         }

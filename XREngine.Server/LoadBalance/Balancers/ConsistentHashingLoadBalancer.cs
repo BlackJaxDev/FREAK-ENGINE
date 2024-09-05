@@ -1,44 +1,32 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
 
-namespace XREngine.Server.LoadBalance.Balancers
+namespace XREngine.Networking.LoadBalance.Balancers
 {
-    public class ConsistentHashingLoadBalancer : LoadBalancer
+    public class ConsistentHashingLoadBalancer(IEnumerable<Server> servers, int replicas = 100) : LoadBalancer(servers)
     {
-        private readonly SortedDictionary<uint, Server> _circle;
-        private readonly int _replicas;
+        private readonly SortedDictionary<uint, Server> _circle = [];
 
-        public ConsistentHashingLoadBalancer(IEnumerable<Server> servers, int replicas = 100) : base(servers)
-        {
-            _circle = new SortedDictionary<uint, Server>();
-            _replicas = replicas;
-        }
+        private static string GetHashString(Server server, int i)
+            => $"{server.IP}:{server.Port}:{i}";
 
         public override void AddServer(Server server)
         {
-            for (int i = 0; i < _replicas; i++)
-            {
-                var hash = Hash($"{server.IP}:{server.Port}:{i}");
-                _circle[hash] = server;
-            }
+            for (int i = 0; i < replicas; i++)
+                _circle[Hash(GetHashString(server, i))] = server;
         }
-
+        
         public override void RemoveServer(Server server)
         {
-            for (int i = 0; i < _replicas; i++)
-            {
-                var hash = Hash($"{server.IP}:{server.Port}:{i}");
-                _circle.Remove(hash);
-            }
+            for (int i = 0; i < replicas; i++)
+                _circle.Remove(Hash(GetHashString(server, i)));
         }
 
-        public Server GetServer(string key)
+        public Server? GetServer(string key)
         {
             if (_circle.Count == 0)
-            {
                 return null;
-            }
-
+            
             var hash = Hash(key);
             if (!_circle.TryGetValue(hash, out var server))
             {
@@ -57,8 +45,7 @@ namespace XREngine.Server.LoadBalance.Balancers
 
         private static uint Hash(string input)
         {
-            using var md5 = MD5.Create();
-            var data = md5.ComputeHash(Encoding.UTF8.GetBytes(input));
+            var data = MD5.HashData(Encoding.UTF8.GetBytes(input));
             return (uint)(data[0] | data[1] << 8 | data[2] << 16 | data[3] << 24);
         }
     }

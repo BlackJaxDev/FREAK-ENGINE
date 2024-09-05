@@ -1,5 +1,4 @@
 ﻿using Silk.NET.OpenAL;
-using NAudio.Wave;
 using System.Numerics;
 
 namespace XREngine.Audio
