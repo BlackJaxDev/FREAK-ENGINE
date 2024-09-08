@@ -7,16 +7,11 @@ namespace XREngine.Components.Scene.Transforms
     /// <summary>
     /// Moves the scene node to the parent's position + an offset in local space, lagging behind by a specified amount for smooth movement.
     /// </summary>
-    public class TranslationLaggedComponent : TransformBase
+    public class LaggedTranslationTransform(TransformBase? parent, Vector3 translation) : TransformBase(parent)
     {
-        public TranslationLaggedComponent(TransformBase? parent) : this(parent, Vector3.Zero) { }
-        public TranslationLaggedComponent(TransformBase? parent, Vector3 translation) : base(parent)
-        {
-            _currentTranslation = translation;
-            MarkLocalModified();
-        }
+        public LaggedTranslationTransform(TransformBase? parent) : this(parent, Vector3.Zero) { }
 
-        protected Vector3 _currentTranslation;
+        protected Vector3 _currentTranslation = translation;
         protected Vector3 _desiredTranslation;
         protected float _invTransInterpSec = 40.0f;
 
@@ -33,13 +28,13 @@ namespace XREngine.Components.Scene.Transforms
         public float InverseTranslationInterpSeconds
         {
             get => _invTransInterpSec;
-            set => _invTransInterpSec = value;
+            set => SetField(ref _invTransInterpSec, value);
         }
 
         protected internal override void Start()
-            => RegisterTick(ETickGroup.DuringPhysics, (int)ETickOrder.Logic, Tick);
+            => RegisterTick(ETickGroup.Normal, (int)ETickOrder.Logic, Tick);
         protected internal override void Stop()
-            => UnregisterTick(ETickGroup.DuringPhysics, (int)ETickOrder.Logic, Tick);
+            => UnregisterTick(ETickGroup.Normal, (int)ETickOrder.Logic, Tick);
 
         protected virtual void Tick()
         {

@@ -5,11 +5,18 @@ namespace XREngine
 {
     public class GameWindowStartupSettings : XRBase
     {
-        private EWindowState _windowState;
+        private EWindowState _windowState = EWindowState.Windowed;
         private string? windowTitle;
         private int _width = 1920;
         private int _height = 1080;
         private XRWorld? _targetWorld;
+        private ELocalPlayerIndexMask _localPlayers = ELocalPlayerIndexMask.One;
+
+        public ELocalPlayerIndexMask LocalPlayers
+        {
+            get => _localPlayers;
+            set => SetField(ref _localPlayers, value);
+        }
 
         public string? WindowTitle
         {
@@ -36,5 +43,8 @@ namespace XREngine
             get => _windowState;
             set => SetField(ref _windowState, value);
         }
+        public int X { get; set; }
+        public int Y { get; set; }
+        public bool VSync { get; set; }
     }
 }

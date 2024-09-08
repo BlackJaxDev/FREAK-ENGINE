@@ -271,6 +271,8 @@ namespace XREngine.Scene
             if (_cells is null)
                 return [];
 
+            //Find a tetrahedron cell that contains the point.
+            //We'll use this group of probes to light whatever mesh is using the provided position as reference.
             LightProbeCell? cell = LightProbeTree.FindFirst(
                 item => item.CullingVolume?.Contains(position) ?? false,
                 bounds => bounds.Contains(position));

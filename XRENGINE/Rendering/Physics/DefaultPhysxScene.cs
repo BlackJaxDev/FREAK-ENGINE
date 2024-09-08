@@ -7,36 +7,36 @@ namespace XREngine.Scene
 {
     public unsafe class DefaultPhysxScene : PhysicsScene
     {
-        private PxPhysics* physics;
-        private PxCpuDispatcher* dispatcher;
-        private PxScene* scene;
+        //private PxPhysics* physics;
+        //private PxCpuDispatcher* dispatcher;
+        //private PxScene* scene;
 
         public override void Initialize()
         {
-            physics = physx_create_physics(physx_create_foundation());
-            var sceneDesc = PxSceneDesc_new(PxPhysics_getTolerancesScale(physics));
-            sceneDesc.gravity = new() { x = 0.0f, y = -9.81f, z = 0.0f };
+            //physics = physx_create_physics(physx_create_foundation());
+            //var sceneDesc = PxSceneDesc_new(PxPhysics_getTolerancesScale(physics));
+            //sceneDesc.gravity = new() { x = 0.0f, y = -9.81f, z = 0.0f };
 
-            dispatcher = (PxCpuDispatcher*)phys_PxDefaultCpuDispatcherCreate(1, null, PxDefaultCpuDispatcherWaitForWorkMode.WaitForWork, 0);
-            sceneDesc.cpuDispatcher = dispatcher;
-            sceneDesc.filterShader = get_default_simulation_filter_shader();
-            scene = physics->CreateSceneMut(&sceneDesc);
+            //dispatcher = (PxCpuDispatcher*)phys_PxDefaultCpuDispatcherCreate(1, null, PxDefaultCpuDispatcherWaitForWorkMode.WaitForWork, 0);
+            //sceneDesc.cpuDispatcher = dispatcher;
+            //sceneDesc.filterShader = get_default_simulation_filter_shader();
+            //scene = physics->CreateSceneMut(&sceneDesc);
 
-            var material = physics->CreateMaterialMut(0.5f, 0.5f, 0.6f);
+            //var material = physics->CreateMaterialMut(0.5f, 0.5f, 0.6f);
 
-            // create plane and add to scene
-            var plane = PxPlane_new_1(0.0f, 1.0f, 0.0f, 0.0f);
-            var groundPlane = physics->PhysPxCreatePlane(&plane, material);
-            scene->AddActorMut((PxActor*)groundPlane, null);
+            //// create plane and add to scene
+            //var plane = PxPlane_new_1(0.0f, 1.0f, 0.0f, 0.0f);
+            //var groundPlane = physics->PhysPxCreatePlane(&plane, material);
+            //scene->AddActorMut((PxActor*)groundPlane, null);
 
-            // create sphere and add to scene
-            var sphereGeo = PxSphereGeometry_new(10.0f);
-            var Vector3 = new PxVec3 { x = 0.0f, y = 40.0f, z = 100.0f };
-            var transform = PxTransform_new_1(&Vector3);
-            var identity = PxTransform_new_2(PxIDENTITY.PxIdentity);
-            var sphere = physics->PhysPxCreateDynamic(&transform, (PxGeometry*)&sphereGeo, material, 10.0f, &identity);
-            PxRigidBody_setAngularDamping_mut((PxRigidBody*)sphere, 0.5f);
-            scene->AddActorMut((PxActor*)sphere, null);
+            //// create sphere and add to scene
+            //var sphereGeo = PxSphereGeometry_new(10.0f);
+            //var Vector3 = new PxVec3 { x = 0.0f, y = 40.0f, z = 100.0f };
+            //var transform = PxTransform_new_1(&Vector3);
+            //var identity = PxTransform_new_2(PxIDENTITY.PxIdentity);
+            //var sphere = physics->PhysPxCreateDynamic(&transform, (PxGeometry*)&sphereGeo, material, 10.0f, &identity);
+            //PxRigidBody_setAngularDamping_mut((PxRigidBody*)sphere, 0.5f);
+            //scene->AddActorMut((PxActor*)sphere, null);
         }
 
         public override void StepSimulation()
@@ -59,9 +59,9 @@ namespace XREngine.Scene
 
         public override void Destroy()
         {
-            PxScene_release_mut(scene);
-            PxDefaultCpuDispatcher_release_mut((PxDefaultCpuDispatcher*)dispatcher);
-            PxPhysics_release_mut(physics);
+            //PxScene_release_mut(scene);
+            //PxDefaultCpuDispatcher_release_mut((PxDefaultCpuDispatcher*)dispatcher);
+            //PxPhysics_release_mut(physics);
         }
     }
 

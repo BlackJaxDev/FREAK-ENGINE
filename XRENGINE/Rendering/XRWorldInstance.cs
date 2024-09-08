@@ -47,8 +47,9 @@ namespace XREngine.Rendering
             _physicsScene = physicsScene;
 
             TickLists = [];
+            TickLists.Add(ETickGroup.Normal, []);
+            TickLists.Add(ETickGroup.Late, []);
             TickLists.Add(ETickGroup.PrePhysics, []);
-            TickLists.Add(ETickGroup.DuringPhysics, []);
             TickLists.Add(ETickGroup.PostPhysics, []);
         }
 
@@ -57,8 +58,12 @@ namespace XREngine.Rendering
         public XRWorldInstance(XRWorld world, VisualScene visualScene, PhysicsScene physicsScene) : this(visualScene, physicsScene)
             => TargetWorld = world;
 
-        public void StepPhysicsSimulation()
-            => PhysicsScene.StepSimulation();
+        public void FixedUpdate()
+        {
+            TickGroup(ETickGroup.PrePhysics);
+            PhysicsScene.StepSimulation();
+            TickGroup(ETickGroup.PostPhysics);
+        }
 
         public bool IsPlaying { get; private set; }
 
@@ -68,8 +73,7 @@ namespace XREngine.Rendering
             PhysicsScene.Initialize();
             BeginPlayInternal();
             Time.Timer.UpdateFrame += Update;
-            Time.Timer.FixedUpdate += StepPhysicsSimulation;
-            RegisterTick(ETickGroup.DuringPhysics, 0, PhysicsScene.StepSimulation);
+            Time.Timer.FixedUpdate += FixedUpdate;
             PostBeginPlay.Invoke(this);
         }
 
@@ -243,9 +247,8 @@ namespace XREngine.Rendering
 #if DEBUG
             ClearMarkers();
 #endif
-            TickGroup(ETickGroup.PrePhysics);
-            TickGroup(ETickGroup.DuringPhysics);
-            TickGroup(ETickGroup.PostPhysics);
+            TickGroup(ETickGroup.Normal);
+            TickGroup(ETickGroup.Late);
 #if DEBUG
             PrintMarkers();
 #endif

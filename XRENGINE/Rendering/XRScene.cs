@@ -8,7 +8,7 @@ namespace XREngine.Scene
     public class XRScene : XRAsset
     {
         private bool _isVisible = true;
-        private List<SceneNode> _rootObjects = [];
+        internal readonly List<SceneNode> _rootObjects = [];
 
         /// <summary>
         /// The world this scene is currently loaded into.
@@ -28,10 +28,6 @@ namespace XREngine.Scene
         /// All nodes that are at the root of the scene.
         /// Nodes can have any number of children, recursively.
         /// </summary>
-        public List<SceneNode> RootNodes
-        {
-            get => _rootObjects;
-            set => SetField(ref _rootObjects, value);
-        }
+        public IReadOnlyList<SceneNode> RootNodes => _rootObjects;
     }
 }

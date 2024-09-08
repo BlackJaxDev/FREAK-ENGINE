@@ -64,13 +64,13 @@ namespace XREngine.Components.Scene.Transforms
             base.Start();
             _time = 0.0f;
             _noise.Frequency = _noiseFrequency;
-            RegisterTick(ETickGroup.DuringPhysics, (int)ETickOrder.Logic, NoiseTick);
+            RegisterTick(ETickGroup.Normal, (int)ETickOrder.Logic, NoiseTick);
         }
 
         protected internal override void Stop()
         {
             base.Stop();
-            UnregisterTick(ETickGroup.DuringPhysics, (int)ETickOrder.Logic, NoiseTick);
+            UnregisterTick(ETickGroup.Normal, (int)ETickOrder.Logic, NoiseTick);
             _time = 0.0f;
         }
 

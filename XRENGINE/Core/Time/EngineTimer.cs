@@ -72,22 +72,22 @@ namespace XREngine.Timers
         private Task? SingleTask = null;
         private Task? FixedUpdateTask = null;
 
-        private static bool IsApplicationIdle() => NativeMethods.PeekMessage(out _, IntPtr.Zero, 0, 0, 0) == 0;
+        //private static bool IsApplicationIdle() => NativeMethods.PeekMessage(out _, IntPtr.Zero, 0, 0, 0) == 0;
 
-        private static async Task IdleCallAsync(Action method, CancellationToken cancellationToken)
-        {
-            while (!cancellationToken.IsCancellationRequested)
-            {
-                //if (IsApplicationIdle())
-                method();
-                await Task.Yield();
-            }
-        }
+        //private static async Task IdleCallAsync(Action method, CancellationToken cancellationToken)
+        //{
+        //    while (!cancellationToken.IsCancellationRequested)
+        //    {
+        //        //if (IsApplicationIdle())
+        //        method();
+        //        await Task.Yield();
+        //    }
+        //}
 
         /// <summary>
         /// Runs the timer until Stop() is called.
         /// </summary>
-        public void Run()
+        public void Run(Func<bool> runUntilPredicate)
         {
             if (IsRunning)
                 return;
@@ -102,6 +102,9 @@ namespace XREngine.Timers
 
             _watch.Start();
             Debug.Out($"Started game loop threads.");
+
+            while (runUntilPredicate())
+                RenderThread();
         }
 
         /// <summary>

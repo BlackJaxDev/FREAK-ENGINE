@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 
 namespace XREngine.Data.Core
 {
+    [Serializable]
     /// <summary>
     /// Common base class for objects. Contains special handling for setting fields and notifying listeners of changes.
     /// </summary>

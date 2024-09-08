@@ -36,8 +36,8 @@ namespace XREngine.Scene.Transforms
 
         private class MatrixInfo
         {
-            public Matrix4x4 Matrix;
-            public bool Modified;
+            public Matrix4x4 Matrix = Matrix4x4.Identity;
+            public bool Modified = true;
         }
 
         protected readonly object _lock = new();

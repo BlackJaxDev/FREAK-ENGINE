@@ -264,7 +264,7 @@ namespace XREngine.Rendering.OpenGL
                 //TODO: normal matrix can be calculated in the shader with invert and transpose of the model matrix
                 //vertexProgram.Uniform(Uniform.GetLocation(vertexProgram, EEngineUniform.NormalMatrix), normalMatrix);
 
-                XRCamera? camera = Engine.Rendering.State.CurrentlyRenderingCamera;
+                XRCamera? camera = Engine.Rendering.State.RenderingCamera;
                 Matrix4x4 worldMatrix;
                 Matrix4x4 projMatrix;
 

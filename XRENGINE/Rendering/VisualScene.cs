@@ -22,17 +22,36 @@ namespace XREngine.Scene
         /// Populates the given RenderPasses object with all renderables 
         /// having culling volumes that reside within the collectionVolume.
         /// </summary>
-        /// <param name="passes"></param>
+        /// <param name="commands"></param>
         /// <param name="collectionVolume"></param>
         /// <param name="camera"></param>
-        public void PreRenderUpdate(RenderCommandCollection passes, IVolume? collectionVolume, XRCamera camera)
+        public void PreRenderUpdate(RenderCommandCollection commands, IVolume? collectionVolume, XRCamera camera)
         {
-            passes.IsShadowPass = false;
+            CollectRenderedItems(commands, collectionVolume, camera);
+
+            //TODO: prerender on own consistent animation thread
+            //ParallelLoopResult result = await Task.Run(() => Parallel.ForEach(_preRenderList, p => { p.PreRenderUpdate(camera); }));
+            foreach (IPreRendered p in _preRenderList)
+                if (p.PreRenderEnabled)
+                    p.PreRenderUpdate(camera);
+        }
+
+        /// <summary>
+        /// Collects render commands for all renderables in the scene that intersect with the given volume.
+        /// If the volume is null, all renderables are collected.
+        /// Typically, the collectionVolume is the camera's frustum.
+        /// </summary>
+        /// <param name="commands"></param>
+        /// <param name="collectionVolume"></param>
+        /// <param name="camera"></param>
+        public void CollectRenderedItems(RenderCommandCollection commands, IVolume? collectionVolume, XRCamera camera)
+        {
+            commands.IsShadowPass = false;
 
             void AddRenderCommands(ITreeItem item)
             {
                 if (item is RenderInfo renderable)
-                    renderable.AddRenderCommands(passes, camera);
+                    renderable.AddRenderCommands(commands, camera);
             }
 
             switch (RenderablesTree)
@@ -47,12 +66,6 @@ namespace XREngine.Scene
                     tree.CollectAll(AddRenderCommands);
                     break;
             }
-
-            //TODO: prerender on own consistent animation thread
-            //ParallelLoopResult result = await Task.Run(() => Parallel.ForEach(_preRenderList, p => { p.PreRenderUpdate(camera); }));
-            foreach (IPreRendered p in _preRenderList)
-                if (p.PreRenderEnabled)
-                    p.PreRenderUpdate(camera);
         }
 
         //public void CollectVisible(RenderCommandCollection passes, IVolume collectionVolume, XRCamera camera)

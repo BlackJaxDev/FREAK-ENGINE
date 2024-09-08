@@ -4,6 +4,7 @@ using XREngine.Rendering;
 
 namespace XREngine
 {
+    [Serializable]
     /// <summary>
     /// This base class is for any object located within a world instance.
     /// </summary>

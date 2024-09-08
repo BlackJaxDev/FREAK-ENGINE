@@ -45,8 +45,8 @@ namespace XREngine.Timers
             Reset();
             _isRunning = false;
 
-            UnregisterTick(ETickGroup.DuringPhysics, (int)ETickOrder.Timers, TickMulti);
-            UnregisterTick(ETickGroup.DuringPhysics, (int)ETickOrder.Timers, TickSingle);
+            UnregisterTick(ETickGroup.Normal, (int)ETickOrder.Timers, TickMulti);
+            UnregisterTick(ETickGroup.Normal, (int)ETickOrder.Timers, TickSingle);
         }
         /// <summary>
         /// Executes a method once after the given time period.
@@ -68,7 +68,7 @@ namespace XREngine.Timers
                 _singleMethod = method;
                 _currentSecondsBetweenFires = seconds;
 
-                RegisterTick(ETickGroup.DuringPhysics, (int)ETickOrder.Timers, TickSingle);
+                RegisterTick(ETickGroup.Normal, (int)ETickOrder.Timers, TickSingle);
             }
         }
         /// <summary>
@@ -95,7 +95,7 @@ namespace XREngine.Timers
             _currentSecondsBetweenFires = startSeconds;
             _isRunning = true;
 
-            RegisterTick(ETickGroup.DuringPhysics, (int)ETickOrder.Timers, TickMulti);
+            RegisterTick(ETickGroup.Normal, (int)ETickOrder.Timers, TickMulti);
         }
         /// Executes a single method multiple times with a given interval of time between each execution.
         /// </summary>
@@ -120,7 +120,7 @@ namespace XREngine.Timers
             _currentSecondsBetweenFires = startSeconds;
             _isRunning = true;
 
-            RegisterTick(ETickGroup.DuringPhysics, (int)ETickOrder.Timers, TickMulti);
+            RegisterTick(ETickGroup.Normal, (int)ETickOrder.Timers, TickMulti);
         }
         private void TickMulti()
         {

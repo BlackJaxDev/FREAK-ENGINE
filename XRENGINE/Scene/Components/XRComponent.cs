@@ -5,6 +5,7 @@ using XREngine.Scene.Transforms;
 
 namespace XREngine.Components
 {
+    [Serializable]
     public abstract class XRComponent : XRWorldObjectBase
     {
         /// <summary>
@@ -223,17 +224,24 @@ namespace XREngine.Components
             ComponentDestroyed.Invoke(this);
         }
     }
-    /// <summary>
-    /// You may process ticks before, during, or after physics processing occurs.
-    /// Pre will affect physics calculations.
-    /// During will not affect or be affected by physics calculations. Note that physics calculations may override work done in this tick.
-    /// Post will be affected by physics calculations.
-    /// </summary>
     public enum ETickGroup
     {
-        PrePhysics = 0,
-        DuringPhysics = 15,
-        PostPhysics = 30,
+        /// <summary>
+        /// Variable update tick, occurs every frame.
+        /// </summary>
+        Normal,
+        /// <summary>
+        /// Variable update tick, occurs after the normal tick.
+        /// </summary>
+        Late,
+        /// <summary>
+        /// Fixed update tick, occurs before physics calculations.
+        /// </summary>
+        PrePhysics,
+        /// <summary>
+        /// Fixed update tick, occurs after physics calculations.
+        /// </summary>
+        PostPhysics,
     }
     /// <summary>
     /// Cast to an int and add any value to change the order of ticks within a group.

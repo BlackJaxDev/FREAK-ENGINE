@@ -9,7 +9,7 @@ namespace XREngine.Components.Scene.Transforms
     /// <summary>
     /// Moves the scene node to the parent's position + an offset and rotation + an offset in local space, lagging behind by a specified amount for smooth movement.
     /// </summary>
-    public class TranslationRotationLaggedTransform : TranslationLaggedComponent
+    public class TranslationRotationLaggedTransform : LaggedTranslationTransform
     {
         public TranslationRotationLaggedTransform(TransformBase? parent)
             : this(parent, Vector3.Zero, Quaternion.Identity) { }

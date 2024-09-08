@@ -41,7 +41,7 @@ namespace XREngine.Scene
             set => SetField(ref _timeDilation, value);
         }
 
-        private AABB _bounds = AABB.FromSize(new(2000.0f));
+        private AABB _bounds = AABB.FromSize(new(5000.0f));
         public AABB Bounds
         {
             get => _bounds;

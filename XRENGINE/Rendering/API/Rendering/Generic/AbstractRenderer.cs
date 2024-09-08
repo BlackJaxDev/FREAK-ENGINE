@@ -189,6 +189,9 @@ namespace XREngine.Rendering
             set => SetField(ref _worldInstance, value);
         }
 
+        /// <summary>
+        /// Use this to retrieve the currently rendering window renderer.
+        /// </summary>
         public static AbstractRenderer? Current { get; private set; }
         private void RenderCallback(double delta)
         {
@@ -196,7 +199,11 @@ namespace XREngine.Rendering
             {
                 Active = true;
                 Current = this;
-                WindowRenderCallback(delta);
+
+                foreach (var viewport in Viewports)
+                    viewport.Render();
+
+                //WindowRenderCallback(delta);
             }
             finally
             {
@@ -311,8 +318,18 @@ namespace XREngine.Rendering
                 AddViewportForPlayer(players[i], false);
         }
 
+        public void RegisterLocalPlayer(ELocalPlayerIndex playerIndex, bool autoSizeAllViewports)
+            => RegisterController(State.GetOrCreateLocalPlayer(playerIndex), autoSizeAllViewports);
+
         public void RegisterController(LocalPlayerController controller, bool autoSizeAllViewports)
             => GetOrAddViewportForPlayer(controller, autoSizeAllViewports).AssociatedPlayer = controller;
+
+        public void UnregisterLocalPlayer(ELocalPlayerIndex playerIndex)
+        {
+            LocalPlayerController? controller = State.GetLocalPlayer(playerIndex);
+            if (controller is not null)
+                UnregisterController(controller);
+        }
 
         public void UnregisterController(LocalPlayerController controller)
         {

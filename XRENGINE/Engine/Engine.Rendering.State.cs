@@ -18,15 +18,8 @@ namespace XREngine
             /// </summary>
             public static partial class State
             {
-                public static XRViewport? CurrentlyRenderingViewport
-                    => RenderingViewports.TryPeek(out var vp) ? vp : null;
-
-                public static XRCamera? CurrentlyRenderingCamera
+                public static XRCamera? RenderingCamera
                     => RenderingCameras.TryPeek(out var c) ? c : null;
-
-                public static XRWorldInstance? CurrentlyRenderingWorld
-                    => RenderingWorlds.TryPeek(out var w) ? w : null;
-
                 public static Stack<XRCamera> RenderingCameras { get; } = new();
                 public static StateObject PushRenderingCamera(XRCamera camera)
                 {
@@ -34,6 +27,8 @@ namespace XREngine
                     return new StateObject(() => RenderingCameras.Pop());
                 }
 
+                public static BoundingRectangle RenderArea
+                    => RenderAreas.TryPeek(out var area) ? area : BoundingRectangle.Empty;
                 public static Stack<BoundingRectangle> RenderAreas { get; } = new();
                 public static StateObject PushRenderArea(BoundingRectangle area)
                 {
@@ -41,6 +36,8 @@ namespace XREngine
                     return new StateObject(() => RenderAreas.Pop());
                 }
 
+                public static XRWorldInstance? RenderingWorld
+                    => RenderingWorlds.TryPeek(out var w) ? w : null;
                 public static Stack<XRWorldInstance> RenderingWorlds { get; } = new();
                 public static StateObject PushRenderingWorld(XRWorldInstance camera)
                 {
@@ -48,6 +45,8 @@ namespace XREngine
                     return new StateObject(() => RenderingWorlds.Pop());
                 }
 
+                public static XRMaterial? OverrideMaterial
+                    => OverrideMaterials.TryPeek(out var m) ? m : null;
                 /// <summary>
                 /// This material will be used to render all objects in the scene if set.
                 /// </summary>
@@ -58,6 +57,8 @@ namespace XREngine
                     return new StateObject(() => OverrideMaterials.Pop());
                 }
 
+                public static XRViewport? RenderingViewport
+                    => RenderingViewports.TryPeek(out var vp) ? vp : null;
                 public static Stack<XRViewport> RenderingViewports { get; } = new();
                 public static StateObject PushRenderingViewport(XRViewport vp)
                 {
@@ -123,15 +124,6 @@ namespace XREngine
                 internal static void DepthFunc(EComparison always)
                 {
                     throw new NotImplementedException();
-                }
-
-                public class StateObject(Action onStateEnded) : IDisposable
-                {
-                    void IDisposable.Dispose()
-                    {
-                        onStateEnded();
-                        GC.SuppressFinalize(this);
-                    }
                 }
             }
         }

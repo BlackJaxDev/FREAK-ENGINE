@@ -34,6 +34,7 @@ namespace System.Collections.Generic
         new T this[int index] { get; }
     }
 
+    [Serializable]
     /// <summary>
     /// A derivation of <see cref="ThreadSafeList{T}"/> that monitors all operations and provides events for each kind of operation.
     /// </summary>

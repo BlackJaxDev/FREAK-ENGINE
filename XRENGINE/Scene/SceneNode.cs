@@ -9,12 +9,13 @@ using XREngine.Scene.Transforms;
 
 namespace XREngine.Scene
 {
+    [Serializable]
     public sealed class SceneNode : XRBase, IEventListReadOnly<XRComponent>
     {
         //private static SceneNode? _dummy;
         //internal static SceneNode Dummy => _dummy ??= new SceneNode() { IsDummy = true };
         //internal bool IsDummy { get; private set; } = false;
-        public SceneNode(XRWorldInstance world) : this(world, "New Scene Node") { }
+        public SceneNode(XRScene scene) : this(scene, "New Scene Node") { }
         public SceneNode(SceneNode parent) : this(parent, "New Scene Node") { }
 
         public SceneNode(SceneNode parent, string name, TransformBase? transform = null)
@@ -24,11 +25,11 @@ namespace XREngine.Scene
             Transform.Parent = parent.Transform;
             Name = name;
         }
-        public SceneNode(XRWorldInstance world, string name, TransformBase? transform = null)
+        public SceneNode(XRScene scene, string name, TransformBase? transform = null)
         {
             if (transform != null)
                 Transform = transform;
-            world.RootNodes.Add(this);
+            scene._rootObjects.Add(this);
             Name = name;
         }
 

@@ -18,7 +18,6 @@ namespace XREngine.Rendering
     /// </summary>
     public sealed class XRViewport : XRBase
     {
-        private CameraComponent? _cameraComponent = null;
         private XRCamera? _camera = null;
         private readonly RayTraceClosest _closestPick = new(Vector3.Zero, Vector3.Zero, 0, 0xFFFF);
 
@@ -128,6 +127,7 @@ namespace XREngine.Rendering
             return viewport;
         }
 
+        private CameraComponent? _cameraComponent = null;
         public CameraComponent? CameraComponent
         {
             get => _cameraComponent;
@@ -144,6 +144,67 @@ namespace XREngine.Rendering
         }
 
         public XRCamera? ActiveCamera => _cameraComponent?.Camera ?? _camera;
+
+        /// <summary>
+        /// Renders this camera's view to the specified viewport.
+        /// </summary>
+        /// <param name="vp"></param>
+        /// <param name="targetFbo"></param>
+        public void Render(XRFrameBuffer? targetFbo = null, bool preRenderUpdateAndSwap = false)
+        {
+            XRCamera? camera = ActiveCamera;
+            if (camera is null)
+                return;
+
+            var world = World;
+            if (world is null || RenderPipeline.ModifyingFBOs || State.RenderingViewport == this)
+                return;
+
+            var scene = world.VisualScene;
+            var component = CameraComponent;
+
+            if (preRenderUpdateAndSwap)
+            {
+                IVolume? volume = (component?.CullWithFrustum ?? true) ? camera.WorldFrustum() : component.CullingFrustumOverride;
+                scene.PreRenderUpdate(RenderPipeline.MeshRenderCommands, volume, camera);
+                scene.PreRenderSwap();
+
+                component?.UserInterface?.PreRenderSwap();
+                RenderPipeline.MeshRenderCommands.SwapBuffers();
+            }
+
+            targetFbo ??= RenderPipeline.DefaultRenderTarget;
+
+            scene.PreRender(this, camera);
+
+            component?.UserInterface?.PreRender(this, component);
+
+            using (State.PushRenderingViewport(this))
+            {
+                //bool iblCap = false;
+                //if (!vp.RenderPipeline.FBOsInitialized)
+                //{
+                //    vp.RenderPipeline.InitializeFBOs();
+                //    iblCap = true;
+                //}
+
+                //TODO: assign a requested render pipeline via the camera component. Cache FBOs to the viewport for that camera component.
+                RenderPipeline.Render(
+                    world.VisualScene,
+                    camera,
+                    this,
+                    targetFbo,
+                    false);
+
+                //hud may sample scene colors, render it after scene
+                //if (vp.RenderPipeline.UserInterfaceFBO is not null)
+                //    UserInterface?.RenderScreenSpace(vp, vp.RenderPipeline.UserInterfaceFBO);
+
+                //if (iblCap)
+                //    world.CaptureIBL();
+            }
+        }
+
 
         private XRRenderPipeline? _renderPipeline = null;
         /// <summary>

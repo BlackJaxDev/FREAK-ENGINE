@@ -8,8 +8,26 @@ internal partial class Program
     {
         //TODO: use args?
 
-        Engine.Initialize(GetEngineSettings(), GetGameState());
+        Engine.Initialize(GetEngineSettings(CreateTestWorld()), GetGameState());
         Engine.Run();
+    }
+
+    private static XRWorld CreateTestWorld()
+    {
+        var world = new XRWorld()
+        {
+            Name = "TestWorld",
+        };
+        var scene = new XRScene()
+        {
+            Name = "TestScene",
+        };
+        var rootNode = new SceneNode(scene)
+        {
+            Name = "TestNode",
+        };
+        world.Scenes.Add(scene);
+        return world;
     }
 
     private static GameState GetGameState()

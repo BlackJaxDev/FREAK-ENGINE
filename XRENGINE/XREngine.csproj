@@ -96,4 +96,8 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Rendering\Pipelines\Commands\State\" />
+  </ItemGroup>
+
 </Project>

@@ -35,6 +35,13 @@ namespace XREngine.Input
             }
         }
 
+        private List<CameraComponent> _cameras = [];
+        public List<CameraComponent> Cameras
+        {
+            get => _cameras;
+            set => SetField(ref _cameras, value);
+        }
+
         public override PawnComponent? ControlledPawn
         {
             get => base.ControlledPawn;

@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using XREngine.Core.Attributes;
+using XREngine.Data.Vectors;
 using XREngine.Rendering;
 using XREngine.Rendering.UI;
 
@@ -9,6 +10,12 @@ namespace XREngine.Components
     [RequiresTransform(typeof(UICanvasTransform))]
     public class UICanvasComponent : XRComponent
     {
+        /// <summary>
+        /// Gets the user input component. Not a necessary component, so may be null.
+        /// </summary>
+        /// <returns></returns>
+        public UserInterfaceInputComponent? GetInputComponent() => GetSiblingComponent<UserInterfaceInputComponent>();
+
         public UICanvasTransform CanvasTransform => TransformAs<UICanvasTransform>();
         public CameraComponent ScreenSpaceCamera => GetSiblingComponent<CameraComponent>(true)!;
 
@@ -259,6 +266,16 @@ namespace XREngine.Components
         }
 
         internal void InvalidateLayout()
+        {
+            throw new NotImplementedException();
+        }
+
+        internal UIComponent? FindDeepestComponent(Vector2 viewportPoint)
+        {
+            throw new NotImplementedException();
+        }
+
+        internal void Resize(IVector2 extents)
         {
             throw new NotImplementedException();
         }

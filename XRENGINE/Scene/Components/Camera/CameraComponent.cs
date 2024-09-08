@@ -1,5 +1,7 @@
 ﻿using Extensions;
 using System.ComponentModel;
+using XREngine.Data.Geometry;
+using XREngine.Data.Rendering;
 using XREngine.Rendering;
 
 namespace XREngine.Components
@@ -12,8 +14,15 @@ namespace XREngine.Components
         private readonly Lazy<XRCamera> _camera;
         public XRCamera Camera => _camera.Value;
 
-        public UserInterfaceInputComponent? _userInterface;
-        public UserInterfaceInputComponent? UserInterface
+        private ELocalPlayerIndex? _localPlayerIndex = null;
+        public ELocalPlayerIndex? LocalPlayerIndex
+        {
+            get => _localPlayerIndex;
+            set => SetField(ref _localPlayerIndex, value);
+        }
+
+        public UICanvasComponent? _userInterface;
+        public UICanvasComponent? UserInterface
         {
             get => _userInterface;
             set
@@ -37,8 +46,53 @@ namespace XREngine.Components
             set => SetField(ref _cullWithFrustum, value);
         }
 
+        private IVolume? _cullingFrustumOverride = null;
+        /// <summary>
+        /// When CullWithFrustum is false 
+        /// </summary>
+        public IVolume? CullingFrustumOverride
+        {
+            get => _cullingFrustumOverride;
+            set => SetField(ref _cullingFrustumOverride, value);
+        }
+
         protected CameraComponent() : base()
             => _camera = new(() => new XRCamera(Transform), true);
+
+        protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
+        {
+            bool change = base.OnPropertyChanging(propName, field, @new);
+            if (change)
+            {
+                switch (propName)
+                {
+                    case nameof(LocalPlayerIndex):
+
+                        if (LocalPlayerIndex is not null)
+                        {
+                            var player = Engine.State.GetLocalPlayer(LocalPlayerIndex.Value);
+                            player?.Cameras.Remove(this);
+                        }
+                        
+                        break;
+                }
+            }
+            return change;
+        }
+        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+        {
+            base.OnPropertyChanged(propName, prev, field);
+            switch (propName)
+            {
+                case nameof(LocalPlayerIndex):
+                    if (LocalPlayerIndex is not null)
+                    {
+                        var player = Engine.State.GetLocalPlayer(LocalPlayerIndex.Value);
+                        player?.Cameras.Add(this);
+                    }
+                    break;
+            }
+        }
 
         protected override void Constructing()
         {
@@ -72,52 +126,6 @@ namespace XREngine.Components
                 case nameof(XREngine.Scene.SceneNode.Transform):
                     Camera.Transform = Transform;
                     break;
-            }
-        }
-
-        /// <summary>
-        /// Renders this camera's view to the specified viewport.
-        /// </summary>
-        /// <param name="vp"></param>
-        /// <param name="targetFbo"></param>
-        public void Render(XRViewport vp, XRFrameBuffer? targetFbo = null, bool preRenderUpdateAndSwap = false)
-        {
-            if (preRenderUpdateAndSwap)
-            {
-                vp.RenderPipeline.PreRenderUpdate(this);
-                vp.RenderPipeline.PreRenderSwap(this);
-            }
-
-            var world = World;
-            if (world is null || vp.RenderPipeline.RegeneratingFBOs || Engine.Rendering.State.CurrentlyRenderingViewport == vp)
-                return;
-
-            targetFbo ??= vp.RenderPipeline.DefaultRenderTarget;
-
-            world.VisualScene.PreRender(vp, Camera);
-            UserInterface?.Canvas?.PreRender(vp, this);
-
-            using (Engine.Rendering.State.PushRenderingViewport(vp))
-            {
-                bool iblCap = false;
-                if (!vp.RenderPipeline.FBOsInitialized)
-                {
-                    vp.RenderPipeline.InitializeFBOs();
-                    iblCap = true;
-                }
-
-                vp.RenderPipeline.Render(
-                    world.VisualScene,
-                    Camera,
-                    vp,
-                    targetFbo);
-
-                if (iblCap)
-                    world.CaptureIBL();
-
-                //hud may sample scene colors, render it after scene
-                if (vp.RenderPipeline.UserInterfaceFBO is not null)
-                    UserInterface?.Canvas?.RenderScreenSpace(vp, vp.RenderPipeline.UserInterfaceFBO);
             }
         }
     }

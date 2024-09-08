@@ -62,11 +62,11 @@ namespace XREngine.Components.Scene.Transforms
         protected internal override void Start()
         {
             _currentPoint = WorldMatrix.Translation;
-            RegisterTick(ETickGroup.DuringPhysics, (int)ETickOrder.Scene, Tick);
+            RegisterTick(ETickGroup.Normal, (int)ETickOrder.Scene, Tick);
         }
         protected internal override void Stop()
         {
-            UnregisterTick(ETickGroup.DuringPhysics, (int)ETickOrder.Scene, Tick);
+            UnregisterTick(ETickGroup.Normal, (int)ETickOrder.Scene, Tick);
         }
     }
 }

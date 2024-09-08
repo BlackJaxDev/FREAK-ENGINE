@@ -5,6 +5,12 @@ using XREngine.Scene;
 
 namespace XREngine
 {
+    /// <summary>
+    /// The root static class for the engine.
+    /// Contains all the necessary functions to run the engine and manage its components.
+    /// Organized with several static subclasses for managing different parts of the engine.
+    /// You can use these subclasses without typing the whole path every time in your code by adding "using static XREngine.Engine.<path>;" at the top of the file.
+    /// </summary>
     public static partial class Engine
     {
         private static readonly EventList<XRWorldInstance> _worldInstances = [];
@@ -70,12 +76,21 @@ namespace XREngine
             GameStartupSettings startupSettings,
             GameState state)
         {
+            StartingUp = true;
+
             GameSettings = startupSettings;
             UserSettings = GameSettings.DefaultUserSettings;
+
             Time.Initialize(GameSettings, UserSettings);
+
             if (state.Worlds is not null)
                 _worldInstances.AddRange(state.Worlds);
+
             CreateWindows(startupSettings.StartupWindows);
+
+            //VRState.Initialize();
+
+            StartingUp = false;
         }
 
         public static void CreateWindows(List<GameWindowStartupSettings> windows)
@@ -86,31 +101,73 @@ namespace XREngine
 
         public static void CreateWindow(GameWindowStartupSettings windowSettings)
         {
-            WindowOptions options = new(
-                isVisible: true,
-                new Vector2D<int>(50, 50),
-                new Vector2D<int>(1280, 720),
-                0.0,
-                0.0,
-                 UserSettings.RenderLibrary == ERenderLibrary.Vulkan 
-                 ? new GraphicsAPI(ContextAPI.Vulkan, ContextProfile.Core, ContextFlags.ForwardCompatible, new APIVersion(1, 1))
-                 : new GraphicsAPI(ContextAPI.OpenGL, ContextProfile.Core, ContextFlags.ForwardCompatible, new APIVersion(4, 6)),
-                windowSettings.WindowTitle ?? "",
-                WindowState.Normal,
-                WindowBorder.Resizable,
-                isVSync: true,
-                shouldSwapAutomatically: true,
-                VideoMode.Default);
-
-            SetWindowOptions(windowSettings, ref options);
-
-            XRWindow window = new(options);
-
-            var targetWorld = windowSettings.TargetWorld;
-            if (targetWorld is not null)
-                window.Renderer.TargetWorldInstance = GetOrInitWorld(targetWorld);
-            
+            XRWindow window = new(GetWindowOptions(windowSettings));
+            CreateViewports(windowSettings.LocalPlayers, window.Renderer);
+            SetWorld(windowSettings.TargetWorld, window.Renderer);
             _windows.Add(window);
+        }
+
+        private static void SetWorld(XRWorld? targetWorld, AbstractRenderer renderer)
+        {
+            if (targetWorld is not null)
+                renderer.TargetWorldInstance = GetOrInitWorld(targetWorld);
+        }
+
+        private static void CreateViewports(ELocalPlayerIndexMask localPlayerMask, AbstractRenderer renderer)
+        {
+            if (localPlayerMask == 0)
+                return;
+            
+            for (int i = 0; i < 4; i++)
+            {
+                if (((int)localPlayerMask & (1 << i)) > 0)
+                    renderer.RegisterLocalPlayer((ELocalPlayerIndex)i, false);
+                renderer.ResizeAllViewportsAccordingToPlayers();
+            }
+        }
+
+        private static WindowOptions GetWindowOptions(GameWindowStartupSettings windowSettings)
+        {
+            WindowState windowState;
+            WindowBorder windowBorder;
+            Vector2D<int> position = new(windowSettings.X, windowSettings.Y);
+            Vector2D<int> size = new(windowSettings.Width, windowSettings.Height);
+            switch (windowSettings.WindowState)
+            {
+                case EWindowState.Fullscreen:
+                    windowState = WindowState.Fullscreen;
+                    windowBorder = WindowBorder.Hidden;
+                    break;
+                default:
+                case EWindowState.Windowed:
+                    windowState = WindowState.Normal;
+                    windowBorder = WindowBorder.Resizable;
+                    break;
+                case EWindowState.Borderless:
+                    windowState = WindowState.Normal;
+                    windowBorder = WindowBorder.Hidden;
+                    position = new Vector2D<int>(0, 0);
+                    int primaryX = Native.NativeMethods.GetSystemMetrics(0);
+                    int primaryY = Native.NativeMethods.GetSystemMetrics(1);
+                    size = new Vector2D<int>(primaryX, primaryY);
+                    break;
+            }
+
+            return new(
+                isVisible: true,
+                position,
+                size,
+                0.0,
+                0.0,
+                UserSettings.RenderLibrary == ERenderLibrary.Vulkan
+                    ? new GraphicsAPI(ContextAPI.Vulkan, ContextProfile.Core, ContextFlags.ForwardCompatible, new APIVersion(1, 1))
+                    : new GraphicsAPI(ContextAPI.OpenGL, ContextProfile.Core, ContextFlags.ForwardCompatible, new APIVersion(4, 6)),
+                windowSettings.WindowTitle ?? string.Empty,
+                windowState,
+                windowBorder,
+                isVSync: windowSettings.VSync,
+                shouldSwapAutomatically: false,
+                VideoMode.Default);
         }
 
         public static XRWorldInstance GetOrInitWorld(XRWorld targetWorld)
@@ -123,58 +180,24 @@ namespace XREngine
             return instance;
         }
 
-        private static void SetWindowOptions(GameWindowStartupSettings windowSettings, ref WindowOptions options)
-        {
-            options.Title = windowSettings.WindowTitle ?? string.Empty;
-            options.Size = new Vector2D<int>(windowSettings.Width, windowSettings.Height);
-            options.FramesPerSecond = UserSettings.TargetFramesPerSecond ?? 0.0f;
-            options.UpdatesPerSecond = 0.0f; //Updates are handled by the engine completely separately from windows
-
-            switch (windowSettings.WindowState)
-            {
-                case EWindowState.Fullscreen:
-                    options.WindowState = WindowState.Fullscreen;
-                    options.WindowBorder = WindowBorder.Hidden;
-                    break;
-                case EWindowState.Windowed:
-                    options.WindowState = WindowState.Normal;
-                    options.WindowBorder = WindowBorder.Resizable;
-                    break;
-                case EWindowState.Borderless:
-                    options.WindowState = WindowState.Normal;
-                    options.WindowBorder = WindowBorder.Hidden;
-                    options.Position = new Vector2D<int>(0, 0);
-                    int primaryX = Native.NativeMethods.GetSystemMetrics(0);
-                    int primaryY = Native.NativeMethods.GetSystemMetrics(1);
-                    options.Size = new Vector2D<int>(primaryX, primaryY);
-                    break;
-            }
-        }
+        private static bool RunAsLongAs()
+            => Windows.Count > 0;
 
         public static void Run()
-        {
-            StartingUp = true;
-            Time.Timer.Run();
-            StartingUp = false;
-
-            //VRState.Initialize();
-
-            while (Windows.Count > 0)
-                Time.Timer.RenderThread();
-        }
+            => Time.Timer.Run(RunAsLongAs);
 
         /// <summary>
-        /// Stops the engine and disposes of all allocated data.
+        /// Stops the engine, disposes of all allocated data, and closes all windows.
         /// </summary>
         public static void ShutDown()
         {
             ShuttingDown = true;
             Time.Timer.Stop();
-            foreach (var window in _windows)
-                window.Window.Close();
             _windows.Clear();
             Assets.Dispose();
             ShuttingDown = false;
+            foreach (var window in _windows)
+                window.Window.Close();
         }
 
         public delegate int DelBeginOperation(
@@ -185,6 +208,5 @@ namespace XREngine
             TimeSpan? maxOperationTime = null);
 
         public delegate void DelEndOperation(int operationId);
-
     }
 }

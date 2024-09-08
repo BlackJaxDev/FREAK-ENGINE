@@ -13,12 +13,12 @@ namespace XREngine.Rendering
         /// <summary>
         /// Silk.NET window instance.
         /// </summary>
-        public IWindow Window { get; set; }
+        public IWindow Window { get; }
 
         /// <summary>
         /// Interface to render a scene for this window using the requested graphics API.
         /// </summary>
-        public AbstractRenderer Renderer { get; set; }
+        public AbstractRenderer Renderer { get; }
 
         public XRWindow(WindowOptions options)
         {

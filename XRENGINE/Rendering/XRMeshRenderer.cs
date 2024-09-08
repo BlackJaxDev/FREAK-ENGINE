@@ -235,6 +235,12 @@ namespace XREngine.Rendering
         public event DelRenderRequested? RenderRequested;
 
         /// <summary>
+        /// Use this to render the mesh with an identity transform matrix.
+        /// </summary>
+        public void Render(XRMaterial? materialOverride = null, uint instances = 1u)
+            => Render(Matrix4x4.Identity, materialOverride, instances);
+
+        /// <summary>
         /// Use this to render the mesh.
         /// </summary>
         /// <param name="worldMatrix"></param>
