@@ -1,11 +1,11 @@
 ﻿using Extensions;
 using System.Numerics;
+using XREngine.Data.Core;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
 using XREngine.Data.Vectors;
 using XREngine.Rendering.Commands;
 using XREngine.Rendering.Models.Materials;
-using XREngine.Rendering.Pipelines.Commands;
 using XREngine.Scene;
 using static XREngine.Engine.Rendering.State;
 
@@ -15,7 +15,7 @@ namespace XREngine.Rendering;
 /// This class is the base class for all render pipelines.
 /// A render pipeline is responsible for all rendering operations to render a scene to a viewport.
 /// </summary>
-public abstract class XRRenderPipeline : ViewportRenderCommandContainer
+public abstract class XRRenderPipeline : XRBase
 {
     public const string SceneShaderPath = "Scene3D";
 
@@ -30,6 +30,11 @@ public abstract class XRRenderPipeline : ViewportRenderCommandContainer
 
     private readonly Dictionary<string, XRTexture> _textures = [];
     private readonly Dictionary<string, XRFrameBuffer> _frameBuffers = [];
+
+    public XRRenderPipeline()
+    {
+        Commands = new(this);
+    }
 
     public T? GetTexture<T>(string name) where T : XRTexture
     {
@@ -64,28 +69,23 @@ public abstract class XRRenderPipeline : ViewportRenderCommandContainer
     public bool TryGetFBO(string name, out XRFrameBuffer? fbo)
         => _frameBuffers.TryGetValue(name, out fbo);
 
-    public void SetFBO(string name, XRFrameBuffer fbo)
+    public void SetFBO(XRFrameBuffer fbo)
     {
+        string? name = fbo.Name ?? throw new ArgumentNullException(nameof(fbo.Name), "Framebuffer name must be set before adding to the pipeline.");
         if (!_frameBuffers.TryAdd(name, fbo))
             _frameBuffers[name] = fbo;
     }
 
+    private bool _isInitialized = false;
+
     public void GenerateCommandChain()
     {
-        DestroyFBOs();
+        DestroyCache();
         _frameBuffers.Clear();
         _textures.Clear();
-
-        GenerateCommandChainInternal();
+        Commands = GenerateCommandChainInternal();
+        _isInitialized = true;
     }
-
-    //public virtual void DestroyFBOs()
-    //{
-    //    UserInterfaceFBO?.Destroy();
-    //    UserInterfaceFBO = null;
-    //}
-
-    //public abstract void RenderWithLayoutUpdate(XRCubeFrameBuffer renderFBO);
 
     public class RenderingStatus
     {
@@ -134,6 +134,8 @@ public abstract class XRRenderPipeline : ViewportRenderCommandContainer
 
     public RenderingStatus RenderStatus { get; } = new();
 
+    public ViewportRenderCommandContainer Commands { get; private set; }
+
     /// <summary>
     /// Renders the scene to the viewport or framebuffer.
     /// </summary>
@@ -151,17 +153,7 @@ public abstract class XRRenderPipeline : ViewportRenderCommandContainer
         {
             try
             {
-                if (viewport != null)
-                {
-                    RenderToViewport(visualScene, camera, viewport, targetFBO);
-                }
-                else if (targetFBO != null)
-                {
-                    using (PushRenderArea(new BoundingRectangle(0, 0, (int)targetFBO.Width, (int)targetFBO.Height)))
-                    {
-                        RenderToFBO(targetFBO, shadowPass);
-                    }
-                }
+                Commands.Execute();
             }
             catch (Exception e)
             {
@@ -174,81 +166,7 @@ public abstract class XRRenderPipeline : ViewportRenderCommandContainer
         RenderStatus.Clear();
     }
 
-    private void RenderToFBO(XRFrameBuffer target, bool shadowPass)
-    {
-        using (target.BindForWriting())
-        {
-            ClearDepth(1.0f);
-            EnableDepthTest(true);
-            AllowDepthWrite(true);
-            StencilMask(~0);
-            ClearStencil(0);
-            Clear(target?.TextureTypes ?? (EFrameBufferTextureType.Color | EFrameBufferTextureType.Depth | EFrameBufferTextureType.Stencil));
-
-            AllowDepthWrite(false);
-            MeshRenderCommands.Render((int)ERenderPass.Background);
-
-            AllowDepthWrite(true);
-            MeshRenderCommands.Render((int)ERenderPass.OpaqueDeferredLit);
-            MeshRenderCommands.Render((int)ERenderPass.OpaqueForward);
-            MeshRenderCommands.Render((int)ERenderPass.TransparentForward);
-
-            //Render forward on-top objects last
-            //Disable depth fail for objects on top
-            DepthFunc(EComparison.Always);
-            MeshRenderCommands.Render((int)ERenderPass.OnTopForward);
-        }
-    }
-
-    protected virtual void GenerateCommandChainInternal()
-    {
-        using (AddUsing<VRPC_PushViewportRenderArea>(t => t.UseInternalResolution = true))
-        {
-
-        }
-        using (AddUsing<VRPC_PushViewportRenderArea>(t => t.UseInternalResolution = false))
-        {
-            using (AddUsing<VPRC_BindOutputFBO>())
-            {
-                Add<VPRC_RenderQuadFBO>().FrameBufferName = "PostProcessFBO";
-            }
-        }
-    }
-
-    private void RenderToViewport(VisualScene visualScene, XRCamera camera, XRViewport viewport, XRFrameBuffer? target)
-    {
-        //Enable internal resolution
-        using (PushRenderArea(viewport.InternalResolutionRegion))
-        {
-            RenderDeferredPass();
-
-            SSAOFBO!.RenderTo(SSAOBlurFBO!);
-            SSAOBlurFBO!.RenderTo(GBufferFBO!);
-
-            if (visualScene is VisualScene3D scene3D)
-                RenderLightPass(scene3D.Lights);
-
-            RenderForwardPass();
-            RenderBloomPass();
-
-            ColorGradingSettings? cgs = camera.PostProcessing?.ColorGrading;
-            if (cgs != null && cgs.AutoExposure)
-                cgs.Exposure = AbstractRenderer.Current?.CalculateDotLuminance(HDRSceneTexture!, true) ?? 1.0f;
-
-            XRMaterial postMat = camera.PostProcessMaterial;
-            if (postMat != null)
-                RenderPostProcessPass(viewport, postMat);
-        }
-    }
-
-    private void _postProcess_SettingUniforms(XRRenderProgram program)
-    {
-        if (RenderingCamera is null)
-            return;
-
-        RenderingCamera.SetUniforms(program);
-        RenderingCamera.SetPostProcessUniforms(program);
-    }
+    protected abstract ViewportRenderCommandContainer GenerateCommandChainInternal();
 
     /// <summary>
     /// Creates a texture used by PBR shading to light an opaque surface.
@@ -309,5 +227,16 @@ public abstract class XRRenderPipeline : ViewportRenderCommandContainer
             }
         }
         return brdf;
+    }
+
+    public void DestroyCache()
+    {
+        foreach (var fbo in _frameBuffers)
+            fbo.Value.Destroy();
+        _frameBuffers.Clear();
+
+        foreach (var tex in _textures)
+            tex.Value.Destroy();
+        _textures.Clear();
     }
 }

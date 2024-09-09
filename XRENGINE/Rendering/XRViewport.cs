@@ -157,7 +157,7 @@ namespace XREngine.Rendering
                 return;
 
             var world = World;
-            if (world is null || RenderPipeline.ModifyingFBOs || State.RenderingViewport == this)
+            if (world is null || State.RenderingViewport == this)
                 return;
 
             var scene = world.VisualScene;
@@ -228,11 +228,7 @@ namespace XREngine.Rendering
                         _camera?.Viewports.Remove(this);
                         break;
                     case nameof(RenderPipeline):
-                        if (_renderPipeline is not null)
-                        {
-                            _renderPipeline.DestroyFBOs();
-                            _renderPipeline.Viewport = null;
-                        }
+                        _renderPipeline?.DestroyCache();
                         break;
                 }
             }
@@ -253,13 +249,6 @@ namespace XREngine.Rendering
                     break;
                 case nameof(CameraComponent):
                     Camera = CameraComponent?.Camera;
-                    break;
-                case nameof(RenderPipeline):
-                    if (_renderPipeline is not null)
-                    {
-                        _renderPipeline.Viewport = this;
-                        _renderPipeline.InitializeFBOs();
-                    }
                     break;
             }
         }
@@ -298,9 +287,6 @@ namespace XREngine.Rendering
         {
             _internalResolutionRegion.Width = width;
             _internalResolutionRegion.Height = height;
-
-            //This will clear and regenerate all FBOs on the next render
-            RenderPipeline.FBOsInitialized = false;
         }
 
         #region Coordinate conversion

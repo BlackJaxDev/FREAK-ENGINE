@@ -4,6 +4,7 @@ using System.Numerics;
 using XREngine.Data.Colors;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
+using XREngine.Rendering.Models.Materials;
 using XREngine.Rendering.Models.Materials.Textures;
 
 namespace XREngine.Rendering.OpenGL
@@ -60,7 +61,93 @@ namespace XREngine.Rendering.OpenGL
         {
 
         }
-        
+
+        public override void AllowDepthWrite(bool allow)
+        {
+            Api.DepthMask(allow);
+        }
+        public override void BindFrameBuffer(EFramebufferTarget fboTarget, int bindingId)
+        {
+            throw new NotImplementedException();
+        }
+        public override void Clear(EFrameBufferTextureType type)
+        {
+            throw new NotImplementedException();
+        }
+        public override void ClearColor(ColorF4 color)
+        {
+            Api.ClearColor(color.R, color.G, color.B, color.A);
+        }
+        public override void ClearDepth(float depth)
+        {
+            Api.ClearDepth(depth);
+        }
+        public override void ClearStencil(int stencil)
+        {
+            Api.ClearStencil(stencil);
+        }
+        public override void StencilMask(uint v)
+        {
+            Api.StencilMask(v);
+        }
+        public override void DepthFunc(EComparison comparison)
+        {
+            var comp = comparison switch
+            {
+                EComparison.Never => GLEnum.Never,
+                EComparison.Less => GLEnum.Less,
+                EComparison.Equal => GLEnum.Equal,
+                EComparison.Lequal => GLEnum.Lequal,
+                EComparison.Greater => GLEnum.Greater,
+                EComparison.Nequal => GLEnum.Notequal,
+                EComparison.Gequal => GLEnum.Gequal,
+                EComparison.Always => GLEnum.Always,
+                _ => throw new ArgumentOutOfRangeException(nameof(comparison), comparison, null),
+            };
+            Api.DepthFunc(comp);
+        }
+        public override void EnableDepthTest(bool enable)
+        {
+            if (enable)
+                Api.Enable(EnableCap.DepthTest);
+            else
+                Api.Disable(EnableCap.DepthTest);
+        }
+        public override float GetDepth(float x, float y)
+        {
+            float depth = 0.0f;
+            Api.ReadPixels((int)x, (int)y, 1, 1, PixelFormat.DepthComponent, PixelType.Float, &depth);
+            return depth;
+        }
+        public override byte GetStencilIndex(float x, float y)
+        {
+            byte stencil = 0;
+            Api.ReadPixels((int)x, (int)y, 1, 1, PixelFormat.StencilIndex, PixelType.UnsignedByte, &stencil);
+            return stencil;
+        }
+        public override void SetReadBuffer(EDrawBuffersAttachment attachment)
+        {
+            var att = attachment switch
+            {
+                EDrawBuffersAttachment.ColorAttachment0 => GLEnum.ColorAttachment0,
+                EDrawBuffersAttachment.ColorAttachment1 => GLEnum.ColorAttachment1,
+                EDrawBuffersAttachment.ColorAttachment2 => GLEnum.ColorAttachment2,
+                EDrawBuffersAttachment.ColorAttachment3 => GLEnum.ColorAttachment3,
+                EDrawBuffersAttachment.ColorAttachment4 => GLEnum.ColorAttachment4,
+                EDrawBuffersAttachment.ColorAttachment5 => GLEnum.ColorAttachment5,
+                EDrawBuffersAttachment.ColorAttachment6 => GLEnum.ColorAttachment6,
+                EDrawBuffersAttachment.ColorAttachment7 => GLEnum.ColorAttachment7,
+                EDrawBuffersAttachment.ColorAttachment8 => GLEnum.ColorAttachment8,
+                EDrawBuffersAttachment.ColorAttachment9 => GLEnum.ColorAttachment9,
+                EDrawBuffersAttachment.ColorAttachment10 => GLEnum.ColorAttachment10,
+                EDrawBuffersAttachment.ColorAttachment11 => GLEnum.ColorAttachment11,
+                EDrawBuffersAttachment.ColorAttachment12 => GLEnum.ColorAttachment12,
+                EDrawBuffersAttachment.ColorAttachment13 => GLEnum.ColorAttachment13,
+                _ => throw new ArgumentOutOfRangeException(nameof(attachment), attachment, null),
+            };
+            Api.DrawBuffer(att);
+        }
+
         public static GLEnum ToGLEnum(EBufferTarget target)
             => target switch
             {

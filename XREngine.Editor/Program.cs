@@ -22,10 +22,10 @@ internal partial class Program
         {
             Name = "TestScene",
         };
-        var rootNode = new SceneNode(scene)
-        {
-            Name = "TestNode",
-        };
+        //var rootNode = new SceneNode(scene)
+        //{
+        //    Name = "TestNode",
+        //};
         world.Scenes.Add(scene);
         return world;
     }

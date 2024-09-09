@@ -1,4 +1,6 @@
-﻿namespace XREngine
+﻿using System.Numerics;
+
+namespace XREngine
 {
     public static partial class Engine
     {
@@ -9,6 +11,7 @@ public static partial class Rendering
             /// </summary>
             public static partial class Settings
             {
+                public static Vector3 DefaultLuminance = new(0.299f, 0.587f, 0.114f);
                 /// <summary>
                 /// Shader pipelines allow for dynamic combination of shaders at runtime, such as mixing and matching vertex and fragment shaders.
                 /// When this is off, a new shader must be compiled for each unique combination of shaders.

@@ -1,20 +1,36 @@
-﻿namespace XREngine.Rendering
+﻿using XREngine.Data.Rendering;
+
+namespace XREngine.Rendering
 {
     public delegate void DelSetUniforms(XRRenderProgram program);
     /// <summary>
     /// Sets this FBO's render targets to the textures in the provided material using their FrameBufferAttachment properties.
     /// </summary>
-    public class XRMaterialFrameBuffer(XRMaterial material) : XRFrameBuffer
+    public class XRMaterialFrameBuffer : XRFrameBuffer
     {
+        private XRMaterial _material;
+
+        public XRMaterialFrameBuffer(XRMaterial material)
+        {
+            _material = material;
+            SetRenderTargets(_material);
+            VerifyTextures();
+        }
+
+        public XRMaterialFrameBuffer(
+            XRMaterial material,
+            params (IFrameBufferAttachement Target, EFrameBufferAttachment Attachment, int MipLevel, int LayerIndex)[]? targets)
+            : this(material) => SetRenderTargets(targets);
+
         public XRMaterial Material
         {
-            get => material;
+            get => _material;
             set
             {
-                if (material == value)
+                if (_material == value)
                     return;
 
-                SetRenderTargets(material = value);
+                SetRenderTargets(_material = value);
                 VerifyTextures();
             }
         }

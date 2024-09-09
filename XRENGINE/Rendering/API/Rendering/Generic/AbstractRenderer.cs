@@ -5,10 +5,13 @@ using Silk.NET.Windowing;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using XREngine.Core;
+using XREngine.Data.Colors;
 using XREngine.Data.Core;
 using XREngine.Data.Geometry;
+using XREngine.Data.Rendering;
 using XREngine.Data.Transforms.Rotations;
 using XREngine.Input;
+using XREngine.Rendering.Models.Materials;
 using static XREngine.Engine;
 
 namespace XREngine.Rendering
@@ -337,9 +340,8 @@ namespace XREngine.Rendering
                 controller.Viewport = null;
         }
 
-        public static readonly Vector3 DefaultLuminance = new(0.299f, 0.587f, 0.114f);
         public bool CalcDotLuminance(XRTexture2D texture, out float dotLuminance, bool genMipmapsNow)
-            => CalcDotLuminance(texture, DefaultLuminance, out dotLuminance, genMipmapsNow);
+            => CalcDotLuminance(texture, Engine.Rendering.Settings.DefaultLuminance, out dotLuminance, genMipmapsNow);
         public abstract bool CalcDotLuminance(XRTexture2D texture, Vector3 luminance, out float dotLuminance, bool genMipmapsNow);
         public float CalculateDotLuminance(XRTexture2D texture, bool generateMipmapsNow)
             => CalcDotLuminance(texture, out float dotLum, generateMipmapsNow) ? dotLum : 1.0f;
@@ -353,6 +355,19 @@ namespace XREngine.Rendering
         /// <returns></returns>
         public T GenericToAPI<T>(GenericRenderObject renderObject) where T : AbstractRenderAPIObject
             => (T)GetOrCreateAPIRenderObject(renderObject);
+
+        public abstract void Clear(EFrameBufferTextureType type);
+        public abstract void BindFrameBuffer(EFramebufferTarget fboTarget, int bindingId);
+        public abstract void ClearColor(ColorF4 color);
+        public abstract void SetReadBuffer(EDrawBuffersAttachment attachment);
+        public abstract float GetDepth(float x, float y);
+        public abstract byte GetStencilIndex(float x, float y);
+        public abstract void EnableDepthTest(bool v);
+        public abstract void StencilMask(uint mask);
+        public abstract void ClearStencil(int v);
+        public abstract void ClearDepth(float v);
+        public abstract void AllowDepthWrite(bool v);
+        public abstract void DepthFunc(EComparison always);
     }
     public abstract unsafe partial class AbstractRenderer<TAPI> : AbstractRenderer where TAPI : NativeAPI
     {

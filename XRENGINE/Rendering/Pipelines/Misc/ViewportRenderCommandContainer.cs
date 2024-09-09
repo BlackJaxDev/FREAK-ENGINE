@@ -4,7 +4,7 @@ using XREngine.Rendering.Pipelines.Commands;
 
 namespace XREngine.Rendering
 {
-    public class ViewportRenderCommandContainer : XRBase, IReadOnlyList<ViewportRenderCommand>
+    public class ViewportRenderCommandContainer(XRRenderPipeline pipeline) : XRBase, IReadOnlyList<ViewportRenderCommand>
     {
         private readonly List<ViewportRenderCommand> _commands = [];
         public IReadOnlyList<ViewportRenderCommand> Commands => _commands;
@@ -13,6 +13,9 @@ namespace XREngine.Rendering
         //public bool ModifyingFBOs { get; protected set; } = false;
 
         public int Count => Commands.Count;
+
+        public XRRenderPipeline Pipeline { get; } = pipeline;
+
         public ViewportRenderCommand this[int index] => Commands[index];
 
         public StateObject AddUsing<T>(Action<T>? setOptionsFunc = null) where T : ViewportStateRenderCommandBase
@@ -67,12 +70,6 @@ namespace XREngine.Rendering
         {
             foreach (ViewportRenderCommand command in _commands)
                 command.ExecuteIfShould();
-        }
-        public void DestroyFBOs()
-        {
-            foreach (var rc in _commands)
-                rc?.DestroyFBOs();
-            //FBOsInitialized = false;
         }
         //public void GenerateFBOs()
         //{

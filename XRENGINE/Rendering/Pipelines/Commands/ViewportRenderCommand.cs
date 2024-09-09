@@ -1,10 +1,11 @@
 ﻿namespace XREngine.Rendering.Pipelines.Commands
 {
-    public abstract class ViewportRenderCommand(XRRenderPipeline pipeline)
+    public abstract class ViewportRenderCommand(ViewportRenderCommandContainer commandContainer)
     {
         public const string SceneShaderPath = "Scene3D";
 
-        public XRRenderPipeline Pipeline { get; } = pipeline;
+        public ViewportRenderCommandContainer CommandContainer { get; } = commandContainer;
+        public XRRenderPipeline Pipeline => CommandContainer.Pipeline;
 
         /// <summary>
         /// If true, the command will execute in the shadow pass.
@@ -30,10 +31,5 @@
                 Execute();
             ShouldExecute = true;
         }
-
-        /// <summary>
-        /// Destroys the FBOs for the command.
-        /// </summary>
-        public virtual void DestroyFBOs() { }
     }
 }

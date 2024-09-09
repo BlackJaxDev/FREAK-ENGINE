@@ -1,6 +1,6 @@
 ﻿namespace XREngine.Rendering.Pipelines.Commands
 {
-    public class VRPC_Switch(XRRenderPipeline pipeline) : ViewportStateRenderCommand(pipeline, new VPRC_PopRenderArea(pipeline))
+    public class VPRC_Switch(ViewportRenderCommandContainer pipeline) : ViewportStateRenderCommand<VPRC_PopRenderArea>(pipeline)
     {
         public required Func<int> SwitchEvaluator { get; set; }
         public required Dictionary<int, ViewportRenderCommandContainer> Cases { get; set; }

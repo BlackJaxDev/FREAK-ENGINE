@@ -39,8 +39,9 @@ namespace XREngine
                 throw new Exception(error);
             }
 
-            SceneNode rootNode = new(world, System.IO.Path.GetFileNameWithoutExtension(Path));
-            return ProcessNode(scene->MRootNode, scene, Matrix4x4.Identity, rootNode);
+            //SceneNode rootNode = new(world, System.IO.Path.GetFileNameWithoutExtension(Path));
+            //return ProcessNode(scene->MRootNode, scene, Matrix4x4.Identity, rootNode);
+            return null;
         }
 
         private unsafe SceneNode ProcessNode(Node* node, AScene* scene, Matrix4x4 transform, SceneNode parent)

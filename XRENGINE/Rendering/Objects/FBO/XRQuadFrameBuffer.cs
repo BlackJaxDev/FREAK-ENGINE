@@ -60,6 +60,12 @@ namespace XREngine.Rendering
             _quadCamera = new XRCamera(new Transform(), new XROrthographicCameraParameters(1.0f, 1.0f, -0.5f, 0.5f));
         }
 
+        public XRQuadFrameBuffer(
+            XRMaterial material,
+            bool useTriangle,
+            params (IFrameBufferAttachement Target, EFrameBufferAttachment Attachment, int MipLevel, int LayerIndex)[]? targets)
+            : this(material, useTriangle) => SetRenderTargets(targets);
+
         private void SetUniforms(XRRenderProgram vertexProgram, XRRenderProgram materialProgram)
             => SettingUniforms?.Invoke(materialProgram);
 

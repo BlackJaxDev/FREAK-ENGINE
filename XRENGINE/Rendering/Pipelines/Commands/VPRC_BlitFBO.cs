@@ -6,23 +6,27 @@
     /// </summary>
     /// <param name="source"></param>
     /// <param name="destination"></param>
-    public class VPRC_BlitFBO(XRRenderPipeline pipeline) : ViewportRenderCommand(pipeline)
+    public class VPRC_BlitFBO(ViewportRenderCommandContainer pipeline) : ViewportRenderCommand(pipeline)
     {
-        public XRQuadFrameBuffer? Source { get; set; }
-        public XRFrameBuffer? Destination { get; set; }
+        public required string SourceQuadFBOName { get; set; }
+        public string? DestinationFBOName { get; set; } = null;
 
-        public void SetTargets(XRQuadFrameBuffer source, XRFrameBuffer destination)
+        public void SetTargets(string sourceQuadFBOName, string? destinationFBOName = null)
         {
-            Source = source;
-            Destination = destination;
+            SourceQuadFBOName = sourceQuadFBOName;
+            DestinationFBOName = destinationFBOName;
         }
 
         protected override void Execute()
         {
-            if (Destination is null)
+            if (SourceQuadFBOName is null)
                 return;
 
-            Source?.Render(Destination);
+            XRQuadFrameBuffer? sourceFBO = Pipeline.GetFBO<XRQuadFrameBuffer>(SourceQuadFBOName);
+            if (sourceFBO is null)
+                return;
+
+            sourceFBO.Render(DestinationFBOName is null ? null : Pipeline.GetFBO<XRFrameBuffer>(DestinationFBOName));
         }
     }
 }

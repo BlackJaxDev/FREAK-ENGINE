@@ -1,6 +1,6 @@
 ﻿namespace XREngine.Rendering.Pipelines.Commands
 {
-    public class VPRC_RenderQuadFBO(XRRenderPipeline pipeline) : ViewportRenderCommand(pipeline)
+    public class VPRC_RenderQuadFBO(ViewportRenderCommandContainer pipeline) : ViewportRenderCommand(pipeline)
     {
         public required string FrameBufferName { get; set; }
         public string? TargetFrameBufferName { get; set; }

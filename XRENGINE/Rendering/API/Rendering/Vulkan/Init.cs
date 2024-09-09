@@ -1,4 +1,8 @@
 ﻿using Silk.NET.Vulkan;
+using XREngine.Data.Colors;
+using XREngine.Data.Geometry;
+using XREngine.Data.Rendering;
+using XREngine.Rendering.Models.Materials;
 
 namespace XREngine.Rendering.Vulkan
 {
@@ -84,6 +88,51 @@ namespace XREngine.Rendering.Vulkan
         private void InternalFreed(void* pUserData, nuint size, InternalAllocationType allocationType, SystemAllocationScope allocationScope)
         {
 
+        }
+
+        public override void StencilMask(uint mask)
+        {
+            throw new NotImplementedException();
+        }
+        public override void AllowDepthWrite(bool v)
+        {
+            throw new NotImplementedException();
+        }
+        public override void ClearDepth(float v)
+        {
+            throw new NotImplementedException();
+        }
+        public override void ClearStencil(int v)
+        {
+            throw new NotImplementedException();
+        }
+        public override void EnableDepthTest(bool v)
+        {
+            throw new NotImplementedException();
+        }
+        public override void DepthFunc(EComparison always)
+        {
+            throw new NotImplementedException();
+        }
+        public override void SetReadBuffer(EDrawBuffersAttachment attachment)
+        {
+            throw new NotImplementedException();
+        }
+        public override void BindFrameBuffer(EFramebufferTarget fboTarget, int bindingId)
+        {
+            throw new NotImplementedException();
+        }
+        public override void Clear(EFrameBufferTextureType type)
+        {
+            throw new NotImplementedException();
+        }
+        public override float GetDepth(float x, float y)
+        {
+            throw new NotImplementedException();
+        }
+        public override byte GetStencilIndex(float x, float y)
+        {
+            throw new NotImplementedException();
         }
 
         //private VkModel? _testModel;

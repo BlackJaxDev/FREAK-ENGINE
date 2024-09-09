@@ -1,11 +1,14 @@
 ﻿using Extensions;
 using XREngine.Data.Rendering;
-using static XREngine.Engine.Rendering.State;
 
 namespace XREngine.Rendering
 {
     public class XRFrameBuffer : GenericRenderObject
     {
+        public XRFrameBuffer() { }
+        public XRFrameBuffer(params (IFrameBufferAttachement Target, EFrameBufferAttachment Attachment, int MipLevel, int LayerIndex)[]? targets)
+            => SetRenderTargets(targets);
+
         private EDrawBuffersAttachment[]? _drawBuffers;
         private EFrameBufferTextureType _textureTypes = EFrameBufferTextureType.None;
         private (IFrameBufferAttachement Target, EFrameBufferAttachment Attachment, int MipLevel, int LayerIndex)[]? _targets;

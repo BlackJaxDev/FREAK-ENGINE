@@ -1,11 +1,16 @@
 ﻿using Silk.NET.Vulkan;
 using System.Numerics;
+using XREngine.Data.Colors;
 using XREngine.Data.Geometry;
 
 namespace XREngine.Rendering.Vulkan
 {
     public unsafe partial class VulkanRenderer
     {
+        public override void ClearColor(ColorF4 color)
+        {
+            throw new NotImplementedException();
+        }
         public override bool CalcDotLuminance(XRTexture2D texture, Vector3 luminance, out float dotLuminance, bool genMipmapsNow)
         {
             throw new NotImplementedException();

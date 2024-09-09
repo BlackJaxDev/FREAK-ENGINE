@@ -1,4 +1,5 @@
-﻿using XREngine.Data.Colors;
+﻿using System.Numerics;
+using XREngine.Data.Colors;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
 using XREngine.Rendering;
@@ -67,64 +68,49 @@ namespace XREngine
                 }
 
                 public static void Clear(ColorF4 color)
-                {
-                    throw new NotImplementedException();
-                }
+                    => AbstractRenderer.Current?.ClearColor(color);
 
                 public static void Clear(EFrameBufferTextureType type)
-                {
-                    throw new NotImplementedException();
-                }
+                    => AbstractRenderer.Current?.Clear(type);
 
-                internal static void BindFrameBuffer(EFramebufferTarget readFramebuffer, int v)
-                {
-                    throw new NotImplementedException();
-                }
+                public static void BindFrameBuffer(EFramebufferTarget fboTarget, int bindingId)
+                    => AbstractRenderer.Current?.BindFrameBuffer(fboTarget, bindingId);
 
-                internal static void SetReadBuffer(EDrawBuffersAttachment none)
-                {
-                    throw new NotImplementedException();
-                }
+                public static void SetReadBuffer(EDrawBuffersAttachment attachment)
+                    => AbstractRenderer.Current?.SetReadBuffer(attachment);
 
-                internal static float GetDepth(float x, float y)
-                {
-                    throw new NotImplementedException();
-                }
+                public static float GetDepth(float x, float y)
+                    => AbstractRenderer.Current?.GetDepth(x, y) ?? 0.0f;
 
-                internal static byte GetStencilIndex(float x, float y)
-                {
-                    throw new NotImplementedException();
-                }
+                public static byte GetStencilIndex(float x, float y)
+                    => AbstractRenderer.Current?.GetStencilIndex(x, y) ?? 0;
 
-                internal static void EnableDepthTest(bool v)
-                {
-                    throw new NotImplementedException();
-                }
+                public static void EnableDepthTest(bool v)
+                    => AbstractRenderer.Current?.EnableDepthTest(v);
 
-                internal static void StencilMask(int v)
-                {
-                    throw new NotImplementedException();
-                }
+                public static void StencilMask(uint mask)
+                    => AbstractRenderer.Current?.StencilMask(mask);
 
-                internal static void ClearStencil(int v)
-                {
-                    throw new NotImplementedException();
-                }
+                public static void ClearStencil(int v)
+                    => AbstractRenderer.Current?.ClearStencil(v);
 
-                internal static void ClearDepth(float v)
-                {
-                    throw new NotImplementedException();
-                }
+                public static void ClearDepth(float v)
+                    => AbstractRenderer.Current?.ClearDepth(v);
 
-                internal static void AllowDepthWrite(bool v)
-                {
-                    throw new NotImplementedException();
-                }
+                public static void AllowDepthWrite(bool v)
+                    => AbstractRenderer.Current?.AllowDepthWrite(v);
 
-                internal static void DepthFunc(EComparison always)
+                public static void DepthFunc(EComparison always)
+                    => AbstractRenderer.Current?.DepthFunc(always);
+
+                public static bool CalcDotLuminance(XRTexture2D texture, out float dotLuminance, bool genMipmapsNow)
                 {
-                    throw new NotImplementedException();
+                    dotLuminance = 1.0f;
+                    return AbstractRenderer.Current?.CalcDotLuminance(texture, out dotLuminance, genMipmapsNow) ?? false;
                 }
+                public static float CalculateDotLuminance(XRTexture2D texture, bool generateMipmapsNow)
+                    => CalcDotLuminance(texture, out float dotLum, generateMipmapsNow) ? dotLum : 1.0f;
+
             }
         }
     }

@@ -1088,5 +1088,20 @@ namespace XREngine.Data.Core
             lengthSquared *= 1.5f - x2 * lengthSquared * lengthSquared;
             return lengthSquared;
         }
+
+        public static bool Approx(float value1, float value2, float tolerance = 0.0001f)
+            => MathF.Abs(value1 - value2) < tolerance;
+
+        public static bool Approx(double value1, double value2, double tolerance = 0.0001)
+            => Math.Abs(value1 - value2) < tolerance;
+
+        public static bool Approx(Vector2 value1, Vector2 value2, float tolerance = 0.0001f)
+            => Approx(value1.X, value2.X, tolerance) && Approx(value1.Y, value2.Y, tolerance);
+
+        public static bool Approx(Vector3 value1, Vector3 value2, float tolerance = 0.0001f)
+            => Approx(value1.X, value2.X, tolerance) && Approx(value1.Y, value2.Y, tolerance) && Approx(value1.Z, value2.Z, tolerance);
+
+        public static bool Approx(Vector4 value1, Vector4 value2, float tolerance = 0.0001f)
+            => Approx(value1.X, value2.X, tolerance) && Approx(value1.Y, value2.Y, tolerance) && Approx(value1.Z, value2.Z, tolerance) && Approx(value1.W, value2.W, tolerance);
     }
 }

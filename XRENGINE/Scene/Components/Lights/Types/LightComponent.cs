@@ -210,7 +210,7 @@ namespace XREngine.Components.Lights
             using var overrideRegion = Engine.Rendering.State.PushRenderArea(_shadowMapRenderRegion);
             
             scene.PreRender(null, ShadowCamera);
-            ShadowRenderPipeline.Render(scene, ShadowCamera, null, ShadowMap);
+            ShadowRenderPipeline.Render(scene, ShadowCamera, null, ShadowMap, true);
         }
 
         public static EPixelInternalFormat GetShadowDepthMapFormat(EDepthPrecision precision)
