@@ -137,6 +137,7 @@ namespace XREngine.Rendering
 
         private bool _mvpInvalidated = true;
         private PostProcessingSettings? _postProcessing = null;
+        private XRMaterial? _postProcessMaterial;
 
         /// <summary>
         /// Called any time the camera's world matrix or projection matrix changes.
@@ -347,9 +348,10 @@ namespace XREngine.Rendering
         public virtual void SetPostProcessUniforms(XRRenderProgram program)
             => PostProcessing?.SetUniforms(program);
 
-        public XRMaterial PostProcessMaterial
+        public XRMaterial? PostProcessMaterial
         {
-            get; set;
+            get => _postProcessMaterial;
+            set => SetField(ref _postProcessMaterial, value);
         }
 
         public void SetUniforms(XRRenderProgram program)

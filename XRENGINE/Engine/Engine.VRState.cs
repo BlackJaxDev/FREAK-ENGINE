@@ -19,7 +19,7 @@ namespace XREngine
             {
                 var vr = new VR();
                 vr.DeviceDetected += OnDeviceDetected;
-                vr.TryStart();
+                vr.TryStart(EVRApplicationType.VRApplication_Scene);
                 //vr.InstallApp(new VrManifest());
                 //vr.SetActionManifest(new ActionManifest<GameAction, ActionCategory>());
                 Time.Timer.UpdateFrame += Update;
@@ -40,6 +40,50 @@ namespace XREngine
             private static void OnDeviceDetected(VrDevice device)
             {
                 Debug.Out($"Device detected: {device}");
+            }
+
+
+            private static VRTextureBounds_t _eyeTexBounds = new()
+            {
+                uMin = 0.0f,
+                uMax = 1.0f,
+                vMin = 0.0f,
+                vMax = 1.0f,
+            };
+
+            private static Texture_t _eyeTex = new()
+            {
+                eColorSpace = EColorSpace.Auto,
+            };
+
+            public static void SubmitRenders(
+                IntPtr leftEyeHandle,
+                IntPtr rightEyeHandle,
+                ETextureType apiType,
+                EColorSpace colorSpace = EColorSpace.Auto,
+                EVRSubmitFlags flags = EVRSubmitFlags.Submit_Default)
+            {
+                _eyeTex.eColorSpace = colorSpace;
+
+                var comp = Valve.VR.OpenVR.Compositor;
+
+                _eyeTex.handle = leftEyeHandle;
+                _eyeTex.eType = apiType;
+                CheckError(comp.Submit(EVREye.Eye_Left, ref _eyeTex, ref _eyeTexBounds, flags));
+
+                _eyeTex.handle = rightEyeHandle;
+                _eyeTex.eType = apiType;
+                CheckError(comp.Submit(EVREye.Eye_Right, ref _eyeTex, ref _eyeTexBounds, flags));
+
+                comp.PostPresentHandoff();
+            }
+
+            public static bool CheckError(EVRCompositorError error)
+            {
+                bool hasError = error != EVRCompositorError.None;
+                if (hasError)
+                    Debug.LogWarning($"OpenVR compositor error: {error}");
+                return hasError;
             }
 
             public class DevicePoseInfo : XRBase

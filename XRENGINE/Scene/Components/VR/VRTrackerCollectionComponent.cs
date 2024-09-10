@@ -1,6 +1,7 @@
 ﻿using OpenVR.NET.Devices;
 using System.Drawing;
 using System.Numerics;
+using Valve.VR;
 using XREngine.Components;
 using XREngine.Data.Rendering;
 using XREngine.Rendering;
@@ -21,9 +22,25 @@ namespace XREngine.Data.Components.Scene
             Engine.VRState.Api.DeviceDetected += OnDeviceDetected;
         }
 
+        public Dictionary<int, VrDevice> Trackers { get; } = [];
+
         private void OnDeviceDetected(VrDevice device)
+            => ReverifyTrackedDevices();
+
+        private static void ReverifyTrackedDevices()
         {
-            
+            var devices = Engine.VRState.Api.TrackedDevices;
+            foreach (var dev in devices)
+            {
+                if (!dev.IsEnabled)
+                    continue;
+
+                var c = Engine.VRState.Api.CVR.GetTrackedDeviceClass(dev.DeviceIndex);
+                if (c == ETrackedDeviceClass.GenericTracker)
+                {
+
+                }
+            }
         }
 
         static VRTrackerCollectionComponent()

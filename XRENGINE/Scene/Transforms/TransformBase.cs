@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using XREngine.Data.Core;
 using XREngine.Rendering.UI;
@@ -390,5 +391,16 @@ namespace XREngine.Scene.Transforms
         /// </summary>
         /// <param name="value"></param>
         public virtual void DeriveWorldMatrix(Matrix4x4 value) { }
+
+        [RequiresUnreferencedCode("This method is used to find all transform types in all assemblies in the current domain and should not be trimmed.")]
+        public static Type[] GetAllTransformTypes() 
+            => AppDomain.CurrentDomain.GetAssemblies()
+                .SelectMany(x => x.GetExportedTypes())
+                .Where(x => x.IsSubclassOf(typeof(TransformBase)))
+                .ToArray();
+
+        [RequiresUnreferencedCode("This method is used to find all transform types in all assemblies in the current domain and should not be trimmed.")]
+        public static string[] GetFriendlyTransformTypeSelector()
+            => GetAllTransformTypes().Select(x => x.Name).ToArray();
     }
 }

@@ -219,6 +219,10 @@ namespace XREngine.Components
             VerifyInterfacesOnStop();
         }
 
+        /// <summary>
+        /// This method is called when the component is set to active in the world.
+        /// It will check for known engine interfaces set by the user and apply engine data to them.
+        /// </summary>
         private void VerifyInterfacesOnStart()
         {
             if (this is IRenderable rend)
@@ -228,6 +232,10 @@ namespace XREngine.Components
             }
         }
 
+        /// <summary>
+        /// This method is called when the component is set to inactive in the world.
+        /// It will check for known engine interfaces set by the user and clear engine data from them.
+        /// </summary>
         private void VerifyInterfacesOnStop()
         {
             if (this is IRenderable rend)
