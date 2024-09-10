@@ -1,39 +1,27 @@
 ﻿using Silk.NET.OpenXR;
-using XREngine.Data.Geometry;
-using XREngine.Rendering;
 
-public unsafe partial class OpenXRAPI : AbstractRenderer<XR>
+public unsafe partial class OpenXRAPI
 {
-    protected override XR GetAPI()
-        => XR.GetApi();
+    public OpenXRAPI()
+    {
+        Api = XR.GetApi();
+        Initialize();
+    }
+    ~OpenXRAPI()
+    {
+        CleanUp();
+        Api.Dispose();
+    }
 
-    protected override void Initialize()
+    public XR Api { get; private set; }
+
+    protected void Initialize()
     {
         CreateInstance();
         SetupDebugMessenger();
     }
-    protected override void CleanUp()
+    protected void CleanUp()
     {
         DestroyInstance();
-    }
-
-    protected override void WindowRenderCallback(double delta)
-    {
-
-    }
-
-    public override void CropRenderArea(BoundingRectangle region)
-    {
-
-    }
-
-    protected override void SetRenderArea(BoundingRectangle region)
-    {
-
-    }
-
-    protected override AbstractRenderAPIObject CreateAPIRenderObject(GenericRenderObject renderObject)
-    {
-        throw new NotImplementedException();
     }
 }

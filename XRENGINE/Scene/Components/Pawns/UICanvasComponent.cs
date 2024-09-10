@@ -6,6 +6,9 @@ using XREngine.Rendering.UI;
 
 namespace XREngine.Components
 {
+    /// <summary>
+    /// Renders a 2D canvas on top of the screen, in world space, or in camera space.
+    /// </summary>
     [RequireComponents(typeof(CameraComponent))]
     [RequiresTransform(typeof(UICanvasTransform))]
     public class UICanvasComponent : XRComponent
@@ -14,7 +17,7 @@ namespace XREngine.Components
         /// Gets the user input component. Not a necessary component, so may be null.
         /// </summary>
         /// <returns></returns>
-        public UserInterfaceInputComponent? GetInputComponent() => GetSiblingComponent<UserInterfaceInputComponent>();
+        public UIInputComponent? GetInputComponent() => GetSiblingComponent<UIInputComponent>();
 
         public UICanvasTransform CanvasTransform => TransformAs<UICanvasTransform>();
         public CameraComponent ScreenSpaceCamera => GetSiblingComponent<CameraComponent>(true)!;

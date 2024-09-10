@@ -1,4 +1,6 @@
-﻿using XREngine.Scene;
+﻿using XREngine.Components;
+using XREngine.Scene;
+using XREngine.Scene.Components;
 
 namespace XREngine.Editor;
 
@@ -22,10 +24,18 @@ internal partial class Program
         {
             Name = "TestScene",
         };
-        //var rootNode = new SceneNode(scene)
-        //{
-        //    Name = "TestNode",
-        //};
+        var rootNode = new SceneNode(scene)
+        {
+            Name = "TestNode",
+        };
+        if (rootNode.TryAddComponent<VRPlayerCameraComponent>(out var vrComp))
+        {
+            vrComp!.Name = "TestCamera";
+        }
+        if (rootNode.TryAddComponent<CharacterMovement3DComponent>(out var moveComp))
+        {
+            moveComp!.Name = "TestCharacterMovement";
+        }
         world.Scenes.Add(scene);
         return world;
     }

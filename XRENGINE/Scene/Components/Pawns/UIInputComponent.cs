@@ -1,14 +1,16 @@
 ﻿using System.ComponentModel;
 using System.Numerics;
+using XREngine.Core.Attributes;
 using XREngine.Input.Devices;
 using XREngine.Rendering.UI;
 
 namespace XREngine.Components
 {
     /// <summary>
-    /// Each viewport has a HUD that manages 2D user interface elements.
+    /// Dictates input for a UI canvas component.
     /// </summary>
-    public class UserInterfaceInputComponent : PawnComponent
+    [RequireComponents(typeof(UICanvasComponent))]
+    public class UIInputComponent : PawnComponent
     {
         protected Vector2 _cursorPos = Vector2.Zero;
         private PawnComponent? _owningPawn;
@@ -25,18 +27,12 @@ namespace XREngine.Components
             private set => SetField(ref _isResizing, value);
         }
 
-        //public Vector2 Bounds
-        //{
-        //    get => Canvas.Size;
-        //    private set => Canvas.Size = value;
-        //}
-
-        public UIComponent FocusedComponent { get; set; }
+        public UIComponent? FocusedComponent { get; set; }
 
         /// <summary>
         /// The pawn that has this HUD linked for screen space use.
         /// </summary>
-        public PawnComponent OwningPawn
+        public PawnComponent? OwningPawn
         {
             get => _owningPawn;
             set
@@ -293,8 +289,8 @@ namespace XREngine.Components
         //        Canvas.RenderScreenSpace(viewport, fbo);
         //}
 
-        public Action<UserInterfaceInputComponent>? ResizeStarted;
-        public Action<UserInterfaceInputComponent>? ResizeFinished;
+        public Action<UIInputComponent>? ResizeStarted;
+        public Action<UIInputComponent>? ResizeFinished;
         private bool _isResizing = false;
         private UICanvasComponent? _canvas;
 

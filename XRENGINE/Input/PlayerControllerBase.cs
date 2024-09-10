@@ -4,6 +4,8 @@ namespace XREngine.Input
 {
     public abstract class PlayerControllerBase : PawnController
     {
+        public PlayerControllerBase() : base() { }
+
         private PlayerInfo _playerInfo = new();
         public PlayerInfo PlayerInfo
         {

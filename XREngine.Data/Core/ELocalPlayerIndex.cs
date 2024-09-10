@@ -10,9 +10,9 @@
     [Flags]
     public enum ELocalPlayerIndexMask
     {
-        One = 0,
-        Two = 1,
-        Three = 2,
-        Four = 4,
+        One = 1,
+        Two = 2,
+        Three = 4,
+        Four = 8,
     }
 }

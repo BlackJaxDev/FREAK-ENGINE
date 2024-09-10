@@ -5,19 +5,9 @@ using XREngine.Rendering;
 namespace XREngine.Input
 {
     //TODO: handle sending controller input packets to the server
-    public class LocalPlayerController : PlayerController<LocalInputInterface>
+    public class LocalPlayerController(ELocalPlayerIndex index) : PlayerController<LocalInputInterface>(new LocalInputInterface((int)index))
     {
-        public LocalPlayerController(ELocalPlayerIndex index) : base(new LocalInputInterface((int)index))
-        {
-            _localPlayerIndex = index;
-
-            _pawnPossessionQueue = new Queue<PawnComponent>();
-            if (_pawnPossessionQueue.Count != 0 && ControlledPawn is null)
-                ControlledPawn = _pawnPossessionQueue.Dequeue();
-        }
-
-        private readonly ELocalPlayerIndex _localPlayerIndex;
-        public ELocalPlayerIndex LocalPlayerIndex => _localPlayerIndex;
+        public ELocalPlayerIndex LocalPlayerIndex => index;
 
         private XRViewport? _viewport = null;
         public XRViewport? Viewport

@@ -23,9 +23,9 @@ namespace XREngine.Rendering.Commands
     {
         public bool IsShadowPass { get; set; }
 
-        public void SetRenderPasses(Dictionary<int, IComparer<RenderCommand>> passIndicesAndSorters)
+        public void SetRenderPasses(Dictionary<int, IComparer<RenderCommand>?> passIndicesAndSorters)
         {
-            _updatingPasses = passIndicesAndSorters.ToDictionary(x => x.Key, x => new SortedSet<RenderCommand>(x.Value));
+            _updatingPasses = passIndicesAndSorters.ToDictionary(x => x.Key, x => x.Value is null ? [] : (ICollection<RenderCommand>)new SortedSet<RenderCommand>(x.Value));
 
             //Copy the updating passes setup to rendering passes
             _renderingPasses = [];
@@ -35,11 +35,11 @@ namespace XREngine.Rendering.Commands
 
         private int _numCommandsRecentlyAddedToUpdate = 0;
 
-        private Dictionary<int, SortedSet<RenderCommand>> _updatingPasses = [];
-        private Dictionary<int, SortedSet<RenderCommand>> _renderingPasses = [];
+        private Dictionary<int, ICollection<RenderCommand>> _updatingPasses = [];
+        private Dictionary<int, ICollection<RenderCommand>> _renderingPasses = [];
 
         public RenderCommandCollection() { }
-        public RenderCommandCollection(Dictionary<int, IComparer<RenderCommand>> passIndicesAndSorters)
+        public RenderCommandCollection(Dictionary<int, IComparer<RenderCommand>?> passIndicesAndSorters)
             => SetRenderPasses(passIndicesAndSorters);
 
         public void Add(RenderCommand item)

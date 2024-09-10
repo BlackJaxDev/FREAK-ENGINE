@@ -2,27 +2,29 @@
 
 namespace XREngine.Data.Core
 {
-    public readonly struct XRBoolEvent<T>(InvokeBoolType type = InvokeBoolType.All) : IEnumerable<Func<T, bool>>
+    public struct XRBoolEvent<T>(InvokeBoolType type = InvokeBoolType.All) : IEnumerable<Func<T, bool>>
     {
-        private readonly List<Func<T, bool>> _actions = [];
+        private List<Func<T, bool>>? _actions = [];
+        private List<Func<T, bool>> Actions => _actions ??= [];
+
         public InvokeBoolType Type { get; } = type;
 
-        public int Count => _actions.Count;
+        public int Count => Actions.Count;
 
         public void AddListener(Func<T, bool> action)
-            => _actions.Add(action);
+            => Actions.Add(action);
 
         public void RemoveListener(Func<T, bool> action)
-            => _actions.Remove(action);
+            => Actions.Remove(action);
 
         public bool Invoke(T item)
-            => _actions.All(x => x.Invoke(item));
+            => Actions.All(x => x.Invoke(item));
 
         public IEnumerator<Func<T, bool>> GetEnumerator()
-            => ((IEnumerable<Func<T, bool>>)_actions).GetEnumerator();
+            => ((IEnumerable<Func<T, bool>>)Actions).GetEnumerator();
 
         IEnumerator IEnumerable.GetEnumerator()
-            => ((IEnumerable)_actions).GetEnumerator();
+            => ((IEnumerable)Actions).GetEnumerator();
 
         public static XRBoolEvent<T> operator +(XRBoolEvent<T> e, Func<T, bool> a)
         {

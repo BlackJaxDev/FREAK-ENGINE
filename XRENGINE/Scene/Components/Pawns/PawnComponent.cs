@@ -15,7 +15,7 @@ namespace XREngine.Components
         public XREvent<PawnComponent> PreUnpossessed;
         public XREvent<PawnComponent> PostUnpossessed;
 
-        private UserInterfaceInputComponent? _hud = null;
+        private UIInputComponent? _hud = null;
 
         /// <summary>
         /// The interface that is managing and providing input to this pawn.
@@ -28,27 +28,36 @@ namespace XREngine.Components
                 if (Controller == value)
                     return;
 
-                if (Controller is not null)
-                {
-                    //Call before unregistering anything
-                    PreUnpossess();
-                    Controller.ControlledPawn = null;
-                    SetField(ref _controller, null);
-                    //Call after unregistering controller
-                    PostUnpossess();
-                }
-
-                //If the controller is not null, we are possessing a new pawn
-                if (value is not null)
-                {
-                    //Call before possessing the new pawn
-                    PrePossess();
-                    SetField(ref _controller, value);
-                    value.ControlledPawn = this;
-                    //Call after possessing the new pawn
-                    PostPossess();
-                }
+                Unpossess();
+                Possess(value);
             }
+        }
+
+        private void Possess(PawnController? value)
+        {
+            if (value is null)
+                return;
+
+            //Call before possessing the new pawn
+            PrePossess();
+            SetField(ref _controller, value);
+            value.ControlledPawn = this;
+            //Call after possessing the new pawn
+            PostPossess();
+        }
+
+        private void Unpossess()
+        {
+            if (Controller is null)
+                return;
+            
+            //Call before unregistering anything
+            PreUnpossess();
+            if (Controller.ControlledPawn == this)
+                Controller.ControlledPawn = null;
+            SetField(ref _controller, null);
+            //Call after unregistering controller
+            PostUnpossess();
         }
 
         protected virtual void PostPossess()
@@ -95,7 +104,7 @@ namespace XREngine.Components
             set => SetField(ref _currentCameraComponent, value);
         }
 
-        public UserInterfaceInputComponent? HUD
+        public UIInputComponent? HUD
         {
             get => _hud;
             set => SetField(ref _hud, value);

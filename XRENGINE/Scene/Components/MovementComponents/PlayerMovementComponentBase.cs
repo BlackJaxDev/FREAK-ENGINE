@@ -3,7 +3,10 @@ using XREngine.Data;
 
 namespace XREngine.Components
 {
-    public abstract class MovementComponent : XRComponent
+    /// <summary>
+    /// Base component for all components that move a player scene node.
+    /// </summary>
+    public abstract class PlayerMovementComponentBase : XRComponent
     {
         private Vector3 _frameInputDirection = Vector3.Zero;
 

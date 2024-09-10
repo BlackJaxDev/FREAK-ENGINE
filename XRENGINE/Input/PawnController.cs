@@ -10,7 +10,7 @@ namespace XREngine.Input
     public abstract class PawnController : XRObjectBase
     {
         //TODO: gamemode vs pawncontroller possession queue usage?
-        protected Queue<PawnComponent> _pawnPossessionQueue = new();
+        protected readonly Queue<PawnComponent> _pawnPossessionQueue = new();
 
         protected PawnComponent? _controlledPawn;
         public virtual PawnComponent? ControlledPawn
@@ -20,10 +20,38 @@ namespace XREngine.Input
             {
                 SetField(ref _controlledPawn, value);
 
-                if (_controlledPawn is null && _pawnPossessionQueue != null && _pawnPossessionQueue.Count != 0)
-                    _controlledPawn = _pawnPossessionQueue.Dequeue();
+                if (ControlledPawn is null && _pawnPossessionQueue.Count > 0)
+                    ControlledPawn = _pawnPossessionQueue.Dequeue();
             }
         }
+
+        protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
+        {
+            bool change = base.OnPropertyChanging(propName, field, @new);
+            if (change)
+            {
+                switch (propName)
+                {
+                    case nameof(ControlledPawn):
+                        if (ControlledPawn?.Controller == this)
+                            ControlledPawn.Controller = null;
+                        break;
+                }
+            }
+            return change;
+        }
+        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+        {
+            base.OnPropertyChanged(propName, prev, field);
+            switch (propName)
+            {
+                case nameof(ControlledPawn):
+                    if (ControlledPawn is not null)
+                        ControlledPawn.Controller = this;
+                    break;
+            }
+        }
+
         /// <summary>
         /// Queues the given pawn for possession.
         /// If the currently possessed pawn is null, possesses the given pawn immediately.

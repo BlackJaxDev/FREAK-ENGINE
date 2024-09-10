@@ -166,7 +166,7 @@ namespace XREngine
                 windowState,
                 windowBorder,
                 isVSync: windowSettings.VSync,
-                shouldSwapAutomatically: false,
+                shouldSwapAutomatically: true,
                 VideoMode.Default);
         }
 

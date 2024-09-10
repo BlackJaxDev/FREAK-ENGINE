@@ -3,15 +3,10 @@ using Silk.NET.Core.Native;
 using Silk.NET.OpenXR;
 using System.Runtime.InteropServices;
 using System.Text;
-using XREngine.Rendering;
 
 public unsafe partial class OpenXRAPI
 {
     private Instance instance;
-
-    public OpenXRAPI(XRWindow window) : base(window)
-    {
-    }
 
     private void DestroyInstance()
         => Api!.DestroyInstance(instance);

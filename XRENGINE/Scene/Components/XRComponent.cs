@@ -1,4 +1,7 @@
 ﻿using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
+using System.Runtime.Serialization;
 using XREngine.Data.Core;
 using XREngine.Scene;
 using XREngine.Scene.Transforms;
@@ -29,19 +32,28 @@ namespace XREngine.Components
         public XREvent<(XRComponent, TransformBase)> LocalMatrixChanged;
         public XREvent<(XRComponent, TransformBase)> WorldMatrixChanged;
 
+        //TODO: figure out how to disallow users from constructing xrcomponents
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-        protected XRComponent() { }
+        internal XRComponent() { }
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
         internal static T New<T>(SceneNode node) where T : XRComponent 
             => (T)New(node, typeof(T))!;
 
-        internal static XRComponent? New(SceneNode node, Type t)
+        internal static XRComponent? New(SceneNode node, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.NonPublicConstructors)] Type t)
         {
-            if (t is null || !t.IsSubclassOf(typeof(XRComponent)) || Activator.CreateInstance(t, true) is not XRComponent component)
+            if (t is null || !t.IsSubclassOf(typeof(XRComponent)))
                 return null;
 
-            component.SceneNode = node;
+#pragma warning disable SYSLIB0050 // Type or member is obsolete
+            object obj = FormatterServices.GetUninitializedObject(t);
+#pragma warning restore SYSLIB0050 // Type or member is obsolete
+            Type t2 = obj!.GetType();
+            var method = typeof(XRComponent).GetMethod(nameof(ConstructionSetSceneNode), BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
+            method!.Invoke(obj, [node]);
+            t2.GetConstructor(Type.EmptyTypes)?.Invoke(obj, null);
+            
+            var component = (XRComponent)obj;
             component.Constructing();
 
             ComponentCreated.Invoke(component);
@@ -76,6 +88,18 @@ namespace XREngine.Components
             if (comp is null && createIfNotExist)
                 comp = New<T>(SceneNode);
             return comp == this ? null : comp;
+        }
+        
+#pragma warning disable IDE0051 // Remove unused private members
+        private void ConstructionSetSceneNode(SceneNode node)
+#pragma warning restore IDE0051 // Remove unused private members
+        {
+            _sceneNode = node;
+            World = _sceneNode.World;
+            _sceneNode.PropertyChanging += SceneNodePropertyChanging;
+            _sceneNode.PropertyChanged += SceneNodePropertyChanged;
+            Transform.LocalMatrixChanged += OnTransformLocalMatrixChanged;
+            Transform.WorldMatrixChanged += OnTransformWorldMatrixChanged;
         }
 
         private SceneNode _sceneNode;

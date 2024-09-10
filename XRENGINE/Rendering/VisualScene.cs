@@ -46,8 +46,6 @@ namespace XREngine.Scene
         /// <param name="camera"></param>
         public void CollectRenderedItems(RenderCommandCollection commands, IVolume? collectionVolume, XRCamera camera)
         {
-            commands.IsShadowPass = false;
-
             void AddRenderCommands(ITreeItem item)
             {
                 if (item is RenderInfo renderable)

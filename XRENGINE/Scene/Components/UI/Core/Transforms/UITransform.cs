@@ -16,7 +16,7 @@ namespace XREngine.Rendering.UI
         protected Vector2 _translation = Vector2.Zero;
         protected float _z = 0.0f;
         protected Vector3 _scale = Vector3.One;
-        private UserInterfaceInputComponent? _owningUserInterface;
+        private UIInputComponent? _owningUserInterface;
         public RenderCommandMethod2D _rc;
         private bool _renderTransformation = true;
         private UIChildPlacementInfo? _placementInfo = null;
@@ -39,10 +39,10 @@ namespace XREngine.Rendering.UI
             set
             {
                 base.SceneNode = value;
-                OwningUserInterface = value is not null && value.TryGetComponent<UserInterfaceInputComponent>(out var ui) ? ui : null;
+                OwningUserInterface = value is not null && value.TryGetComponent<UIInputComponent>(out var ui) ? ui : null;
             }
         }
-        public UserInterfaceInputComponent? OwningUserInterface
+        public UIInputComponent? OwningUserInterface
         {
             get => _owningUserInterface;
             set

@@ -37,16 +37,20 @@ namespace XREngine.Components.Lights
 
         public LightComponent() : base()
         {
-            //TODO: I think this can have a limited number of render passes compared to a normal, non-shadow pass render
+            //This can have a limited number of render passes compared to a normal, non-shadow pass render
+            //No sorting is needed either
             _renderCommands = new RenderCommandCollection(new()
             {
-                { 0, _nearToFarSorter }, //Background
-                { 1, _nearToFarSorter }, //OpaqueDeferredLit
-                { 2, _nearToFarSorter }, //DeferredDecals
-                { 3, _nearToFarSorter }, //OpaqueForward
-                { 4, _farToNearSorter }, //TransparentForward
-                { 5, _nearToFarSorter }, //OnTopForward
-            });
+                //{ 0, _nearToFarSorter }, //No background pass
+                { 1, null }, //OpaqueDeferredLit
+                //{ 2, _nearToFarSorter }, //No decals
+                { 3, null }, //OpaqueForward
+                { 4, null }, //TransparentForward
+                //{ 5, _nearToFarSorter }, //No on top (UI)
+            })
+            {
+                IsShadowPass = true
+            };
             RenderInfo = new RenderInfo3D(this) { VisibleInLightingProbes = false };
             RenderedObjects = [RenderInfo];
         }

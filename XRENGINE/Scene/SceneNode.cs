@@ -182,8 +182,8 @@ namespace XREngine.Scene
         /// </summary>
         public TransformBase Transform
         {
-            get => _transform ?? SetFieldReturn(ref _transform, new Transform() { SceneNode = this })!;
-            set => SetField(ref _transform, value);
+            get => _transform ??= new Transform() { SceneNode = this };
+            set => SetField(ref _transform, value ?? new Transform() { SceneNode = this });
         }
 
         /// <summary>

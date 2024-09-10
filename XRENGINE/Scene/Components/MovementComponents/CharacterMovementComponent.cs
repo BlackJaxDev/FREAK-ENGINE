@@ -10,10 +10,18 @@ using XREngine.Scene.Transforms;
 
 namespace XREngine.Components
 {
+    [RequiresTransform(typeof(Transform))]
     [RequireComponents(typeof(CapsuleYComponent))]
-    public class CharacterMovement3DComponent : MovementComponent
+    public class CharacterMovement3DComponent : PlayerMovementComponentBase
     {
         public CapsuleYComponent? RootCapsule => GetSiblingComponent<CapsuleYComponent>(true);
+
+        private float _verticalStepUpHeight = 1.0f;
+        private float _maxWalkAngle = 50.0f;
+        private float _walkingMovementSpeed = 0.17f;
+        private float _jumpSpeed = 8.0f;
+        private float _fallingMovementSpeed = 10.0f;
+        private bool _alignInputToGround = true;
 
         private EMovementMode _currentMovementMode = EMovementMode.Falling;
         private Vector3 _worldGroundContactPoint;
@@ -24,33 +32,76 @@ namespace XREngine.Components
             _position, _prevPosition,
             _velocity, _prevVelocity,
             _acceleration;
-
-        public Vector3 CurrentPosition => _position;
-        public Vector3 CurrentVelocity => _velocity;
-        public Vector3 CurrentAcceleration => _acceleration;
-
         private bool _postWalkAllowJump = false, _justJumped = false;
         private ShapeTraceClosest _closestTrace = new(
             null, Matrix4x4.Identity, Matrix4x4.Identity,
             (ushort)ECollisionGroup.Characters,
             (ushort)(ECollisionGroup.StaticWorld | ECollisionGroup.DynamicWorld));
 
-        public float VerticalStepUpHeight { get; set; } = 1.0f;
-        public float MaxWalkAngle { get; set; } = 50.0f;
-        public float WalkingMovementSpeed { get; set; } = 0.17f;
-        public float JumpSpeed { get; set; } = 8.0f;
-        public float FallingMovementSpeed { get; set; } = 10.0f;
-        public bool AlignInputToGround { get; set; } = true;
-        public bool IsCrouched { get; set; } = false;
-        public Quaternion UpToGroundNormalRotation { get; set; } = Quaternion.Identity;
-        public float AllowJumpTimeDelta { get; set; }
-        public float AllowJumpExtraTime { get; set; } = 1.0f;
+        private bool _isCrouched = false;
+        private Quaternion _upToGroundNormalRotation = Quaternion.Identity;
+        private float _allowJumpTimeDelta;
+        private float _allowJumpExtraTime = 1.0f;
+
+        public Vector3 CurrentPosition => _position;
+        public Vector3 CurrentVelocity => _velocity;
+        public Vector3 CurrentAcceleration => _acceleration;
+        public float VerticalStepUpHeight
+        {
+            get => _verticalStepUpHeight;
+            set => SetField(ref _verticalStepUpHeight, value);
+        }
+        public float MaxWalkAngle
+        {
+            get => _maxWalkAngle;
+            set => SetField(ref _maxWalkAngle, value);
+        }
+        public float WalkingMovementSpeed
+        {
+            get => _walkingMovementSpeed;
+            set => SetField(ref _walkingMovementSpeed, value);
+        }
+        public float JumpSpeed
+        {
+            get => _jumpSpeed;
+            set => SetField(ref _jumpSpeed, value);
+        }
+        public float FallingMovementSpeed
+        {
+            get => _fallingMovementSpeed;
+            set => SetField(ref _fallingMovementSpeed, value);
+        }
+        public bool AlignInputToGround
+        {
+            get => _alignInputToGround;
+            set => SetField(ref _alignInputToGround, value);
+        }
+        public bool IsCrouched
+        {
+            get => _isCrouched;
+            set => SetField(ref _isCrouched, value);
+        }
+        public Quaternion UpToGroundNormalRotation
+        {
+            get => _upToGroundNormalRotation;
+            private set => SetField(ref _upToGroundNormalRotation, value);
+        }
+        public float AllowJumpTimeDelta
+        {
+            get => _allowJumpTimeDelta;
+            set => SetField(ref _allowJumpTimeDelta, value);
+        }
+        public float AllowJumpExtraTime
+        {
+            get => _allowJumpExtraTime;
+            set => SetField(ref _allowJumpExtraTime, value);
+        }
         public Vector3 GroundNormal
         {
             get => _groundNormal;
             private set
             {
-                _groundNormal = value;
+                SetField(ref _groundNormal, value);
                 UpToGroundNormalRotation = XRMath.RotationBetweenVectors(Globals.Up, GroundNormal);
             }
         }
@@ -154,13 +205,12 @@ namespace XREngine.Components
         }
         protected virtual void TickWalking(Vector3 movementInput)
         {
-            Matrix4x4 inputTransform;
             CapsuleYComponent root = RootCapsule!;
             Transform rootTfm = root.TransformAs<Transform>();
 
             XRCollisionShape? shape = root.CollisionObject?.CollisionShape;
             XRRigidBody? body = root.CollisionObject as XRRigidBody;
-            
+
             _prevPosition = rootTfm.Translation;
 
             //Use gravity currently affecting this body
@@ -171,93 +221,35 @@ namespace XREngine.Components
             Vector3 stepUpVector = -VerticalStepUpHeight * down;
             Matrix4x4 stepUpMatrix = Matrix4x4.CreateTranslation(stepUpVector);
 
-            //Add input
+            //TODO: ground test first, then add input
 
+            //Add input
             Quaternion groundRot = AlignInputToGround ? UpToGroundNormalRotation : Quaternion.Identity;
 
             _closestTrace.Shape = shape;
 
-            #region Movement input
-            while (true)
-            {
-                if (movementInput != Vector3.Zero)
-                {
-                    Vector3 finalInput = Vector3.Transform(movementInput * WalkingMovementSpeed, groundRot);
-                    groundRot = Quaternion.Identity;
-                    inputTransform = Matrix4x4.CreateTranslation(finalInput);
+            //Add movement input
+            ConsumeMovement(ref movementInput, out Matrix4x4 inputTransform, root, rootTfm, stepUpMatrix, ref groundRot);
 
-                    Matrix4x4 wm = root.Transform.WorldMatrix;
-                    _closestTrace.Start = stepUpMatrix * wm;
-                    _closestTrace.End = stepUpMatrix * inputTransform * wm;
-                    
-                    if (SceneNode.World?.PhysicsScene?.Trace(_closestTrace) ?? false)
-                    {
-                        if (_closestTrace.HitFraction.IsZero())
-                        {
-                            Vector3 hitNormal = _closestTrace.HitNormalWorld;
-                            finalInput.Normalize();
-                            float dot = Vector3.Dot(hitNormal, finalInput);
-                            if (dot < 0.0f)
-                            {
-                                //running left is up, right is down
-                                Vector3 up = Vector3.Cross(finalInput, hitNormal);
-                                Vector3 newMovement = Vector3.Cross(hitNormal, up);
-                                if (!newMovement.Equals(movementInput))
-                                {
-                                    movementInput = newMovement;
-                                    continue;
-                                }
-                            }
-                            break;
-                        }
+            //Test for walkable ground where we've moved to
+            GroundTest(root, rootTfm, body, ref down, stepUpMatrix, out inputTransform);
 
-                        float hitF = _closestTrace.HitFraction;
+            if (root.CollisionObject is not null)
+                root.CollisionObject.WorldTransform = root.Transform.WorldMatrix;
 
-                        //Something is in the way
-                        rootTfm.Translation += finalInput * hitF;
-                        
-                        Vector3 normal = _closestTrace.HitNormalWorld;
-                        if (IsSurfaceNormalWalkable(normal))
-                        {
-                            GroundNormal = normal;
-                            groundRot = UpToGroundNormalRotation;
+            UpdatePhysics(root);
+        }
 
-                            XRRigidBody? rigidBody = _closestTrace.CollisionObject as XRRigidBody;
-                            //if (CurrentWalkingSurface == d)
-                            //    break;
+        private void UpdatePhysics(CapsuleYComponent root)
+        {
+            _prevVelocity = _velocity;
+            _position = root.Transform.WorldTranslation;
+            _velocity = (_position - _prevPosition) / Engine.Delta;
+            _acceleration = (_velocity - _prevVelocity) / Engine.Delta;
+        }
 
-                            CurrentWalkingSurface = rigidBody;
-                            if (!(hitF - 1.0f).IsZero())
-                            {
-                                float invHitF = 1.0f - hitF;
-                                movementInput = movementInput * invHitF;
-                                continue;
-                            }
-                        }
-                        else
-                        {
-                            finalInput = finalInput.Normalize();
-                            float dot = Vector3.Dot(normal, finalInput);
-                            if (dot < 0.0f)
-                            {
-                                //running left is up, right is down
-                                Vector3 up = finalInput.Cross(normal);
-                                movementInput = normal.Cross(up);
-                                continue;
-                            }
-                        }
-                    }
-                    else
-                        rootTfm.Translation += finalInput;
-                }
-                break;
-            }
-            #endregion
-
-            //Test for walkable ground
-
-            #region Ground Test
-
+        private void GroundTest(CapsuleYComponent root, Transform rootTfm, XRRigidBody? body, ref Vector3 down, Matrix4x4 stepUpMatrix, out Matrix4x4 inputTransform)
+        {
             float centerToGroundDist = root.Shape.HalfHeight + root.Shape.Radius;
             float marginDist = (CurrentWalkingSurface?.CollisionShape?.Margin ?? 0.0f) + (body?.CollisionShape?.Margin ?? 0.0f);
             float groundTestDist = 2.0f;// centerToGroundDist + marginDist;
@@ -283,17 +275,99 @@ namespace XREngine.Components
 
             GroundNormal = _closestTrace.HitNormalWorld;
             CurrentWalkingSurface = _closestTrace.CollisionObject as XRRigidBody;
-
-            #endregion
-
-            if (root.CollisionObject is not null)
-                root.CollisionObject.WorldTransform = root.Transform.WorldMatrix;
-
-            _prevVelocity = _velocity;
-            _position = root.Transform.WorldTranslation;
-            _velocity = (_position - _prevPosition) / Engine.Delta;
-            _acceleration = (_velocity - _prevVelocity) / Engine.Delta;
         }
+
+        private void ConsumeMovement(ref Vector3 movementInput, out Matrix4x4 inputTransform, CapsuleYComponent root, Transform rootTfm, Matrix4x4 stepUpMatrix, ref Quaternion groundRot)
+        {
+            inputTransform = Matrix4x4.Identity;
+            while (true)
+            {
+                if (movementInput.LengthSquared() < float.Epsilon)
+                    break;
+                
+                Vector3 finalInput = Vector3.Transform(movementInput * WalkingMovementSpeed, groundRot);
+                groundRot = Quaternion.Identity;
+                inputTransform = Matrix4x4.CreateTranslation(finalInput);
+
+                Matrix4x4 wm = root.Transform.WorldMatrix;
+                _closestTrace.Start = stepUpMatrix * wm;
+                _closestTrace.End = stepUpMatrix * inputTransform * wm;
+
+                if (SceneNode.World?.PhysicsScene?.Trace(_closestTrace) ?? false)
+                {
+                    if (PhysicsMove(ref movementInput, rootTfm, ref groundRot, ref finalInput))
+                        continue;
+                }
+                else
+                    rootTfm.Translation += finalInput;
+                break;
+            }
+        }
+
+        private bool PhysicsMove(ref Vector3 movementInput, Transform rootTfm, ref Quaternion groundRot, ref Vector3 finalInput)
+            => _closestTrace.HitFraction.IsZero()
+                ? PhysicsMoveNonBlocking(ref movementInput, finalInput)
+                : PhysicsMoveBlocking(ref movementInput, rootTfm, ref finalInput);
+
+        private bool PhysicsMoveBlocking(ref Vector3 movementInput, Transform rootTfm, ref Vector3 finalInput)
+        {
+            float hitF = _closestTrace.HitFraction;
+
+            //Something is in the way
+            rootTfm.Translation += finalInput * hitF;
+
+            Vector3 normal = _closestTrace.HitNormalWorld;
+            if (IsSurfaceNormalWalkable(normal))
+            {
+                GroundNormal = normal;
+                //var groundRot = UpToGroundNormalRotation;
+
+                XRRigidBody? rigidBody = _closestTrace.CollisionObject as XRRigidBody;
+                //if (CurrentWalkingSurface == d)
+                //    break;
+
+                CurrentWalkingSurface = rigidBody;
+                if (!(hitF - 1.0f).IsZero())
+                {
+                    float invHitF = 1.0f - hitF;
+                    movementInput = movementInput * invHitF;
+                    return true;
+                }
+            }
+            else
+            {
+                finalInput = finalInput.Normalize();
+                float dot = Vector3.Dot(normal, finalInput);
+                if (dot < 0.0f)
+                {
+                    //running left is up, right is down
+                    Vector3 up = finalInput.Cross(normal);
+                    movementInput = normal.Cross(up);
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private bool PhysicsMoveNonBlocking(ref Vector3 movementInput, Vector3 finalInput)
+        {
+            Vector3 hitNormal = _closestTrace.HitNormalWorld;
+            finalInput.Normalize();
+            float dot = Vector3.Dot(hitNormal, finalInput);
+            if (dot < 0.0f)
+            {
+                //running left is up, right is down
+                Vector3 up = Vector3.Cross(finalInput, hitNormal);
+                Vector3 newMovement = Vector3.Cross(hitNormal, up);
+                if (!newMovement.Equals(movementInput))
+                {
+                    movementInput = newMovement;
+                    return true;
+                }
+            }
+            return false;
+        }
+
         protected virtual void TickFalling(Vector3 movementInput)
         {
             if (RootCapsule!.CollisionObject is not XRRigidBody body)
