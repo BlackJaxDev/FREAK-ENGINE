@@ -57,11 +57,8 @@ namespace XREngine.Scene.Transforms
             get => _scale;
             set
             {
-                lock (_lock)
-                {
-                    _scale = value;
-                    MarkLocalModified();
-                }
+                SetField(ref _scale, value);
+                MarkLocalModified();
             }
         }
 
@@ -71,11 +68,8 @@ namespace XREngine.Scene.Transforms
             get => _translation;
             set
             {
-                lock (_lock)
-                {
-                    _translation = value;
-                    MarkLocalModified();
-                }
+                SetField(ref _translation, value);
+                MarkLocalModified();
             }
         }
 
@@ -91,11 +85,8 @@ namespace XREngine.Scene.Transforms
             get => _rotation;
             set
             {
-                lock (_lock)
-                {
-                    _rotation = value;
-                    MarkLocalModified();
-                }
+                SetField(ref _rotation, value);
+                MarkLocalModified();
             }
         }
 
@@ -105,19 +96,19 @@ namespace XREngine.Scene.Transforms
             get => _order;
             set
             {
-                lock (_lock)
+                if (!SetField(ref _order, value))
+                    return;
+                
+                _localMatrixGen = _order switch
                 {
-                    _order = value;
-                    _localMatrixGen = _order switch
-                    {
-                        EOrder.RST => RST,
-                        EOrder.STR => STR,
-                        EOrder.TSR => TSR,
-                        EOrder.SRT => SRT,
-                        EOrder.RTS => RTS,
-                        _ => TRS,
-                    };
-                }
+                    EOrder.RST => RST,
+                    EOrder.STR => STR,
+                    EOrder.TSR => TSR,
+                    EOrder.SRT => SRT,
+                    EOrder.RTS => RTS,
+                    _ => TRS,
+                };
+                MarkLocalModified();
             }
         }
 
@@ -173,5 +164,14 @@ namespace XREngine.Scene.Transforms
         /// <exception cref="NotImplementedException"></exception>
         public void TranslateRelative(float x, float y, float z)
             => Translation += Vector3.Transform(new Vector3(x, y, z), Matrix4x4.CreateFromQuaternion(Rotation));
+
+        public void LookAt(Vector3 worldSpaceTarget)
+        {
+            //Convert the world position to local space
+            Matrix4x4 parentInv = ParentInverseWorldMatrix;
+            Vector3 localSpaceTarget = Vector3.Transform(worldSpaceTarget, parentInv);
+            Vector3 dir = localSpaceTarget - Translation;
+            Rotation = Quaternion.CreateFromRotationMatrix(Matrix4x4.CreateLookTo(Vector3.Zero, dir, Globals.Up));
+        }
     }
 }

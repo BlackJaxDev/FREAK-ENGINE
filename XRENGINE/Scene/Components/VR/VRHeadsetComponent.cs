@@ -1,5 +1,4 @@
 ﻿using System.Numerics;
-using Valve.VR;
 using XREngine.Components;
 using XREngine.Core.Attributes;
 using XREngine.Rendering;
@@ -7,10 +6,10 @@ using XREngine.Scene.Transforms;
 
 namespace XREngine.Data.Components.Scene
 {
-    [RequiresTransform(typeof(VRHMDTransform))]
-    public class VRHMDComponent : XRComponent
+    [RequiresTransform(typeof(VRHeadsetTransform))]
+    public class VRHeadsetComponent : XRComponent
     {
-        protected VRHMDComponent() : base()
+        protected VRHeadsetComponent() : base()
         {
             _leftEyeTransform = new VREyeTransform(true, Transform);
             _rightEyeTransform = new VREyeTransform(false, Transform);

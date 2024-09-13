@@ -6,7 +6,7 @@ namespace XREngine.Rendering.UI
     public class UIComboBoxComponent : UIInteractableComponent
     {
         [Category("Events")]
-        public event DelScrolling Scrolled;
+        public event DelScrolling? Scrolled;
 
         public UIComboBoxComponent()
         {

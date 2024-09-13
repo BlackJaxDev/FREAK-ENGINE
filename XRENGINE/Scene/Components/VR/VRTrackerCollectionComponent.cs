@@ -16,7 +16,7 @@ namespace XREngine.Data.Components.Scene
     {
         public VRTrackerCollectionComponent() 
         {
-            RenderedObjects = [new RenderInfo3D(this)];
+            RenderedObjects = [RenderInfo3D.New(this)];
             _rcDevice.Mesh = TrackerMesh;
 
             Engine.VRState.Api.DeviceDetected += OnDeviceDetected;

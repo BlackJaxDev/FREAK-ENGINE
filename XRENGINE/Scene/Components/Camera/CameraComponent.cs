@@ -2,6 +2,7 @@
 using System.ComponentModel;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
+using XREngine.Input;
 using XREngine.Rendering;
 
 namespace XREngine.Components
@@ -57,7 +58,20 @@ namespace XREngine.Components
         }
 
         protected CameraComponent() : base()
-            => _camera = new(() => new XRCamera(Transform), true);
+        {
+            _camera = new(() => new XRCamera(Transform), true);
+            Engine.State.LocalPlayerAdded += LocalPlayerAdded;
+        }
+        ~CameraComponent()
+        {
+            Engine.State.LocalPlayerAdded -= LocalPlayerAdded;
+        }
+
+        private void LocalPlayerAdded(LocalPlayerController controller)
+        {
+            if (controller.LocalPlayerIndex == LocalPlayerIndex)
+                controller.Cameras.Add(this);
+        }
 
         protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
         {
@@ -67,13 +81,8 @@ namespace XREngine.Components
                 switch (propName)
                 {
                     case nameof(LocalPlayerIndex):
-
                         if (LocalPlayerIndex is not null)
-                        {
-                            var player = Engine.State.GetLocalPlayer(LocalPlayerIndex.Value);
-                            player?.Cameras.Remove(this);
-                        }
-                        
+                            Engine.State.GetLocalPlayer(LocalPlayerIndex.Value)?.Cameras.Remove(this);
                         break;
                 }
             }
@@ -86,10 +95,7 @@ namespace XREngine.Components
             {
                 case nameof(LocalPlayerIndex):
                     if (LocalPlayerIndex is not null)
-                    {
-                        var player = Engine.State.GetLocalPlayer(LocalPlayerIndex.Value);
-                        player?.Cameras.Add(this);
-                    }
+                        Engine.State.GetLocalPlayer(LocalPlayerIndex.Value)?.Cameras.Add(this);
                     break;
             }
         }

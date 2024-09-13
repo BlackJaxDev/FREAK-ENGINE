@@ -11,7 +11,20 @@ namespace XREngine.Rendering
     /// </summary>
     public class XRCamera : XRBase
     {
-        public static XRCamera? CurrentRenderTarget { get; set; }
+        public static XREvent<XRCamera?> CurrentRenderTargetChanged { get; } = new();
+        private static XRCamera? _currentRenderTarget = null;
+        public static XRCamera? CurrentRenderTarget
+        {
+            get => _currentRenderTarget;
+            set
+            {
+                if (_currentRenderTarget == value)
+                    return;
+
+                _currentRenderTarget = value;
+                CurrentRenderTargetChanged.Invoke(value);
+            }
+        }
 
         public List<XRViewport> Viewports { get; set; } = [];
 

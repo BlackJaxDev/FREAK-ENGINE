@@ -211,10 +211,8 @@ namespace XREngine.Scene
                 {
 
                 };
-                RenderInfo = new RenderInfo3D(this)
-                {
-                    CullingVolume = this
-                };
+                RenderInfo = RenderInfo3D.New(this);
+                RenderInfo.CullingVolume = this;
                 RenderedObjects = [RenderInfo];
             }
 

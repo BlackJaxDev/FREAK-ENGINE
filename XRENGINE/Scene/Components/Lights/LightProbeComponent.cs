@@ -19,10 +19,7 @@ namespace XREngine.Components.Lights
         double[] IVertex.Position => [Transform.WorldTranslation.X, Transform.WorldTranslation.Y, Transform.WorldTranslation.Z];
 
         public LightProbeComponent() : base()
-        {
-            RenderInfo = new RenderInfo3D(this, _rc = new RenderCommandMesh3D(0));
-            RenderedObjects = [RenderInfo];
-        }
+            => RenderedObjects = [RenderInfo = RenderInfo3D.New(this, _rc = new RenderCommandMesh3D(0))];
 
         private readonly RenderCommandMesh3D _rc;
         public RenderInfo3D RenderInfo { get; }

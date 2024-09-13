@@ -19,7 +19,7 @@ namespace XREngine.Rendering.Vulkan
                 QueueFamilyIndex = queueFamiliyIndicies.GraphicsFamily!.Value,
             };
 
-            if (Api!.CreateCommandPool(device, poolInfo, null, out commandPool) != Result.Success)
+            if (Api!.CreateCommandPool(device, ref poolInfo, null, out commandPool) != Result.Success)
                 throw new Exception("failed to create command pool!");
         }
     }

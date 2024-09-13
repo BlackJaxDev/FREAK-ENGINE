@@ -12,14 +12,14 @@ namespace XREngine.Physics.ShapeTracing
         Matrix4x4 end,
         ushort collisionGroup,
         ushort collidesWith,
-        params XRCollisionObject?[] ignored) : XRBase
+        params XRCollisionObject[] ignored) : XRBase
     {
         public XRCollisionShape? Shape { get; set; } = shape;
         public Matrix4x4 Start { get; set; } = start;
         public Matrix4x4 End { get; set; } = end;
         public ushort CollisionGroup { get; set; } = collisionGroup;
         public ushort CollidesWith { get; set; } = collidesWith;
-        public XRCollisionObject?[] Ignored { get; set; } = ignored;
+        public XRCollisionObject[] Ignored { get; set; } = ignored;
         public float AllowedCcdPenetration { get; set; } = -1.0f;
         public abstract bool HasHit { get; }
         public bool DebugDraw { get; set; } = true;

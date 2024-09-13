@@ -41,6 +41,13 @@ namespace System.Collections.Generic
     public class EventList<T> : XRObjectBase, IEventListReadOnly<T>, IList<T>, ICollection<T>, IEnumerable<T>, IEnumerable, IList, ICollection, IReadOnlyList<T>, IReadOnlyCollection<T>
     {
         private readonly List<T> _list;
+        private ReaderWriterLockSlim? _lock;
+
+        public bool ThreadSafe
+        {
+            get => _lock != null;
+            set => _lock = value ? new ReaderWriterLockSlim() : null;
+        }
 
         public delegate void SingleHandler(T item);
         public delegate bool SingleCancelableHandler(T item);
@@ -60,80 +67,80 @@ namespace System.Collections.Generic
         /// <summary>
         /// Event called for every individual item just before being added to the list.
         /// </summary>
-        public event SingleCancelableHandler PreAnythingAdded;
+        public event SingleCancelableHandler? PreAnythingAdded;
         /// <summary>
         /// Event called for every individual item after being added to the list.
         /// </summary>
-        public event SingleHandler PostAnythingAdded;
+        public event SingleHandler? PostAnythingAdded;
         /// <summary>
         /// Event called for every individual item just before being removed from the list.
         /// </summary>
-        public event SingleCancelableHandler PreAnythingRemoved;
+        public event SingleCancelableHandler? PreAnythingRemoved;
         /// <summary>
         /// Event called for every individual item after being removed from the list.
         /// </summary>
-        public event SingleHandler PostAnythingRemoved;
+        public event SingleHandler? PostAnythingRemoved;
         /// <summary>
         /// Event called before an item is added using the Add method.
         /// </summary>
-        public event SingleCancelableHandler PreAdded;
+        public event SingleCancelableHandler? PreAdded;
         /// <summary>
         /// Event called after an item is added using the Add method.
         /// </summary>
-        public event SingleHandler PostAdded;
+        public event SingleHandler? PostAdded;
         /// <summary>
         /// Event called before an item is added using the AddRange method.
         /// </summary>
-        public event MultiCancelableHandler PreAddedRange;
+        public event MultiCancelableHandler? PreAddedRange;
         /// <summary>
         /// Event called after an item is added using the AddRange method.
         /// </summary>
-        public event MultiHandler PostAddedRange;
+        public event MultiHandler? PostAddedRange;
         /// <summary>
         /// Event called before an item is removed using the Remove method.
         /// </summary>
-        public event SingleCancelableHandler PreRemoved;
+        public event SingleCancelableHandler? PreRemoved;
         /// <summary>
         /// Event called after an item is removed using the Remove method.
         /// </summary>
-        public event SingleHandler PostRemoved;
+        public event SingleHandler? PostRemoved;
         /// <summary>
         /// Event called before an item is removed using the RemoveRange method.
         /// </summary>
-        public event MultiCancelableHandler PreRemovedRange;
+        public event MultiCancelableHandler? PreRemovedRange;
         /// <summary>
         /// Event called after an item is removed using the RemoveRange method.
         /// </summary>
-        public event MultiHandler PostRemovedRange;
+        public event MultiHandler? PostRemovedRange;
         /// <summary>
         /// Event called before an item is inserted using the Insert method.
         /// </summary>
-        public event SingleCancelableInsertHandler PreInserted;
+        public event SingleCancelableInsertHandler? PreInserted;
         /// <summary>
         /// Event called after an item is removed using the Insert method.
         /// </summary>
-        public event SingleInsertHandler PostInserted;
+        public event SingleInsertHandler? PostInserted;
         /// <summary>
         /// Event called before an item is inserted using the InsertRange method.
         /// </summary>
-        public event MultiCancelableInsertHandler PreInsertedRange;
+        public event MultiCancelableInsertHandler? PreInsertedRange;
         /// <summary>
         /// Event called after an item is inserted using the InsertRange method.
         /// </summary>
-        public event MultiInsertHandler PostInsertedRange;
+        public event MultiInsertHandler? PostInsertedRange;
         /// <summary>
         /// Event called before this list is modified in any way at all.
         /// </summary>
-        public event Func<bool> PreModified;
+        public event Func<bool>? PreModified;
         /// <summary>
         /// Event called after this list is modified in any way at all.
         /// </summary>
-        public event Action PostModified;
+        public event Action? PostModified;
 
-        public event PreIndexSetHandler PreIndexSet;
-        public event PostIndexSetHandler PostIndexSet;
+        public event PreIndexSetHandler? PreIndexSet;
+        public event PostIndexSetHandler? PostIndexSet;
 
-        public event TCollectionChangedEventHandler<T> CollectionChanged;
+        public event TCollectionChangedEventHandler<T>? CollectionChanged;
 
         public bool _updating = false;
         public bool _allowDuplicates = true;
@@ -152,17 +159,17 @@ namespace System.Collections.Generic
 
         public EventList()
         {
-            _list = new List<T>();
+            _list = [];
         }
         public EventList(bool allowDuplicates, bool allowNull)
         {
-            _list = new List<T>();
+            _list = [];
             _allowDuplicates = allowDuplicates;
             _allowNull = allowNull;
         }
         public EventList(IEnumerable<T> list)
         {
-            _list = new List<T>();
+            _list = [];
             AddRange(list);
         }
         public EventList(IEnumerable<T> list, bool allowDuplicates, bool allowNull)
@@ -376,7 +383,7 @@ namespace System.Collections.Generic
         public void RemoveRange(int index, int count) => RemoveRange(index, count, true, true);
         public void RemoveRange(int index, int count, bool reportRemovedRange, bool reportModified)
         {
-            IEnumerable<T> range = null;
+            IEnumerable<T> range = [];
 
             if (!_updating && reportRemovedRange)
                 range = GetRange(index, count);
@@ -487,7 +494,7 @@ namespace System.Collections.Generic
         public void Clear() => Clear(true, true);
         public void Clear(bool reportRemovedRange, bool reportModified)
         {
-            IEnumerable<T> range = null;
+            IEnumerable<T> range = [];
 
             if (reportRemovedRange)
                 range = GetRange(0, Count);
@@ -544,7 +551,7 @@ namespace System.Collections.Generic
         public void RemoveAll(Predicate<T> match) => RemoveAll(match, true, true);
         public void RemoveAll(Predicate<T> match, bool reportRemovedRange, bool reportModified)
         {
-            IEnumerable<T> matches = null;
+            IEnumerable<T> matches = [];
 
             if (!_updating)
             {
@@ -597,7 +604,7 @@ namespace System.Collections.Generic
                 if (reportModified)
                 {
                     PostModified?.Invoke();
-                    CollectionChanged?.Invoke(this, new TCollectionChangedEventArgs<T>(ECollectionChangedAction.Remove, matches.ToArray()));
+                    CollectionChanged?.Invoke(this, new TCollectionChangedEventArgs<T>(ECollectionChangedAction.Remove, matches!.ToArray()));
                 }
             }
         }
@@ -986,7 +993,7 @@ namespace System.Collections.Generic
         public void Remove(object? value)
             => ((IList)_list).Remove(value);
 
-        private class ThreadSafeEnumerator(List<T> list, ReaderWriterLockSlim locker) : IEnumerator<T>
+        private class ThreadSafeEnumerator(List<T> list, ReaderWriterLockSlim locker) : IEnumerator<T?>
         {
             private int _currentIndex = 0;
 

@@ -51,7 +51,8 @@ namespace XREngine.Components.Lights
             {
                 IsShadowPass = true
             };
-            RenderInfo = new RenderInfo3D(this) { VisibleInLightingProbes = false };
+            RenderInfo = RenderInfo3D.New(this);
+            RenderInfo.VisibleInLightingProbes = false;
             RenderedObjects = [RenderInfo];
         }
 
@@ -133,7 +134,7 @@ namespace XREngine.Components.Lights
             set => SetField(ref _type, value);
         }
 
-        public RenderInfo RenderInfo { get; }
+        public RenderInfo3D RenderInfo { get; }
         public RenderInfo[] RenderedObjects { get; }
 
         internal void SetShadowUniforms(XRRenderProgram program)

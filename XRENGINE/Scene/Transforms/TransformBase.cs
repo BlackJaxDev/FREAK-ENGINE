@@ -1,6 +1,9 @@
 ﻿using System.Collections;
+using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
+using System.Reflection;
+using XREngine.Components.Scene.Mesh;
 using XREngine.Data.Core;
 using XREngine.Rendering.UI;
 
@@ -11,23 +14,28 @@ namespace XREngine.Scene.Transforms
     /// Inherit from this class to create custom transformation implementations, or use the Transform class for default functionality.
     /// This class is thread-safe.
     /// </summary>
-    public abstract class TransformBase : XRWorldObjectBase, IList, IList<TransformBase>, IEnumerable<TransformBase>
+    public abstract partial class TransformBase : XRWorldObjectBase, IList, IList<TransformBase>, IEnumerable<TransformBase>
     {
         public XREvent<TransformBase> LocalMatrixChanged;
         public XREvent<TransformBase> InverseLocalMatrixChanged;
         public XREvent<TransformBase> WorldMatrixChanged;
         public XREvent<TransformBase> InverseWorldMatrixChanged;
 
+        private readonly ReaderWriterLockSlim _parentLock = new();
+
         protected TransformBase(TransformBase? parent)
         {
             _sceneNode = null;
             _parent = parent;
+            Depth = parent?.Depth + 1 ?? 0;
             _children = [];
+            _children.PostAnythingAdded += ChildAdded;
+            _children.PostAnythingRemoved += ChildRemoved;
 
-            _localMatrix = new MatrixInfo { Modified = true };
-            _worldMatrix = new MatrixInfo { Modified = true };
-            _inverseLocalMatrix = new MatrixInfo { Modified = true };
-            _inverseWorldMatrix = new MatrixInfo { Modified = true };
+            _localMatrix = new MatrixInfo { NeedsRecalc = true };
+            _worldMatrix = new MatrixInfo { NeedsRecalc = true };
+            _inverseLocalMatrix = new MatrixInfo { NeedsRecalc = true };
+            _inverseWorldMatrix = new MatrixInfo { NeedsRecalc = true };
 
             LocalMatrixChanged = new XREvent<TransformBase>();
             InverseLocalMatrixChanged = new XREvent<TransformBase>();
@@ -35,13 +43,11 @@ namespace XREngine.Scene.Transforms
             InverseWorldMatrixChanged = new XREvent<TransformBase>();
         }
 
-        private class MatrixInfo
-        {
-            public Matrix4x4 Matrix = Matrix4x4.Identity;
-            public bool Modified = true;
-        }
+        private void ChildAdded(TransformBase e)
+            => e.Parent = this;
 
-        protected readonly object _lock = new();
+        private void ChildRemoved(TransformBase e)
+            => e.Parent = null;
 
         private SceneNode? _sceneNode;
         /// <summary>
@@ -54,132 +60,68 @@ namespace XREngine.Scene.Transforms
             set => SetField(ref _sceneNode, value);
         }
 
+        public int Depth { get; private set; } = 0;
+
         private TransformBase? _parent;
+        private bool _invalidateOnRender = false;
+
         /// <summary>
         /// The parent of this transform.
         /// Will affect this transform's world matrix.
         /// </summary>
         public virtual TransformBase? Parent
         {
-            get => _parent;
+            get
+            {
+                _parentLock.EnterReadLock();
+                var parent = _parent;
+                _parentLock.ExitReadLock();
+                return parent;
+            }
             set
             {
-                lock (_lock)
-                {
-                    SetField(ref _parent, value);
-                    MarkWorldModified();
-                }
+                _parentLock.EnterWriteLock();
+                SetField(ref _parent, value);
+                _parentLock.ExitWriteLock();
+                MarkWorldModified();
             }
+        }
+
+        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+        {
+            base.OnPropertyChanged(propName, prev, field);
+            switch (propName)
+            {
+                case nameof(Parent):
+                    Depth = _parent is not null ? _parent.Depth + 1 : 0;
+                    break;
+            }
+        }
+
+        public interface IBoneTransformDependent
+        {
+
+        }
+
+        /// <summary>
+        /// These objects depend on the bone transform and will be updated when the bone transform is updated.
+        /// Use these to verify the bone is on screen and should be updated.
+        /// </summary>
+        public EventList<IBoneTransformDependent> Dependencies { get; } = [];
+
+        /// <summary>
+        /// 
+        /// </summary>
+        internal void TryParallelDepthRecalculate()
+        {
+            VerifyLocal();
+            VerifyLocalInv();
+            VerifyWorld();
+            VerifyWorldInv();
         }
 
         private readonly EventList<TransformBase> _children;
         public EventList<TransformBase> Children => _children;
-
-        private readonly MatrixInfo _localMatrix;
-        /// <summary>
-        /// This transform's local matrix relative to its parent.
-        /// </summary>
-        public Matrix4x4 LocalMatrix
-        {
-            get
-            {
-                lock (_lock)
-                {
-                    if (_localMatrix.Modified)
-                    {
-                        _localMatrix.Matrix = CreateLocalMatrix();
-                        _localMatrix.Modified = false;
-                        OnLocalMatrixChanged();
-                    }
-                    return _localMatrix.Matrix;
-                }
-            }
-        }
-
-        protected virtual void OnLocalMatrixChanged()
-        {
-            LocalMatrixChanged.Invoke(this);
-        }
-
-        private readonly MatrixInfo _worldMatrix;
-        /// <summary>
-        /// This transform's world matrix relative to the root of the scene (all ancestor transforms accounted for).
-        /// </summary>
-        public Matrix4x4 WorldMatrix
-        {
-            get
-            {
-                lock (_lock)
-                {
-                    if (_worldMatrix.Modified)
-                    {
-                        _worldMatrix.Matrix = CreateWorldMatrix();
-                        _worldMatrix.Modified = false;
-                        OnWorldMatrixChanged();
-                    }
-                    return _worldMatrix.Matrix;
-                }
-            }
-        }
-
-        protected virtual void OnWorldMatrixChanged()
-        {
-            WorldMatrixChanged.Invoke(this);
-        }
-
-        private readonly MatrixInfo _inverseLocalMatrix;
-        /// <summary>
-        /// The inverse of this transform's local matrix.
-        /// Calculated when requested if needed and cached until invalidated.
-        /// </summary>
-        public Matrix4x4 InverseLocalMatrix
-        {
-            get
-            {
-                lock (_lock)
-                {
-                    if (_inverseLocalMatrix.Modified && TryCreateInverseLocalMatrix(out Matrix4x4 inverted))
-                    {
-                        _inverseLocalMatrix.Matrix = inverted;
-                        _inverseLocalMatrix.Modified = false;
-                        OnInverseLocalMatrixChanged();
-                    }
-                    return _inverseLocalMatrix.Matrix;
-                }
-            }
-        }
-
-        protected virtual void OnInverseLocalMatrixChanged()
-        {
-            InverseLocalMatrixChanged.Invoke(this);
-        }
-
-        private readonly MatrixInfo _inverseWorldMatrix;
-        /// <summary>
-        /// The inverse of this transform's world matrix.
-        /// Calculated when requested if needed and cached until invalidated.
-        /// </summary>
-        public Matrix4x4 InverseWorldMatrix
-        {
-            get
-            {
-                lock (_lock)
-                {
-                    if (_inverseWorldMatrix.Modified && TryCreateInverseWorldMatrix(out Matrix4x4 inverted))
-                    {
-                        _inverseWorldMatrix.Matrix = inverted;
-                        _inverseWorldMatrix.Modified = false;
-                        OnInverseWorldMatrixChanged();
-                    }
-                    return _inverseWorldMatrix.Matrix;
-                }
-            }
-        }
-
-        protected virtual void OnInverseWorldMatrixChanged()
-        {
-            InverseWorldMatrixChanged.Invoke(this);
-        }
 
         /// <summary>
         /// Returns the parent world matrix, or identity if no parent.
@@ -225,26 +167,192 @@ namespace XREngine.Scene.Transforms
         /// </summary>
         public Vector3 LocalTranslation => LocalMatrix.Translation;
 
+        #region Local Matrix
+        private readonly MatrixInfo _localMatrix;
+        /// <summary>
+        /// This transform's local matrix relative to its parent.
+        /// </summary>
+        public Matrix4x4 LocalMatrix
+        {
+            get
+            {
+                VerifyLocal();
+                return _localMatrix.Matrix;
+            }
+        }
+
+        private void VerifyLocal()
+        {
+            if (!_localMatrix.NeedsRecalc)
+                return;
+            
+            _localMatrix.NeedsRecalc = false;
+            RecalcLocal();
+        }
+
+        internal void RecalcLocal()
+        {
+            _localMatrix.Matrix = CreateLocalMatrix();
+            _inverseLocalMatrix.NeedsRecalc = true;
+            OnLocalMatrixChanged();
+        }
+
+        protected virtual void OnLocalMatrixChanged()
+            => LocalMatrixChanged.Invoke(this);
+        #endregion
+
+        #region World Matrix
+        private readonly MatrixInfo _worldMatrix;
+        /// <summary>
+        /// This transform's world matrix relative to the root of the scene (all ancestor transforms accounted for).
+        /// </summary>
+        public Matrix4x4 WorldMatrix
+        {
+            get
+            {
+                VerifyWorld();
+                return _worldMatrix.Matrix;
+            }
+        }
+
+        private void VerifyWorld()
+        {
+            if (!_worldMatrix.NeedsRecalc)
+                return;
+            
+            _worldMatrix.NeedsRecalc = false;
+            RecalcWorld(false);
+        }
+
+        private void RecalcWorld(bool allowSetLocal)
+        {
+            _worldMatrix.Matrix = CreateWorldMatrix();
+            _inverseWorldMatrix.NeedsRecalc = true;
+            if (allowSetLocal && !_localMatrix.NeedsRecalc)
+            {
+                _localMatrix.Matrix = GenerateLocalMatrixFromWorld();
+                _inverseLocalMatrix.NeedsRecalc = true;
+                OnLocalMatrixChanged();
+            }
+            OnWorldMatrixChanged();
+        }
+
+        private Matrix4x4 GenerateLocalMatrixFromWorld()
+            => Parent is null || !Matrix4x4.Invert(Parent.WorldMatrix, out Matrix4x4 inverted)
+                ? WorldMatrix
+                : WorldMatrix * inverted;
+
+        protected virtual void OnWorldMatrixChanged()
+            => WorldMatrixChanged.Invoke(this);
+        #endregion
+
+        #region Inverse Local Matrix
+        private readonly MatrixInfo _inverseLocalMatrix;
+        /// <summary>
+        /// The inverse of this transform's local matrix.
+        /// Calculated when requested if needed and cached until invalidated.
+        /// </summary>
+        public Matrix4x4 InverseLocalMatrix
+        {
+            get
+            {
+                VerifyLocalInv();
+                return _inverseLocalMatrix.Matrix;
+            }
+        }
+
+        private void VerifyLocalInv()
+        {
+            VerifyLocal();
+
+            if (!_inverseLocalMatrix.NeedsRecalc)
+                return;
+            
+            _inverseLocalMatrix.NeedsRecalc = false;
+            RecalcLocalInv();
+        }
+
+        internal void RecalcLocalInv()
+        {
+            if (!TryCreateInverseLocalMatrix(out Matrix4x4 inverted))
+                return;
+            
+            _inverseLocalMatrix.Matrix = inverted;
+            OnInverseLocalMatrixChanged();
+        }
+
+        protected virtual void OnInverseLocalMatrixChanged()
+            => InverseLocalMatrixChanged.Invoke(this);
+
+        #endregion
+
+        #region Inverse World Matrix
+        private readonly MatrixInfo _inverseWorldMatrix;
+        /// <summary>
+        /// The inverse of this transform's world matrix.
+        /// Calculated when requested if needed and cached until invalidated.
+        /// </summary>
+        public Matrix4x4 InverseWorldMatrix
+        {
+            get
+            {
+                VerifyWorldInv();
+                return _inverseWorldMatrix.Matrix;
+            }
+        }
+
+        private void VerifyWorldInv()
+        {
+            VerifyWorld();
+
+            if (!_inverseWorldMatrix.NeedsRecalc)
+                return;
+            
+            _inverseWorldMatrix.NeedsRecalc = false;
+            RecalcWorldInv(false);
+        }
+
+        internal void RecalcWorldInv(bool allowSetLocal)
+        {
+            if (!TryCreateInverseWorldMatrix(out Matrix4x4 inverted))
+                return;
+            
+            _inverseWorldMatrix.Matrix = inverted;
+            if (allowSetLocal && !_inverseLocalMatrix.NeedsRecalc)
+            {
+                _inverseLocalMatrix.Matrix = GenerateInverseLocalMatrixFromInverseWorld();
+                OnInverseLocalMatrixChanged();
+            }
+            OnInverseWorldMatrixChanged();
+        }
+
+        private Matrix4x4 GenerateInverseLocalMatrixFromInverseWorld()
+            => Parent is null || !Matrix4x4.Invert(Parent.WorldMatrix, out Matrix4x4 inverted)
+                ? InverseWorldMatrix
+                : inverted * InverseWorldMatrix;
+
+        protected virtual void OnInverseWorldMatrixChanged()
+            => InverseWorldMatrixChanged.Invoke(this);
+        #endregion
+
+        #region Overridable Methods
         protected virtual Matrix4x4 CreateWorldMatrix()
             => Parent is null ? LocalMatrix : Parent.WorldMatrix * LocalMatrix;
         protected virtual bool TryCreateInverseLocalMatrix(out Matrix4x4 inverted)
             => Matrix4x4.Invert(LocalMatrix, out inverted);
         protected virtual bool TryCreateInverseWorldMatrix(out Matrix4x4 inverted)
             => Matrix4x4.Invert(WorldMatrix, out inverted);
-
         protected abstract Matrix4x4 CreateLocalMatrix();
+        #endregion
 
         /// <summary>
         /// Marks the local matrix as modified, which will cause it to be recalculated on the next access.
         /// </summary>
         protected void MarkLocalModified()
         {
-            lock (_lock)
-            {
-                _localMatrix.Modified = true;
-                _inverseLocalMatrix.Modified = true;
-                MarkWorldModified();
-            }
+            _localMatrix.NeedsRecalc = true;
+            MarkWorldModified();
+            World?.AddDirtyTransform(this);
         }
 
         /// <summary>
@@ -252,109 +360,57 @@ namespace XREngine.Scene.Transforms
         /// </summary>
         protected void MarkWorldModified()
         {
-            lock (_lock)
-            {
-                _worldMatrix.Modified = true;
-                _inverseWorldMatrix.Modified = true;
-                foreach (TransformBase child in Children)
-                    child.MarkWorldModified();
-            }
+            _worldMatrix.NeedsRecalc = true;
+            foreach (TransformBase child in Children)
+                child.MarkWorldModified();
+            World?.AddDirtyTransform(this);
         }
 
-        protected internal virtual void Start() { }
-        protected internal virtual void Stop() { }
+        ///// <summary>
+        ///// Marks the inverse local matrix as modified, which will cause it to be recalculated on the next access.
+        ///// </summary>
+        //protected void MarkInverseLocalModified()
+        //{
+        //    _inverseLocalMatrix.Modified = true;
+        //    MarkInverseWorldModified();
+        //    World?.AddDirtyTransform(this);
+        //}
 
-        /// <summary>
-        /// Adds a child to this transform.
-        /// </summary>
-        /// <param name="child"></param>
-        public void AddChild(TransformBase child)
+        ///// <summary>
+        ///// Marks the inverse world matrix as modified, which will cause it to be recalculated on the next access.
+        ///// </summary>
+        //protected void MarkInverseWorldModified()
+        //{
+        //    _inverseWorldMatrix.Modified = true;
+        //    foreach (TransformBase child in Children)
+        //        child.MarkInverseWorldModified();
+        //    World?.AddDirtyTransform(this);
+        //}
+
+        //[Flags]
+        //public enum ETransformTypeFlags
+        //{
+        //    None = 0,
+        //    Local = 1,
+        //    LocalInverse = 2,
+        //    World = 4,
+        //    WorldInverse = 8,
+        //    All = 0xF,
+        //}
+
+        protected internal virtual void Start()
         {
-            lock (_lock)
-            {
-                Children.Add(child);
-                child.Parent = this;
-            }
+            foreach (TransformBase child in Children)
+                child.Start();
         }
-
-        /// <summary>
-        /// Removes a child from this transform.
-        /// </summary>
-        /// <param name="child"></param>
-        public void RemoveChild(TransformBase child)
+        protected internal virtual void Stop()
         {
-            lock (_lock)
-            {
-                Children.Remove(child);
-                child.Parent = null;
-            }
+            foreach (TransformBase child in Children)
+                child.Stop();
+            ClearTicks();
         }
 
-        /// <summary>
-        /// Removes all children from this transform.
-        /// </summary>
-        public void ClearChildren()
-        {
-            lock (_lock)
-            {
-                foreach (TransformBase child in Children)
-                    child.Parent = null;
-                Children.Clear();
-            }
-        }
-
-        /// <summary>
-        /// Adds several children to this transform.
-        /// </summary>
-        /// <param name="children"></param>
-        public void AddRange(IEnumerable<TransformBase> children)
-        {
-            lock (_lock)
-            {
-                foreach (TransformBase child in children)
-                    AddChild(child);
-            }
-        }
-
-        /// <summary>
-        /// Removes several children from this transform.
-        /// </summary>
-        /// <param name="children"></param>
-        public void RemoveRange(IEnumerable<TransformBase> children)
-        {
-            lock (_lock)
-            {
-                foreach (TransformBase child in children)
-                    RemoveChild(child);
-            }
-        }
-
-        /// <summary>
-        /// Adds several children to this transform.
-        /// </summary>
-        /// <param name="children"></param>
-        public void AddRange(params TransformBase[] children)
-        {
-            lock (_lock)
-            {
-                foreach (TransformBase child in children)
-                    AddChild(child);
-            }
-        }
-
-        /// <summary>
-        /// Removes several children from this transform.
-        /// </summary>
-        /// <param name="children"></param>
-        public void RemoveRange(params TransformBase[] children)
-        {
-            lock (_lock)
-            {
-                foreach (TransformBase child in children)
-                    RemoveChild(child);
-            }
-        }
-
+        #region Interfaces
         public int Count => ((ICollection<TransformBase>)Children).Count;
         public bool IsReadOnly => ((ICollection<TransformBase>)Children).IsReadOnly;
         public bool IsFixedSize => ((IList)Children).IsFixedSize;
@@ -380,6 +436,7 @@ namespace XREngine.Scene.Transforms
         public void Insert(int index, object? value) => ((IList)Children).Insert(index, value);
         public void Remove(object? value) => ((IList)Children).Remove(value);
         public void CopyTo(Array array, int index) => ((ICollection)Children).CopyTo(array, index);
+        #endregion
 
         /// <summary>
         /// Used to verify if the placement info for a child is the right type before being returned to the requester.
@@ -392,8 +449,11 @@ namespace XREngine.Scene.Transforms
         /// <param name="value"></param>
         public virtual void DeriveWorldMatrix(Matrix4x4 value) { }
 
+        [UnconditionalSuppressMessage("Trimming", "IL2026:Members annotated with 'RequiresUnreferencedCodeAttribute' require dynamic access otherwise can break functionality when trimming application code", Justification = "<Pending>")]
+        public static Type[] TransformTypes { get; } = GetAllTransformTypes();
+
         [RequiresUnreferencedCode("This method is used to find all transform types in all assemblies in the current domain and should not be trimmed.")]
-        public static Type[] GetAllTransformTypes() 
+        private static Type[] GetAllTransformTypes() 
             => AppDomain.CurrentDomain.GetAssemblies()
                 .SelectMany(x => x.GetExportedTypes())
                 .Where(x => x.IsSubclassOf(typeof(TransformBase)))
@@ -401,6 +461,12 @@ namespace XREngine.Scene.Transforms
 
         [RequiresUnreferencedCode("This method is used to find all transform types in all assemblies in the current domain and should not be trimmed.")]
         public static string[] GetFriendlyTransformTypeSelector()
-            => GetAllTransformTypes().Select(x => x.Name).ToArray();
+            => TransformTypes.Select(FriendlyTransformName).ToArray();
+
+        private static string FriendlyTransformName(Type x)
+        {
+            DisplayNameAttribute? name = x.GetCustomAttribute<DisplayNameAttribute>();
+            return $"{name?.DisplayName ?? x.Name} ({x.Assembly.GetName()})";
+        }
     }
 }

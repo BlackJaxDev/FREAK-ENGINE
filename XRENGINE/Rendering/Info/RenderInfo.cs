@@ -12,7 +12,9 @@ namespace XREngine.Rendering.Info
     /// </summary>
     public abstract class RenderInfo : XRBase, ITreeItem
     {
-        public RenderInfo(IRenderable owner, params RenderCommand[] renderCommands)
+        public abstract ITreeNode? TreeNode { get; }
+
+        protected RenderInfo(IRenderable owner, params RenderCommand[] renderCommands)
         {
             Owner = owner;
             RenderCommands.AddRange(renderCommands);
@@ -25,16 +27,13 @@ namespace XREngine.Rendering.Info
             set => SetField(ref _renderCommands, value);
         }
 
-        private bool _isVisible = true;
         public bool IsVisible
         {
-            get => WorldInstance != null && _isVisible;
+            get => TreeNode != null;
             set
             {
-                SetField(ref _isVisible, value);
-
                 var tree = WorldInstance?.VisualScene?.RenderablesTree;
-                if (tree is null || Owner is null)
+                if (tree is null)
                     return;
 
                 if (value)
@@ -44,12 +43,7 @@ namespace XREngine.Rendering.Info
             }
         }
 
-        private IRenderable? _owner;
-        public IRenderable? Owner
-        {
-            get => _owner;
-            set => SetField(ref _owner, value);
-        }
+        public IRenderable? Owner { get; }
 
         private XRWorldInstance? _worldInstance;
         public XRWorldInstance? WorldInstance

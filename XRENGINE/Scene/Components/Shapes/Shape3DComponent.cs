@@ -13,12 +13,10 @@ namespace XREngine.Data.Components
         {
             RenderedObjects = 
             [
-                _renderInfo = new RenderInfo3D(this)
-                {
-                    CastsShadows = false,
-                    ReceivesShadows = false
-                }
+                _renderInfo = RenderInfo3D.New(this)
             ];
+            _renderInfo.CastsShadows = false;
+            _renderInfo.ReceivesShadows = false;
         }
 
         public virtual RenderInfo3D RenderInfo

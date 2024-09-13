@@ -85,7 +85,7 @@ namespace XREngine.Data.Components
                     case RigidBodyConstructionInfo r:
                         CollisionObject = XRRigidBody.New(r);
                         break;
-                    case TSoftBodyConstructionInfo s:
+                    case SoftBodyConstructionInfo s:
                         CollisionObject = XRSoftBody.New(s);
                         break;
                     //case TGhostBodyConstructionInfo g:

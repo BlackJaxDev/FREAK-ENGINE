@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using XREngine.Components;
 using XREngine.Core;
 using XREngine.Core.Attributes;
@@ -21,20 +22,22 @@ namespace XREngine.Scene
         public SceneNode(SceneNode parent, string name, TransformBase? transform = null)
         {
             if (transform != null)
-                Transform = transform;
+                SetTransform(transform, false);
+
             Transform.Parent = parent.Transform;
             Name = name;
         }
         public SceneNode(XRScene scene, string name, TransformBase? transform = null)
         {
             if (transform != null)
-                Transform = transform;
+                SetTransform(transform, false);
+
             scene._rootObjects.Add(this);
             Name = name;
         }
 
-        private readonly EventList<XRComponent>? _components;
-        private EventList<XRComponent> ComponentsInternal => _components ?? [];
+        private readonly EventList<XRComponent> _components = [];
+        private EventList<XRComponent> ComponentsInternal => _components;
 
         private string _name = "New Scene Node";
         public string Name
@@ -180,10 +183,33 @@ namespace XREngine.Scene
         /// The transform of this scene node.
         /// Will never be null, because scene nodes all have transformations in the scene.
         /// </summary>
-        public TransformBase Transform
+        public TransformBase Transform => _transform ??= new Transform() { SceneNode = this };
+
+        /// <summary>
+        /// Sets the transform of this scene node.
+        /// If retainParent is true, the parent of the new transform will be set to the parent of the current transform.
+        /// </summary>
+        /// <param name="transform"></param>
+        /// <param name="retainParent"></param>
+        public void SetTransform(TransformBase transform, bool retainParent = true)
         {
-            get => _transform ??= new Transform() { SceneNode = this };
-            set => SetField(ref _transform, value ?? new Transform() { SceneNode = this });
+            var currentParent = Transform.Parent;
+            if (retainParent)
+                transform.Parent = currentParent;
+            SetField(ref _transform, transform);
+        }
+
+        /// <summary>
+        /// Sets the transform of this scene node to a new instance of type T.
+        /// If retainParent is true, the parent of the new transform will be set to the parent of the current transform.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="retainParent"></param>
+        public T SetTransform<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(bool retainParent = true) where T : TransformBase
+        {
+            T value = (T)Activator.CreateInstance(typeof(T), Transform.Parent)!;
+            SetTransform(value, retainParent);
+            return value;
         }
 
         /// <summary>

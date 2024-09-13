@@ -42,7 +42,6 @@ namespace XREngine
                 Debug.Out($"Device detected: {device}");
             }
 
-
             private static VRTextureBounds_t _eyeTexBounds = new()
             {
                 uMin = 0.0f,

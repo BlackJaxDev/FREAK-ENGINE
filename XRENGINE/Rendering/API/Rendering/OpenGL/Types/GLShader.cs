@@ -250,10 +250,11 @@ namespace XREngine.Rendering.OpenGL
 #if DEBUG
             Api.GetShader(bindingId, GLEnum.CompileStatus, out int status);
             Api.GetShaderInfoLog(bindingId, out info);
+            return status != 0;
 #else
             info = null;
+            return true;
 #endif
-            return status != 0;
         }
     }
 }

@@ -12,7 +12,7 @@ namespace XREngine.Physics
             set => base.Owner = value;
         }
 
-        public static XRSoftBody New(TSoftBodyConstructionInfo info)
+        public static XRSoftBody New(SoftBodyConstructionInfo info)
             => Engine.Physics.NewSoftBody(info);
 
         public abstract Vector3 WindVelocity { get; set; }

@@ -32,7 +32,7 @@ namespace XREngine.Physics
             : this(owner, info, mtxFunc)
             => SimulationStateChanged += simFunc;
 
-        public PhysicsDriver(ICollidable owner, TSoftBodyConstructionInfo info)
+        public PhysicsDriver(ICollidable owner, SoftBodyConstructionInfo info)
         {
             _owner = owner;
             _collisionEnabled = info.CollisionEnabled;
@@ -41,10 +41,10 @@ namespace XREngine.Physics
             _collidesWith = (uint)info.CollidesWith;
             CollisionObject = Engine.Physics.NewSoftBody(info);
         }
-        public PhysicsDriver(ICollidable owner, TSoftBodyConstructionInfo info, DelMatrixUpdate func)
+        public PhysicsDriver(ICollidable owner, SoftBodyConstructionInfo info, DelMatrixUpdate func)
             : this(owner, info)
             => TransformChanged += func;
-        public PhysicsDriver(ICollidable owner, TSoftBodyConstructionInfo info, DelMatrixUpdate mtxFunc, SimulationUpdate simFunc)
+        public PhysicsDriver(ICollidable owner, SoftBodyConstructionInfo info, DelMatrixUpdate mtxFunc, SimulationUpdate simFunc)
             : this(owner, info, mtxFunc)
             => SimulationStateChanged += simFunc;
 

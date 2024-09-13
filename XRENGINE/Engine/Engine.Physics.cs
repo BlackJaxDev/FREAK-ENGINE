@@ -80,7 +80,7 @@ namespace XREngine
                 throw new NotImplementedException();
             }
 
-            internal static XRSoftBody NewSoftBody(TSoftBodyConstructionInfo info)
+            internal static XRSoftBody NewSoftBody(SoftBodyConstructionInfo info)
             {
                 throw new NotImplementedException();
             }

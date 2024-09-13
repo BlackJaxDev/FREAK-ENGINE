@@ -62,13 +62,10 @@ namespace XREngine.Components
 
         protected virtual void PostPossess()
             => PostPossessed.Invoke(this);
-
         protected virtual void PrePossess()
             => PrePossessed.Invoke(this);
-
         protected virtual void PostUnpossess()
             => PostUnpossessed.Invoke(this);
-
         protected virtual void PreUnpossess()
             => PreUnpossessed.Invoke(this);
 

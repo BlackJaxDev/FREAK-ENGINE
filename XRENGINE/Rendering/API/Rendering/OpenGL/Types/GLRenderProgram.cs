@@ -369,6 +369,7 @@ namespace XREngine.Rendering.OpenGL
 
         public bool LinkProgram(uint bindingId, out string? info)
         {
+            info = null;
             Api.LinkProgram(bindingId);
             Api.GetProgram(bindingId, GLEnum.LinkStatus, out int status);
             if (status == 0)
@@ -380,10 +381,7 @@ namespace XREngine.Rendering.OpenGL
                 return false;
             }
             else
-            {
-                info = null;
                 return true;
-            }
         }
     }
 }

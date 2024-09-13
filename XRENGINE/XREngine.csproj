@@ -7,6 +7,33 @@
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <PublishAot>true</PublishAot>
     <Platforms>AnyCPU;x64</Platforms>
+    <BaseOutputPath>D:\Documents\XRENGINE\Build\Engine</BaseOutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DebugType>embedded</DebugType>
+    <IsAotCompatible>True</IsAotCompatible>
+    <IsTrimmable>True</IsTrimmable>
+    <Optimize>False</Optimize>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <DebugType>embedded</DebugType>
+    <IsAotCompatible>True</IsAotCompatible>
+    <IsTrimmable>True</IsTrimmable>
+    <Optimize>False</Optimize>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <DebugType>embedded</DebugType>
+    <IsAotCompatible>True</IsAotCompatible>
+    <IsTrimmable>True</IsTrimmable>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <DebugType>embedded</DebugType>
+    <IsAotCompatible>True</IsAotCompatible>
+    <IsTrimmable>True</IsTrimmable>
   </PropertyGroup>
 
   <ItemGroup>

@@ -20,7 +20,7 @@ namespace XREngine.Rendering.UI
             RenderCommand.Mesh = new XRMeshRenderer(quadData, material);
             RenderCommand.ZIndex = 0;
 
-            RenderedObjects = [new RenderInfo2D(this)];
+            RenderedObjects = [RenderInfo2D.New(this)];
         }
 
         //[Category("Rendering")]

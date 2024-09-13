@@ -39,7 +39,7 @@ namespace XREngine.Core.Attributes
                 }
             }
 
-            node.Transform = (TransformBase)Activator.CreateInstance(Type);
+            node.SetTransform((TransformBase)Activator.CreateInstance(Type, null));
             return true;
         }
     }

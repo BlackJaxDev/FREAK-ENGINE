@@ -207,17 +207,13 @@ namespace XREngine.Components
         /// Called when the component is made active.
         /// </summary>
         protected internal virtual void Start()
-        {
-            VerifyInterfacesOnStart();
-        }
+            => VerifyInterfacesOnStart();
 
         /// <summary>
         /// Called when the component is made inactive.
         /// </summary>
         protected internal virtual void Stop()
-        {
-            VerifyInterfacesOnStop();
-        }
+            => VerifyInterfacesOnStop();
 
         /// <summary>
         /// This method is called when the component is set to active in the world.
@@ -228,7 +224,9 @@ namespace XREngine.Components
             if (this is IRenderable rend)
             {
                 foreach (var obj in rend.RenderedObjects)
+                {
                     obj.WorldInstance = SceneNode?.World;
+                }
             }
         }
 
@@ -241,7 +239,9 @@ namespace XREngine.Components
             if (this is IRenderable rend)
             {
                 foreach (var obj in rend.RenderedObjects)
+                {
                     obj.WorldInstance = null;
+                }
             }
         }
 

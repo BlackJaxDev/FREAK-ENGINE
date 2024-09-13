@@ -377,5 +377,30 @@ namespace XREngine.Data.Geometry
         }
 
         readonly AABB Rendering.IVolume.GetAABB() => this;
+
+        public static AABB Union(AABB bounds1, AABB bounds2)
+        {
+            Vector3 min = Vector3.Min(bounds1.Min, bounds2.Min);
+            Vector3 max = Vector3.Max(bounds1.Max, bounds2.Max);
+            return new AABB(min, max);
+        }
+        public static AABB Union(AABB bounds, Vector3 point)
+        {
+            Vector3 min = Vector3.Min(bounds.Min, point);
+            Vector3 max = Vector3.Max(bounds.Max, point);
+            return new AABB(min, max);
+        }
+        public static AABB Union(AABB bounds, Sphere sphere)
+        {
+            Vector3 min = Vector3.Min(bounds.Min, sphere.Center - new Vector3(sphere.Radius));
+            Vector3 max = Vector3.Max(bounds.Max, sphere.Center + new Vector3(sphere.Radius));
+            return new AABB(min, max);
+        }
+        public static AABB Intersection(AABB bounds1, AABB bounds2)
+        {
+            Vector3 min = Vector3.Max(bounds1.Min, bounds2.Min);
+            Vector3 max = Vector3.Min(bounds1.Max, bounds2.Max);
+            return new AABB(min, max);
+        }
     }
 }

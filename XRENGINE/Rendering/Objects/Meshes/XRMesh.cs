@@ -3,6 +3,7 @@ using System.Collections;
 using System.ComponentModel;
 using System.Numerics;
 using XREngine.Data.Core;
+using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
 using XREngine.Scene.Transforms;
 
@@ -86,9 +87,9 @@ namespace XREngine.Rendering
                     });
                 }
 
-                if (v.TextureCoordinateSets is not null && v.TextureCoordinateSets.Count > maxTexCoordCount)
+                if (v.TextureCoordinateSets is not null && v.TextureCoordinateSets.Count > 0)
                 {
-                    for (int texCoordIndex = maxTexCoordCount; texCoordIndex < v.TextureCoordinateSets.Count; ++texCoordIndex)
+                    for (int texCoordIndex = 0; texCoordIndex < v.TextureCoordinateSets.Count; ++texCoordIndex)
                         vertexActions.Add((i, x, vtx) =>
                         {
                             uvBuffers![texCoordIndex][i] = vtx.TextureCoordinateSets != null && texCoordIndex < vtx.TextureCoordinateSets.Count
@@ -99,9 +100,9 @@ namespace XREngine.Rendering
                     maxTexCoordCount = v.TextureCoordinateSets.Count;
                 }
 
-                if (v.ColorSets is not null && v.ColorSets.Count > maxColorCount)
+                if (v.ColorSets is not null && v.ColorSets.Count > 0)
                 {
-                    for (int colorIndex = maxColorCount; colorIndex < v.ColorSets.Count; ++colorIndex)
+                    for (int colorIndex = 0; colorIndex < v.ColorSets.Count; ++colorIndex)
                         vertexActions.Add((i, x, vtx) =>
                         {
                             colorBuffers![colorIndex][i] = vtx.ColorSets != null && colorIndex < vtx.ColorSets.Count
@@ -204,13 +205,14 @@ namespace XREngine.Rendering
 
             //Fill the buffers with the vertex data using the command list
             //We can do this in parallel since each vertex is independent
-            Parallel.For(0, firstAppearanceArray.Length, i => // for (int i = 0; i < firstAppearanceArray.Length; ++i)
+            //Parallel.For(0, firstAppearanceArray.Length, i =>
+             for (int i = 0; i < firstAppearanceArray.Length; ++i)
             {
                 int x = firstAppearanceArray[i];
                 Vertex vtx = sourceList[x];
                 foreach (var action in vertexActions)
                     action.Invoke(i, x, vtx);
-            });
+            }//);
 
             if (weights is not null)
                 SetBoneWeights(weights);
@@ -538,6 +540,11 @@ namespace XREngine.Rendering
                 { EPrimitiveType.LineStrip, p => p.SelectMany(x => ((VertexLineStrip)x).ToLines()).SelectMany(x => x.Vertices) },
                 { EPrimitiveType.Points, p => p.Select(x => (Vertex)x) },
             };
+
+        /// <summary>
+        /// The axis-aligned bounds of this mesh before any vertex transformations.
+        /// </summary>
+        public AABB Bounds { get; private set; }
 
         //private static EPrimitiveType ConvertType(EPrimitiveType type)
         //    => type switch

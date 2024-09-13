@@ -2,7 +2,11 @@
 
 namespace XREngine.Scene.Transforms
 {
-    public class VRHMDTransform(TransformBase? parent = null) : Transform(parent)
+    /// <summary>
+    /// The transform for the VR headset.
+    /// </summary>
+    /// <param name="parent"></param>
+    public class VRHeadsetTransform(TransformBase? parent = null) : TransformBase(parent)
     {
         protected override Matrix4x4 CreateLocalMatrix()
         {

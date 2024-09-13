@@ -7,10 +7,22 @@ using XREngine.Rendering.Info;
 
 namespace XREngine.Editor;
 
-public class EditorRenderInfo2D(IRenderable owner) : RenderInfo2D(owner)
+public class EditorRenderInfo2D(IRenderable owner, params RenderCommand[] renderCommands) : RenderInfo2D(owner, renderCommands)
 {
-    public bool VisibleInEditorOnly { get; set; } = false;
-    public EEditorVisibility EditorVisibilityMode { get; set; } = EEditorVisibility.Unchanged;
+    private bool _visibleInEditorOnly = false;
+    private EEditorVisibility _editorVisibilityMode = EEditorVisibility.Unchanged;
+
+    public bool VisibleInEditorOnly
+    {
+        get => _visibleInEditorOnly;
+        set => SetField(ref _visibleInEditorOnly, value);
+    }
+
+    public EEditorVisibility EditorVisibilityMode
+    {
+        get => _editorVisibilityMode;
+        set => SetField(ref _editorVisibilityMode, value);
+    }
 
     public override bool AllowRender(BoundingRectangleF? cullingVolume, RenderCommandCollection passes, XRCamera camera)
     {

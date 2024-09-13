@@ -6,6 +6,13 @@ namespace XREngine.Rendering
 {
     public abstract class XRMaterialBase : GenericRenderObject
     {
+        private int _renderPass = 0;
+        public int RenderPass
+        {
+            get => _renderPass;
+            set => SetField(ref _renderPass, value);
+        }
+
         public XREvent<XRMaterialBase> SettingUniforms;
 
         public XRMaterialBase() { }

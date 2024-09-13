@@ -6,8 +6,18 @@ using XREngine.Rendering.Commands;
 
 namespace XREngine.Rendering.Info
 {
-    public class RenderInfo3D(IRenderable owner, params RenderCommand[] renderCommands) : RenderInfo(owner, renderCommands), IOctreeItem
+    public class RenderInfo3D : RenderInfo, IOctreeItem
     {
+        public override ITreeNode? TreeNode => OctreeNode;
+
+        public static Func<IRenderable, RenderCommand[], RenderInfo3D>? ConstructorOverride { get; set; } = null;
+
+        public static RenderInfo3D New(IRenderable owner, params RenderCommand[] renderCommands)
+            => ConstructorOverride?.Invoke(owner, renderCommands) ?? new RenderInfo3D(owner, renderCommands);
+
+        protected RenderInfo3D(IRenderable owner, params RenderCommand[] renderCommands)
+            : base(owner, renderCommands) { }
+
         private IVolume? _cullingVolume;
         private OctreeNodeBase? _octreeNode;
         private bool _receivesShadows = true;

@@ -145,8 +145,10 @@ namespace XREngine.Core.Files
             byte[] bom = new byte[4];
             using (FileMap map = FileMap.FromFile(path, FileMapProtect.Read, 0, 4))
                 bom = map.Address.GetBytes(4);
-            
+
+#pragma warning disable SYSLIB0001 // Type or member is obsolete
             if (bom[0] == 0x2B && bom[1] == 0x2F && bom[2] == 0x76) return Encoding.UTF7;
+#pragma warning restore SYSLIB0001 // Type or member is obsolete
             if (bom[0] == 0xEF && bom[1] == 0xBB && bom[2] == 0xBF) return Encoding.UTF8;
             if (bom[0] == 0xFF && bom[1] == 0xFE) return Encoding.Unicode; //UTF-16LE
             if (bom[0] == 0xFE && bom[1] == 0xFF) return Encoding.BigEndianUnicode; //UTF-16BE
@@ -155,13 +157,13 @@ namespace XREngine.Core.Files
         }
         public static Encoding GetEncoding(FileMap file, out int bomLength)
         {
-            byte[] bom = new byte[4];
-            bom = file.Address.GetBytes(4);
-            
+            byte[] bom = file.Address.GetBytes(4);
             if (bom[0] == 0x2B && bom[1] == 0x2F && bom[2] == 0x76)
             {
                 bomLength = 3;
+#pragma warning disable SYSLIB0001 // Type or member is obsolete
                 return Encoding.UTF7;
+#pragma warning restore SYSLIB0001 // Type or member is obsolete
             }
             if (bom[0] == 0xEF && bom[1] == 0xBB && bom[2] == 0xBF)
             {

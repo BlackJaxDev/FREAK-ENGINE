@@ -6,8 +6,8 @@ namespace XREngine
 {
     public interface IBaseSubMesh
     {
-        EventList<LOD> LODs { get; }
-        ERenderPass RenderPass { get; set; }
-        RenderInfo3D RenderInfo { get; set; }
+        EventList<SubMeshLOD> LODs { get; }
+        int RenderPass { get; set; }
+        RenderInfo RenderInfo { get; set; }
     }
 }

@@ -5,12 +5,22 @@ using XREngine.Rendering.Commands;
 
 namespace XREngine.Rendering.Info
 {
-    public class RenderInfo2D(IRenderable owner) : RenderInfo(owner), IQuadtreeItem
+    public class RenderInfo2D : RenderInfo, IQuadtreeItem
     {
         private int _layerIndex = 0;
         private int _indexWithinLayer = 0;
         private BoundingRectangleF _cullingVolume;
         private QuadtreeNodeBase? _quadtreeNode;
+
+        public override ITreeNode? TreeNode => QuadtreeNode;
+
+        public static Func<IRenderable, RenderCommand[], RenderInfo2D>? ConstructorOverride { get; set; } = null;
+
+        public static RenderInfo2D New(IRenderable owner, params RenderCommand[] renderCommands)
+            => ConstructorOverride?.Invoke(owner, renderCommands) ?? new RenderInfo2D(owner, renderCommands);
+
+        protected RenderInfo2D(IRenderable owner, params RenderCommand[] renderCommands)
+            : base(owner, renderCommands) { }
 
         /// <summary>
         /// Used to render objects in the same pass in a certain order.
@@ -42,8 +52,6 @@ namespace XREngine.Rendering.Info
             get => _quadtreeNode;
             set => SetField(ref _quadtreeNode, value);
         }
-
-        public bool ShouldRender { get; } = true;
 
         public bool DeeperThan(RenderInfo2D other)
         {

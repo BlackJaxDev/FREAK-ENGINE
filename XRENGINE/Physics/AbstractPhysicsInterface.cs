@@ -25,7 +25,7 @@ namespace XREngine.Physics
         /// </summary>
         /// <param name="info">Construction information.</param>
         /// <returns>A new soft body.</returns>
-        public abstract XRSoftBody NewSoftBody(TSoftBodyConstructionInfo info);
+        public abstract XRSoftBody NewSoftBody(SoftBodyConstructionInfo info);
 
         #region Shapes
         public abstract XRCollisionBox NewBox(Vector3 halfExtents);

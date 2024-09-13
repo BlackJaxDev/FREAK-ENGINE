@@ -6,6 +6,7 @@ using XREngine.Data.Rendering;
 using XREngine.Data.Vectors;
 using XREngine.Rendering.Commands;
 using XREngine.Rendering.Models.Materials;
+using XREngine.Rendering.Pipelines.Commands;
 using XREngine.Scene;
 using static XREngine.Engine.Rendering.State;
 

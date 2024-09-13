@@ -8,7 +8,7 @@ namespace XREngine.Physics.ShapeTracing
         Matrix4x4 end,
         ushort collisionGroup,
         ushort collidesWith,
-        params XRCollisionObject?[] ignored) : ShapeTrace(shape, start, end, collisionGroup, collidesWith, ignored)
+        params XRCollisionObject[] ignored) : ShapeTrace(shape, start, end, collisionGroup, collidesWith, ignored)
     {
         public override bool HasHit => Result != null;
 

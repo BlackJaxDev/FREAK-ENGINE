@@ -1,8 +1,7 @@
 ﻿using System.Collections;
 using XREngine.Data.Core;
-using XREngine.Rendering.Pipelines.Commands;
 
-namespace XREngine.Rendering
+namespace XREngine.Rendering.Pipelines.Commands
 {
     public class ViewportRenderCommandContainer(XRRenderPipeline pipeline) : XRBase, IReadOnlyList<ViewportRenderCommand>
     {

@@ -3,7 +3,11 @@ using Valve.VR;
 
 namespace XREngine.Scene.Transforms
 {
-    public class VREyeTransform(TransformBase? parent = null) : Transform(parent)
+    /// <summary>
+    /// Transforms from the headset to the left or right eye.
+    /// </summary>
+    /// <param name="parent"></param>
+    public class VREyeTransform(TransformBase? parent = null) : TransformBase(parent)
     {
         public bool IsLeftEye { get; }
 

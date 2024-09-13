@@ -1,22 +1,26 @@
-﻿using System.Numerics;
-using XREngine.Data.Geometry;
-using XREngine.Physics;
-using XREngine.Rendering;
-using XREngine.Rendering.Models;
+﻿using XREngine.Data.Geometry;
 
 namespace XREngine.Scene.Components.Mesh.Shapes
 {
-    public class BoxMeshComponent(Vector3 halfExtents, XRMaterial material, RigidBodyConstructionInfo? info) : ShapeMeshComponent(
-            new AABB(-halfExtents, halfExtents),
-            [new LOD(material, XRMesh.Shapes.SolidBox(-halfExtents, halfExtents), 0.0f)],
-            XRCollisionBox.New(halfExtents),
-            info)
+    public class BoxMeshComponent() : ShapeMeshComponent()
     {
-        public BoxMeshComponent()
-            : this(new Vector3(0.5f)) { }
-        public BoxMeshComponent(Vector3 halfExtents)
-            : this(halfExtents, XRMaterial.CreateLitColorMaterial(Engine.InvalidColor)) { }
-        public BoxMeshComponent(Vector3 halfExtents, XRMaterial material)
-            : this(halfExtents, material, null) { }
+        private AABB _box;
+        public AABB Box
+        {
+            get => _box;
+            set => SetField(ref _box, value);
+        }
+
+        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+        {
+            base.OnPropertyChanged(propName, prev, field);
+            switch (propName)
+            {
+                case nameof(Box):
+                    Shape = Box;
+                    //new SubMeshLOD(material, XRMesh.Shapes.SolidBox(-halfExtents, halfExtents), 0.0f);
+                    break;
+            }
+        }
     }
 }

@@ -4,7 +4,7 @@ using XREngine.Data.Geometry;
 
 namespace XREngine.Data.Trees
 {
-    public abstract class OctreeNodeBase(AABB bounds, int subDivIndex, int subDivLevel) : XRBase
+    public abstract class OctreeNodeBase(AABB bounds, int subDivIndex, int subDivLevel) : XRBase, ITreeNode
     {
         protected int _subDivIndex = subDivIndex, _subDivLevel = subDivLevel;
         protected AABB _bounds = bounds;

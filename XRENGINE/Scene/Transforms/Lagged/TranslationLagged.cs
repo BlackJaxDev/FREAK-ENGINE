@@ -1,9 +1,11 @@
-﻿using System.Numerics;
+﻿using System.ComponentModel;
+using System.Numerics;
 using XREngine.Data;
 using XREngine.Scene.Transforms;
 
 namespace XREngine.Components.Scene.Transforms
 {
+    [DisplayName("Lagged Translation Transform")]
     /// <summary>
     /// Moves the scene node to the parent's position + an offset in local space, lagging behind by a specified amount for smooth movement.
     /// </summary>
