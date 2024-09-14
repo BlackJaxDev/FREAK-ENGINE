@@ -7,8 +7,12 @@ namespace XREngine.Scene.Transforms
     /// Transforms from the headset to the left or right eye.
     /// </summary>
     /// <param name="parent"></param>
-    public class VREyeTransform(TransformBase? parent = null) : TransformBase(parent)
+    public class VREyeTransform : TransformBase
     {
+        public VREyeTransform() { }
+        public VREyeTransform(TransformBase parent)
+            : base(parent) { }
+
         public bool IsLeftEye { get; }
 
         public VREyeTransform(bool isLeftEye, TransformBase? parent = null)

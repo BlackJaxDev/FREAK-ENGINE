@@ -11,6 +11,7 @@ namespace XREngine.Components.Scene.Transforms
     /// </summary>
     public class LaggedTranslationTransform(TransformBase? parent, Vector3 translation) : TransformBase(parent)
     {
+        public LaggedTranslationTransform() : this(null) { }
         public LaggedTranslationTransform(TransformBase? parent) : this(parent, Vector3.Zero) { }
 
         protected Vector3 _currentTranslation = translation;

@@ -11,18 +11,7 @@ namespace XREngine.Rendering.OpenGL
 {
     public unsafe partial class OpenGLRenderer : AbstractRenderer<GL>
     {
-        //TODO: lock for multithreading safety? probably not necessary
-        //An API-specific invalid material is generated per-renderer, not static globally
-        private Lazy<GLMaterial> _invalidMaterial;
-        /// <summary>
-        /// This is the material that will be used if a mesh renderer fails to grab a valid material to render with.
-        /// </summary>
-        public GLMaterial InvalidMaterial => _invalidMaterial.Value;
-
-        public OpenGLRenderer(XRWindow window) : base(window)
-        {
-            _invalidMaterial = new Lazy<GLMaterial>(() => new GLMaterial(this, XRMaterial.InvalidMaterial));
-        }
+        public OpenGLRenderer(XRWindow window) : base(window) { }
 
         protected override AbstractRenderAPIObject CreateAPIRenderObject(GenericRenderObject renderObject)
             => renderObject switch
@@ -68,12 +57,21 @@ namespace XREngine.Rendering.OpenGL
         }
         public override void BindFrameBuffer(EFramebufferTarget fboTarget, int bindingId)
         {
-            throw new NotImplementedException();
+            GLEnum target = ToGLEnum(fboTarget);
+            Api.BindFramebuffer(target, (uint)bindingId);
         }
-        public override void Clear(EFrameBufferTextureType type)
+        public override void Clear(bool color, bool depth, bool stencil)
         {
-            throw new NotImplementedException();
+            uint mask = 0;
+            if (color)
+                mask |= (uint)GLEnum.ColorBufferBit;
+            if (depth)
+                mask |= (uint)GLEnum.DepthBufferBit;
+            if (stencil)
+                mask |= (uint)GLEnum.StencilBufferBit;
+            Api.Clear(mask);
         }
+
         public override void ClearColor(ColorF4 color)
         {
             Api.ClearColor(color.R, color.G, color.B, color.A);

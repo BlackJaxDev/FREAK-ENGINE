@@ -4,10 +4,12 @@ using XREngine.Scene.Transforms;
 
 namespace XREngine.Rendering.UI
 {
-    public class UIRotationComponent(TransformBase? parent) : UITransform(parent)
+    public class UIRotationComponent : UITransform
     {
-        private float _rotationAngle = 0.0f;
+        public UIRotationComponent() : this(null) { }
+        public UIRotationComponent(TransformBase? parent) : base(parent) { }
 
+        private float _rotationAngle = 0.0f;
         /// <summary>
         /// The rotation angle of the component in degrees.
         /// </summary>

@@ -51,7 +51,7 @@ namespace XREngine.Components
             Type t2 = obj!.GetType();
             var method = typeof(XRComponent).GetMethod(nameof(ConstructionSetSceneNode), BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
             method!.Invoke(obj, [node]);
-            t2.GetConstructor(Type.EmptyTypes)?.Invoke(obj, null);
+            t2.GetConstructor(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.FlattenHierarchy, Type.EmptyTypes)?.Invoke(obj, null);
             
             var component = (XRComponent)obj;
             component.Constructing();

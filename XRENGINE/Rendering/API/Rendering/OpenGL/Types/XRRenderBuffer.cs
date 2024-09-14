@@ -6,8 +6,8 @@ namespace XREngine.Rendering
     public class XRRenderBuffer : GenericRenderObject, IFrameBufferAttachement
     {
         public ERenderBufferStorage Storage { get; set; } = ERenderBufferStorage.Rgba32f;
-        public int Width { get; set; } = 1;
-        public int Height { get; set; } = 1;
+        public uint Width { get; set; } = 1u;
+        public uint Height { get; set; } = 1u;
         public int MultisampleCount { get; set; } = 1;
         public XRFrameBuffer? AttachedFBO { get; set; } = null;
 

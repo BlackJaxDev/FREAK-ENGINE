@@ -11,36 +11,30 @@ namespace XREngine.Rendering
         public event DelDetachFaceFromFBO? DetachFaceFromFBORequested;
 
         public XRTextureCube()
-            : this(1) { }
-
-        public XRTextureCube(int dim)
-        {
-            Mipmaps = [];
-            _cubeExtent = dim;
-        }
+            : this(1u) { }
 
         public XRTextureCube(
-            int dim,
+            uint dim,
             int mipCount = 1)
-            : this(dim)
         {
-            int sDim = dim;
+            _cubeExtent = dim;
+            uint sDim = dim;
             Mipmaps = new CubeMipmap[mipCount];
-            for (int i = 0, scale = 1; i < mipCount; scale = 1 << ++i, sDim = dim / scale)
+            for (uint i = 0u, scale = 1u; i < mipCount; scale = 1u << (int)++i, sDim = dim / scale)
                 Mipmaps[i] = new CubeMipmap(sDim, sDim);
         }
 
         public XRTextureCube(
-            int dim,
+            uint dim,
             EPixelInternalFormat internalFormat,
             EPixelFormat pixelFormat,
             EPixelType pixelType,
             int mipCount = 1)
-            : this(dim)
+            : this(dim, mipCount)
         {
-            int sDim = dim;
+            uint sDim = dim;
             Mipmaps = new CubeMipmap[mipCount];
-            for (int i = 0, scale = 1; i < mipCount; scale = 1 << ++i, sDim = dim / scale)
+            for (uint i = 0u, scale = 1u; i < mipCount; scale = 1u << (int)++i, sDim = dim / scale)
                 Mipmaps[i] = new CubeMipmap(sDim, sDim, internalFormat, pixelFormat, pixelType);
             _internalFormat = internalFormat;
             _pixelFormat = pixelFormat;
@@ -57,7 +51,7 @@ namespace XREngine.Rendering
 
         public override uint MaxDimension => Dimension;
 
-        private int _cubeExtent;
+        private uint _cubeExtent;
         
         private ETexWrapMode _uWrapMode = ETexWrapMode.ClampToEdge;
         private ETexWrapMode _vWrapMode = ETexWrapMode.ClampToEdge;
@@ -113,7 +107,7 @@ namespace XREngine.Rendering
             set => SetField(ref _lodBias, value);
         }
 
-        public int CubeExtent => _cubeExtent;
+        public uint CubeExtent => _cubeExtent;
 
         public void AttachFaceToFBO(XRFrameBuffer fbo, ECubemapFace face, int mipLevel = 0)
         {

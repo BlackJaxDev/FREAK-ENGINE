@@ -45,6 +45,6 @@ namespace XREngine
         }
         public int X { get; set; }
         public int Y { get; set; }
-        public bool VSync { get; set; }
+        public bool VSync { get; set; } = false;
     }
 }

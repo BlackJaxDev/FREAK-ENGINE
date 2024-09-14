@@ -1,16 +1,13 @@
-﻿using Silk.NET.Assimp;
-using System.Numerics;
+﻿using System.Numerics;
 using XREngine;
 using XREngine.Components;
 using XREngine.Components.Scene.Mesh;
-using XREngine.Data.Components.Scene;
 using XREngine.Editor;
 using XREngine.Rendering;
 using XREngine.Rendering.Commands;
 using XREngine.Rendering.Info;
 using XREngine.Rendering.Models;
 using XREngine.Scene;
-using XREngine.Scene.Components;
 using XREngine.Scene.Transforms;
 
 internal class Program
@@ -43,7 +40,7 @@ internal class Program
             if (rootNode.TryAddComponent<ModelComponent>(out var modelComp))
             {
                 modelComp!.Name = "TestModel";
-                modelComp!.Model = new Model([new SubMesh(XRMesh.Shapes.SolidBox(-Vector3.One, Vector3.One, false, XRMesh.Shapes.ECubemapTextureUVs.WidthLarger), XRMaterial.InvalidMaterial)]);
+                modelComp!.Model = new Model([new SubMesh(XRMesh.Shapes.SolidBox(-Vector3.One, Vector3.One, false, XRMesh.Shapes.ECubemapTextureUVs.WidthLarger), XRMaterial.CreateColorMaterialDeferred())]);
             }
 
             //Create the camera

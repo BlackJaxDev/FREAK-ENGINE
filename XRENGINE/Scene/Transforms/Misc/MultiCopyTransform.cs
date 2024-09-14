@@ -6,6 +6,16 @@ namespace XREngine.Scene.Transforms
 {
     public class MultiCopyTransform : TransformBase
     {
+        public EventList<WeightedSource> Sources { get; } = [];
+
+        public MultiCopyTransform() : this(null) { }
+        public MultiCopyTransform(TransformBase? parent)
+            : base(parent)
+        {
+            Sources.PostAnythingAdded += OnSourceAdded;
+            Sources.PostAnythingRemoved += OnSourceRemoved;
+        }
+
         public class WeightedSource(TransformBase transform, float weight) : XRBase
         {
             private float _weight = weight;
@@ -27,14 +37,6 @@ namespace XREngine.Scene.Transforms
 
             public static implicit operator WeightedSource((TransformBase transform, float weight) value)
                 => new(value.transform, value.weight);
-        }
-
-        public EventList<WeightedSource> Sources { get; } = [];
-
-        public MultiCopyTransform(TransformBase? parent) : base(parent)
-        {
-            Sources.PostAnythingAdded += OnSourceAdded;
-            Sources.PostAnythingRemoved += OnSourceRemoved;
         }
 
         private void OnSourceAdded(WeightedSource item)

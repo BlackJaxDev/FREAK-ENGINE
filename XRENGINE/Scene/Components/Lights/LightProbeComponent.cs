@@ -112,7 +112,7 @@ namespace XREngine.Components.Lights
             ShaderVar[] prefilterVars =
             [
                 new ShaderFloat(0.0f, "Roughness"),
-                new ShaderInt(ColorResolution, "CubemapDim"),
+                new ShaderInt((int)ColorResolution, "CubemapDim"),
             ];
 
             XRShader irrShader = ShaderHelper.LoadShader("Common/Scene/IrradianceConvolution.fs", EShaderType.Fragment);
@@ -127,7 +127,7 @@ namespace XREngine.Components.Lights
             _prefilterFBO = new XRCubeFrameBuffer(prefMat, null, 0.0f, 1.0f, false);
         }
 
-        public void FullCapture(int colorResolution, bool captureDepth, int depthResolution)
+        public void FullCapture(uint colorResolution, bool captureDepth, uint depthResolution)
         {
             if (_hasCaptured)
                 return;
@@ -149,15 +149,15 @@ namespace XREngine.Components.Lights
             if (IrradianceTexture is null)
                 return;
 
-            int res = IrradianceTexture.CubeExtent;
-            using (Engine.Rendering.State.PushRenderArea(new BoundingRectangle(IVector2.Zero, new IVector2(res, res))))
+            uint res = IrradianceTexture.CubeExtent;
+            using (Engine.Rendering.State.PushRenderArea(new BoundingRectangle(IVector2.Zero, new IVector2((int)res, (int)res))))
             {
                 for (int i = 0; i < 6; ++i)
                 {
                     _irradianceFBO!.SetRenderTargets((IrradianceTexture, EFrameBufferAttachment.ColorAttachment0, 0, i));
                     using (_irradianceFBO.BindForWriting())
                     {
-                        Engine.Rendering.State.Clear(EFrameBufferTextureType.Color);
+                        Engine.Rendering.State.Clear(true, false, false);
                         Engine.Rendering.State.EnableDepthTest(false);
                         _irradianceFBO.RenderFullscreen(ECubemapFace.PosX + i);
                     }
@@ -190,7 +190,7 @@ namespace XREngine.Components.Lights
                         _prefilterFBO.SetRenderTargets((PrefilterTex, EFrameBufferAttachment.ColorAttachment0, mip, i));
                         using (_prefilterFBO.BindForWriting())
                         {
-                            Engine.Rendering.State.Clear(EFrameBufferTextureType.Color);
+                            Engine.Rendering.State.Clear(true, false, false);
                             _prefilterFBO.RenderFullscreen(ECubemapFace.PosX + i);
                         }
                     }

@@ -3,8 +3,8 @@ using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Reflection;
-using XREngine.Components.Scene.Mesh;
 using XREngine.Data.Core;
+using XREngine.Rendering;
 using XREngine.Rendering.UI;
 
 namespace XREngine.Scene.Transforms
@@ -16,13 +16,18 @@ namespace XREngine.Scene.Transforms
     /// </summary>
     public abstract partial class TransformBase : XRWorldObjectBase, IList, IList<TransformBase>, IEnumerable<TransformBase>
     {
+        public override XRWorldInstance? World 
+        {
+            get => SceneNode?.World;
+            internal set { }
+        }
+
         public XREvent<TransformBase> LocalMatrixChanged;
         public XREvent<TransformBase> InverseLocalMatrixChanged;
         public XREvent<TransformBase> WorldMatrixChanged;
         public XREvent<TransformBase> InverseWorldMatrixChanged;
 
-        private readonly ReaderWriterLockSlim _parentLock = new();
-
+        protected TransformBase() : this(null) { }
         protected TransformBase(TransformBase? parent)
         {
             _sceneNode = null;
@@ -63,37 +68,44 @@ namespace XREngine.Scene.Transforms
         public int Depth { get; private set; } = 0;
 
         private TransformBase? _parent;
-        private bool _invalidateOnRender = false;
-
         /// <summary>
         /// The parent of this transform.
         /// Will affect this transform's world matrix.
         /// </summary>
         public virtual TransformBase? Parent
         {
-            get
-            {
-                _parentLock.EnterReadLock();
-                var parent = _parent;
-                _parentLock.ExitReadLock();
-                return parent;
-            }
-            set
-            {
-                _parentLock.EnterWriteLock();
-                SetField(ref _parent, value);
-                _parentLock.ExitWriteLock();
-                MarkWorldModified();
-            }
+            get => _parent;
+            set => SetField(ref _parent, value);
         }
 
+        protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
+        {
+            bool change = base.OnPropertyChanging(propName, field, @new);
+            if (change)
+            {
+                switch (propName)
+                {
+                    case nameof(Parent):
+                        _parent?.Children.Remove(this);
+                        break;
+                }
+            }
+            return change;
+        }
         protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
         {
             base.OnPropertyChanged(propName, prev, field);
             switch (propName)
             {
                 case nameof(Parent):
-                    Depth = _parent is not null ? _parent.Depth + 1 : 0;
+                    if (_parent is not null)
+                    {
+                        Depth = _parent.Depth + 1;
+                        _parent.Children.Add(this);
+                    }
+                    else
+                        Depth = 0;
+                    MarkWorldModified();
                     break;
             }
         }

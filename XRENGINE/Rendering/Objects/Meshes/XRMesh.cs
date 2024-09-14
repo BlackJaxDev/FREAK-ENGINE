@@ -87,30 +87,28 @@ namespace XREngine.Rendering
                     });
                 }
 
+                maxTexCoordCount = Math.Max(maxTexCoordCount, v.TextureCoordinateSets.Count);
                 if (v.TextureCoordinateSets is not null && v.TextureCoordinateSets.Count > 0)
                 {
-                    for (int texCoordIndex = 0; texCoordIndex < v.TextureCoordinateSets.Count; ++texCoordIndex)
-                        vertexActions.Add((i, x, vtx) =>
-                        {
+                    vertexActions.Add((i, x, vtx) =>
+                    {
+                        for (int texCoordIndex = 0; texCoordIndex < v.TextureCoordinateSets.Count; ++texCoordIndex)
                             uvBuffers![texCoordIndex][i] = vtx.TextureCoordinateSets != null && texCoordIndex < vtx.TextureCoordinateSets.Count
                                 ? vtx.TextureCoordinateSets[texCoordIndex]
                                 : Vector2.Zero;
-                        });
-
-                    maxTexCoordCount = v.TextureCoordinateSets.Count;
+                    });
                 }
 
+                maxColorCount = Math.Max(maxColorCount, v.ColorSets.Count);
                 if (v.ColorSets is not null && v.ColorSets.Count > 0)
                 {
-                    for (int colorIndex = 0; colorIndex < v.ColorSets.Count; ++colorIndex)
-                        vertexActions.Add((i, x, vtx) =>
-                        {
+                    vertexActions.Add((i, x, vtx) =>
+                    {
+                        for (int colorIndex = maxColorCount; colorIndex < v.ColorSets.Count; ++colorIndex)
                             colorBuffers![colorIndex][i] = vtx.ColorSets != null && colorIndex < vtx.ColorSets.Count
                                 ? vtx.ColorSets[colorIndex]
                                 : Vector4.Zero;
-                        });
-
-                    maxColorCount = v.ColorSets.Count;
+                    });
                 }
             }
 
@@ -205,14 +203,14 @@ namespace XREngine.Rendering
 
             //Fill the buffers with the vertex data using the command list
             //We can do this in parallel since each vertex is independent
-            //Parallel.For(0, firstAppearanceArray.Length, i =>
-             for (int i = 0; i < firstAppearanceArray.Length; ++i)
+            Parallel.For(0, firstAppearanceArray.Length, i =>
+            //for (int i = 0; i < firstAppearanceArray.Length; ++i)
             {
                 int x = firstAppearanceArray[i];
                 Vertex vtx = sourceList[x];
                 foreach (var action in vertexActions)
                     action.Invoke(i, x, vtx);
-            }//);
+            });
 
             if (weights is not null)
                 SetBoneWeights(weights);

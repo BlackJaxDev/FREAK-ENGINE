@@ -1,4 +1,7 @@
 ﻿
+using XREngine.Core.Files;
+using XREngine.Rendering.Models.Materials;
+
 namespace XREngine.Rendering
 {
     public class XRShader : GenericRenderObject
@@ -10,8 +13,8 @@ namespace XREngine.Rendering
             set => SetField(ref _type, value);
         }
 
-        private string _source = string.Empty;
-        public string Source
+        private TextFile _source = string.Empty;
+        public TextFile Source
         {
             get => _source;
             set => SetField(ref _source, value);
@@ -19,7 +22,7 @@ namespace XREngine.Rendering
 
         public XRShader() { }
         public XRShader(EShaderType type) => Type = type;
-        public XRShader(EShaderType type, string source)
+        public XRShader(EShaderType type, TextFile source)
         {
             Type = type;
             Source = source;
@@ -46,13 +49,14 @@ namespace XREngine.Rendering
         /// <summary>
         /// Loads a shader from common engine shaders.
         /// </summary>
-        /// <param name="localPath"></param>
+        /// <param name="relativePath"></param>
         /// <param name="type"></param>
         /// <returns></returns>
         /// <exception cref="NotImplementedException"></exception>
-        public static XRShader EngineShader(string localPath, EShaderType type)
-        {
-            throw new NotImplementedException();
-        }
+        public static XRShader EngineShader(string relativePath, EShaderType type)
+            => ShaderHelper.LoadShader(relativePath, type);
+
+        public static Task<XRShader> EngineShaderAsync(string relativePath, EShaderType type)
+            => ShaderHelper.LoadShaderAsync(relativePath, type);
     }
 }

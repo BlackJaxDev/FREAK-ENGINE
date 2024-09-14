@@ -110,7 +110,7 @@ namespace XREngine.Scene
         /// <param name="captureDepth"></param>
         /// <param name="depthResolution"></param>
         /// <param name="force"></param>
-        public void CaptureLightProbes(int colorResolution, bool captureDepth, int depthResolution, bool force = false)
+        public void CaptureLightProbes(uint colorResolution, bool captureDepth, uint depthResolution, bool force = false)
         {
             if (_capturing || (!force && IBLCaptured))
                 return;

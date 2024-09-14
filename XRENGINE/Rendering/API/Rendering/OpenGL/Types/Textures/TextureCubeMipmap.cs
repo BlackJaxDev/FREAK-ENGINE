@@ -25,15 +25,15 @@ namespace XREngine.Rendering.Models.Materials.Textures
             RenderCubeSide posZ, RenderCubeSide negZ)
             => Sides = [posX, negX, posY, negY, posZ, negZ];
         
-        public TextureCubeMipmap(int dim, MagickColor? color = null)
+        public TextureCubeMipmap(uint dim, MagickColor? color = null)
             => SetSides(dim, color);
-        public TextureCubeMipmap(int dim, EPixelInternalFormat internalFormat, EPixelFormat format, EPixelType type)
+        public TextureCubeMipmap(uint dim, EPixelInternalFormat internalFormat, EPixelFormat format, EPixelType type)
             => Sides.Fill(i => new RenderCubeSide(dim, dim, internalFormat, format, type));
 
         public bool SetCrossCubeMap(MagickImage cubeCrossBmp)
         {
-            int w = cubeCrossBmp.Width;
-            int h = cubeCrossBmp.Height;
+            uint w = cubeCrossBmp.Width;
+            uint h = cubeCrossBmp.Height;
             MagickGeometry[] crops;
 
             if (w % 4 == 0 && 
@@ -45,15 +45,15 @@ namespace XREngine.Rendering.Models.Materials.Textures
                 // |__|__|__|__|   -X, -Z, +X, +Z
                 //    |__|             -Y
 
-                int dim = w / 4;
+                uint dim = w / 4;
                 crops =
                 [
-                    new(dim * 2, dim, dim, dim), //+X
-                    new(0, dim, dim, dim), //-X
-                    new(dim, 0, dim, dim), //+Y
-                    new(dim, dim * 2, dim, dim), //-Y
-                    new(dim * 3, dim, dim, dim), //+Z
-                    new(dim, dim, dim, dim), //-Z
+                    new((int)dim * 2, (int)dim, dim, dim), //+X
+                    new(0, (int)dim, dim, dim), //-X
+                    new((int)dim, 0, dim, dim), //+Y
+                    new((int)dim, (int)dim * 2, dim, dim), //-Y
+                    new((int)dim * 3, (int)dim, dim, dim), //+Z
+                    new((int)dim, (int)dim, dim, dim), //-Z
                 ];
             }
             else if (
@@ -67,15 +67,15 @@ namespace XREngine.Rendering.Models.Materials.Textures
                 //    |__|          -Y
                 //    |__|          +Z
 
-                int dim = h / 4;
+                uint dim = h / 4;
                 crops =
                 [
-                    new(dim * 2, dim, dim, dim), //+X
-                    new(0, dim, dim, dim), //-X
-                    new(dim, 0, dim, dim), //+Y
-                    new(dim, dim * 2, dim, dim), //-Y
-                    new(dim, dim * 3, dim, dim), //+Z
-                    new(dim, dim, dim, dim), //-Z
+                    new((int)dim * 2, (int)dim, dim, dim), //+X
+                    new(0, (int)dim, dim, dim), //-X
+                    new((int)dim, 0, dim, dim), //+Y
+                    new((int)dim, (int)dim * 2, dim, dim), //-Y
+                    new((int)dim, (int)dim * 3, dim, dim), //+Z
+                    new((int)dim, (int)dim, dim, dim), //-Z
                 ];
             }
             else
@@ -104,10 +104,10 @@ namespace XREngine.Rendering.Models.Materials.Textures
             //Sides.FillWith(i => cubeCrossBmp.Clone());
         }
 
-        public void SetSides(int dim, MagickColor? color = null)
+        public void SetSides(uint dim, MagickColor? color = null)
             => Sides.Fill(i => new MagickImage(color ??= new MagickColor(0, 0, 0, 0), dim, dim));
 
-        public void SetSides(int dim, EPixelInternalFormat internalFormat, EPixelFormat format, EPixelType type)
+        public void SetSides(uint dim, EPixelInternalFormat internalFormat, EPixelFormat format, EPixelType type)
             => Sides.Fill(i => new RenderCubeSide(dim, dim, internalFormat, format, type));
 
         public void Dispose()

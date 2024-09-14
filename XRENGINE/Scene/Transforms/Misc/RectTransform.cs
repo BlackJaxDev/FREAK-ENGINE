@@ -7,15 +7,52 @@ namespace XREngine.Scene.Transforms
     /// </summary>
     public class RectTransform : Transform
     {
-        public Vector2 AnchoredPosition { get; set; }
-        public Vector2 AnchorMin { get; set; }
-        public Vector2 AnchorMax { get; set; }
-        public Vector2 OffsetMin { get; set; }
-        public Vector2 OffsetMax { get; set; }
-        public Vector2 Pivot { get; set; }
-        public Vector2 SizeDelta { get; set; }
+        private Vector2 anchoredPosition;
+        private Vector2 anchorMin;
+        private Vector2 anchorMax;
+        private Vector2 offsetMin;
+        private Vector2 offsetMax;
+        private Vector2 pivot;
+        private Vector2 sizeDelta;
 
-        public RectTransform()
+        public Vector2 AnchoredPosition
+        {
+            get => anchoredPosition;
+            set => SetField(ref anchoredPosition, value);
+        }
+        public Vector2 AnchorMin
+        {
+            get => anchorMin;
+            set => SetField(ref anchorMin, value);
+        }
+        public Vector2 AnchorMax
+        {
+            get => anchorMax;
+            set => SetField(ref anchorMax, value);
+        }
+        public Vector2 OffsetMin
+        {
+            get => offsetMin;
+            set => SetField(ref offsetMin, value);
+        }
+        public Vector2 OffsetMax
+        {
+            get => offsetMax;
+            set => SetField(ref offsetMax, value);
+        }
+        public Vector2 Pivot
+        {
+            get => pivot;
+            set => SetField(ref pivot, value);
+        }
+        public Vector2 SizeDelta
+        {
+            get => sizeDelta;
+            set => SetField(ref sizeDelta, value);
+        }
+
+        public RectTransform() : this(null) { }
+        public RectTransform(TransformBase? parent) : base(parent)
         {
             AnchoredPosition = Vector2.Zero;
             AnchorMin = new Vector2(0.5f, 0.5f);

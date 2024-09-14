@@ -215,7 +215,7 @@ namespace XREngine.Rendering.OpenGL
                 Renderer.GlobalMaterialOverride ?? 
                 (localMaterialOverride is null ? null : (Renderer.GetOrCreateAPIRenderObject(localMaterialOverride) as GLMaterial)) ??
                 Material ?? 
-                Renderer.InvalidMaterial;
+                (GLMaterial)Renderer.GetOrCreateAPIRenderObject(Engine.Rendering.State.RenderPipeline!.InvalidMaterial);
 
             public void Render(Matrix4x4 modelMatrix, XRMaterial? materialOverride, uint instances)
             {
@@ -308,7 +308,7 @@ namespace XREngine.Rendering.OpenGL
                 }
                 else
                 {
-                    var material = Material ?? Renderer.InvalidMaterial; //Don't use GetRenderMaterial here, global and local override materials are for current render only
+                    var material = Material ?? (GLMaterial)Renderer.GetOrCreateAPIRenderObject(Engine.Rendering.State.RenderPipeline!.InvalidMaterial); //Don't use GetRenderMaterial here, global and local override materials are for current render only
                     IEnumerable<XRShader> shaders = material.Data.Shaders;
 
                     //If the material doesn't have a vertex shader, use the default one

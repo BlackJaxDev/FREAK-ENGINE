@@ -7,8 +7,12 @@ namespace XREngine.Scene.Transforms
     /// Looks at another transform.
     /// </summary>
     /// <param name="parent"></param>
-    public class LookatTransform(TransformBase? parent = null) : TransformBase(parent)
+    public class LookatTransform : TransformBase
     {
+        public LookatTransform() { }
+        public LookatTransform(TransformBase? parent)
+            : base(parent) { }
+
         private TransformBase? _target;
         private Vector3 _up = Globals.Up;
         private float _roll = 0.0f;

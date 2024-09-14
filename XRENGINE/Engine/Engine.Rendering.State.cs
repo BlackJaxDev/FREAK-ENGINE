@@ -61,6 +61,9 @@ namespace XREngine
                 public static XRViewport? RenderingViewport
                     => RenderingViewports.TryPeek(out var vp) ? vp : null;
                 public static Stack<XRViewport> RenderingViewports { get; } = new();
+
+                public static XRRenderPipeline? RenderPipeline { get; set; }
+
                 public static StateObject PushRenderingViewport(XRViewport vp)
                 {
                     RenderingViewports.Push(vp);
@@ -70,8 +73,8 @@ namespace XREngine
                 public static void Clear(ColorF4 color)
                     => AbstractRenderer.Current?.ClearColor(color);
 
-                public static void Clear(EFrameBufferTextureType type)
-                    => AbstractRenderer.Current?.Clear(type);
+                public static void Clear(bool color, bool depth, bool stencil)
+                    => AbstractRenderer.Current?.Clear(color, depth, stencil);
 
                 public static void BindFrameBuffer(EFramebufferTarget fboTarget, int bindingId)
                     => AbstractRenderer.Current?.BindFrameBuffer(fboTarget, bindingId);
@@ -110,7 +113,6 @@ namespace XREngine
                 }
                 public static float CalculateDotLuminance(XRTexture2D texture, bool generateMipmapsNow)
                     => CalcDotLuminance(texture, out float dotLum, generateMipmapsNow) ? dotLum : 1.0f;
-
             }
         }
     }

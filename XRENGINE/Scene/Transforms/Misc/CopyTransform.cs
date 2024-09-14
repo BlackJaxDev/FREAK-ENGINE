@@ -7,8 +7,12 @@ namespace XREngine.Scene.Transforms
     /// Useful for creating a hierarchy of transforms that are not directly connected.
     /// </summary>
     /// <param name="parent"></param>
-    public class CopyTransform(TransformBase? parent) : TransformBase(parent)
+    public class CopyTransform : TransformBase
     {
+        public CopyTransform() { }
+        public CopyTransform(TransformBase parent)
+            : base(parent) { }
+
         private TransformBase? _source;
         public TransformBase? Source
         {

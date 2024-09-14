@@ -92,7 +92,7 @@ namespace XREngine.Rendering
             SetFullScreen();
         }
 
-        public XRViewport(int x, int y, int width, int height, int index = 0)
+        public XRViewport(int x, int y, uint width, uint height, int index = 0)
         {
             X = x;
             Y = y;
@@ -100,7 +100,7 @@ namespace XREngine.Rendering
             Resize(width, height);
         }
 
-        public XRViewport(int width, int height)
+        public XRViewport(uint width, uint height)
         {
             Index = 0;
             SetFullScreen();
@@ -250,18 +250,29 @@ namespace XREngine.Rendering
                 case nameof(CameraComponent):
                     Camera = CameraComponent?.Camera;
                     break;
+                case nameof(RenderPipeline):
+                    _renderPipeline?.GenerateCommandChain();
+                    break;
             }
         }
 
+        /// <summary>
+        /// Sizes the viewport according to the window's size and the sizing percentages set to this viewport.
+        /// </summary>
+        /// <param name="windowWidth"></param>
+        /// <param name="windowHeight"></param>
+        /// <param name="setInternalResolution"></param>
+        /// <param name="internalResolutionWidth"></param>
+        /// <param name="internalResolutionHeight"></param>
         public void Resize(
-            int parentWidth,
-            int parentHeight,
+            uint windowWidth,
+            uint windowHeight,
             bool setInternalResolution = true,
             int internalResolutionWidth = -1,
             int internalResolutionHeight = -1)
         {
-            float w = parentWidth.ClampMin(1);
-            float h = parentHeight.ClampMin(1);
+            float w = windowWidth.ClampMin(1u);
+            float h = windowHeight.ClampMin(1u);
 
             _region.X = (int)(_leftPercentage * w);
             _region.Y = (int)(_bottomPercentage * h);
@@ -271,11 +282,13 @@ namespace XREngine.Rendering
             if (setInternalResolution) 
                 SetInternalResolution(
                     internalResolutionWidth <= 0 ? _region.Width : internalResolutionWidth,
-                    internalResolutionHeight <= 0 ? _region.Height : internalResolutionHeight);
+                    internalResolutionHeight <= 0 ? _region.Height : internalResolutionHeight,
+                    true);
 
             CameraComponent?.UserInterface?.Resize(_region.Extents);
             if (Camera?.Parameters is XRPerspectiveCameraParameters p && p.InheritAspectRatio)
                 p.AspectRatio = (float)_region.Width / _region.Height;
+            RenderPipeline.ViewportResized(Width, Height);
         }
 
         /// <summary>
@@ -283,10 +296,20 @@ namespace XREngine.Rendering
         /// </summary>
         /// <param name="width"></param>
         /// <param name="height"></param>
-        public void SetInternalResolution(int width, int height)
+        public void SetInternalResolution(int width, int height, bool correctAspect)
         {
             _internalResolutionRegion.Width = width;
             _internalResolutionRegion.Height = height;
+            if (correctAspect)
+            {
+                //Shrink the internal resolution to fit the aspect ratio of the viewport
+                float aspect = (float)_region.Width / _region.Height;
+                if (aspect > 1.0f)
+                    _internalResolutionRegion.Height = (int)(_internalResolutionRegion.Width / aspect);
+                else
+                    _internalResolutionRegion.Width = (int)(_internalResolutionRegion.Height * aspect);
+            }
+            RenderPipeline.InternalResolutionResized(InternalWidth, InternalHeight);
         }
 
         #region Coordinate conversion

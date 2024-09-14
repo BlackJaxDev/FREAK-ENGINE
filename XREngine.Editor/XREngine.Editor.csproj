@@ -31,7 +31,7 @@
 
   <ItemGroup>
     <PackageReference Include="Google.Cloud.Speech.V1" Version="3.8.0" />
-    <PackageReference Include="Google.Cloud.TextToSpeech.V1" Version="3.6.0" />
+    <PackageReference Include="Google.Cloud.TextToSpeech.V1" Version="3.7.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Silk.NET" Version="2.21.0" />
     <PackageReference Include="Silk.NET.Assimp" Version="2.21.0" />
@@ -78,7 +78,7 @@
     <PackageReference Include="Silk.NET.Windowing.Sdl" Version="2.21.0" />
     <PackageReference Include="Silk.NET.XInput" Version="2.21.0" />
     <PackageReference Include="SkiaSharp" Version="2.88.8" />
-    <PackageReference Include="YamlDotNet" Version="16.1.0" />
+    <PackageReference Include="YamlDotNet" Version="16.1.2" />
   </ItemGroup>
 
   <ItemGroup>

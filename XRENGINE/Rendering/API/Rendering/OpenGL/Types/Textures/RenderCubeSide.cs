@@ -6,8 +6,8 @@ namespace XREngine.Rendering
 {
     public class RenderCubeSide : XRBase, IDisposable
     {
-        private int _width;
-        private int _height;
+        private uint _width;
+        private uint _height;
         private MagickImage? _map;
         private EPixelFormat _pixelFormat;
         private EPixelType _pixelType;
@@ -19,7 +19,7 @@ namespace XREngine.Rendering
             Width = map.Width;
             Height = map.Height;
         }
-        public RenderCubeSide(int width, int height, EPixelInternalFormat internalFormat, EPixelFormat format, EPixelType type)
+        public RenderCubeSide(uint width, uint height, EPixelInternalFormat internalFormat, EPixelFormat format, EPixelType type)
         {
             InternalFormat = internalFormat;
             PixelFormat = format;
@@ -29,12 +29,12 @@ namespace XREngine.Rendering
             Map = null;
         }
 
-        public int Width
+        public uint Width
         {
             get => _width;
             set => SetField(ref _width, value);
         }
-        public int Height
+        public uint Height
         {
             get => _height;
             set => SetField(ref _height, value);

@@ -104,10 +104,13 @@ namespace XREngine
         private static void Suppressed(string message)
             => Console.WriteLine($"[Suppressed] {message}");
 
-        public static void LogException(Exception ex)
+        public static void LogException(Exception ex, string? message = null)
         {
 #if DEBUG || EDITOR
-            Out(EOutputVerbosity.Verbose, false, ex.ToString());
+            if (message != null)
+                Out(EOutputVerbosity.Verbose, false, $"{message}{Environment.NewLine}{ex}");
+            else
+                Out(EOutputVerbosity.Verbose, false, ex.ToString());
 #endif
         }
         public static void LogWarning(string message, int lineIgnoreCount = 1, int includedLineCount = 5)

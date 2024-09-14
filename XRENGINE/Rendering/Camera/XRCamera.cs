@@ -139,9 +139,9 @@ namespace XREngine.Rendering
             => parameters?.ProjectionMatrixChanged.RemoveListener(ProjectionMatrixChanged);
 
         private void RegisterWorldMatrixChanged()
-            => Transform.WorldMatrixChanged.AddListener(WorldMatrixChanged);
+            => _transform?.WorldMatrixChanged.AddListener(WorldMatrixChanged);
         private void UnregisterWorldMatrixChanged()
-            => Transform.WorldMatrixChanged.RemoveListener(WorldMatrixChanged);
+            => _transform?.WorldMatrixChanged.RemoveListener(WorldMatrixChanged);
 
         private void ProjectionMatrixChanged(XRCameraParameters parameters)
             => InvalidateMVP();

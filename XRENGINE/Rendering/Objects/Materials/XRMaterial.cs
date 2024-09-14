@@ -8,14 +8,6 @@ namespace XREngine.Rendering
 {
     public class XRMaterial : XRMaterialBase
     {
-        /// <summary>
-        /// Static global invalid material, loaded from <ExeDir>/Shaders/Common/Invalid.fs
-        /// </summary>
-        public static XRMaterial InvalidMaterial { get; }
-            = new XRMaterial(ShaderHelper.LoadShader("Common/Invalid.fs", EShaderType.Fragment));
-
-        //CreateUnlitColorMaterialForward(Color.Magenta);
-
         [Browsable(false)]
         public IReadOnlyList<XRShader> FragmentShaders => _fragmentShaders;
         [Browsable(false)]
@@ -136,6 +128,12 @@ namespace XREngine.Rendering
 
         public static XRMaterial CreateUnlitColorMaterialForward()
             => CreateUnlitColorMaterialForward(Color.DarkTurquoise);
+
+        public static XRMaterial CreateColorMaterialDeferred()
+            => CreateColorMaterialDeferred(Color.DarkTurquoise);
+
+        public static XRMaterial CreateColorMaterialDeferred(ColorF4 color)
+            => new([new ShaderVector4(color, "MatColor")], ShaderHelper.LitColorFragDeferred());
 
         public static XRMaterial CreateUnlitColorMaterialForward(ColorF4 color)
             => new([new ShaderVector4(color, "MatColor")], ShaderHelper.UnlitColorFragForward());

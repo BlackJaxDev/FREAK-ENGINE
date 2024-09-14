@@ -16,6 +16,7 @@
             {
                 _data = data;
                 LinkData();
+                Generate();
             }
             
             protected override GenericRenderObject Data_Internal => Data;

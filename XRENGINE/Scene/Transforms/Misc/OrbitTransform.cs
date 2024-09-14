@@ -6,8 +6,12 @@ namespace XREngine.Scene.Transforms
     /// Rotates around the parent transform about the local Y axis.
     /// </summary>
     /// <param name="parent"></param>
-    public class OrbitTransform(TransformBase? parent = null) : TransformBase(parent)
+    public class OrbitTransform : TransformBase
     {
+        public OrbitTransform() { }
+        public OrbitTransform(TransformBase? parent)
+            : base(parent) { }
+
         private float _angle = 0.0f;
         private float _radius = 1.0f;
 

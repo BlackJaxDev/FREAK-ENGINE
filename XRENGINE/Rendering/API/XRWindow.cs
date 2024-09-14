@@ -1,4 +1,6 @@
-﻿using Silk.NET.Windowing;
+﻿using Extensions;
+using Silk.NET.Maths;
+using Silk.NET.Windowing;
 using XREngine.Data.Core;
 using XREngine.Rendering.OpenGL;
 using XREngine.Rendering.Vulkan;
@@ -30,6 +32,24 @@ namespace XREngine.Rendering
                 ContextAPI.Vulkan => new VulkanRenderer(this),
                 _ => throw new Exception($"Unsupported API: {Window.API.API}"),
             };
+        }
+
+        private void Window_Resize(Vector2D<int> obj)
+        {
+            void SetSize(XRViewport vp)
+            {
+                vp.Resize((uint)obj.X, (uint)obj.Y, false);
+                vp.SetInternalResolution(1920, 1080, true);
+            }
+            Renderer.Viewports.ForEach(SetSize);
+        }
+
+        public void UpdateViewportSizes()
+            => Window_Resize(Window.Size);
+        
+        private void Window_FramebufferResize(Vector2D<int> obj)
+        {
+
         }
     }
 }

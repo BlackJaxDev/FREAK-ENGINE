@@ -6,8 +6,12 @@ namespace XREngine.Scene.Transforms
     /// The transform for the VR headset.
     /// </summary>
     /// <param name="parent"></param>
-    public class VRHeadsetTransform(TransformBase? parent = null) : TransformBase(parent)
+    public class VRHeadsetTransform : TransformBase
     {
+        public VRHeadsetTransform() { }
+        public VRHeadsetTransform(TransformBase parent)
+            : base(parent) { }
+
         protected override Matrix4x4 CreateLocalMatrix()
         {
             var headset = Engine.VRState.Api.IsHeadsetPresent ? Engine.VRState.Api.Headset : null;

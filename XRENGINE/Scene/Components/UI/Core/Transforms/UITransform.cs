@@ -21,6 +21,7 @@ namespace XREngine.Rendering.UI
         private bool _renderTransformation = true;
         private UIChildPlacementInfo? _placementInfo = null;
 
+        public UITransform() : this(null) { }
         public UITransform(TransformBase? parent) : base(parent)
         {
             _rc = new RenderCommandMethod2D(0, RenderVisualGuides);

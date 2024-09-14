@@ -103,6 +103,7 @@ namespace XREngine
         {
             XRWindow window = new(GetWindowOptions(windowSettings));
             CreateViewports(windowSettings.LocalPlayers, window.Renderer);
+            window.UpdateViewportSizes();
             SetWorld(windowSettings.TargetWorld, window.Renderer);
             _windows.Add(window);
         }

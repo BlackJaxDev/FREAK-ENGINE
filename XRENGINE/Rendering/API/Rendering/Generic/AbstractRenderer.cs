@@ -53,7 +53,7 @@ namespace XREngine.Rendering
 
         protected virtual void SwapBuffers()
         {
-            
+            //Window.SwapBuffers();
         }
 
         protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
@@ -111,12 +111,10 @@ namespace XREngine.Rendering
             Engine.Rendering.DestroyObjectsForWindow(_window);
             CleanUp();
             Window.DoEvents();
-            Window.Reset();
         }
 
         private void BeginTick()
         {
-            Window.Initialize();
             Initialize();
             Time.Timer.SwapBuffers += SwapBuffers;
             Time.Timer.RenderFrame += RenderFrame;
@@ -139,7 +137,14 @@ namespace XREngine.Rendering
 
         protected bool _frameBufferInvalidated = false;
         private void FramebufferResizeCallback(Vector2D<int> obj)
-            => _frameBufferInvalidated = true;
+        {
+            _frameBufferInvalidated = true;
+            Viewports.ForEach(x =>
+            {
+                x.Resize((uint)obj.X, (uint)obj.Y, false);
+                x.SetInternalResolution(1920, 1080, true);
+            });
+        }
 
         public IWindow Window => XRWindow.Window;
 
@@ -196,6 +201,8 @@ namespace XREngine.Rendering
         /// Use this to retrieve the currently rendering window renderer.
         /// </summary>
         public static AbstractRenderer? Current { get; private set; }
+
+        //private float _lastFrameTime = 0.0f;
         private void RenderCallback(double delta)
         {
             try
@@ -203,10 +210,14 @@ namespace XREngine.Rendering
                 Active = true;
                 Current = this;
 
-                foreach (var viewport in Viewports)
-                    viewport.Render();
-
-                //WindowRenderCallback(delta);
+                PushRenderArea(0, 0, Window.Size.X, Window.Size.Y);
+                {
+                    Clear(true, true, true);
+                    ClearColor(new ColorF4(0.0f, 0.0f, 0.0f));
+                    foreach (var viewport in Viewports)
+                        viewport.Render();
+                }
+                PopRenderArea();
             }
             finally
             {
@@ -356,7 +367,7 @@ namespace XREngine.Rendering
         public T GenericToAPI<T>(GenericRenderObject renderObject) where T : AbstractRenderAPIObject
             => (T)GetOrCreateAPIRenderObject(renderObject);
 
-        public abstract void Clear(EFrameBufferTextureType type);
+        public abstract void Clear(bool color, bool depth, bool stencil);
         public abstract void BindFrameBuffer(EFramebufferTarget fboTarget, int bindingId);
         public abstract void ClearColor(ColorF4 color);
         public abstract void SetReadBuffer(EDrawBuffersAttachment attachment);

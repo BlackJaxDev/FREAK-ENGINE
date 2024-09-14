@@ -11,6 +11,7 @@ namespace XREngine.Scene.Transforms
     /// </summary>
     public class BillboardTransform : TransformBase
     {
+        public BillboardTransform() : this(null) { }
         public BillboardTransform(TransformBase? parent) : base(parent)
             => XRCamera.CurrentRenderTargetChanged.AddListener(OnCameraChanged);
 

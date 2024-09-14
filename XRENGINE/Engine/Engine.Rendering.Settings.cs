@@ -26,9 +26,9 @@ public static partial class Rendering
                 /// Depending on how many items are in a singular tick order, this could be faster or slower.
                 /// </summary>
                 public static bool TickGroupedItemsInParallel { get; set; } = false;
-                public static int LightProbeDefaultColorResolution { get; set; } = 512;
+                public static uint LightProbeDefaultColorResolution { get; set; } = 512u;
                 public static bool ShouldLightProbesCaptureDepth { get; set; } = false;
-                public static int LightProbeDefaultDepthResolution { get; set; } = 256;
+                public static uint LightProbeDefaultDepthResolution { get; set; } = 256u;
             }
         }
     }

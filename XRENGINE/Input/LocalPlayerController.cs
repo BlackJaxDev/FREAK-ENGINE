@@ -49,7 +49,7 @@ namespace XREngine.Input
         private void UpdateViewportCamera()
         {
             if (_viewport is not null)
-                _viewport.CameraComponent = _controlledPawn?.CurrentCameraComponent;
+                _viewport.CameraComponent = _controlledPawn?.CurrentCameraComponent ?? (Cameras.Count > 0 ? Cameras[0] : null);
         }
         protected override void RegisterInput(InputInterface input)
         {

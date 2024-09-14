@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using XREngine.Core.Files;
 using XREngine.Data.Core;
 
 namespace XREngine.Components.Logic.Scripting
@@ -19,12 +20,12 @@ namespace XREngine.Components.Logic.Scripting
         /// Script is called with this info when the owning actor is spawned in the world.
         /// </summary>
         /// 
-        public ScriptExecInfo SpawnedMethod { get; set; } = null;
+        public ScriptExecInfo? SpawnedMethod { get; set; } = null;
 
         /// <summary>
         /// Script is called with this info when the owning actor is despawned from the world.
         /// </summary>
-        public ScriptExecInfo DespawnedMethod { get; set; } = null;
+        public ScriptExecInfo? DespawnedMethod { get; set; } = null;
         
         public abstract bool Execute(string methodName, params object[] args);
         public bool Execute(ScriptExecInfo info)

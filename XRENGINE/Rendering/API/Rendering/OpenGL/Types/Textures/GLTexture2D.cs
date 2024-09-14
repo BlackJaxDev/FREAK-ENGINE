@@ -131,7 +131,7 @@ namespace XREngine.Rendering.OpenGL
             //Internal format must match pixel format
             //GL_ALPHA, GL_LUMINANCE, GL_LUMINANCE_ALPHA, GL_RGB, GL_RGBA
             //bool hasAlpha = bmp.HasAlpha;
-            int channels = bmp.ChannelCount;
+            uint channels = bmp.ChannelCount;
             switch (channels)
             {
                 case 1:

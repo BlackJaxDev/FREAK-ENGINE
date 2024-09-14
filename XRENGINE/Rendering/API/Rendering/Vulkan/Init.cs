@@ -122,7 +122,7 @@ namespace XREngine.Rendering.Vulkan
         {
             throw new NotImplementedException();
         }
-        public override void Clear(EFrameBufferTextureType type)
+        public override void Clear(bool color, bool depth, bool stencil)
         {
             throw new NotImplementedException();
         }

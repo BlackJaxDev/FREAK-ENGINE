@@ -57,11 +57,8 @@ namespace XREngine.Rendering.UI
             set => SetField(ref _cameraDrawSpaceDistance, value);
         }
 
-        [Browsable(false)]
-        public XRCamera ScreenSpaceCamera { get; }
-        [Browsable(false)]
+        public XRCamera ScreenSpaceCamera { get; } = new XRCamera();
         public XRWorldInstance ScreenSpaceUIScene { get; }
-        [Browsable(false)]
         public RenderCommandCollection ScreenSpaceRenderPasses { get; set; } = new RenderCommandCollection();
         
         public Vector2 LastCursorPositionWorld { get; private set; }

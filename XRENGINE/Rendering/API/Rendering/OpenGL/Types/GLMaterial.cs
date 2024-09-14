@@ -74,7 +74,6 @@ namespace XREngine.Rendering.OpenGL
                 };
 
             public IGLTexture?[] Textures { get; private set; } = [];
-            public GLMaterial Invalid => Renderer.InvalidMaterial;
             
             public void SetUniforms()
             {

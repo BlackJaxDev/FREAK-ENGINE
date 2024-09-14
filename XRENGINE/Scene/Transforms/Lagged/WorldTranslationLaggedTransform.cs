@@ -9,19 +9,25 @@ namespace XREngine.Components.Scene.Transforms
     /// Moves the scene node to the parent's position, lagging behind by a specified amount for smooth movement.
     /// Not affected by parent's scale or rotation, as all calculations are done in world space.
     /// </summary>
-    /// <param name="parent"></param>
-    /// <param name="interpSpeed"></param>
-    /// <param name="maxLagDistance"></param>
-    public class WorldTranslationLaggedTransform(TransformBase? parent, float interpSpeed, float maxLagDistance) : TransformBase(parent)
+    public class WorldTranslationLaggedTransform : TransformBase
     {
-        public WorldTranslationLaggedTransform(TransformBase? parent) : this(parent, 20.0f, 2.0f) { }
-        public WorldTranslationLaggedTransform(TransformBase? parent, float interpSpeed) : this(parent, interpSpeed, 2.0f) { }
+        public WorldTranslationLaggedTransform() : this(null) { }
+        public WorldTranslationLaggedTransform(TransformBase? parent)
+            : this(parent, 20.0f, 2.0f) { }
+        public WorldTranslationLaggedTransform(TransformBase? parent, float interpSpeed)
+            : this(parent, interpSpeed, 2.0f) { }
+        public WorldTranslationLaggedTransform(TransformBase? parent, float interpSpeed, float maxLagDistance)
+            : base(parent)
+        {
+            _interpSpeed = interpSpeed;
+            _maxLagDistance = maxLagDistance;
+        }
 
         private Vector3 _currentPoint;
         private Vector3 _destPoint;
         private Vector3 _interpPoint;
-        private float _interpSpeed = interpSpeed;
-        private float _maxLagDistance = maxLagDistance;
+        private float _interpSpeed;
+        private float _maxLagDistance;
         private float _laggingDistance;
 
         public float InterpSpeed

@@ -6,8 +6,12 @@ namespace XREngine.Scene.Transforms
     /// This transform will only inherit the world position of its parent.
     /// </summary>
     /// <param name="parent"></param>
-    public class PositionOnlyTransform(TransformBase? parent) : TransformBase(parent)
+    public class PositionOnlyTransform : TransformBase
     {
+        public PositionOnlyTransform() { }
+        public PositionOnlyTransform(TransformBase parent)
+            : base(parent) { }
+
         protected override Matrix4x4 CreateWorldMatrix()
             => Parent is null
                 ? Matrix4x4.Identity

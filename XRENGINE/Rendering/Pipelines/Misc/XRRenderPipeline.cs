@@ -18,6 +18,13 @@ namespace XREngine.Rendering;
 /// </summary>
 public abstract class XRRenderPipeline : XRBase
 {
+    protected abstract Lazy<XRMaterial> LazyInvalidMaterial { get; }
+
+    /// <summary>
+    /// Static global invalid material for the default deferred rendering pipeline
+    /// </summary>
+    public XRMaterial InvalidMaterial => LazyInvalidMaterial.Value;
+
     public const string SceneShaderPath = "Scene3D";
 
     //TODO: stereoscopic rendering output
@@ -147,6 +154,13 @@ public abstract class XRRenderPipeline : XRBase
     /// <param name="shadowPass"></param>
     public void Render(VisualScene visualScene, XRCamera camera, XRViewport? viewport, XRFrameBuffer? targetFBO, bool shadowPass)
     {
+        if (RenderPipeline is not null)
+        {
+            Debug.Out("Render pipeline is already rendering. Cannot render again until the current render is complete.");
+            return;
+        }
+
+        RenderPipeline = this;
         RenderStatus.Set(viewport, visualScene, camera, targetFBO, shadowPass);
 
         //_timeQuery.BeginQuery(EQueryTarget.TimeElapsed);
@@ -165,6 +179,7 @@ public abstract class XRRenderPipeline : XRBase
         //Engine.PrintLine(_renderMS.ToString() + " ms");
 
         RenderStatus.Clear();
+        RenderPipeline = null;
     }
 
     protected abstract ViewportRenderCommandContainer GenerateCommandChainInternal();
@@ -223,7 +238,7 @@ public abstract class XRRenderPipeline : XRBase
         {
             using (PushRenderArea(region))
             {
-                Clear(EFrameBufferTextureType.Color);
+                Clear(true, false, false);
                 quad.Render();
             }
         }
@@ -239,5 +254,15 @@ public abstract class XRRenderPipeline : XRBase
         foreach (var tex in _textures)
             tex.Value.Destroy();
         _textures.Clear();
+    }
+
+    //TODO: actually resize fbos and textures instead of recreating them
+    public void ViewportResized(int width, int height)
+    {
+        DestroyCache();
+    }
+    public void InternalResolutionResized(int internalWidth, int internalHeight)
+    {
+        DestroyCache();
     }
 }

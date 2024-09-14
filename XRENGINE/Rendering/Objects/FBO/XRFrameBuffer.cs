@@ -10,7 +10,7 @@ namespace XREngine.Rendering
             => SetRenderTargets(targets);
 
         private EDrawBuffersAttachment[]? _drawBuffers;
-        private EFrameBufferTextureType _textureTypes = EFrameBufferTextureType.None;
+        private EFrameBufferTextureTypeFlags _textureTypes = EFrameBufferTextureTypeFlags.None;
         private (IFrameBufferAttachement Target, EFrameBufferAttachment Attachment, int MipLevel, int LayerIndex)[]? _targets;
 
         public static XRFrameBuffer? CurrentlyBound { get; set; }
@@ -18,7 +18,7 @@ namespace XREngine.Rendering
         public uint Width { get; private set; }
         public uint Height { get; private set; }
 
-        public EFrameBufferTextureType TextureTypes
+        public EFrameBufferTextureTypeFlags TextureTypes
         {
             get => _textureTypes;
             set => SetField(ref _textureTypes, value);
@@ -86,7 +86,7 @@ namespace XREngine.Rendering
             PreSetRenderTargets?.Invoke();
 
             Targets = targets;
-            TextureTypes = EFrameBufferTextureType.None;
+            TextureTypes = EFrameBufferTextureTypeFlags.None;
 
             List<EDrawBuffersAttachment> fboAttachments = [];
             if (Targets is not null)
@@ -96,22 +96,22 @@ namespace XREngine.Rendering
                     switch (Attachment)
                     {
                         case EFrameBufferAttachment.Color:
-                            TextureTypes |= EFrameBufferTextureType.Color;
+                            TextureTypes |= EFrameBufferTextureTypeFlags.Color;
                             continue;
                         case EFrameBufferAttachment.Depth:
                         case EFrameBufferAttachment.DepthAttachment:
-                            TextureTypes |= EFrameBufferTextureType.Depth;
+                            TextureTypes |= EFrameBufferTextureTypeFlags.Depth;
                             continue;
                         case EFrameBufferAttachment.DepthStencilAttachment:
-                            TextureTypes |= EFrameBufferTextureType.Depth | EFrameBufferTextureType.Stencil;
+                            TextureTypes |= EFrameBufferTextureTypeFlags.Depth | EFrameBufferTextureTypeFlags.Stencil;
                             continue;
                         case EFrameBufferAttachment.Stencil:
                         case EFrameBufferAttachment.StencilAttachment:
-                            TextureTypes |= EFrameBufferTextureType.Stencil;
+                            TextureTypes |= EFrameBufferTextureTypeFlags.Stencil;
                             continue;
                     }
                     fboAttachments.Add((EDrawBuffersAttachment)(int)Attachment);
-                    TextureTypes |= EFrameBufferTextureType.Color;
+                    TextureTypes |= EFrameBufferTextureTypeFlags.Color;
                 }
             }
 

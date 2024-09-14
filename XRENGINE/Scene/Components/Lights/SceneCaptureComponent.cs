@@ -6,16 +6,16 @@ namespace XREngine.Components.Lights
 {
     public class SceneCaptureComponent : XRComponent
     {
-        private int _colorResolution;
-        private int _depthResolution;
+        private uint _colorResolution;
+        private uint _depthResolution;
         private bool _captureDepthCubeMap = true;
 
-        protected int ColorResolution
+        protected uint ColorResolution
         {
             get => _colorResolution;
             set => SetField(ref _colorResolution, value);
         }
-        protected int DepthResolution
+        protected uint DepthResolution
         {
             get => _depthResolution;
             set => SetField(ref _depthResolution, value);
@@ -36,7 +36,7 @@ namespace XREngine.Components.Lights
         public XRTextureCube? ResultDepthTexture => _envDepthTex;
         protected XRCubeFrameBuffer? RenderFBO => _renderFBO;
 
-        public void SetCaptureResolution(int colorResolution, bool captureDepth = false, int depthResolution = 1)
+        public void SetCaptureResolution(uint colorResolution, bool captureDepth = false, uint depthResolution = 1u)
         {
             ColorResolution = colorResolution;
             DepthResolution = depthResolution;

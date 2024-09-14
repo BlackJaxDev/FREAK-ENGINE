@@ -6,7 +6,7 @@
     [Serializable]
     public abstract class XRObjectBase : XRBase, IDisposable
     {
-        public Guid ID { get; private set; } = Guid.NewGuid();
+        public Guid ID { get; protected set; } = Guid.NewGuid();
         
         private static EventDictionary<Guid, XRObjectBase> ObjectsCacheInternal { get; } = [];
         public static IReadOnlyDictionary<Guid, XRObjectBase> ObjectsCache => ObjectsCacheInternal;

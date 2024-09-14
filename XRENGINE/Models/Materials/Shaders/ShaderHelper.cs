@@ -1,11 +1,24 @@
-﻿using Microsoft.DotNet.PlatformAbstractions;
+﻿using XREngine.Core.Files;
 
 namespace XREngine.Rendering.Models.Materials
 {
     public static class ShaderHelper
     {
         public static XRShader LoadShader(string relativePath, EShaderType type)
-            => new(type, File.ReadAllText(Path.Combine(ApplicationEnvironment.ApplicationBasePath, "Shaders", relativePath)));
+        {
+            TextFile? source = Engine.Assets.LoadEngine3rdPartyAsset<TextFile>("Shaders", relativePath);
+            return source is null 
+                ? throw new FileNotFoundException($"Shader file not found: {relativePath}") 
+                : new XRShader(type, source);
+        }
+
+        public static async Task<XRShader> LoadShaderAsync(string relativePath, EShaderType type)
+        {
+            TextFile? source = await Engine.Assets.LoadEngine3rdPartyAssetAsync<TextFile>("Shaders", relativePath);
+            return source is null
+                ? throw new FileNotFoundException($"Shader file not found: {relativePath}")
+                : new XRShader(type, source);
+        }
 
         public const string LightFalloff = "pow(clamp(1.0 - pow({1} / {0}, 4), 0.0, 1.0), 2.0) / ({1} * {1} + 1.0);";
         //public const string LightFallof = "clamp(1.0 - {1} * {1} / ({0} * {0}), 0.0, 1.0); attn *= attn;";

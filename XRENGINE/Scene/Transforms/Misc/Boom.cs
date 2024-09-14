@@ -15,10 +15,9 @@ namespace XREngine.Components.Scene.Transforms
     /// </summary>
     public class BoomTransform : TransformBase, IRenderable
     {
+        public BoomTransform() : this(null) { }
         public BoomTransform(TransformBase? parent) : base(parent)
-        {
-            RenderedObjects = [RenderInfo = RenderInfo3D.New(this, new RenderCommandMethod3D(0, DebugRender))];
-        }
+            => RenderedObjects = [RenderInfo = RenderInfo3D.New(this, new RenderCommandMethod3D(0, DebugRender))];
 
         public delegate void DelDistanceChange(float newLength);
         public event DelDistanceChange? CurrentDistanceChanged;

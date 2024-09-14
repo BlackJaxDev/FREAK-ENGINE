@@ -1,4 +1,5 @@
 ﻿using ImageMagick;
+using ImageMagick.Drawing;
 using XREngine.Data.Rendering;
 using XREngine.Data.Vectors;
 
@@ -58,8 +59,8 @@ namespace XREngine.Rendering
         public XRTexture2D(uint width, uint height, EPixelType pixelType = EPixelType.Float, int mipmapCount = 1)
         {
             _mipmaps = new MagickImage[mipmapCount];
-            for (int i = 0, scale = 1; i < mipmapCount; scale = 1 << ++i)
-                _mipmaps[i] = new(MagickColors.Transparent, (int)width / scale, (int)height / scale);
+            for (uint i = 0, scale = 1; i < mipmapCount; scale = 1u << (int)++i)
+                _mipmaps[i] = new(MagickColors.Transparent, width / scale, height / scale);
             _width = width;
             _height = height;
             PixelType = pixelType;
@@ -84,7 +85,7 @@ namespace XREngine.Rendering
         public XRTexture2D(uint width, uint height, EPixelInternalFormat internalFmt, EPixelFormat fmt, EPixelType pixelType)
         {
             _mipmaps = new MagickImage[1];
-            _mipmaps[0] = new(MagickColors.Transparent, (int)width, (int)height);
+            _mipmaps[0] = new(MagickColors.Transparent, width, height);
             _width = width;
             _height = height;
             InternalFormat = internalFmt;
@@ -181,7 +182,7 @@ namespace XREngine.Rendering
                 if (_mipmaps[i] is null)
                     continue;
 
-                _mipmaps[i].Resize((int)width, (int)height);
+                _mipmaps[i].Resize(width, height);
 
                 width >>= 1;
                 height >>= 1;
@@ -210,7 +211,7 @@ namespace XREngine.Rendering
             for (int i = 1; i < _mipmaps.Length; ++i)
             {
                 var clone = _mipmaps[i - 1].Clone();
-                clone.Resize((int)_width >> i, (int)_height >> i);
+                clone.Resize(_width >> i, _height >> i);
                 _mipmaps[i] = (MagickImage)clone;
             }
         }

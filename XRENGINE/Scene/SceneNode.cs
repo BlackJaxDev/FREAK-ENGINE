@@ -11,7 +11,7 @@ using XREngine.Scene.Transforms;
 namespace XREngine.Scene
 {
     [Serializable]
-    public sealed class SceneNode : XRBase, IEventListReadOnly<XRComponent>
+    public sealed class SceneNode : XRWorldObjectBase, IEventListReadOnly<XRComponent>
     {
         //private static SceneNode? _dummy;
         //internal static SceneNode Dummy => _dummy ??= new SceneNode() { IsDummy = true };
@@ -38,13 +38,6 @@ namespace XREngine.Scene
 
         private readonly EventList<XRComponent> _components = [];
         private EventList<XRComponent> ComponentsInternal => _components;
-
-        private string _name = "New Scene Node";
-        public string Name
-        {
-            get => _name;
-            set => SetField(ref _name, value);
-        }
 
         private bool _isActiveSelf = true;
         /// <summary>
@@ -123,6 +116,9 @@ namespace XREngine.Scene
                 case nameof(World):
                     SetWorldToChildNodes(World);
                     break;
+                case nameof(Parent):
+                    World = Parent?.World;
+                    break;
             }
         }
 
@@ -177,8 +173,6 @@ namespace XREngine.Scene
         public IEventListReadOnly<XRComponent> Components => ComponentsInternal;
 
         private TransformBase? _transform = null;
-        private XRWorldInstance? _world;
-
         /// <summary>
         /// The transform of this scene node.
         /// Will never be null, because scene nodes all have transformations in the scene.
@@ -205,9 +199,12 @@ namespace XREngine.Scene
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="retainParent"></param>
-        public T SetTransform<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(bool retainParent = true) where T : TransformBase
+        public T SetTransform<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(bool retainParent = true) where T : TransformBase, new()
         {
-            T value = (T)Activator.CreateInstance(typeof(T), Transform.Parent)!;
+            T value = new()
+            {
+                Parent = Transform.Parent
+            };
             SetTransform(value, retainParent);
             return value;
         }
@@ -221,23 +218,17 @@ namespace XREngine.Scene
             set => Transform.Parent = value?.Transform;
         }
 
-        /// <summary>
-        /// The scene that this scene node is attached to.
-        /// </summary>
-        public XRWorldInstance? World
-        {
-            get => _world;
-            internal set => SetField(ref _world, value);
-        }
-
         private void SetWorldToChildNodes(XRWorldInstance? value)
         {
             foreach (var component in this)
                 component.World = value;
 
-            foreach (var child in Transform)
+            for (int i = 0; i < Transform.Children.Count; i++)
+            {
+                var child = Transform.Children[i];
                 if (child?.SceneNode is SceneNode node)
                     node.World = value;
+            }
         }
 
         private void ClearWorldFromChildNodes()
@@ -245,9 +236,12 @@ namespace XREngine.Scene
             foreach (var component in this)
                 component.World = null;
 
-            foreach (var child in Transform)
+            for (int i = 0; i < Transform.Children.Count; i++)
+            {
+                var child = Transform.Children[i];
                 if (child?.SceneNode is SceneNode node)
                     node.World = null;
+            }
         }
 
         /// <summary>
@@ -257,7 +251,7 @@ namespace XREngine.Scene
         /// <returns></returns>
         public string GetPath(string splitter = "/")
         {
-            var path = Name;
+            var path = Name ?? string.Empty;
             var parent = Parent;
             while (parent != null)
             {
@@ -274,6 +268,7 @@ namespace XREngine.Scene
         public T? AddComponent<T>() where T : XRComponent
         {
             var comp = XRComponent.New<T>(this);
+            comp.World = World;
 
             if (!VerifyComponentAttributesOnAdd(comp))
                 return null;

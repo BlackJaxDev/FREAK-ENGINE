@@ -57,7 +57,7 @@ namespace XREngine.Components
             set => SetField(ref _cullingFrustumOverride, value);
         }
 
-        protected CameraComponent() : base()
+        public CameraComponent() : base()
         {
             _camera = new(() => new XRCamera(Transform), true);
             Engine.State.LocalPlayerAdded += LocalPlayerAdded;

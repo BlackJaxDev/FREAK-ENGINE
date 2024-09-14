@@ -1,23 +1,24 @@
 ﻿using Extensions;
+using System.Diagnostics.CodeAnalysis;
 using System.IO.MemoryMappedFiles;
 using XREngine.Data.Core;
+using YamlDotNet.Serialization;
 
 namespace XREngine.Core.Files
 {
-    public abstract partial class XRAsset : XRBase
+    /// <summary>
+    /// An asset is a common base class for all engine-formatted objects that are loaded from disk.
+    /// </summary>
+    public abstract partial class XRAsset : XRObjectBase
     {
         public XRAsset() { }
         public XRAsset(string name) => Name = name;
 
-        public string Name { get; set; } = string.Empty;
-        public Guid Guid { get; set; } = Guid.NewGuid();
-        public bool Initialized { get; set; } = false;
-
         /// <summary>
         /// List of sub-assets contained in this file.
         /// </summary>
-        public List<XRAsset> EmbeddedAssets { get; } = [];
-        
+        public EventList<XRAsset> EmbeddedAssets { get; } = [];
+
         private string? _filePath;
         /// <summary>
         /// The absolute origin of this asset in the file system.
@@ -44,7 +45,7 @@ namespace XREngine.Core.Files
             get => _sourceAsset ?? this;
             set => _sourceAsset = value;
         }
-        
+
         /// <summary>
         /// The map of the asset in memory for unsafe pointer use.
         /// </summary>
@@ -73,10 +74,62 @@ namespace XREngine.Core.Files
             FileMap = null;
         }
 
-        public static Task<T?> LoadAsync<T>(string filePath)
+        public static event Action<XRAsset>? AssetLoaded;
+        public static event Action<XRAsset>? AssetSaved;
+
+        private static void PostLoad<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] T>(string filePath, T? file) where T : XRAsset
         {
-            //TODO
-            return null;
+            if (file is null)
+                return;
+
+            file.FilePath = filePath;
+            AssetLoaded?.Invoke(file);
+        }
+
+        public static async Task<T?> LoadAsync<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] T>(string filePath) where T : XRAsset
+        {
+            T? file = !File.Exists(filePath)
+                ? await Task.FromResult<T?>(null)
+                : new Deserializer().Deserialize<T>(await File.ReadAllTextAsync(filePath));
+            PostLoad(filePath, file);
+            return file;
+        }
+
+        public static T? Load<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] T>(string filePath) where T : XRAsset
+        {
+            T? file = !File.Exists(filePath)
+                ? null
+                : new Deserializer().Deserialize<T>(File.ReadAllText(filePath));
+            PostLoad(filePath, file);
+            return file;
+        }
+
+        public async Task SaveAsync()
+        {
+            if (FilePath is null)
+                throw new InvalidOperationException("Cannot save an asset without a file path.");
+
+            await File.WriteAllTextAsync(FilePath, new Serializer().Serialize(this));
+        }
+
+        public void Save()
+        {
+            if (FilePath is null)
+                throw new InvalidOperationException("Cannot save an asset without a file path.");
+
+            File.WriteAllText(FilePath, new Serializer().Serialize(this));
+        }
+
+        public void SaveTo(string filePath)
+        {
+            File.WriteAllText(filePath, new Serializer().Serialize(this));
+            FilePath = filePath;
+        }
+
+        public async Task SaveToAsync(string filePath)
+        {
+            await File.WriteAllTextAsync(filePath, new Serializer().Serialize(this));
+            FilePath = filePath;
         }
     }
 }

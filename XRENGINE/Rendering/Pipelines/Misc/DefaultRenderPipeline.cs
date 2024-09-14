@@ -10,6 +10,8 @@ namespace XREngine.Rendering;
 
 public class DefaultRenderPipeline : XRRenderPipeline
 {
+    protected override Lazy<XRMaterial> LazyInvalidMaterial => new(XRMaterial.CreateColorMaterialDeferred);
+
     //FBOs
     const string SSAOFBOName = "SSAOFBO";
     const string SSAOBlurFBOName = "SSAOBlurFBO";
@@ -58,7 +60,8 @@ public class DefaultRenderPipeline : XRRenderPipeline
                     AllowDepthWrite(true);
                     StencilMask(~0u);
                     ClearStencil(0);
-                    Clear(/*target?.TextureTypes ?? */EFrameBufferTextureType.All);
+                    //Clear(/*target?.TextureTypes ?? */EFrameBufferTextureTypeFlags.All);
+                    Clear(true, true, true);
                     AllowDepthWrite(false);
                 };
                 c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)ERenderPass.Background;
@@ -112,7 +115,7 @@ public class DefaultRenderPipeline : XRRenderPipeline
                 {
                     StencilMask(~0u);
                     ClearStencil(0);
-                    Clear(EFrameBufferTextureType.Color | EFrameBufferTextureType.Depth | EFrameBufferTextureType.Stencil);
+                    Clear(true, true, true);
                     EnableDepthTest(true);
                     ClearDepth(1.0f);
                 };
@@ -130,8 +133,8 @@ public class DefaultRenderPipeline : XRRenderPipeline
             //Render the GBuffer fbo to the LightCombine fbo
             using (c.AddUsing<VPRC_BindFBOByName>(x => x.FrameBufferName = LightCombineFBOName))
             {
-                c.Add<VPRC_Manual>().ManualAction = () => Clear(EFrameBufferTextureType.Color);
-                c.Add<VPRC_LightCombinePass>();
+                c.Add<VPRC_Manual>().ManualAction = () => Clear(true, false, false);
+                c.Add<VPRC_LightCombinePass>().SetOptions(AlbedoOpacityTextureName, NormalTextureName, RMSITextureName, DepthViewTextureName);
             }
 
             //Render the LightCombine fbo to the ForwardPass fbo

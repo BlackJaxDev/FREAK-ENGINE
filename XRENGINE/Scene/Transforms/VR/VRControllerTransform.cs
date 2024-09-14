@@ -8,8 +8,12 @@ namespace XREngine.Data.Components.Scene
     /// The transform for the left or right VR controller.
     /// </summary>
     /// <param name="parent"></param>
-    public class VRControllerTransform(TransformBase? parent) : TransformBase(parent)
+    public class VRControllerTransform : TransformBase
     {
+        public VRControllerTransform() { }
+        public VRControllerTransform(TransformBase parent)
+            : base(parent) { }
+
         private bool _leftHand;
         public bool LeftHand
         {

@@ -11,6 +11,8 @@ namespace XREngine.Components.Scene.Transforms
     /// </summary>
     public class TranslationRotationLaggedTransform : LaggedTranslationTransform
     {
+        public TranslationRotationLaggedTransform()
+            : this(null) { }
         public TranslationRotationLaggedTransform(TransformBase? parent)
             : this(parent, Vector3.Zero, Quaternion.Identity) { }
         public TranslationRotationLaggedTransform(TransformBase? parent, Vector3 translation, Quaternion rotation)

@@ -1,26 +1,15 @@
-﻿using System.Collections.Concurrent;
-using System.Text;
-using XREngine.Core.Reflection.Attributes;
+﻿using System.Text;
 
 namespace XREngine.Core.Files
 {
-    public class ScriptFile : TextFile
+    public class TextFile : XR3rdPartyAsset
     {
-        public ScriptFile() : base() { }
-        public ScriptFile(string path) : base(path) { }
-    }
+        public event Action? TextChanged;
 
-    public class TextFile : XRAsset, ITextSource
-    {
-        public event Action TextChanged;
-
-        public static ConcurrentDictionary<string, (DateTime, string)> TextCache = new ConcurrentDictionary<string, (DateTime, string)>();
-
-        private string _text = null;
-        [TString(true, false, false, true)]
-        public string Text
+        private string? _text = null;
+        public string? Text
         {
-            get => _text ?? LoadText();
+            get => _text;
             set
             {
                 _text = value;
@@ -57,81 +46,32 @@ namespace XREngine.Core.Files
         }
 
         public static TextFile FromText(string text)
-            => new TextFile() { Text = text };
+            => new() { Text = text };
 
-        public static implicit operator string(TextFile textFile)
+        public static implicit operator string?(TextFile textFile)
             => textFile?.Text;
         public static implicit operator TextFile(string text)
             => FromText(text);
 
-        //public override void ManualRead3rdParty(string filePath)
-        //{
-        //    FilePath = filePath;
-        //    //Text = LoadText();
-        //}
-        //public override void ManualWrite3rdParty(string filePath)
-        //{
-        //    try
-        //    {
-        //        File.WriteAllText(filePath, Text, Encoding);
-        //        DateTime lastUpdatedTime = File.GetLastWriteTime(FilePath);
-        //        var attrib = (lastUpdatedTime, _text);
-        //        TextCache.AddOrUpdate(filePath, attrib, (x, y) => attrib);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        Engine.LogException(ex);
-        //    }
-        //}
-        public string LoadText()
+        public unsafe void LoadTextFileMapped()
         {
-            _text = null;
+            if (FilePath is null)
+                return;
+
+            using FileMap map = FileMap.FromFile(FilePath, FileMapProtect.Read);
+            Encoding = GetEncoding(map, out int bomLength);
+            _text = Encoding.GetString((byte*)map.Address + bomLength, map.Length - bomLength);
+        }
+
+        public async Task LoadTextAsync()
+        {
             if (!string.IsNullOrWhiteSpace(FilePath) && File.Exists(FilePath))
-            {
-                DateTime lastUpdatedTime = File.GetLastWriteTime(FilePath);
-                if (TextCache.ContainsKey(FilePath))
-                {
-                    var attrib = TextCache[FilePath];
-                    if (attrib.Item1 < lastUpdatedTime)
-                    {
-                        Read();
-                        attrib.Item1 = lastUpdatedTime;
-                        attrib.Item2 = _text;
-                        TextCache[FilePath] = attrib;
-                    }
-                    else
-                        _text = attrib.Item2;
-                }
-                else
-                {
-                    Read();
-                    var attrib = (lastUpdatedTime, _text);
-                    TextCache.AddOrUpdate(FilePath, attrib, (x, y) => attrib);
-                }
-            }
-
-            return _text;
+                _text = await File.ReadAllTextAsync(FilePath, Encoding = GetEncoding(FilePath));
         }
-
-        private unsafe void Read()
+        public void LoadText()
         {
-            using (FileMap map = FileMap.FromFile(FilePath, FileMapProtect.Read))
-            {
-                Encoding = GetEncoding(map, out int bomLength);
-                _text = Encoding.GetString((byte*)map.Address + bomLength, map.Length - bomLength);
-            }
-        }
-
-        public void UnloadText()
-        {
-            _text = null;
-        }
-        public async Task<string> LoadTextAsync()
-        {
-            _text = null;
             if (!string.IsNullOrWhiteSpace(FilePath) && File.Exists(FilePath))
-                _text = await Task.Run(() => File.ReadAllText(FilePath, Encoding = GetEncoding(FilePath)));
-            return _text;
+                _text = File.ReadAllText(FilePath, Encoding = GetEncoding(FilePath));
         }
 
         /// <summary>
@@ -188,6 +128,38 @@ namespace XREngine.Core.Files
 
             bomLength = 0;
             return Encoding.Default;
+        }
+
+        public override void Load(string filePath)
+        {
+            FilePath = filePath;
+            LoadText();
+            OnAssetLoaded();
+        }
+
+        public override async Task LoadAsync(string filePath)
+        {
+            FilePath = filePath;
+            await LoadTextAsync();
+            OnAssetLoaded();
+        }
+
+        public override void Save()
+        {
+            if (FilePath is null)
+                throw new InvalidOperationException("Cannot save a text file without a file path.");
+
+            File.WriteAllText(FilePath, _text ?? string.Empty, Encoding);
+            OnAssetSaved();
+        }
+
+        public override async Task SaveAsync()
+        {
+            if (FilePath is null)
+                throw new InvalidOperationException("Cannot save a text file without a file path.");
+
+            await File.WriteAllTextAsync(FilePath, _text ?? string.Empty, Encoding);
+            OnAssetSaved();
         }
     }
 }

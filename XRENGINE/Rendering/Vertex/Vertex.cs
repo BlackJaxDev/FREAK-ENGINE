@@ -81,13 +81,14 @@ namespace XREngine.Data.Rendering
             hash.Add(Tangent);
             hash.Add(TextureCoordinateSets);
             hash.Add(ColorSets);
+            hash.Add(Blendshapes);
             return hash.ToHashCode();
         }
 
         public Vertex HardCopy()
             => new()
             {
-                Weights = Weights,
+                Weights = Weights is null ? null : new Dictionary<TransformBase, float>(Weights),
                 Position = Position,
                 Normal = Normal,
                 Tangent = Tangent,

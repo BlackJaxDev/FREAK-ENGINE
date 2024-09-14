@@ -13,6 +13,14 @@ namespace XREngine.Rendering.Pipelines.Commands
         public string RMSITexture { get; set; } = "RMSITexture";
         public string DepthViewTexture { get; set; } = "DepthViewTexture";
 
+        public void SetOptions(string albedoOpacityTexture, string normalTexture, string rmsiTexture, string depthViewTexture)
+        {
+            AlbedoOpacityTexture = albedoOpacityTexture;
+            NormalTexture = normalTexture;
+            RMSITexture = rmsiTexture;
+            DepthViewTexture = depthViewTexture;
+        }
+
         private XRTexture2D? _albedoOpacityTextureCache = null;
         private XRTexture2D? _normalTextureCache = null;
         private XRTexture2D? _rmsiTextureCache = null;

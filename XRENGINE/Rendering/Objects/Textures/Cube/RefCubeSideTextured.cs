@@ -9,7 +9,7 @@ namespace XREngine.Rendering
         public RefCubeSideTextured(MagickImage map)
             => Map = map;
 
-        public RefCubeSideTextured(int width, int height)
+        public RefCubeSideTextured(uint width, uint height)
             => Map = new MagickImage(MagickColors.Transparent, width, height);
 
         public override RenderCubeSide AsRenderSide(int mipIndex)

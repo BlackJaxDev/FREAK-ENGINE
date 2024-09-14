@@ -20,13 +20,13 @@ namespace XREngine.Rendering
             RefCubeSide posZ, RefCubeSide negZ)
             => Sides = [posX, negX, posY, negY, posZ, negZ];
 
-        public CubeMipmap(int width, int height, EPixelInternalFormat internalFormat, EPixelFormat format, EPixelType type)
+        public CubeMipmap(uint width, uint height, EPixelInternalFormat internalFormat, EPixelFormat format, EPixelType type)
         {
             Sides = new RefCubeSide[6];
             Sides.Fill(i => new RefCubeSideEmpty(width, height, internalFormat, format, type));
         }
 
-        public CubeMipmap(int width, int height)
+        public CubeMipmap(uint width, uint height)
         {
             Sides = new RefCubeSide[6];
             Sides.Fill(i => new RefCubeSideTextured(width, height));
@@ -51,8 +51,8 @@ namespace XREngine.Rendering
                     if (mipIndex >= maps.Length)
                     {
                         bmp = maps[^1];
-                        int w = bmp.Width;
-                        int h = bmp.Height;
+                        uint w = bmp.Width;
+                        uint h = bmp.Height;
                         for (int i = maps.Length; i <= mipIndex && w >= 1 && h >= 1; ++i)
                         {
                             w /= 2;
