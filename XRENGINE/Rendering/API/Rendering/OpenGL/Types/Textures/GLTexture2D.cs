@@ -10,7 +10,7 @@ namespace XREngine.Rendering.OpenGL
         private bool _hasPushed = false;
         private bool _storageSet = false;
 
-        public override ETextureTarget TextureTarget { get; }
+        public override ETextureTarget TextureTarget { get; } = ETextureTarget.Texture2D;
 
         protected override void UnlinkData()
         {
@@ -110,23 +110,24 @@ namespace XREngine.Rendering.OpenGL
                 return;
             }
 
-            GetFormat(bmp, out GLEnum pixelFormat, out GLEnum internalFormat);
+            GetFormat(bmp, out GLEnum internalPixelFormat, out GLEnum pixelFormat);
 
-            var bytes = bmp.GetPixelsUnsafe().ToByteArray(bmp.HasAlpha ? PixelMapping.RGBA : PixelMapping.RGB);
+            var bytes = bmp.GetPixels().ToByteArray(bmp.HasAlpha ? PixelMapping.RGBA : PixelMapping.RGB);
             //GCHandle pinnedArray = GCHandle.Alloc(bytes, GCHandleType.Pinned);
             //IntPtr pointer = pinnedArray.AddrOfPinnedObject();
             //Using fixed avoids a secondary allocation
+            Api.PixelStore(PixelStoreParameter.UnpackAlignment, 1);
             fixed (byte* ptr = bytes)
             {
                 if (_hasPushed || _storageSet)
-                    Api.TexSubImage2D(glTarget, i, 0, 0, (uint)bmp.Width, (uint)bmp.Height, pixelFormat, GLEnum.Float, ptr);
+                    Api.TexSubImage2D(glTarget, i, 0, 0, bmp.Width, bmp.Height, pixelFormat, GLEnum.Float, ptr);
                 else
-                    Api.TexImage2D(glTarget, i, (int)internalFormat, (uint)bmp.Width, (uint)bmp.Height, 0, pixelFormat, GLEnum.Float, ptr);
+                    Api.TexImage2D(glTarget, i, (int)internalPixelFormat, bmp.Width, bmp.Height, 0, pixelFormat, GLEnum.Float, ptr);
             }
             //pinnedArray.Free();
         }
 
-        private unsafe void GetFormat(MagickImage bmp, out GLEnum pixelFormat, out GLEnum internalFormat)
+        private unsafe void GetFormat(MagickImage bmp, out GLEnum internalPixelFormat, out GLEnum pixelFormat)
         {
             //Internal format must match pixel format
             //GL_ALPHA, GL_LUMINANCE, GL_LUMINANCE_ALPHA, GL_RGB, GL_RGBA
@@ -135,8 +136,8 @@ namespace XREngine.Rendering.OpenGL
             switch (channels)
             {
                 case 1:
-                    pixelFormat = GLEnum.Red;
-                    internalFormat = Data.PixelType switch
+                    internalPixelFormat = GLEnum.Red;
+                    pixelFormat = Data.PixelType switch
                     {
                         EPixelType.HalfFloat => GLEnum.R16f,
                         EPixelType.Int => GLEnum.R32i,
@@ -149,8 +150,8 @@ namespace XREngine.Rendering.OpenGL
                     };
                     break;
                 case 2:
-                    pixelFormat = GLEnum.RG;
-                    internalFormat = Data.PixelType switch
+                    internalPixelFormat = GLEnum.RG;
+                    pixelFormat = Data.PixelType switch
                     {
                         EPixelType.HalfFloat => GLEnum.RG16f,
                         EPixelType.Int => GLEnum.RG32i,
@@ -163,8 +164,8 @@ namespace XREngine.Rendering.OpenGL
                     };
                     break;
                 case 3:
-                    pixelFormat = GLEnum.Rgb;
-                    internalFormat = Data.PixelType switch
+                    internalPixelFormat = GLEnum.Rgb;
+                    pixelFormat = Data.PixelType switch
                     {
                         EPixelType.HalfFloat => GLEnum.Rgb16f,
                         EPixelType.Int => GLEnum.Rgb32i,
@@ -178,8 +179,8 @@ namespace XREngine.Rendering.OpenGL
                     break;
                 default:
                 case 4:
-                    pixelFormat = GLEnum.Rgba;
-                    internalFormat = Data.PixelType switch
+                    internalPixelFormat = GLEnum.Rgba;
+                    pixelFormat = Data.PixelType switch
                     {
                         EPixelType.HalfFloat => GLEnum.Rgba16f,
                         EPixelType.Int => GLEnum.Rgba32i,
@@ -231,8 +232,6 @@ namespace XREngine.Rendering.OpenGL
             };
 
         public override string ResolveSamplerName(int textureIndex, string? samplerNameOverride)
-        {
-            return samplerNameOverride ?? $"tex2d_{textureIndex}";
-        }
+            => samplerNameOverride ?? $"Texture{textureIndex}";
     }
 }

@@ -6,7 +6,7 @@ namespace XREngine
     public class Debug
     {
         public static Queue<(string, DateTime)> Output { get; } = new Queue<(string, DateTime)>();
-        public static bool AllowOutput { get; set; } = false;
+        public static bool AllowOutput { get; set; } = true;
 
         /// <summary>
         /// Prints a message for debugging purposes.
@@ -113,7 +113,7 @@ namespace XREngine
                 Out(EOutputVerbosity.Verbose, false, ex.ToString());
 #endif
         }
-        public static void LogWarning(string message, int lineIgnoreCount = 1, int includedLineCount = 5)
+        public static void LogWarning(string message, int lineIgnoreCount = 0, int includedLineCount = 5)
         {
 #if DEBUG || EDITOR
             Out(EOutputVerbosity.Normal, true, false, false, true, 4 + lineIgnoreCount, includedLineCount, message);

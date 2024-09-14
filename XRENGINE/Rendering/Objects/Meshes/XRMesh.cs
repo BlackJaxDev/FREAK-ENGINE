@@ -586,14 +586,14 @@ namespace XREngine.Rendering
         private static bool GetPrimType<T>(out EPrimitiveType type) where T : VertexPrimitive
             => PrimTypeDic.TryGetValue(typeof(T), out type);
 
-        public void RemoveBuffer(string type)
+        public void RemoveBuffer(string name)
         {
             if (_buffers is null)
                 return;
 
-            if (_buffers.TryGetValue(type, out XRDataBuffer? buffer))
+            if (_buffers.TryGetValue(name, out XRDataBuffer? buffer))
             {
-                _buffers.Remove(type);
+                _buffers.Remove(name);
                 buffer.Dispose();
             }
         }
@@ -905,7 +905,7 @@ namespace XREngine.Rendering
             XRDataBuffer buffer = new(bindingName, target, integral)
             {
                 InstanceDivisor = instanceDivisor,
-                Mapped = isMapped
+                Mapped = isMapped,
             };
             AddOrUpdateBufferRaw(
                 bufferData,

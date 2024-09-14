@@ -30,6 +30,7 @@ namespace XREngine.Rendering.OpenGL
                 //XRTexture2DArray data => new GLTexture2DArray(this, data),
                 XRTransformFeedback data => new GLTransformFeedback(this, data),
                 XRSampler s => new GLSampler(this, s),
+                XRShader s => new GLShader(this, s),
                 _ => throw new InvalidOperationException($"Render object type {renderObject.GetType()} is not supported.")
             };
 
@@ -173,7 +174,33 @@ namespace XREngine.Rendering.OpenGL
         {
             var result = Api.CheckNamedFramebufferStatus(fbo.BindingId, FramebufferTarget.Framebuffer);
             if (result != GLEnum.FramebufferComplete)
-                throw new InvalidOperationException($"Framebuffer {fbo.BindingId} is not complete. Status: {result}");
+            {
+                Debug.LogWarning($"Framebuffer {fbo.BindingId} is not complete. Status: {result}");
+                switch (result)
+                {
+                    case GLEnum.FramebufferIncompleteMissingAttachment:
+                        {
+                            fbo.Data.Targets?.ForEach(a =>
+                            {
+                                if (a.Target == null)
+                                    Debug.LogWarning($"Framebuffer {fbo.BindingId} has missing attachment.");
+                            });
+                        }
+                        break;
+                    case GLEnum.FramebufferIncompleteAttachment:
+                        {
+                            //Collect all requested attachments
+                            void TestAttachment((IFrameBufferAttachement Target, EFrameBufferAttachment Attachment, int MipLevel, int LayerIndex) a)
+                            {
+                                var attachment = Api.GetNamedFramebufferAttachmentParameter(fbo.BindingId, ToGLEnum(a.Attachment), GLEnum.FramebufferAttachmentObjectType);
+                                if (attachment != (int)GLEnum.Texture)
+                                    Debug.LogWarning($"Framebuffer {fbo.BindingId} has incomplete attachment.");
+                            }
+                            fbo.Data.Targets?.ForEach(TestAttachment);
+                        }
+                        break;
+                }
+            }
         }
 
         public void SetMipmapParameters(uint bindingId, int minLOD, int maxLOD, int largestMipmapLevel, int smallestAllowedMipmapLevel)

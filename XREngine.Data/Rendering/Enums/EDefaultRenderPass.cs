@@ -1,6 +1,6 @@
 ﻿namespace XREngine.Data.Rendering
 {
-    public enum ERenderPass
+    public enum EDefaultRenderPass
     {
         /// <summary>
         /// Use for any objects that will ALWAYS be rendered behind the scene, even if they are outside of the viewing frustum.

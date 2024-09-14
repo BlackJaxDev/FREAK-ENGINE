@@ -13,7 +13,7 @@ namespace XREngine.Rendering
         /// <summary>
         /// The shaders that make up the program.
         /// </summary>
-        public EventList<XRShader> Shaders { get; }
+        public EventList<XRShader> Shaders { get; } = [];
         /// <summary>
         /// Set by the renderer to indicate if the program is valid and compiled.
         /// </summary>

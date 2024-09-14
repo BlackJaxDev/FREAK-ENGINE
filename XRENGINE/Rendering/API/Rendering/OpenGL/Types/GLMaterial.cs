@@ -44,34 +44,23 @@ namespace XREngine.Rendering.OpenGL
         {
             public override GLObjectType Type => GLObjectType.Material;
 
-            public GLRenderProgram? Program { get; private set; }
+            public GLRenderProgram? Program => Renderer.GenericToAPI<GLRenderProgram>(Data.ShaderPipelineProgram);
 
             protected override void UnlinkData()
             {
                 base.UnlinkData();
 
-                Program?.Destroy();
-                Program = null;
-
                 foreach (IGLTexture? tex in Textures)
                     tex?.Destroy();
+
                 Textures = [];
             }
 
             protected override void LinkData()
             {
                 base.LinkData();
-
-                Program = Data.ShaderPipelineProgram is not null ? new GLRenderProgram(Renderer, Data.ShaderPipelineProgram) : null;
-                Textures = Data.Textures?.Select(t => CreateGLTexture(Renderer, t))?.ToArray() ?? [];
+                Textures = Data.Textures?.Select(t => Renderer.GetOrCreateAPIRenderObject(t) as IGLTexture)?.ToArray() ?? [];
             }
-
-            public static IGLTexture? CreateGLTexture(OpenGLRenderer renderer, XRTexture texture)
-                => texture switch
-                {
-                    XRTexture2D tex2D => new GLTexture2D(renderer, tex2D),
-                    _ => null,
-                };
 
             public IGLTexture?[] Textures { get; private set; } = [];
             

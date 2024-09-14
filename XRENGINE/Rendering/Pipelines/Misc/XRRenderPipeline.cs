@@ -49,19 +49,33 @@ public abstract class XRRenderPipeline : XRBase
         T? texture = null;
         if (_textures.TryGetValue(name, out XRTexture? value))
             texture = value as T;
-        if (texture is null)
-            Debug.Out($"Render pipeline texture {name} of type {typeof(T).GetFriendlyName()} was not found.");
+        //if (texture is null)
+        //    Debug.LogWarning($"Render pipeline texture {name} of type {typeof(T).GetFriendlyName()} was not found.");
         return texture;
     }
 
     public bool TryGetTexture(string name, out XRTexture? texture)
-        => _textures.TryGetValue(name, out texture);
+    {
+        bool found = _textures.TryGetValue(name, out texture);
+        //if (!found || texture is null)
+        //    Debug.Out($"Render pipeline texture {name} was not found.");
+        return found;
+    }
 
     public void SetTexture(XRTexture texture)
     {
-        string? name = texture.Name ?? throw new ArgumentNullException(nameof(texture.Name), "Texture name must be set before adding to the pipeline.");
+        string? name = texture.Name;
+        if (name is null)
+        {
+            Debug.LogWarning("Texture name must be set before adding to the pipeline.");
+            return;
+        }
         if (!_textures.TryAdd(name, texture))
+        {
+            Debug.Out($"Render pipeline texture {name} already exists. Overwriting.");
+            _textures[name]?.Destroy();
             _textures[name] = texture;
+        }
     }
 
     public T? GetFBO<T>(string name) where T : XRFrameBuffer
@@ -69,22 +83,34 @@ public abstract class XRRenderPipeline : XRBase
         T? fbo = null;
         if (_frameBuffers.TryGetValue(name, out XRFrameBuffer? value))
             fbo = value as T;
-        if (fbo is null)
-            Debug.Out($"Render pipeline FBO {name} of type {typeof(T).GetFriendlyName()} was not found.");
+        //if (fbo is null)
+        //    Debug.LogWarning($"Render pipeline FBO {name} of type {typeof(T).GetFriendlyName()} was not found.");
         return fbo;
     }
 
     public bool TryGetFBO(string name, out XRFrameBuffer? fbo)
-        => _frameBuffers.TryGetValue(name, out fbo);
+    {
+        bool found = _frameBuffers.TryGetValue(name, out fbo);
+        //if (!found || fbo is null)
+        //    Debug.Out($"Render pipeline FBO {name} was not found.");
+        return found;
+    }
 
     public void SetFBO(XRFrameBuffer fbo)
     {
-        string? name = fbo.Name ?? throw new ArgumentNullException(nameof(fbo.Name), "Framebuffer name must be set before adding to the pipeline.");
+        string? name = fbo.Name;
+        if (name is null)
+        {
+            Debug.LogWarning("FBO name must be set before adding to the pipeline.");
+            return;
+        }
         if (!_frameBuffers.TryAdd(name, fbo))
+        {
+            Debug.Out($"Render pipeline FBO {name} already exists. Overwriting.");
+            _frameBuffers[name]?.Destroy();
             _frameBuffers[name] = fbo;
+        }
     }
-
-    private bool _isInitialized = false;
 
     public void GenerateCommandChain()
     {
@@ -92,7 +118,6 @@ public abstract class XRRenderPipeline : XRBase
         _frameBuffers.Clear();
         _textures.Clear();
         Commands = GenerateCommandChainInternal();
-        _isInitialized = true;
     }
 
     public class RenderingStatus
@@ -156,7 +181,7 @@ public abstract class XRRenderPipeline : XRBase
     {
         if (RenderPipeline is not null)
         {
-            Debug.Out("Render pipeline is already rendering. Cannot render again until the current render is complete.");
+            Debug.LogWarning("Render pipeline is already rendering. Cannot render again until the current render is complete.");
             return;
         }
 
@@ -172,7 +197,7 @@ public abstract class XRRenderPipeline : XRBase
             }
             catch (Exception e)
             {
-                Debug.Out(EOutputVerbosity.Verbose, true, true, true, true, 0, 10, e.Message);
+                Debug.Out(EOutputVerbosity.Verbose, true, true, true, true, 3, 10, e.Message);
             }
         }
         //_renderFPS = 1.0f / (_timeQuery.EndAndGetQueryInt() * 1e-9f);

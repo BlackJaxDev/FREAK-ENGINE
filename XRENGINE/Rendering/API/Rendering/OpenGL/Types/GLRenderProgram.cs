@@ -11,7 +11,7 @@ namespace XREngine.Rendering.OpenGL
         public delegate void DelCompile(bool compiledSuccessfully, string? compileInfo);
         public class GLRenderProgram : GLObject<XRRenderProgram>, IEnumerable<GLShader>
         {
-            private GLShader[] _shaderObjects;
+            private GLShader[] _shaderObjects = [];
             protected GLShader[] ShaderObjects
             {
                 get => _shaderObjects;
@@ -82,6 +82,9 @@ namespace XREngine.Rendering.OpenGL
             public GLRenderProgram(OpenGLRenderer renderer, XRRenderProgram data)
                 : base(renderer, data)
             {
+                if (data.Shaders.Count == 0)
+                    Debug.LogWarning("No shaders were attached to the program.");
+                
                 _shaderObjects = data.Shaders.Select(x => new GLShader(renderer, x)).ToArray();
                 //data.UniformLocationRequested = GetUniformLocation;
 

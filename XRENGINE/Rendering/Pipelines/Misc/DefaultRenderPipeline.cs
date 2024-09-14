@@ -1,6 +1,7 @@
 ﻿using System.Numerics;
 using XREngine.Components.Lights;
 using XREngine.Data.Rendering;
+using XREngine.Rendering.Commands;
 using XREngine.Rendering.Models.Materials;
 using XREngine.Rendering.Pipelines.Commands;
 using XREngine.Scene;
@@ -10,6 +11,21 @@ namespace XREngine.Rendering;
 
 public class DefaultRenderPipeline : XRRenderPipeline
 {
+    private readonly NearToFarRenderCommandSorter _nearToFarSorter = new();
+    private readonly FarToNearRenderCommandSorter _farToNearSorter = new();
+
+    public DefaultRenderPipeline() : base()
+    {
+        MeshRenderCommands.SetRenderPasses(new()
+        {
+            { (int)EDefaultRenderPass.Background, null },
+            { (int)EDefaultRenderPass.OpaqueDeferredLit, _nearToFarSorter },
+            { (int)EDefaultRenderPass.DeferredDecals, _farToNearSorter },
+            { (int)EDefaultRenderPass.OpaqueForward, _nearToFarSorter },
+            { (int)EDefaultRenderPass.TransparentForward, _farToNearSorter },
+            { (int)EDefaultRenderPass.OnTopForward, null },
+        });
+    }
     protected override Lazy<XRMaterial> LazyInvalidMaterial => new(XRMaterial.CreateColorMaterialDeferred);
 
     //FBOs
@@ -64,15 +80,15 @@ public class DefaultRenderPipeline : XRRenderPipeline
                     Clear(true, true, true);
                     AllowDepthWrite(false);
                 };
-                c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)ERenderPass.Background;
+                c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.Background;
 
                 c.Add<VPRC_Manual>().ManualAction = () => AllowDepthWrite(true);
-                c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)ERenderPass.OpaqueDeferredLit;
-                c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)ERenderPass.OpaqueForward;
-                c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)ERenderPass.TransparentForward;
+                c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.OpaqueDeferredLit;
+                c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.OpaqueForward;
+                c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.TransparentForward;
 
                 c.Add<VPRC_Manual>().ManualAction = () => DepthFunc(EComparison.Always);
-                c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)ERenderPass.OnTopForward;
+                c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.OnTopForward;
             }
         }
         return c;
@@ -119,8 +135,8 @@ public class DefaultRenderPipeline : XRRenderPipeline
                     EnableDepthTest(true);
                     ClearDepth(1.0f);
                 };
-                c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)ERenderPass.OpaqueDeferredLit;
-                c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)ERenderPass.DeferredDecals;
+                c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.OpaqueDeferredLit;
+                c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.DeferredDecals;
                 c.Add<VPRC_Manual>().ManualAction = () => EnableDepthTest(false);
             }
 
@@ -146,23 +162,23 @@ public class DefaultRenderPipeline : XRRenderPipeline
 
                 //Normal depth test for opaque forward
                 c.Add<VPRC_Manual>().ManualAction = () => EnableDepthTest(true);
-                c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)ERenderPass.OpaqueForward;
+                c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.OpaqueForward;
 
                 //No depth writing for backgrounds (skybox)
                 c.Add<VPRC_Manual>().ManualAction = () => EnableDepthTest(false);
-                c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)ERenderPass.Background;
+                c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.Background;
 
                 //Render forward transparent objects next, normal depth testing
                 c.Add<VPRC_Manual>().ManualAction = () => EnableDepthTest(true);
-                c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)ERenderPass.TransparentForward;
+                c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.TransparentForward;
 
                 //Render forward on-top objects last
-                c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)ERenderPass.OnTopForward;
+                c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.OnTopForward;
                 c.Add<VPRC_Manual>().ManualAction = () => EnableDepthTest(false);
             }
 
             c.Add<VPRC_BloomPass>().SetTargetFBONames(
-                HDRSceneTextureName,
+                ForwardPassFBOName,
                 BloomBlurTextureName);
 
             //PostProcess FBO
@@ -321,6 +337,7 @@ public class DefaultRenderPipeline : XRRenderPipeline
         tex.UWrap = ETexWrapMode.ClampToEdge;
         tex.VWrap = ETexWrapMode.ClampToEdge;
         tex.SamplerName = HDRSceneTextureName;
+        tex.Name = HDRSceneTextureName;
         return tex;
     }
 

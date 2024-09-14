@@ -8,7 +8,7 @@ namespace XREngine.Rendering.OpenGL
     {
         public class GLDataBuffer(OpenGLRenderer renderer, XRDataBuffer buffer) : GLObject<XRDataBuffer>(renderer, buffer)
         {
-            public GLMeshRenderer? MeshRenderer { get; set; }
+            //public GLMeshRenderer? MeshRenderer => Renderer.GenericToAPI(Data.MeshRenderer);
 
             protected override void UnlinkData()
             {
@@ -27,14 +27,16 @@ namespace XREngine.Rendering.OpenGL
 
             public override GLObjectType Type => GLObjectType.Buffer;
 
-            protected internal override void PostGenerated()
+            protected internal override void PostGenerated() { }
+
+            public void BindArrayToMeshRenderer(GLMeshRenderer renderer)
             {
-                if (MeshRenderer is null)
-                    throw new Exception("MeshRenderer is null. This this the mesh renderer that the buffer will be linked to.");
+                if (Data.Target != EBufferTarget.ArrayBuffer)
+                    return;
 
                 //TODO: get GL version
                 int glVer = 2;
-                int location = MeshRenderer?.VertexProgram?.GetUniformLocation(Data.BindingName) ?? -1;
+                int location = renderer.VertexProgram?.GetUniformLocation(Data.BindingName) ?? -1;
                 if (location == -1)
                     throw new Exception($"Uniform location for {Data.BindingName} not found.");
 
@@ -47,10 +49,7 @@ namespace XREngine.Rendering.OpenGL
                 {
                     case 0:
 
-                        Api.BindBuffer(OpenGLRenderer.ToGLEnum(base.Data.Target), BindingId);
-
-                        if (Data.Target != EBufferTarget.ArrayBuffer)
-                            break;
+                        Api.BindBuffer(OpenGLRenderer.ToGLEnum(Data.Target), BindingId);
 
                         Api.EnableVertexAttribArray(index);
                         void* addr = Data.Address;
@@ -65,9 +64,6 @@ namespace XREngine.Rendering.OpenGL
 
                         Api.BindVertexBuffer(index, BindingId, IntPtr.Zero, Data.ElementSize);
 
-                        if (Data.Target != EBufferTarget.ArrayBuffer)
-                            break;
-
                         Api.EnableVertexAttribArray(index);
                         Api.VertexAttribBinding(index, index);
                         if (integral)
@@ -80,10 +76,7 @@ namespace XREngine.Rendering.OpenGL
                     default:
                     case 2:
 
-                        if (Data.Target != EBufferTarget.ArrayBuffer)
-                            break;
-
-                        uint vaoId = MeshRenderer.BindingId;
+                        uint vaoId = renderer.BindingId;
                         Api.EnableVertexArrayAttrib(vaoId, index);
                         Api.VertexArrayBindingDivisor(vaoId, index, Data.InstanceDivisor);
                         Api.VertexArrayAttribBinding(vaoId, index, index);
@@ -110,13 +103,8 @@ namespace XREngine.Rendering.OpenGL
                 if (Data.ActivelyMapping.Contains(this))
                     return;
 
-                if (!IsGenerated)
-                    Generate();
-                else
-                {
-                    VoidPtr addr = Data.Address;
-                    Api.NamedBufferData(BindingId, Data.Length, ref addr, ToGLEnum(Data.Usage));
-                }
+                VoidPtr addr = Data.Address;
+                Api.NamedBufferData(BindingId, Data.Length, ref addr, ToGLEnum(Data.Usage));
             }
 
             public static GLEnum ToGLEnum(EBufferUsage usage) => usage switch

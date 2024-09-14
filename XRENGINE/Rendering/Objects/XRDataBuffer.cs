@@ -18,8 +18,9 @@ namespace XREngine.Rendering
         public event DelSetBlockName? SetBlockNameRequested;
         public event DelSetBlockIndex? SetBlockIndexRequested;
 
-        public XRDataBuffer() { }
+        //public XRMeshRenderer? MeshRenderer { get; set; } = null;
 
+        public XRDataBuffer() { }
         public XRDataBuffer(
             string bindingName,
             EBufferTarget target,

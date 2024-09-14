@@ -125,6 +125,7 @@ namespace XREngine.Rendering.Pipelines.Commands
             if (width == _lastWidth && height == _lastHeight)
                 return;
             
+            Debug.Out($"SSAO: Regenerating FBOs for {width}x{height}");
             _lastWidth = width;
             _lastHeight = height;
 

@@ -37,8 +37,8 @@ namespace XREngine.Rendering
 
         private void VerifyTextures()
         {
-            uint w = 0;
-            uint h = 0;
+            uint? w = null;
+            uint? h = null;
             uint tw = 0;
             uint th = 0;
 
@@ -52,18 +52,20 @@ namespace XREngine.Rendering
                     tw = tref.Width;
                     th = tref.Height;
                 }
-                else if (tex is XRTextureView2D vref)
-                {
-                    tw = vref.Width;
-                    th = vref.Height;
-                }
+                //else if (tex is XRTextureView2D vref) //TextureView derives from Texture2D
+                //{
+                //    tw = vref.Width;
+                //    th = vref.Height;
+                //}
+                else
+                    continue;
 
-                if (w < 0)
+                if (w is null)
                     w = tw;
                 else if (w != tw)
                     Debug.LogWarning($"FBO texture widths are not all the same.");
 
-                if (h < 0)
+                if (h is null)
                     h = th;
                 else if (h != th)
                     Debug.LogWarning($"FBO texture heights are not all the same.");

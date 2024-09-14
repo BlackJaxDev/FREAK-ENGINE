@@ -88,7 +88,8 @@ namespace XREngine
         }
         public bool Remove(TKey key)
         {
-            TValue old = _dic[key];
+            if (!_dic.TryGetValue(key, out TValue? old))
+                return false;
             bool success = _dic.Remove(key);
             if (success)
             {

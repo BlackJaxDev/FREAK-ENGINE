@@ -7,7 +7,7 @@ namespace XREngine
     {
         public static partial class Rendering
         {
-            public static List<AbstractRenderAPIObject> CreateObjectsForAllWindows(GenericRenderObject obj)
+            public static List<AbstractRenderAPIObject?> CreateObjectsForAllWindows(GenericRenderObject obj)
                 => Windows.Select(window => window.Renderer.GetOrCreateAPIRenderObject(obj)).ToList();
 
             public static Dictionary<GenericRenderObject, AbstractRenderAPIObject> CreateObjectsForWindow(XRWindow window)
@@ -15,7 +15,10 @@ namespace XREngine
                 Dictionary<GenericRenderObject, AbstractRenderAPIObject> roDic = [];
                 foreach (GenericRenderObject obj in RenderObjects)
                 {
-                    AbstractRenderAPIObject apiRO = window.Renderer.GetOrCreateAPIRenderObject(obj);
+                    AbstractRenderAPIObject? apiRO = window.Renderer.GetOrCreateAPIRenderObject(obj);
+                    if (apiRO is null)
+                        continue;
+                    
                     roDic.Add(obj, apiRO);
                     obj.AddWrapper(apiRO);
                 }

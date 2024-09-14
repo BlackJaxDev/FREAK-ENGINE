@@ -176,7 +176,7 @@ namespace XREngine.Rendering.OpenGL
                 if (indices is null)
                     return;
 
-                buffer = new GLDataBuffer(Renderer, new XRDataBuffer(EBufferTarget.ElementArrayBuffer, true)) { MeshRenderer = this };
+                buffer = new GLDataBuffer(Renderer, new XRDataBuffer(EBufferTarget.ElementArrayBuffer, true));
                 //TODO: primitive restart will use MaxValue for restart id
                 if (mesh.FaceIndices.Length < byte.MaxValue)
                 {
@@ -215,7 +215,7 @@ namespace XREngine.Rendering.OpenGL
                 Renderer.GlobalMaterialOverride ?? 
                 (localMaterialOverride is null ? null : (Renderer.GetOrCreateAPIRenderObject(localMaterialOverride) as GLMaterial)) ??
                 Material ?? 
-                (GLMaterial)Renderer.GetOrCreateAPIRenderObject(Engine.Rendering.State.RenderPipeline!.InvalidMaterial);
+                Renderer.GenericToAPI<GLMaterial>(Engine.Rendering.State.RenderPipeline!.InvalidMaterial)!;
 
             public void Render(Matrix4x4 modelMatrix, XRMaterial? materialOverride, uint instances)
             {
@@ -303,13 +303,13 @@ namespace XREngine.Rendering.OpenGL
                 {
                     _combinedProgram = null;
                     _defaultVertexProgram = new GLRenderProgram(Renderer, new XRRenderProgram(new XRShader(EShaderType.Vertex, Data.VertexShaderSource!)));
-
+                    _pipeline = new GLRenderProgramPipeline(Renderer, new XRRenderProgramPipeline());
                     Data.BoneMatricesBuffer?.SetBlockName(_defaultVertexProgram.Data, CommonBindingNames.BoneBlockName);
                 }
                 else
                 {
-                    var material = Material ?? (GLMaterial)Renderer.GetOrCreateAPIRenderObject(Engine.Rendering.State.RenderPipeline!.InvalidMaterial); //Don't use GetRenderMaterial here, global and local override materials are for current render only
-                    IEnumerable<XRShader> shaders = material.Data.Shaders;
+                    var material = Material ?? Renderer.GenericToAPI<GLMaterial>(Engine.Rendering.State.RenderPipeline!.InvalidMaterial); //Don't use GetRenderMaterial here, global and local override materials are for current render only
+                    IEnumerable<XRShader> shaders = material!.Data.Shaders;
 
                     //If the material doesn't have a vertex shader, use the default one
                     bool useDefaultVertexShader = material.Data.VertexShaders.Count == 0;
@@ -340,8 +340,9 @@ namespace XREngine.Rendering.OpenGL
                 _buffers = [];
                 foreach (var pair in mesh.Buffers)
                 {
-                    GLDataBuffer buffer = new(Renderer, pair.Value) { MeshRenderer = this };
+                    GLDataBuffer buffer = new(Renderer, pair.Value);
                     buffer.Generate();
+                    buffer.BindArrayToMeshRenderer(this);
                     _buffers.Add(pair.Key, buffer);
                 }
 

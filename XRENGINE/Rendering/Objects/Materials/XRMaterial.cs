@@ -71,6 +71,7 @@ namespace XREngine.Rendering
                 _shaders.PostModified -= ShadersChanged;
                 _shaders = value ?? [];
                 _shaders.PostModified += ShadersChanged;
+                ShadersChanged();
             }
         }
 

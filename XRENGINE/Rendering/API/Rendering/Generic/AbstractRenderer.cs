@@ -277,8 +277,11 @@ namespace XREngine.Rendering
         /// </summary>
         /// <param name="renderObject"></param>
         /// <returns></returns>
-        public AbstractRenderAPIObject GetOrCreateAPIRenderObject(GenericRenderObject renderObject, bool generateNow = true)
+        public AbstractRenderAPIObject? GetOrCreateAPIRenderObject(GenericRenderObject? renderObject, bool generateNow = false)
         {
+            if (renderObject is null)
+                return null;
+
             if (RenderObjectCache.TryGetValue(renderObject, out var obj))
             {
                 if (generateNow && !obj.IsGenerated)
@@ -296,6 +299,16 @@ namespace XREngine.Rendering
 
         public bool TryGetAPIRenderObject(GenericRenderObject renderObject, out AbstractRenderAPIObject? apiObject)
             => RenderObjectCache.TryGetValue(renderObject, out apiObject);
+
+        /// <summary>
+        /// Converts a generic render object reference into a reference to the wrapper object for this specific renderer.
+        /// A generic render object can have multiple wrappers wrapping it at a time, but only one per renderer.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="renderObject"></param>
+        /// <returns></returns>
+        public T? GenericToAPI<T>(GenericRenderObject? renderObject) where T : AbstractRenderAPIObject
+            => GetOrCreateAPIRenderObject(renderObject) as T;
 
         /// <summary>
         /// Creates a new API-specific render object linked to this window renderer from a generic render object.
@@ -356,16 +369,6 @@ namespace XREngine.Rendering
         public abstract bool CalcDotLuminance(XRTexture2D texture, Vector3 luminance, out float dotLuminance, bool genMipmapsNow);
         public float CalculateDotLuminance(XRTexture2D texture, bool generateMipmapsNow)
             => CalcDotLuminance(texture, out float dotLum, generateMipmapsNow) ? dotLum : 1.0f;
-
-        /// <summary>
-        /// Converts a generic render object reference into a reference to the wrapper object for this specific renderer.
-        /// A generic render object can have multiple wrappers wrapping it at a time, but only one per renderer.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="renderObject"></param>
-        /// <returns></returns>
-        public T GenericToAPI<T>(GenericRenderObject renderObject) where T : AbstractRenderAPIObject
-            => (T)GetOrCreateAPIRenderObject(renderObject);
 
         public abstract void Clear(bool color, bool depth, bool stencil);
         public abstract void BindFrameBuffer(EFramebufferTarget fboTarget, int bindingId);

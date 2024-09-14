@@ -63,10 +63,17 @@ namespace XREngine.Rendering.OpenGL
                 }
             }
 
-            private ShaderType ToGLEnum(EShaderType mode)
-            {
-                throw new NotImplementedException();
-            }
+            private static ShaderType ToGLEnum(EShaderType mode)
+                => mode switch
+                {
+                    EShaderType.Vertex => ShaderType.VertexShader,
+                    EShaderType.Fragment => ShaderType.FragmentShader,
+                    EShaderType.Geometry => ShaderType.GeometryShader,
+                    EShaderType.TessControl => ShaderType.TessControlShader,
+                    EShaderType.TessEvaluation => ShaderType.TessEvaluationShader,
+                    EShaderType.Compute => ShaderType.ComputeShader,
+                    _ => ShaderType.FragmentShader
+                };
 
             private void OnSourceChanged()
             {

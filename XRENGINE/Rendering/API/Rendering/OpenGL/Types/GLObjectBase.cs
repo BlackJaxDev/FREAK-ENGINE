@@ -35,6 +35,7 @@
 
             public override void Generate()
             {
+                Debug.Out($"Generating OpenGL object {Type}");
                 PreGenerated();
                 _bindingId = CreateObject();
                 PostGenerated();
@@ -49,6 +50,11 @@
                 _bindingId = null;
             }
 
+            /// <summary>
+            /// The unique id of this object when generated.
+            /// If not generated yet, the object will be generated on first access.
+            /// Generation is deferred until necessary to allow for proper initialization of the object.
+            /// </summary>
             public uint BindingId
             {
                 get
@@ -78,7 +84,7 @@
             {
                 if (!IsGenerated)
                     return;
-
+                Debug.Out($"Deleting OpenGL object {Type} {BindingId}");
                 PreDeleted();
                 uint id = _bindingId!.Value;
                 switch (Type)
