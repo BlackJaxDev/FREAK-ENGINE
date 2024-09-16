@@ -1,81 +1,160 @@
-﻿namespace XREngine.Components.Scene
+﻿using System.Numerics;
+using XREngine.Audio;
+using static XREngine.Audio.AudioSource;
+
+namespace XREngine.Components.Scene
 {
-    public class AudioSourceComponent : XRComponent//, IAudioSource
+    public class AudioSourceComponent : XRComponent
     {
-//        private LocalFileRef<AudioParameters> _parametersRef;
+        private Vector3 _direction = Vector3.Zero;
+        private ESourceState _state = ESourceState.Initial;
+        private ESourceType type = ESourceType.Static;
 
-//        [Category("State")]
-//        public EventList<AudioInstance> Instances { get; set; }
+        //TODO: create objects for only relevant listeners that this object is audible to
+        //Dynamically turn off and on audio sources based on distance to listeners
+        public List<AudioSource> SourcePerListener { get; private set; } = [];
 
-//        public bool PlayOnSpawn { get; set; }
-//        public int Priority { get; set; } = 0;
+        public Vector3 Direction
+        {
+            get => _direction;
+            set => SetField(ref _direction, value);
+        }
 
-//        public GlobalFileRef<AudioFile> AudioFileRef { get; set; }
-//        public LocalFileRef<AudioParameters> ParametersRef
-//        {
-//            get => _parametersRef;
-//            set
-//            {
-//                if (_parametersRef != null)
-//                {
-//                    _parametersRef.Loaded -= ParametersRef_Loaded;
-//                }
-//                _parametersRef = value;
-//                if (_parametersRef != null)
-//                {
-//                    _parametersRef.Loaded += ParametersRef_Loaded;
-//                }
-//            }
-//        }
+        public ESourceState State
+        {
+            get => _state;
+            private set => SetField(ref _state, value);
+        }
 
-//        private void ParametersRef_Loaded(AudioParameters parameters)
-//            => UpdateTransform(parameters);
+        public ESourceType Type
+        {
+            get => type;
+            set => SetField(ref type, value);
+        }
 
-//        protected override async void OnSpawned()
-//        {
-//            base.OnSpawned();
-//            bool play = PlayOnSpawn;
-//#if EDITOR
-//            if (Engine.EditorState.InEditMode)
-//                play = false;
-//#endif
-//            if (play)
-//                await PlayAsync();
-//        }
+        public void PlayAudio()
+        {
+            if (State == ESourceState.Playing)
+                return;
 
-//        AudioFile IAudioSource.Audio => AudioFileRef?.File;
-//        AudioParameters IAudioSource.Parameters => ParametersRef?.File;
+            State = ESourceState.Playing;
+        }
+        public void StopAudio()
+        {
+            if (State != ESourceState.Playing)
+                return;
 
-//        /// <summary>
-//        /// Plays the sound.
-//        /// </summary>
-//        public async Task PlayAsync()
-//        {
-//            AudioFile file = await AudioFileRef?.GetInstanceAsync();
-//            if (file is null)
-//                return;
+            State = ESourceState.Stopped;
+        }
+        public void PauseAudio()
+        {
+            if (State != ESourceState.Playing)
+                return;
 
-//            var instance = Engine.Audio.CreateNewInstance(this);
-//            Instances.Add(instance);
-//            Engine.Audio.Play(instance);
-//        }
+            State = ESourceState.Paused;
+        }
+        public void RewindAudio()
+        {
+            if (State == ESourceState.Initial)
+                return;
 
-//        protected override void OnWorldTransformChanged(bool recalcChildWorldTransformsNow = true)
-//        {
-//            base.OnWorldTransformChanged(recalcChildWorldTransformsNow);
-//            UpdateTransform(ParametersRef?.File);
-//        }
+            State = ESourceState.Initial;
+        }
 
-//        private void UpdateTransform(AudioParameters parameters)
-//        {
-//            if (parameters?.Position != null)
-//                parameters.Position.OverrideValue = WorldPoint;
+        public void SetStaticBuffer(AudioBuffer buffer)
+        {
+            if (type != ESourceType.Static)
+                throw new InvalidOperationException("Cannot set static buffer on a streaming source.");
+            foreach (var source in SourcePerListener)
+                source.Buffer = buffer;
+        }
+        public void QueueStreamingBuffers(params AudioBuffer[] buffers)
+        {
+            if (type != ESourceType.Streaming)
+                throw new InvalidOperationException("Cannot queue streaming buffers on a static source.");
+            foreach (var source in SourcePerListener)
+                source.QueueBuffers(buffers);
+        }
+        public void UnqueueStreamingBuffers(params AudioBuffer[] buffers)
+        {
+            if (type != ESourceType.Streaming)
+                throw new InvalidOperationException("Cannot unqueue streaming buffers on a static source.");
+            foreach (var source in SourcePerListener)
+                source.UnqueueBuffers(buffers);
+        }
 
-//            if (parameters?.Direction != null)
-//                parameters.Direction.OverrideValue = WorldForwardVec;
+        public void MakeSourceForListener(ListenerContext listener)
+            => SourcePerListener.Add(listener.TakeSource());
 
-//            if (parameters?.Velocity != null)
-//                parameters.Velocity.OverrideValue = Velocity;
-//        }
+        protected internal override void Start()
+        {
+            base.Start();
+            if (World is not null)
+            {
+                SourcePerListener = World.Listeners.Select(l => l.TakeSource()).ToList() ?? [];
+                World.Listeners.PostAnythingAdded += MakeSourceForListener;
+            }
+            RegisterTick(ETickGroup.PostPhysics, ETickOrder.Scene, UpdatePosition);
+        }
+
+        protected internal override void Stop()
+        {
+            base.Stop();
+            foreach (var source in SourcePerListener)
+                source.Dispose();
+        }
+
+        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+        {
+            base.OnPropertyChanged(propName, prev, field);
+            switch (propName)
+            {
+                case nameof(Direction):
+                    foreach (var source in SourcePerListener)
+                        source.Direction = Direction;
+                    break;
+                case nameof(State):
+                    switch (State)
+                    {
+                        case ESourceState.Playing:
+                            foreach (var source in SourcePerListener)
+                                source.Play();
+                            break;
+                        case ESourceState.Stopped:
+                            foreach (var source in SourcePerListener)
+                                source.Stop();
+                            break;
+                        case ESourceState.Paused:
+                            foreach (var source in SourcePerListener)
+                                source.Pause();
+                            break;
+                        case ESourceState.Initial:
+                            foreach (var source in SourcePerListener)
+                                source.Rewind();
+                            break;
+                    }
+                    break;
+            }
+        }
+
+        private void UpdatePosition()
+        {
+            if (World is not null)
+            {
+                foreach (var listener in World.Listeners)
+                {
+                    //TODO: check if listener is within range, add and remove sources as needed
+                }
+            }
+
+            float delta = Engine.Time.Timer.FixedUpdateDelta;
+            Vector3 worldPosition = Transform.WorldTranslation;
+            foreach (var source in SourcePerListener)
+            {
+                Vector3 lastPosition = source.Position;
+                source.Position = worldPosition;
+                source.Velocity = (worldPosition - lastPosition) / delta;
+            }
+        }
     }
 }

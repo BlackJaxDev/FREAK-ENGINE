@@ -380,8 +380,8 @@ namespace XREngine.Rendering.OpenGL
                     Api.CreateVertexArrays(count, ids);
                     break;
                 case GLObjectType.Shader:
-                    for (int i = 0; i < count; ++i)
-                        ids[i] = Api.CreateShader(CurrentShaderMode);
+                    //for (int i = 0; i < count; ++i)
+                    //    ids[i] = Api.CreateShader(CurrentShaderMode);
                     break;
             }
             return ids;

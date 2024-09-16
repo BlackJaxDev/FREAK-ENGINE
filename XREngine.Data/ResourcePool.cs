@@ -5,34 +5,69 @@ namespace XREngine.Core
     public interface IPoolable
     {
         /// <summary>
-        /// Reset this resource to as if it had just been constructed.
+        /// Called when an already-existing object is taken from the pool.
         /// </summary>
-        void Reset();
+        void OnPoolableReset();
+        /// <summary>
+        /// Called when an object is released back into the pool.
+        /// </summary>
+        void OnPoolableReleased();
+        /// <summary>
+        /// Called when an object is destroyed from the pool.
+        /// </summary>
+        void OnPoolableDestroyed();
     }
     public class ResourcePool<T> where T : IPoolable
     {
-        private readonly ConcurrentBag<T> _objects = new ConcurrentBag<T>();
+        private readonly ConcurrentBag<T> _objects = [];
         private readonly Func<T> _generator;
+        private int _capacity = int.MaxValue;
 
-        public ResourcePool(Func<T> generator) : this(0, generator) { }
-        public ResourcePool(int initialCount, Func<T> generator)
+        public int Capacity
         {
+            get => _capacity;
+            set
+            {
+                _capacity = value;
+                if (_objects.Count > _capacity)
+                    Destroy(_objects.Count - _capacity);
+            }
+        }
+
+        public ResourcePool(Func<T> generator, int capacity = int.MaxValue)
+            : this(0, generator, capacity) { }
+        public ResourcePool(int initialCount, Func<T> generator, int capacity = int.MaxValue)
+        {
+            _capacity = capacity;
             _generator = generator ?? throw new ArgumentNullException(nameof(generator));
-            for (int i = 0; i < initialCount; ++i)
+            int loopCount = Math.Min(initialCount, capacity);
+            for (int i = 0; i < loopCount; ++i)
                 _objects.Add(_generator());
         }
         public T Take()
         {
-            if (_objects.TryTake(out T item))
+            if (_objects.TryTake(out T? item))
             {
-                item.Reset();
+                item.OnPoolableReset();
                 return item;
             }
             return _generator();
         }
-        public void Put(T item)
+        public void Release(T item)
         {
-            _objects.Add(item);
+            if (_objects.Count < _capacity)
+            {
+                _objects.Add(item);
+                item.OnPoolableReleased();
+            }
+            else
+                item.OnPoolableDestroyed();
+        }
+        public void Destroy(int count)
+        {
+            for (int i = 0; i < count && !_objects.IsEmpty; ++i)
+                if (_objects.TryTake(out T? item))
+                    item.OnPoolableDestroyed();
         }
     }
 }

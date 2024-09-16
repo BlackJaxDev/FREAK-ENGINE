@@ -7,6 +7,7 @@ namespace XREngine
     {
         public static partial class Rendering
         {
+            //TODO: create objects for only relevant windows that house the viewports that this object is visible in
             public static List<AbstractRenderAPIObject?> CreateObjectsForAllWindows(GenericRenderObject obj)
                 => Windows.Select(window => window.Renderer.GetOrCreateAPIRenderObject(obj)).ToList();
 

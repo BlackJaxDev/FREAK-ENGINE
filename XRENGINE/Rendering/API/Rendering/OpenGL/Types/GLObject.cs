@@ -47,11 +47,11 @@
             protected internal override void PostGenerated()
             {
                 base.PostGenerated();
-
+                if (BindingId == 0)
+                    throw new Exception("BindingId is 0 after generation.");
                 if (Cache.ContainsKey(BindingId))
                 {
-                    //Shouldn't happen
-                    Debug.Out($"OpenGL object with binding id {BindingId} already exists in cache.");
+                    Debug.LogWarning($"OpenGL object with binding id {BindingId} already exists in cache.");
                     Cache[BindingId] = this;
                 }
                 else

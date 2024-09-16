@@ -284,10 +284,10 @@ public abstract class XRRenderPipeline : XRBase
     //TODO: actually resize fbos and textures instead of recreating them
     public void ViewportResized(int width, int height)
     {
-        DestroyCache();
+        //DestroyCache();
     }
     public void InternalResolutionResized(int internalWidth, int internalHeight)
     {
-        DestroyCache();
+        //DestroyCache();
     }
 }

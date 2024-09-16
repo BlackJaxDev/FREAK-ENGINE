@@ -28,7 +28,7 @@ namespace XREngine.Rendering.OpenGL
                     _shaderObjects = _shaderObjects.Where(x => x != null).ToArray();
 
                 foreach (var shader in _shaderObjects)
-                    shader.OwningProgram = this;
+                    shader.SourceText = this;
 
                 //Force a recompilation.
                 //TODO: recompile shaders without destroying program.
@@ -193,6 +193,12 @@ namespace XREngine.Rendering.OpenGL
             public void Use()
                 => Api.UseProgram(BindingId);
 
+            public IEnumerator<GLShader> GetEnumerator()
+                => ((IEnumerable<GLShader>)_shaderObjects).GetEnumerator();
+            IEnumerator IEnumerable.GetEnumerator()
+                => ((IEnumerable<GLShader>)_shaderObjects).GetEnumerator();
+
+            #region Uniforms
             public void Uniform(EEngineUniform name, Vector2 p)
                 => Uniform(name.ToString(), p);
             public void Uniform(EEngineUniform name, Vector3 p)
@@ -332,7 +338,9 @@ namespace XREngine.Rendering.OpenGL
                     Api.ProgramUniformMatrix4(BindingId, location, (uint)p.Length, false, (float*)ptr);
                 }
             }
+            #endregion
 
+            #region Samplers
             /// <summary>
             /// Passes a texture sampler into the fragment shader of this program by name.
             /// The name is cached so that retrieving the sampler's location is only required once.
@@ -353,11 +361,7 @@ namespace XREngine.Rendering.OpenGL
                 Uniform(location, textureUnit);
                 texture.Bind();
             }
-
-            public IEnumerator<GLShader> GetEnumerator()
-                => ((IEnumerable<GLShader>)_shaderObjects).GetEnumerator();
-            IEnumerator IEnumerable.GetEnumerator()
-                => ((IEnumerable<GLShader>)_shaderObjects).GetEnumerator();
+            #endregion
         }
 
         private uint GenerateProgram(bool allowShaderPipelines)

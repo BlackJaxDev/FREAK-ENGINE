@@ -103,6 +103,8 @@ namespace XREngine.Components
         }
 
         private SceneNode _sceneNode;
+        private bool _clearTicksOnStop = true;
+
         /// <summary>
         /// Scene node refers to the node that this component is attached to.
         /// It will be set automatically when the component is added to a scene node, and never change.
@@ -205,15 +207,26 @@ namespace XREngine.Components
         protected virtual void Constructing() { }
         /// <summary>
         /// Called when the component is made active.
+        /// This is where ticks should register and connections to the world should be established.
         /// </summary>
         protected internal virtual void Start()
             => VerifyInterfacesOnStart();
+
+        public bool ClearTicksOnStop
+        {
+            get => _clearTicksOnStop;
+            set => SetField(ref _clearTicksOnStop, value);
+        }
 
         /// <summary>
         /// Called when the component is made inactive.
         /// </summary>
         protected internal virtual void Stop()
-            => VerifyInterfacesOnStop();
+        {
+            VerifyInterfacesOnStop();
+            if (ClearTicksOnStop)
+                ClearTicks();
+        }
 
         /// <summary>
         /// This method is called when the component is set to active in the world.

@@ -1,5 +1,6 @@
 ﻿using Extensions;
 using Silk.NET.OpenGL;
+using System.ComponentModel;
 
 namespace XREngine.Rendering.OpenGL
 {
@@ -13,15 +14,23 @@ namespace XREngine.Rendering.OpenGL
                 OnSourceChanged();
             }
 
-            private void Data_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+            private void Data_PropertyChanged(object? sender, PropertyChangedEventArgs e)
             {
-                if (e.PropertyName == nameof(XRShader.Source))
-                    OnSourceChanged();
+                switch (e.PropertyName)
+                {
+                    case nameof(XRShader.Source):
+                        OnSourceChanged();
+                        break;
+                    case nameof(XRShader.Type):
+                        //Have to regenerate a new shader with the new type
+                        Destroy();
+                        break;
+                }
             }
 
             public override GLObjectType Type => GLObjectType.Shader;
-
-            public event DelCompile? Compiled;
+            
+            public event Action? Compiled;
             public event Action? SourceChanged;
 
             public string? SourceText => Data.Source;
@@ -30,38 +39,6 @@ namespace XREngine.Rendering.OpenGL
             public string? LocalIncludeDirectoryPath { get; set; } = null;
 
             public bool IsCompiled { get; private set; } = false;
-            public GLRenderProgram? OwningProgram { get; set; }
-
-            public void SetSource(bool compile = true)
-            {
-                IsCompiled = false;
-
-                if (!IsGenerated)
-                    return;
-
-                Renderer.CurrentShaderMode = ToGLEnum(Mode);
-
-                string? trueScript = ResolveFullSource();
-                if (trueScript is null)
-                    return;
-
-                Api.ShaderSource(BindingId, trueScript);
-
-                if (compile)
-                {
-                    bool success = Compile(out _);
-                    if (!success)
-                        Debug.Out(GetFullSource(true));
-                }
-
-                SourceChanged?.Invoke();
-
-                if (OwningProgram != null && OwningProgram.IsGenerated)
-                {
-                    OwningProgram.Destroy();
-                    OwningProgram.Generate();
-                }
-            }
 
             private static ShaderType ToGLEnum(EShaderType mode)
                 => mode switch
@@ -78,36 +55,32 @@ namespace XREngine.Rendering.OpenGL
             private void OnSourceChanged()
             {
                 IsCompiled = false;
-                //if (!IsActive)
-                //    return;
-                //Engine.Renderer.SetShaderMode(ShaderMode);
-                //Engine.Renderer.SetShaderSource(BindingId, _sourceCache);
-                //bool success = Compile(out string info);
-                //if (!success)
-                //    Engine.PrintLine(GetSource(true));
-                Destroy();
+                if (IsGenerated)
+                    PushSource();
                 SourceChanged?.Invoke();
-                if (OwningProgram != null && OwningProgram.IsGenerated)
-                {
-                    OwningProgram.Destroy();
-                    //OwningProgram.Generate();
-                }
             }
-            protected internal override void PreGenerated()
-            {
-                Renderer.CurrentShaderMode = ToGLEnum(Mode);
-            }
+
+            protected internal override void PreGenerated() { }
             protected internal override void PostGenerated()
+                => PushSource();
+            protected override uint CreateObject()
+                => Api.CreateShader(ToGLEnum(Mode));
+
+            private void PushSource(bool compile = true)
             {
-                if (SourceText == null || SourceText.Length == 0)
+                if (string.IsNullOrWhiteSpace(SourceText))
                     return;
-                
-                Renderer.CurrentShaderMode = ToGLEnum(Mode);
                 string? trueScript = ResolveFullSource();
+                if (trueScript is null)
+                {
+                    Debug.LogWarning("Shader source is null after resolving includes.");
+                    return;
+                }
                 Api.ShaderSource(BindingId, trueScript);
-                if (!Compile(out _))
+                if (compile && !Compile(out _))
                     Debug.Out(GetFullSource(true));
             }
+
             public string GetFullSource(bool lineNumbers)
             {
                 string? source = string.Empty;
@@ -126,21 +99,44 @@ namespace XREngine.Rendering.OpenGL
                     source += trueScript + Environment.NewLine;
                 return source;
             }
+
+            /// <summary>
+            /// Compiles the shader with debug information.
+            /// </summary>
+            /// <param name="info"></param>
+            /// <param name="printLogInfo"></param>
+            /// <returns></returns>
             public bool Compile(out string? info, bool printLogInfo = true)
             {
-                Renderer.CurrentShaderMode = ToGLEnum(Mode);
-                IsCompiled = Renderer.CompileShader(BindingId, out info);
+                Api.CompileShader(BindingId);
+                Api.GetShader(BindingId, GLEnum.CompileStatus, out int status);
+                Api.GetShaderInfoLog(BindingId, out info);
+                IsCompiled = status != 0;
                 if (printLogInfo)
                 {
                     if (!string.IsNullOrEmpty(info))
                         Debug.Out(info);
                     else if (!IsCompiled)
                         Debug.Out("Unable to compile shader, but no error was returned.");
-
                 }
-                Compiled?.Invoke(IsCompiled, info);
+                if (IsCompiled)
+                    Compiled?.Invoke();
                 return IsCompiled;
             }
+            /// <summary>
+            /// Compiles the shader.
+            /// </summary>
+            /// <returns></returns>
+            public bool Compile()
+            {
+                Api.CompileShader(BindingId);
+                Api.GetShader(BindingId, GLEnum.CompileStatus, out int status);
+                IsCompiled = status != 0;
+                if (IsCompiled)
+                    Compiled?.Invoke();
+                return IsCompiled;
+            }
+
             public string? ResolveFullSource()
             {
                 List<string?> resolvedPaths = [];
@@ -249,19 +245,6 @@ namespace XREngine.Rendering.OpenGL
             }
         }
 
-        public ShaderType CurrentShaderMode { get; private set; } = ShaderType.FragmentShader;
-
-        public bool CompileShader(uint bindingId, out string? info)
-        {
-            Api.CompileShader(bindingId);
-#if DEBUG
-            Api.GetShader(bindingId, GLEnum.CompileStatus, out int status);
-            Api.GetShaderInfoLog(bindingId, out info);
-            return status != 0;
-#else
-            info = null;
-            return true;
-#endif
-        }
+        //public ShaderType CurrentShaderMode { get; private set; } = ShaderType.FragmentShader;
     }
 }

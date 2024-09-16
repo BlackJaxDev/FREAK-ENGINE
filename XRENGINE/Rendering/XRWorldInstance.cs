@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using XREngine.Audio;
 using XREngine.Components;
 using XREngine.Data.Core;
 using XREngine.Data.Trees;
@@ -20,6 +21,8 @@ namespace XREngine.Rendering
     {
         public static Dictionary<XRWorld, XRWorldInstance> WorldInstances { get; } = [];
 
+        public EventList<ListenerContext> Listeners { get; private set; } = [];
+        
         public XREventGroup<GameMode> CurrentGameModeChanged;
         public XREvent<XRWorldInstance> PreBeginPlay;
         public XREvent<XRWorldInstance> PostBeginPlay;

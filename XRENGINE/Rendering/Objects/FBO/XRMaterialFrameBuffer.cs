@@ -39,14 +39,13 @@ namespace XREngine.Rendering
         {
             uint? w = null;
             uint? h = null;
-            uint tw = 0;
-            uint th = 0;
-
             foreach (var tex in Material.Textures)
             {
                 if (tex?.FrameBufferAttachment is null)
                     continue;
 
+                uint tw;
+                uint th;
                 if (tex is XRTexture2D tref)
                 {
                     tw = tref.Width;
