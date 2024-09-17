@@ -63,7 +63,7 @@
         /// </summary>
         public bool IsDestroyed { get; private set; } = false;
 
-        public void Destroy()
+        public virtual void Destroy()
         {
             if (IsDestroyed || !Destroying.Invoke(this))
                 return;

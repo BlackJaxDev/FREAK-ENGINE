@@ -1,10 +1,77 @@
-﻿using XREngine.Data.Colors;
+﻿using ImageMagick;
+using XREngine.Data.Colors;
 using XREngine.Data.Rendering;
 
 namespace XREngine.Rendering
 {
     public abstract class XRTexture : GenericRenderObject, IFrameBufferAttachement
     {
+        public static MagickImage NewImage(uint width, uint height, EPixelFormat format, EPixelType type)
+            => new(
+                new byte[width * height * ComponentSize(type) * GetComponentCount(format)],
+                new MagickReadSettings()
+                {
+                    Width = width,
+                    Height = height,
+                    FillColor = HasAlpha(format) ? MagickColor.FromRgba(0, 0, 0, 1) : MagickColor.FromRgb(0, 0, 0),
+                    Format = GetMagickFormat(format),
+                    ColorSpace = IsSigned(type) ? ColorSpace.sRGB : ColorSpace.RGB,
+                });
+
+        public static bool IsSigned(EPixelType type)
+            => type switch
+            {
+                EPixelType.Byte or
+                EPixelType.Short or
+                EPixelType.Int or
+                EPixelType.Float or
+                EPixelType.HalfFloat => true,
+                _ => false,
+            };
+
+        public static bool HasAlpha(EPixelFormat fmt)
+            => fmt switch
+            {
+                EPixelFormat.Rgba or
+                EPixelFormat.Bgra or
+                EPixelFormat.Alpha => true,
+                _ => false,
+            };
+
+        public static uint ComponentSize(EPixelType type)
+            => type switch
+            {
+                EPixelType.Byte => 1u,
+                EPixelType.Short => 2u,
+                EPixelType.Int => 4u,
+                EPixelType.Float => 4u,
+                EPixelType.HalfFloat => 2u,
+                _ => 1u,
+            };
+
+        public static MagickFormat GetMagickFormat(EPixelFormat fmt)
+            => fmt switch
+            {
+                EPixelFormat.Rgba => MagickFormat.Rgba,
+                EPixelFormat.Bgra => MagickFormat.Bgra,
+                EPixelFormat.Red => MagickFormat.R,
+                EPixelFormat.Green => MagickFormat.G,
+                EPixelFormat.Blue => MagickFormat.B,
+                EPixelFormat.Alpha => MagickFormat.A,
+                EPixelFormat.Rgb => MagickFormat.Rgb,
+                EPixelFormat.Bgr => MagickFormat.Bgr,
+                _ => MagickFormat.Rgba,
+            };
+
+        public static int GetComponentCount(EPixelFormat fmt)
+            => fmt switch
+            {
+                EPixelFormat.Rgba or EPixelFormat.Bgra => 4,
+                EPixelFormat.Rgb or EPixelFormat.Bgr => 3,
+                EPixelFormat.Red or EPixelFormat.Green or EPixelFormat.Blue or EPixelFormat.Alpha => 1,
+                _ => 4,
+            };
+
         public delegate void DelAttachToFBO(XRFrameBuffer target, EFrameBufferAttachment attachment, int mipLevel);
         public delegate void DelDetachFromFBO(XRFrameBuffer target, EFrameBufferAttachment attachment, int mipLevel);
         
@@ -72,15 +139,32 @@ namespace XREngine.Rendering
             set => SetField(ref _autoGenerateMipmaps, value);
         }
 
-        public bool Signed { get; set; } = false;
-        public bool AlphaAsTransparency { get; set; } = false;
-        public bool Compressed { get; set; } = false;
+        private bool _signed = false;
+        public bool Signed
+        {
+            get => _signed;
+            set => SetField(ref _signed, value);
+        }
 
-        private EPixelType _pixelType = EPixelType.UnsignedByte;
+        private bool _alphaAsTransparency = false;
+        public bool AlphaAsTransparency
+        {
+            get => _alphaAsTransparency;
+            set => SetField(ref _alphaAsTransparency, value);
+        }
+
+        private bool _internalCompression = false;
+        public bool InternalCompression
+        {
+            get => _internalCompression;
+            set => SetField(ref _internalCompression, value);
+        }
+
+        private EPixelType _pixelType = EPixelType.Float;
         public EPixelType PixelType
         {
             get => _pixelType;
-            set => SetField(ref _pixelType, value);
+            //set => SetField(ref _pixelType, value);
         }
 
         private EPixelFormat _pixelFormat = EPixelFormat.Rgba;
@@ -125,7 +209,7 @@ namespace XREngine.Rendering
                 ETextureType.Tex2DRect => new XRTexture2D() { Rectangle = true },
                 ETextureType.Tex1DArray => new XRTexture1DArray(),
                 ETextureType.Tex2DArray => new XRTexture2DArray(),
-                //ETextureType.TexCubeArray => new XRTextureCubeArray(),
+                ETextureType.TexCubeArray => new XRTextureCubeArray(),
                 ETextureType.TexBuffer => new XRTextureBuffer(),
                 ETextureType.Tex2DMultisample => new XRTexture2D() { MultiSample = true },
                 ETextureType.Tex2DMultisampleArray => new XRTexture2DArray() { MultiSample = true },

@@ -100,21 +100,26 @@ namespace XREngine.Rendering.OpenGL
 
         public unsafe void SetDrawBuffers()
         {
-            var casted = Data.DrawBuffers?.Select(x => ToGLEnum(x))?.ToArray();
+            var casted = Data.DrawBuffers?.Select(ToGLEnum)?.ToArray();
             if (casted != null)
             {
                 fixed (GLEnum* drawBuffers = casted)
                 {
-                    Api.NamedFramebufferDrawBuffers(BindingId, (uint)(Data.DrawBuffers?.Length ?? 0), drawBuffers);
+                    Api.NamedFramebufferDrawBuffers(BindingId, (uint)casted.Length, drawBuffers);
                 }
             }
-            Api.NamedFramebufferReadBuffer(BindingId, ColorBuffer.None);
+            Api.NamedFramebufferReadBuffer(BindingId, GLEnum.None);
             CheckErrors();
         }
 
         private static GLEnum ToGLEnum(EDrawBuffersAttachment x)
             => x switch
             {
+                EDrawBuffersAttachment.FrontLeft => GLEnum.FrontLeft,
+                EDrawBuffersAttachment.FrontRight => GLEnum.FrontRight,
+                EDrawBuffersAttachment.BackLeft => GLEnum.BackLeft,
+                EDrawBuffersAttachment.BackRight => GLEnum.BackRight,
+
                 EDrawBuffersAttachment.ColorAttachment0 => GLEnum.ColorAttachment0,
                 EDrawBuffersAttachment.ColorAttachment1 => GLEnum.ColorAttachment1,
                 EDrawBuffersAttachment.ColorAttachment2 => GLEnum.ColorAttachment2,
@@ -131,6 +136,23 @@ namespace XREngine.Rendering.OpenGL
                 EDrawBuffersAttachment.ColorAttachment13 => GLEnum.ColorAttachment13,
                 EDrawBuffersAttachment.ColorAttachment14 => GLEnum.ColorAttachment14,
                 EDrawBuffersAttachment.ColorAttachment15 => GLEnum.ColorAttachment15,
+                EDrawBuffersAttachment.ColorAttachment16 => GLEnum.ColorAttachment16,
+                EDrawBuffersAttachment.ColorAttachment17 => GLEnum.ColorAttachment17,
+                EDrawBuffersAttachment.ColorAttachment18 => GLEnum.ColorAttachment18,
+                EDrawBuffersAttachment.ColorAttachment19 => GLEnum.ColorAttachment19,
+                EDrawBuffersAttachment.ColorAttachment20 => GLEnum.ColorAttachment20,
+                EDrawBuffersAttachment.ColorAttachment21 => GLEnum.ColorAttachment21,
+                EDrawBuffersAttachment.ColorAttachment22 => GLEnum.ColorAttachment22,
+                EDrawBuffersAttachment.ColorAttachment23 => GLEnum.ColorAttachment23,
+                EDrawBuffersAttachment.ColorAttachment24 => GLEnum.ColorAttachment24,
+                EDrawBuffersAttachment.ColorAttachment25 => GLEnum.ColorAttachment25,
+                EDrawBuffersAttachment.ColorAttachment26 => GLEnum.ColorAttachment26,
+                EDrawBuffersAttachment.ColorAttachment27 => GLEnum.ColorAttachment27,
+                EDrawBuffersAttachment.ColorAttachment28 => GLEnum.ColorAttachment28,
+                EDrawBuffersAttachment.ColorAttachment29 => GLEnum.ColorAttachment29,
+                EDrawBuffersAttachment.ColorAttachment30 => GLEnum.ColorAttachment30,
+                EDrawBuffersAttachment.ColorAttachment31 => GLEnum.ColorAttachment31,
+
                 EDrawBuffersAttachment.None => GLEnum.None,
                 _ => GLEnum.None,
             };

@@ -6,31 +6,32 @@ namespace XREngine.Rendering.Models.Materials.Textures
 {
     //TODO: replace bitmap class
 #pragma warning disable CA1416 // Validate platform compatibility
-    public class TextureCubeMipmap : IDisposable
+    public class CubeMipmap : IDisposable
     {
-        public RenderCubeSide[] Sides { get; private set; } = new RenderCubeSide[6];
+        public bool IsCrossMap => Sides.Length == 1;
+        public CubeSide[] Sides { get; private set; } = new CubeSide[6];
 
-        public TextureCubeMipmap() { }
-        public TextureCubeMipmap(MagickImage cubeCrossBmp, bool isFillerBitmap = false)
+        public CubeMipmap() { }
+        public CubeMipmap(MagickImage cubeCrossBmp, EPixelInternalFormat internalFormat, bool isFillerBitmap = false)
         {
             if (isFillerBitmap)
-                SetSides(cubeCrossBmp);
-            else if (!SetCrossCubeMap(cubeCrossBmp))
+                SetSides(cubeCrossBmp, internalFormat);
+            else if (!SetCrossCubeMap(cubeCrossBmp, internalFormat))
                 throw new InvalidOperationException("Cubemap cross dimensions are invalid; width/height be a 4:3 or 3:4 ratio.");
         }
 
-        public TextureCubeMipmap(
-            RenderCubeSide posX, RenderCubeSide negX,
-            RenderCubeSide posY, RenderCubeSide negY,
-            RenderCubeSide posZ, RenderCubeSide negZ)
+        public CubeMipmap(
+            CubeSide posX, CubeSide negX,
+            CubeSide posY, CubeSide negY,
+            CubeSide posZ, CubeSide negZ)
             => Sides = [posX, negX, posY, negY, posZ, negZ];
         
-        public TextureCubeMipmap(uint dim, MagickColor? color = null)
-            => SetSides(dim, color);
-        public TextureCubeMipmap(uint dim, EPixelInternalFormat internalFormat, EPixelFormat format, EPixelType type)
-            => Sides.Fill(i => new RenderCubeSide(dim, dim, internalFormat, format, type));
+        public CubeMipmap(uint dim, EPixelInternalFormat internalFormat, MagickColor? color = null)
+            => SetSides(dim, internalFormat, color);
+        public CubeMipmap(uint dim, EPixelInternalFormat internalFormat, EPixelFormat format, EPixelType type)
+            => Sides.Fill(i => new CubeSideEmpty(dim, dim, internalFormat, format, type));
 
-        public bool SetCrossCubeMap(MagickImage cubeCrossBmp)
+        public bool SetCrossCubeMap(MagickImage cubeCrossBmp, EPixelInternalFormat internalFormat)
         {
             uint w = cubeCrossBmp.Width;
             uint h = cubeCrossBmp.Height;
@@ -85,35 +86,34 @@ namespace XREngine.Rendering.Models.Materials.Textures
             {
                 var clone = cubeCrossBmp.Clone();
                 clone.Crop(x);
-                return new RenderCubeSide((MagickImage)clone);
+                return new CubeSideTextured((MagickImage)clone, internalFormat);
             }).ToArray();
 
             return true;
         }
 
         public void SetSides(
-            RenderCubeSide posX, RenderCubeSide negX,
-            RenderCubeSide posY, RenderCubeSide negY,
-            RenderCubeSide posZ, RenderCubeSide negZ)
+            CubeSide posX, CubeSide negX,
+            CubeSide posY, CubeSide negY,
+            CubeSide posZ, CubeSide negZ)
             => Sides = [posX, negX, posY, negY, posZ, negZ];
 
-        public void SetSides(MagickImage bmp)
+        public void SetSides(MagickImage bmp, EPixelInternalFormat internalFormat)
         {
-            //TODO: Determine if clones of the bitmap are necessary or not
-            Sides.Fill(bmp);
-            //Sides.FillWith(i => cubeCrossBmp.Clone());
+            for (int i = 0; i < 6; ++i)
+                Sides[i] = new CubeSideTextured(bmp, internalFormat);
         }
-
-        public void SetSides(uint dim, MagickColor? color = null)
-            => Sides.Fill(i => new MagickImage(color ??= new MagickColor(0, 0, 0, 0), dim, dim));
+        
+        public void SetSides(uint dim, EPixelInternalFormat internalFormat, MagickColor? color = null)
+            => Sides.Fill(i => new CubeSideTextured(new MagickImage(color ??= new MagickColor(0, 0, 0, 0), dim, dim), internalFormat));
 
         public void SetSides(uint dim, EPixelInternalFormat internalFormat, EPixelFormat format, EPixelType type)
-            => Sides.Fill(i => new RenderCubeSide(dim, dim, internalFormat, format, type));
+            => Sides.Fill(i => new CubeSideEmpty(dim, dim, internalFormat, format, type));
 
         public void Dispose()
         {
-            foreach (RenderCubeSide b in Sides)
-                b.Dispose();
+            //foreach (CubeSide b in Sides)
+            //    b.Dispose();
             GC.SuppressFinalize(this);
         }
     }

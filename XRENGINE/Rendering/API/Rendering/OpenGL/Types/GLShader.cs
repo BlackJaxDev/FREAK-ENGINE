@@ -39,6 +39,7 @@ namespace XREngine.Rendering.OpenGL
             public string? LocalIncludeDirectoryPath { get; set; } = null;
 
             public bool IsCompiled { get; private set; } = false;
+            public EventList<GLRenderProgram> ActivePrograms { get; } = [];
 
             private static ShaderType ToGLEnum(EShaderType mode)
                 => mode switch

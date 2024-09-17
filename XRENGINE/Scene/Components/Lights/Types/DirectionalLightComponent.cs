@@ -119,7 +119,7 @@ namespace XREngine.Components.Lights
         {
             XRTexture[] refs =
             [
-                 new XRTexture2D(width, height, GetShadowDepthMapFormat(precision), EPixelFormat.DepthComponent, EPixelType.Float)
+                 new XRTexture2D(width, height, GetShadowDepthMapFormat(precision), EPixelFormat.Red, EPixelType.UnsignedByte)
                  {
                      MinFilter = ETexMinFilter.Nearest,
                      MagFilter = ETexMagFilter.Nearest,

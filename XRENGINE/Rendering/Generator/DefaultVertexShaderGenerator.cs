@@ -72,7 +72,7 @@ namespace XREngine.Rendering.Shaders.Generator
                     Line("{0} = {2}{1};", string.Format(FragUVName, i), i, ECommonBufferType.TextureCoordinates.ToString());
 
             string source = EndMain();
-            //Engine.PrintLine(source);
+            Debug.Out(source);
             return source;
         }
         private void WriteBuffers()

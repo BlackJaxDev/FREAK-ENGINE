@@ -7,6 +7,7 @@ namespace XREngine.Rendering.OpenGL
 {
     public class GLTexture2D(OpenGLRenderer renderer, XRTexture2D data) : GLTexture<XRTexture2D>(renderer, data)
     {
+        private bool _isPushing = false;
         private bool _hasPushed = false;
         private bool _storageSet = false;
 
@@ -35,6 +36,7 @@ namespace XREngine.Rendering.OpenGL
 
         protected internal override void PostGenerated()
         {
+            Invalidate();
             _hasPushed = false;
             _storageSet = false;
             base.PostGenerated();
@@ -49,13 +51,17 @@ namespace XREngine.Rendering.OpenGL
         //TODO: use PBO per texture for quick data updates
         public override unsafe void PushData()
         {
+            if (_isPushing)
+                return;
             try
             {
+                _isPushing = true;
                 OnPrePushData(out bool shouldPush, out bool allowPostPushCallback);
                 if (!shouldPush)
                 {
                     if (allowPostPushCallback)
                         OnPostPushData();
+                    _isPushing = false;
                     return;
                 }
 
@@ -69,7 +75,7 @@ namespace XREngine.Rendering.OpenGL
                 {
                     if (!Data.Resizable && !_storageSet)
                     {
-                        GetFormat(Data.Mipmaps[0], out _, out GLEnum sizedInternalFormat);
+                        GetFormat(Data.Mipmaps[0], Data.InternalCompression, out GLEnum sizedInternalFormat, out GLEnum pixelFormat, out GLEnum pixelType);
                         Api.TexStorage2D(glTarget, (uint)Data.Mipmaps.Length, sizedInternalFormat, Data.Width, Data.Height);
                         _storageSet = true;
                     }
@@ -97,100 +103,67 @@ namespace XREngine.Rendering.OpenGL
             }
             finally
             {
-
+                _isPushing = false;
+                Unbind();
             }
         }
 
         private unsafe void PushMipmap(GLEnum glTarget, int i, MagickImage? bmp)
         {
+            //Api.PixelStore(PixelStoreParameter.UnpackAlignment, 1);
             if (bmp is null)
             {
                 if (!_hasPushed && !_storageSet)
-                    Api.TexImage2D(glTarget, i, (int)GLEnum.Rgb, Data.Width, Data.Height, 0, GLEnum.Rgb, GLEnum.UnsignedByte, in IntPtr.Zero);
-                return;
+                    Api.TexImage2D(glTarget, i, (int)GLEnum.Rgb, Data.Width >> i, Data.Height >> i, 0, GLEnum.Rgb, GLEnum.Float, in IntPtr.Zero);
             }
-
-            GetFormat(bmp, out GLEnum internalPixelFormat, out GLEnum pixelFormat);
-
-            var bytes = bmp.GetPixels().ToByteArray(bmp.HasAlpha ? PixelMapping.RGBA : PixelMapping.RGB);
-            //GCHandle pinnedArray = GCHandle.Alloc(bytes, GCHandleType.Pinned);
-            //IntPtr pointer = pinnedArray.AddrOfPinnedObject();
-            //Using fixed avoids a secondary allocation
-            Api.PixelStore(PixelStoreParameter.UnpackAlignment, 1);
-            fixed (byte* ptr = bytes)
+            else
             {
+                GetFormat(bmp, Data.InternalCompression, out GLEnum internalPixelFormat, out GLEnum pixelFormat, out GLEnum pixelType);
+                var bytes = bmp.GetPixelsUnsafe().GetAreaPointer(0, 0, bmp.Width, bmp.Height).ToPointer();
                 if (_hasPushed || _storageSet)
-                    Api.TexSubImage2D(glTarget, i, 0, 0, bmp.Width, bmp.Height, pixelFormat, GLEnum.Float, ptr);
+                    Api.TexSubImage2D(glTarget, i, 0, 0, bmp.Width, bmp.Height, pixelFormat, pixelType, bytes);
                 else
-                    Api.TexImage2D(glTarget, i, (int)internalPixelFormat, bmp.Width, bmp.Height, 0, pixelFormat, GLEnum.Float, ptr);
+                    Api.TexImage2D(glTarget, i, (int)internalPixelFormat, bmp.Width, bmp.Height, 0, pixelFormat, pixelType, bytes);
+
+                var error = Api.GetError();
+                if (error != GLEnum.NoError)
+                    Debug.LogWarning($"Error pushing texture data: {error}");
             }
-            //pinnedArray.Free();
         }
 
-        private unsafe void GetFormat(MagickImage bmp, out GLEnum internalPixelFormat, out GLEnum pixelFormat)
+        private unsafe void GetFormat(MagickImage bmp, bool internalCompression, out GLEnum internalPixelFormat, out GLEnum pixelFormat, out GLEnum pixelType)
         {
             //Internal format must match pixel format
             //GL_ALPHA, GL_LUMINANCE, GL_LUMINANCE_ALPHA, GL_RGB, GL_RGBA
             //bool hasAlpha = bmp.HasAlpha;
             uint channels = bmp.ChannelCount;
+            bool signed = bmp.Settings.ColorSpace == ColorSpace.sRGB;
+            uint depth = bmp.Depth; //8 is s/byte, 16 is u/short, 32 is float
+            pixelType = depth switch
+            {
+                8 => signed ? GLEnum.Byte : GLEnum.UnsignedByte,
+                16 => signed ? GLEnum.Short : GLEnum.UnsignedShort,
+                32 => GLEnum.Float,
+                _ => throw new NotSupportedException($"Unsupported pixel depth: {depth}"),
+            };
             switch (channels)
             {
                 case 1:
-                    internalPixelFormat = GLEnum.Red;
-                    pixelFormat = Data.PixelType switch
-                    {
-                        EPixelType.HalfFloat => GLEnum.R16f,
-                        EPixelType.Int => GLEnum.R32i,
-                        EPixelType.UnsignedInt => GLEnum.R32ui,
-                        EPixelType.Short => GLEnum.R16i,
-                        EPixelType.UnsignedShort => GLEnum.R16ui,
-                        EPixelType.Byte => GLEnum.R8i,
-                        EPixelType.UnsignedByte => GLEnum.R8ui,
-                        _ => GLEnum.R32f,
-                    };
+                    internalPixelFormat = internalCompression ? GLEnum.CompressedRed : GLEnum.Red;
+                    pixelFormat = GLEnum.Red;
                     break;
                 case 2:
-                    internalPixelFormat = GLEnum.RG;
-                    pixelFormat = Data.PixelType switch
-                    {
-                        EPixelType.HalfFloat => GLEnum.RG16f,
-                        EPixelType.Int => GLEnum.RG32i,
-                        EPixelType.UnsignedInt => GLEnum.RG32ui,
-                        EPixelType.Short => GLEnum.RG16i,
-                        EPixelType.UnsignedShort => GLEnum.RG16ui,
-                        EPixelType.Byte => GLEnum.RG8i,
-                        EPixelType.UnsignedByte => GLEnum.RG8ui,
-                        _ => GLEnum.RG32f,
-                    };
+                    internalPixelFormat = internalCompression ? GLEnum.CompressedRG : GLEnum.RG;
+                    pixelFormat = GLEnum.RG;
                     break;
                 case 3:
-                    internalPixelFormat = GLEnum.Rgb;
-                    pixelFormat = Data.PixelType switch
-                    {
-                        EPixelType.HalfFloat => GLEnum.Rgb16f,
-                        EPixelType.Int => GLEnum.Rgb32i,
-                        EPixelType.UnsignedInt => GLEnum.Rgb32ui,
-                        EPixelType.Short => GLEnum.Rgb16i,
-                        EPixelType.UnsignedShort => GLEnum.Rgb16ui,
-                        EPixelType.Byte => GLEnum.Rgb8i,
-                        EPixelType.UnsignedByte => GLEnum.Rgb8ui,
-                        _ => GLEnum.Rgb32f,
-                    };
+                    internalPixelFormat = internalCompression ? GLEnum.CompressedRgb : GLEnum.Rgb;
+                    pixelFormat = GLEnum.Rgb;
                     break;
                 default:
                 case 4:
-                    internalPixelFormat = GLEnum.Rgba;
-                    pixelFormat = Data.PixelType switch
-                    {
-                        EPixelType.HalfFloat => GLEnum.Rgba16f,
-                        EPixelType.Int => GLEnum.Rgba32i,
-                        EPixelType.UnsignedInt => GLEnum.Rgba32ui,
-                        EPixelType.Short => GLEnum.Rgba16i,
-                        EPixelType.UnsignedShort => GLEnum.Rgba16ui,
-                        EPixelType.Byte => GLEnum.Rgba8i,
-                        EPixelType.UnsignedByte => GLEnum.Rgba8ui,
-                        _ => GLEnum.Rgba32f,
-                    };
+                    internalPixelFormat = internalCompression ? GLEnum.CompressedRgba : GLEnum.Rgba;
+                    pixelFormat = GLEnum.Rgba;
                     break;
             }
         }

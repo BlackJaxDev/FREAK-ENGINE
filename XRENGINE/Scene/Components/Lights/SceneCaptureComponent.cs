@@ -59,7 +59,7 @@ namespace XREngine.Components.Lights
             };
 
             if (CaptureDepthCubeMap)
-                _envDepthTex = new XRTextureCube(DepthResolution, EPixelInternalFormat.Rgb16f, EPixelFormat.Rgb, EPixelType.HalfFloat)
+                _envDepthTex = new XRTextureCube(DepthResolution, EPixelInternalFormat.Rgb16f, EPixelFormat.Rgb, EPixelType.Float)
                 {
                     MinFilter = ETexMinFilter.NearestMipmapLinear,
                     MagFilter = ETexMagFilter.Nearest,
@@ -71,7 +71,7 @@ namespace XREngine.Components.Lights
 
             _tempDepth = new XRRenderBuffer
             {
-                Storage = ERenderBufferStorage.DepthComponent32f,
+                Type = ERenderBufferStorage.DepthComponent32f,
                 Width = ColorResolution,
                 Height = ColorResolution
             };

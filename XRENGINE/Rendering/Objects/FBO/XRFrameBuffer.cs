@@ -110,7 +110,7 @@ namespace XREngine.Rendering
                             TextureTypes |= EFrameBufferTextureTypeFlags.Stencil;
                             continue;
                     }
-                    fboAttachments.Add((EDrawBuffersAttachment)(int)Attachment);
+                    fboAttachments.Add(ToDrawBuffer(Attachment));
                     TextureTypes |= EFrameBufferTextureTypeFlags.Color;
                 }
             }
@@ -119,6 +119,48 @@ namespace XREngine.Rendering
 
             PostSetRenderTargets?.Invoke();
         }
+
+        private static EDrawBuffersAttachment ToDrawBuffer(EFrameBufferAttachment attachment)
+            => attachment switch
+            {
+                EFrameBufferAttachment.ColorAttachment0 => EDrawBuffersAttachment.ColorAttachment0,
+                EFrameBufferAttachment.ColorAttachment1 => EDrawBuffersAttachment.ColorAttachment1,
+                EFrameBufferAttachment.ColorAttachment2 => EDrawBuffersAttachment.ColorAttachment2,
+                EFrameBufferAttachment.ColorAttachment3 => EDrawBuffersAttachment.ColorAttachment3,
+                EFrameBufferAttachment.ColorAttachment4 => EDrawBuffersAttachment.ColorAttachment4,
+                EFrameBufferAttachment.ColorAttachment5 => EDrawBuffersAttachment.ColorAttachment5,
+                EFrameBufferAttachment.ColorAttachment6 => EDrawBuffersAttachment.ColorAttachment6,
+                EFrameBufferAttachment.ColorAttachment7 => EDrawBuffersAttachment.ColorAttachment7,
+                EFrameBufferAttachment.ColorAttachment8 => EDrawBuffersAttachment.ColorAttachment8,
+                EFrameBufferAttachment.ColorAttachment9 => EDrawBuffersAttachment.ColorAttachment9,
+                EFrameBufferAttachment.ColorAttachment10 => EDrawBuffersAttachment.ColorAttachment10,
+                EFrameBufferAttachment.ColorAttachment11 => EDrawBuffersAttachment.ColorAttachment11,
+                EFrameBufferAttachment.ColorAttachment12 => EDrawBuffersAttachment.ColorAttachment12,
+                EFrameBufferAttachment.ColorAttachment13 => EDrawBuffersAttachment.ColorAttachment13,
+                EFrameBufferAttachment.ColorAttachment14 => EDrawBuffersAttachment.ColorAttachment14,
+                EFrameBufferAttachment.ColorAttachment15 => EDrawBuffersAttachment.ColorAttachment15,
+                EFrameBufferAttachment.ColorAttachment16 => EDrawBuffersAttachment.ColorAttachment16,
+                EFrameBufferAttachment.ColorAttachment17 => EDrawBuffersAttachment.ColorAttachment17,
+                EFrameBufferAttachment.ColorAttachment18 => EDrawBuffersAttachment.ColorAttachment18,
+                EFrameBufferAttachment.ColorAttachment19 => EDrawBuffersAttachment.ColorAttachment19,
+                EFrameBufferAttachment.ColorAttachment20 => EDrawBuffersAttachment.ColorAttachment20,
+                EFrameBufferAttachment.ColorAttachment21 => EDrawBuffersAttachment.ColorAttachment21,
+                EFrameBufferAttachment.ColorAttachment22 => EDrawBuffersAttachment.ColorAttachment22,
+                EFrameBufferAttachment.ColorAttachment23 => EDrawBuffersAttachment.ColorAttachment23,
+                EFrameBufferAttachment.ColorAttachment24 => EDrawBuffersAttachment.ColorAttachment24,
+                EFrameBufferAttachment.ColorAttachment25 => EDrawBuffersAttachment.ColorAttachment25,
+                EFrameBufferAttachment.ColorAttachment26 => EDrawBuffersAttachment.ColorAttachment26,
+                EFrameBufferAttachment.ColorAttachment27 => EDrawBuffersAttachment.ColorAttachment27,
+                EFrameBufferAttachment.ColorAttachment28 => EDrawBuffersAttachment.ColorAttachment28,
+                EFrameBufferAttachment.ColorAttachment29 => EDrawBuffersAttachment.ColorAttachment29,
+                EFrameBufferAttachment.ColorAttachment30 => EDrawBuffersAttachment.ColorAttachment30,
+                EFrameBufferAttachment.ColorAttachment31 => EDrawBuffersAttachment.ColorAttachment31,
+                EFrameBufferAttachment.FrontLeft => EDrawBuffersAttachment.FrontLeft,
+                EFrameBufferAttachment.FrontRight => EDrawBuffersAttachment.FrontRight,
+                EFrameBufferAttachment.BackLeft => EDrawBuffersAttachment.BackLeft,
+                EFrameBufferAttachment.BackRight => EDrawBuffersAttachment.BackRight,
+                _ => EDrawBuffersAttachment.ColorAttachment0,
+            };
 
         public event Action? BindForReadRequested;
         public event Action? BindForWriteRequested;
@@ -233,13 +275,14 @@ namespace XREngine.Rendering
             {
                 case XRTexture texture:
                     {
-                        texture.Bind();
                         texture.PushData();
+                        texture.Bind();
 
                         if (texture is XRTextureCube cuberef && LayerIndex >= 0 && LayerIndex < 6)
                             cuberef.AttachFaceToFBO(this, Attachment, ECubemapFace.PosX + LayerIndex, MipLevel);
                         else
                             texture.AttachToFBO(this, Attachment, MipLevel);
+
                         break;
                     }
 

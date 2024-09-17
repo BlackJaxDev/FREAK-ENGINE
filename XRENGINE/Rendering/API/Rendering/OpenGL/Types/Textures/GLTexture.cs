@@ -160,20 +160,10 @@ namespace XREngine.Rendering.OpenGL
             => PushData();
 
         public void AttachToFBO(XRFrameBuffer fbo, EFrameBufferAttachment attachment, int mipLevel = 0)
-        {
-            if (Renderer.GetOrCreateAPIRenderObject(fbo) is not GLObjectBase glFbo)
-                return;
-
-            Api.NamedFramebufferTexture(glFbo.BindingId, ToGLEnum(attachment), BindingId, mipLevel);
-        }
+            => Api.NamedFramebufferTexture(Renderer.GenericToAPI<GLFrameBuffer>(fbo)!.BindingId, ToGLEnum(attachment), BindingId, mipLevel);
 
         public void DetachFromFBO(XRFrameBuffer fbo, EFrameBufferAttachment attachment, int mipLevel = 0)
-        {
-            if (Renderer.GetOrCreateAPIRenderObject(fbo) is not GLObjectBase glFbo)
-                return;
-
-            Api.NamedFramebufferTexture(glFbo.BindingId, ToGLEnum(attachment), 0, mipLevel);
-        }
+            => Api.NamedFramebufferTexture(Renderer.GenericToAPI<GLFrameBuffer>(fbo)!.BindingId, ToGLEnum(attachment), 0, mipLevel);
 
         public abstract void PushData();
         public abstract string ResolveSamplerName(int textureIndex, string? samplerNameOverride);

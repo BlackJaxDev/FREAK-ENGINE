@@ -1,4 +1,5 @@
 ﻿using XREngine.Data.Rendering;
+using XREngine.Rendering.Models.Materials.Textures;
 
 namespace XREngine.Rendering
 {
@@ -11,17 +12,18 @@ namespace XREngine.Rendering
         public event DelDetachFaceFromFBO? DetachFaceFromFBORequested;
 
         public XRTextureCube()
-            : this(1u) { }
+            : this(1u, EPixelInternalFormat.Rgba) { }
 
         public XRTextureCube(
             uint dim,
+            EPixelInternalFormat internalFormat,
             int mipCount = 1)
         {
             _cubeExtent = dim;
             uint sDim = dim;
             Mipmaps = new CubeMipmap[mipCount];
             for (uint i = 0u, scale = 1u; i < mipCount; scale = 1u << (int)++i, sDim = dim / scale)
-                Mipmaps[i] = new CubeMipmap(sDim, sDim);
+                Mipmaps[i] = new CubeMipmap(sDim, internalFormat);
         }
 
         public XRTextureCube(
@@ -30,15 +32,14 @@ namespace XREngine.Rendering
             EPixelFormat pixelFormat,
             EPixelType pixelType,
             int mipCount = 1)
-            : this(dim, mipCount)
+            : this(dim, internalFormat, mipCount)
         {
             uint sDim = dim;
             Mipmaps = new CubeMipmap[mipCount];
             for (uint i = 0u, scale = 1u; i < mipCount; scale = 1u << (int)++i, sDim = dim / scale)
-                Mipmaps[i] = new CubeMipmap(sDim, sDim, internalFormat, pixelFormat, pixelType);
+                Mipmaps[i] = new CubeMipmap(sDim, internalFormat, pixelFormat, pixelType);
             _internalFormat = internalFormat;
             _pixelFormat = pixelFormat;
-            _pixelType = pixelType;
         }
 
         public XRTextureCube(params CubeMipmap[] mipmaps)
@@ -61,7 +62,7 @@ namespace XREngine.Rendering
         private float _lodBias = 0.0f;
 
         private EPixelFormat _pixelFormat = EPixelFormat.Rgba;
-        private EPixelType _pixelType = EPixelType.UnsignedByte;
+        private EPixelType _pixelType = EPixelType.Float;
         private EPixelInternalFormat _internalFormat = EPixelInternalFormat.Rgba8;
         private bool _resizable = true;
 

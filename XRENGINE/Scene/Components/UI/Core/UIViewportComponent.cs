@@ -28,7 +28,8 @@ namespace XREngine.Rendering.UI
                 [
                     XRTexture2D.CreateFrameBufferTexture(1u, 1u,
                         EPixelInternalFormat.Rgba16f,
-                        EPixelFormat.Rgba, EPixelType.HalfFloat,
+                        EPixelFormat.Rgba,
+                        EPixelType.Float,
                         EFrameBufferAttachment.ColorAttachment0),
                 ],
                 XRShader.EngineShader(Path.Combine("Common", "UnlitTexturedForward.fs"), EShaderType.Fragment));

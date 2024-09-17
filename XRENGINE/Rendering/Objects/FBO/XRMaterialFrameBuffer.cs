@@ -69,6 +69,8 @@ namespace XREngine.Rendering
                 else if (h != th)
                     Debug.LogWarning($"FBO texture heights are not all the same.");
             }
+            if (w is not null && h is not null)
+                Resize(w.Value, h.Value);
         }
     }
 }

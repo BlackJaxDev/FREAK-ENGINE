@@ -15,6 +15,18 @@ namespace XREngine.Rendering
         /// </summary>
         public bool InUse => APIWrappers.Count > 0;
 
+        public void Generate()
+        {
+            foreach (var wrapper in APIWrappers)
+                wrapper.Generate();
+        }
+        public override void Destroy()
+        {
+            base.Destroy();
+            foreach (var wrapper in APIWrappers)
+                wrapper.Destroy();
+        }
+
         /// <summary>
         /// This is a list of API-specific render objects attached to each active window that represent this object.
         /// </summary>
@@ -23,7 +35,14 @@ namespace XREngine.Rendering
         public GenericRenderObject()
         {
             //Create this object for all windows (but don't generate it yet)
-            _apiWrappers.AddRange(Engine.Rendering.CreateObjectsForAllWindows(this));
+            var wrappers = Engine.Rendering.CreateObjectsForAllWindows(this);
+
+            if (wrappers.Count > 0)
+                Debug.Out($"Created {wrappers.Count} API wrappers for '{Name}'.");
+
+            foreach (var wrapper in wrappers)
+                if (wrapper is not null)
+                    AddWrapper(wrapper);
         }
 
         protected override void OnDestroying()
@@ -39,10 +58,14 @@ namespace XREngine.Rendering
         internal void AddWrapper(AbstractRenderAPIObject apiRO)
         {
             if (!_apiWrappers.Contains(apiRO))
+            {
+                Debug.Out($"Adding API wrapper for '{Name}' to window '{apiRO.Window.Window.Title}'.");
                 _apiWrappers.Add(apiRO);
+            }
         }
         internal void RemoveWrapper(AbstractRenderAPIObject apiRO)
         {
+            Debug.Out($"Removing API wrapper for '{Name}' from window '{apiRO.Window.Window.Title}'.");
             _apiWrappers.Remove(apiRO);
         }
     }

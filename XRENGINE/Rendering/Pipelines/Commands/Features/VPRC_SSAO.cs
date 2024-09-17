@@ -107,7 +107,7 @@ namespace XREngine.Rendering.Pipelines.Commands
         protected override void Execute()
         {
             XRTexture2D? normalTex = Pipeline.GetTexture<XRTexture2D>(NormalTextureName);
-            XRTextureView2D? depthViewTex = Pipeline.GetTexture<XRTextureView2D>(DepthViewTextureName);
+            XRTexture2DView? depthViewTex = Pipeline.GetTexture<XRTexture2DView>(DepthViewTextureName);
             XRTexture2D? albedoTex = Pipeline.GetTexture<XRTexture2D>(AlbedoTextureName);
             XRTexture2D? rmsiTex = Pipeline.GetTexture<XRTexture2D>(RMSITextureName);
             XRTexture2D? depthStencilTex = Pipeline.GetTexture<XRTexture2D>(DepthStencilTextureName);
@@ -138,8 +138,8 @@ namespace XREngine.Rendering.Pipelines.Commands
             XRTexture2D noiseTex = new(
                 (uint)NoiseWidth,
                 (uint)NoiseHeight,
-                EPixelInternalFormat.Rg32f,
-                EPixelFormat.Rg,
+                EPixelInternalFormat.Rgb,
+                EPixelFormat.Rgb,
                 EPixelType.Float)
             {
                 Name = SSAONoiseTextureName,
@@ -149,7 +149,7 @@ namespace XREngine.Rendering.Pipelines.Commands
                 VWrap = ETexWrapMode.Repeat,
                 Resizable = false,
             };
-            noiseTex.Mipmaps[0].GetPixels().SetPixels(Noise!.SelectMany(v => new float[] { v.X, v.Y }).ToArray());
+            noiseTex.Mipmaps[0].GetPixels().SetPixels(Noise!.SelectMany(v => new float[] { v.X, v.Y, 0.0f }).ToArray());
             Pipeline.SetTexture(noiseTex);
 
             XRTexture2D ssaoTex = XRTexture2D.CreateFrameBufferTexture(
@@ -157,7 +157,7 @@ namespace XREngine.Rendering.Pipelines.Commands
                 (uint)height,
                 EPixelInternalFormat.R16f,
                 EPixelFormat.Red,
-                EPixelType.HalfFloat,
+                EPixelType.Float,
                 EFrameBufferAttachment.ColorAttachment0);
             ssaoTex.Name = SSAOFBOTextureName;
             ssaoTex.MinFilter = ETexMinFilter.Nearest;

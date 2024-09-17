@@ -302,8 +302,8 @@ namespace XREngine.Rendering.OpenGL
                 if (Engine.Rendering.Settings.AllowShaderPipelines)
                 {
                     _combinedProgram = null;
-                    _defaultVertexProgram = new GLRenderProgram(Renderer, new XRRenderProgram(new XRShader(EShaderType.Vertex, Data.VertexShaderSource!)));
-                    _pipeline = new GLRenderProgramPipeline(Renderer, new XRRenderProgramPipeline());
+                    _defaultVertexProgram = Renderer.GenericToAPI<GLRenderProgram>(new XRRenderProgram(new XRShader(EShaderType.Vertex, Data.VertexShaderSource!)))!;
+                    _pipeline = Renderer.GenericToAPI<GLRenderProgramPipeline>(new XRRenderProgramPipeline())!;
                     Data.BoneMatricesBuffer?.SetBlockName(_defaultVertexProgram.Data, CommonBindingNames.BoneBlockName);
                 }
                 else
@@ -317,7 +317,7 @@ namespace XREngine.Rendering.OpenGL
                         shaders = shaders.Append(new XRShader(EShaderType.Vertex, Data.VertexShaderSource!));
 
                     _defaultVertexProgram = null;
-                    _combinedProgram = new GLRenderProgram(Renderer, new XRRenderProgram(shaders));
+                    _combinedProgram = Renderer.GenericToAPI<GLRenderProgram>(new XRRenderProgram(shaders))!;
 
                     if (useDefaultVertexShader)
                         Data.BoneMatricesBuffer?.SetBlockName(_combinedProgram.Data, CommonBindingNames.BoneBlockName);

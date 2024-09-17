@@ -243,14 +243,14 @@ public class DefaultRenderPipeline : XRRenderPipeline
     private (uint x, uint y) GetDesiredFBOSizeFull() => ((uint)RenderStatus.Viewport!.Width, (uint)RenderStatus.Viewport!.Height);
 
     XRTexture CreateBRDFTexture()
-        => PrecomputeBRDF(2048, 2048);
+        => PrecomputeBRDF(128, 128);
 
     XRTexture CreateDepthStencilTexture()
     {
         var dsTex = XRTexture2D.CreateFrameBufferTexture(w, h,
             EPixelInternalFormat.Depth24Stencil8,
-            EPixelFormat.DepthStencil,
-            EPixelType.UnsignedInt248,
+            EPixelFormat.Rgb,
+            EPixelType.Float,
             EFrameBufferAttachment.DepthStencilAttachment);
         dsTex.MinFilter = ETexMinFilter.Nearest;
         dsTex.MagFilter = ETexMagFilter.Nearest;
@@ -259,78 +259,81 @@ public class DefaultRenderPipeline : XRRenderPipeline
     }
 
     XRTexture CreateDepthViewTexture()
-        => new XRTextureView2D(
+        => new XRTexture2DView(
             GetTexture<XRTexture2D>(DepthStencilTextureName)!,
             0, 1, 0, 1,
-            EPixelType.UnsignedInt248,
-            EPixelFormat.DepthStencil,
-            EPixelInternalFormat.Depth24Stencil8)
+            EPixelInternalFormat.Depth24Stencil8,
+            false, false)
         {
-            Resizable = false,
+            //Resizable = false,
             DepthStencilFormat = EDepthStencilFmt.Depth,
-            MinFilter = ETexMinFilter.Nearest,
-            MagFilter = ETexMagFilter.Nearest,
-            UWrap = ETexWrapMode.ClampToEdge,
-            VWrap = ETexWrapMode.ClampToEdge,
+            //MinFilter = ETexMinFilter.Nearest,
+            //MagFilter = ETexMagFilter.Nearest,
+            //UWrap = ETexWrapMode.ClampToEdge,
+            //VWrap = ETexWrapMode.ClampToEdge,
         };
 
     XRTexture CreateStencilViewTexture()
-        => new XRTextureView2D(
+        => new XRTexture2DView(
             GetTexture<XRTexture2D>(DepthStencilTextureName)!,
             0, 1, 0, 1,
-            EPixelType.UnsignedInt248,
-            EPixelFormat.DepthStencil,
-            EPixelInternalFormat.Depth24Stencil8)
+            EPixelInternalFormat.Depth24Stencil8,
+            false, false)
         {
-            Resizable = false,
+            //Resizable = false,
             DepthStencilFormat = EDepthStencilFmt.Stencil,
-            MinFilter = ETexMinFilter.Nearest,
-            MagFilter = ETexMagFilter.Nearest,
-            UWrap = ETexWrapMode.ClampToEdge,
-            VWrap = ETexWrapMode.ClampToEdge,
+            //MinFilter = ETexMinFilter.Nearest,
+            //MagFilter = ETexMagFilter.Nearest,
+            //UWrap = ETexWrapMode.ClampToEdge,
+            //VWrap = ETexWrapMode.ClampToEdge,
         };
 
     XRTexture CreateAlbedoOpacityTexture() =>
-        XRTexture2D.CreateFrameBufferTexture(w, h,
+        XRTexture2D.CreateFrameBufferTexture(
+            w, h,
             EPixelInternalFormat.Rgba16f,
             EPixelFormat.Rgba,
-            EPixelType.HalfFloat);
+            EPixelType.Float);
 
     XRTexture CreateNormalTexture() =>
-        XRTexture2D.CreateFrameBufferTexture(w, h,
+        XRTexture2D.CreateFrameBufferTexture(
+            w, h,
             EPixelInternalFormat.Rgba16f,
             EPixelFormat.Rgba,
-            EPixelType.HalfFloat);
+            EPixelType.Float);
 
     XRTexture CreateRMSITexture() =>
-        XRTexture2D.CreateFrameBufferTexture(w, h,
+        XRTexture2D.CreateFrameBufferTexture(
+            w, h,
             EPixelInternalFormat.Rgba8,
             EPixelFormat.Rgba,
-            EPixelType.UnsignedByte);
+            EPixelType.Float);
 
     XRTexture CreateSSAOTexture()
     {
-        var ssao = XRTexture2D.CreateFrameBufferTexture(w, h,
+        var ssao = XRTexture2D.CreateFrameBufferTexture(
+            w, h,
             EPixelInternalFormat.R16f,
             EPixelFormat.Red,
-            EPixelType.HalfFloat);
+            EPixelType.Float);
         ssao.MinFilter = ETexMinFilter.Nearest;
         ssao.MagFilter = ETexMagFilter.Nearest;
         return ssao;
     }
 
     XRTexture CreateLightingTexture() =>
-        XRTexture2D.CreateFrameBufferTexture(w, h,
+        XRTexture2D.CreateFrameBufferTexture(
+            w, h,
             EPixelInternalFormat.Rgb16f,
             EPixelFormat.Rgb,
-            EPixelType.HalfFloat);
+            EPixelType.Float);
 
     XRTexture CreateHDRSceneTexture()
     {
         var tex = XRTexture2D.CreateFrameBufferTexture(w, h,
             EPixelInternalFormat.Rgba16f,
             EPixelFormat.Rgba,
-            EPixelType.HalfFloat,
+            EPixelType.Float,
             EFrameBufferAttachment.ColorAttachment0);
         tex.MinFilter = ETexMinFilter.Nearest;
         tex.MagFilter = ETexMagFilter.Nearest;
@@ -410,22 +413,24 @@ public class DefaultRenderPipeline : XRRenderPipeline
         //HUD texture
         c.Add<VPRC_CacheOrCreateTexture>().SetOptions(
             HUDTextureName,
-            () =>
-            {
-                var hudTexture = XRTexture2D.CreateFrameBufferTexture(
-                    (uint)RenderStatus.Viewport!.Width,
-                    (uint)RenderStatus.Viewport!.Height,
-                    EPixelInternalFormat.Rgba16f,
-                    EPixelFormat.Rgba,
-                    EPixelType.HalfFloat);
-                hudTexture.MinFilter = ETexMinFilter.Nearest;
-                hudTexture.MagFilter = ETexMagFilter.Nearest;
-                hudTexture.UWrap = ETexWrapMode.ClampToEdge;
-                hudTexture.VWrap = ETexWrapMode.ClampToEdge;
-                hudTexture.SamplerName = HUDTextureName;
-                return hudTexture;
-            },
+            CreateHUDTexture,
             NeedsRecreateTextureFullSize);
+    }
+
+    private XRTexture CreateHUDTexture()
+    {
+        var hudTexture = XRTexture2D.CreateFrameBufferTexture(
+            (uint)RenderStatus.Viewport!.Width,
+            (uint)RenderStatus.Viewport!.Height,
+            EPixelInternalFormat.Rgba16f,
+            EPixelFormat.Rgba,
+            EPixelType.Float);
+        hudTexture.MinFilter = ETexMinFilter.Nearest;
+        hudTexture.MagFilter = ETexMagFilter.Nearest;
+        hudTexture.UWrap = ETexWrapMode.ClampToEdge;
+        hudTexture.VWrap = ETexWrapMode.ClampToEdge;
+        hudTexture.SamplerName = HUDTextureName;
+        return hudTexture;
     }
 
     private XRFrameBuffer CreatePostProcessFBO()
@@ -493,7 +498,7 @@ public class DefaultRenderPipeline : XRRenderPipeline
             GetTexture<XRTexture2D>(NormalTextureName)!,
             GetTexture<XRTexture2D>(RMSITextureName)!,
             GetTexture<XRTexture2D>(SSAOFBOTextureName)!,
-            GetTexture<XRTextureView2D>(DepthViewTextureName)!,
+            GetTexture<XRTexture2DView>(DepthViewTextureName)!,
             GetTexture<XRTexture2D>(LightingTextureName)!,
             GetTexture<XRTexture2D>(BRDFTextureName)!,
             //irradiance

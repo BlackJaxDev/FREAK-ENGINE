@@ -1,4 +1,6 @@
-﻿namespace XREngine.Rendering.OpenGL
+﻿using System.Collections.Generic;
+
+namespace XREngine.Rendering.OpenGL
 {
     public unsafe partial class OpenGLRenderer
     {
@@ -36,30 +38,32 @@
             }
 
             protected virtual void UnlinkData()
-            {
-                _data.RemoveWrapper(this);
-            }
+                => _data.RemoveWrapper(this);
             protected virtual void LinkData()
-            {
-                _data.AddWrapper(this);
-            }
+                => _data.AddWrapper(this);
 
             protected internal override void PostGenerated()
             {
                 base.PostGenerated();
-                if (BindingId == 0)
-                    throw new Exception("BindingId is 0 after generation.");
-                if (Cache.ContainsKey(BindingId))
+
+                if (TryGetBindingId(out var bindingId) && bindingId > 0)
                 {
-                    Debug.LogWarning($"OpenGL object with binding id {BindingId} already exists in cache.");
-                    Cache[BindingId] = this;
+                    if (Cache.ContainsKey(bindingId))
+                    {
+                        Debug.LogWarning($"OpenGL {Type} object with binding id {bindingId} already exists in cache.");
+                        Cache[bindingId] = this;
+                    }
+                    else
+                        Cache.Add(bindingId, this);
                 }
                 else
-                    Cache.Add(BindingId, this);
+                    Debug.LogWarning($"Failed to generate OpenGL {Type} object.");
             }
             protected internal override void PostDeleted()
             {
-                Cache.Remove(BindingId);
+                if (TryGetBindingId(out var bindingId))
+                    Cache.Remove(bindingId);
+
                 base.PostDeleted();
             }
 

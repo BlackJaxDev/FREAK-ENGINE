@@ -10,9 +10,27 @@
             public const uint InvalidBindingId = 0;
             public abstract GLObjectType Type { get; }
 
+            /// <summary>
+            /// True if the object has been generated.
+            /// Check this before using the BindingId property, as it will generate the object if it has not been generated yet.
+            /// </summary>
             public override bool IsGenerated => _bindingId.HasValue && _bindingId != InvalidBindingId;
 
             internal uint? _bindingId;
+
+            public bool TryGetBindingId(out uint bindingId)
+            {
+                if (_bindingId.HasValue)
+                {
+                    bindingId = _bindingId.Value;
+                    return true;
+                }
+                else
+                {
+                    bindingId = InvalidBindingId;
+                    return false;
+                }
+            }
 
             public GLObjectBase(OpenGLRenderer renderer) : base(renderer) { }
             public GLObjectBase(OpenGLRenderer renderer, uint id) : base(renderer) => _bindingId = id;
@@ -33,12 +51,37 @@
 
             }
 
+            private bool _invalidated = true;
+            private bool _hasSentInvalidationWarning = false;
+            protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+            {
+                base.OnPropertyChanged(propName, prev, field);
+                _invalidated = true;
+                _hasSentInvalidationWarning = false;
+            }
+
+            /// <summary>
+            /// Generates the object on the GPU and assigns it a unique binding id.
+            /// </summary>
             public override void Generate()
             {
+                if (!_invalidated)
+                {
+                    if (!_hasSentInvalidationWarning)
+                    {
+                        Debug.Out($"Attempted to generate an OpenGL object with no changes since last generation attempt. Canceling to avoid infinite recursion on generation fail.");
+                        _hasSentInvalidationWarning = true;
+                    }
+                    return;
+                }
+
                 Debug.Out($"Generating OpenGL object {Type}");
                 PreGenerated();
                 _bindingId = CreateObject();
                 PostGenerated();
+
+                _invalidated = false;
+                _hasSentInvalidationWarning = false;
             }
 
             protected internal virtual void PreDeleted()
@@ -62,15 +105,20 @@
                     try
                     {
                         if (_bindingId is null)
-                        {
-                            //return InvalidBindingId;
                             Generate();
+
+                        if (TryGetBindingId(out uint bindingId))
+                            return bindingId;
+                        else
+                        {
+                            Debug.LogWarning($"Failed to generate object of type {Type}.");
+                            return InvalidBindingId;
                         }
-                        return _bindingId!.Value;
                     }
                     catch
                     {
-                        throw new Exception($"Failed to generate object of type {Type}.");
+                        Debug.LogWarning($"Failed to generate object of type {Type}.");
+                        return InvalidBindingId;
                     }
                 }
             }

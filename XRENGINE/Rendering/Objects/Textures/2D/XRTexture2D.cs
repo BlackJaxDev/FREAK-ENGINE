@@ -55,15 +55,14 @@ namespace XREngine.Rendering
 
         public override uint MaxDimension => Math.Max(Width, Height);
 
-        public XRTexture2D() : this(1u, 1u, EPixelType.Float) { }
-        public XRTexture2D(uint width, uint height, EPixelType pixelType = EPixelType.Float, int mipmapCount = 1)
+        public XRTexture2D() : this(1u, 1u, EPixelFormat.Rgb, EPixelType.UnsignedByte) { }
+        public XRTexture2D(uint width, uint height, EPixelFormat format, EPixelType type, int mipmapCount = 1)
         {
             _mipmaps = new MagickImage[mipmapCount];
             for (uint i = 0, scale = 1; i < mipmapCount; scale = 1u << (int)++i)
-                _mipmaps[i] = new(MagickColors.Transparent, width / scale, height / scale);
+                _mipmaps[i] = NewImage(width / scale, height / scale, format, type);
             _width = width;
             _height = height;
-            PixelType = pixelType;
         }
 
         public XRTexture2D(params string[] mipMapPaths)
@@ -78,19 +77,18 @@ namespace XREngine.Rendering
             }
             if (_mipmaps.Length > 0)
             {
-                _width = (uint)_mipmaps[0].Width;
-                _height = (uint)_mipmaps[0].Height;
+                _width = _mipmaps[0].Width;
+                _height = _mipmaps[0].Height;
             }
         }
-        public XRTexture2D(uint width, uint height, EPixelInternalFormat internalFmt, EPixelFormat fmt, EPixelType pixelType)
+        public XRTexture2D(uint width, uint height, EPixelInternalFormat internalFormat, EPixelFormat format, EPixelType type)
         {
             _mipmaps = new MagickImage[1];
-            _mipmaps[0] = new(MagickColors.Transparent, width, height);
+            _mipmaps[0] = NewImage(width, height, format, type);
             _width = width;
             _height = height;
-            InternalFormat = internalFmt;
-            PixelFormat = fmt;
-            PixelType = pixelType;
+            InternalFormat = internalFormat;
+            PixelFormat = format;
         }
         public XRTexture2D(uint width, uint height, params MagickImage[] mipmaps)
         {
@@ -162,7 +160,8 @@ namespace XREngine.Rendering
         /// </summary>
         public void Resize(uint width, uint height)
         {
-            if (_width == width && _height == height)
+            if (_width == width && 
+                _height == height)
                 return;
 
             if (!Resizable)
@@ -223,13 +222,13 @@ namespace XREngine.Rendering
         /// <param name="width">The texture's width.</param>
         /// <param name="height">The texture's height.</param>
         /// <param name="internalFmt">The internal texture storage format.</param>
-        /// <param name="fmt">The format of the texture's pixels.</param>
+        /// <param name="format">The format of the texture's pixels.</param>
         /// <param name="pixelType">How pixels are stored.</param>
         /// <param name="bufAttach">Where to attach to the framebuffer for rendering to.</param>
         /// <returns>A new 2D texture reference.</returns>
         public static XRTexture2D CreateFrameBufferTexture(uint width, uint height,
-            EPixelInternalFormat internalFmt, EPixelFormat fmt, EPixelType pixelType, EFrameBufferAttachment bufAttach)
-            => new(width, height, internalFmt, fmt, pixelType)
+            EPixelInternalFormat internalFmt, EPixelFormat format, EPixelType type, EFrameBufferAttachment bufAttach)
+            => new(width, height, internalFmt, format, type)
             {
                 MinFilter = ETexMinFilter.Nearest,
                 MagFilter = ETexMagFilter.Nearest,
@@ -243,12 +242,12 @@ namespace XREngine.Rendering
         /// </summary>
         /// <param name="name"></param>
         /// <param name="bounds"></param>
-        /// <param name="internalFmt"></param>
-        /// <param name="fmt"></param>
+        /// <param name="internalFormat"></param>
+        /// <param name="format"></param>
         /// <param name="pixelType"></param>
         /// <returns></returns>
-        public static XRTexture2D CreateFrameBufferTexture(IVector2 bounds, EPixelInternalFormat internalFmt, EPixelFormat fmt, EPixelType pixelType)
-            => CreateFrameBufferTexture((uint)bounds.X, (uint)bounds.Y, internalFmt, fmt, pixelType);
+        public static XRTexture2D CreateFrameBufferTexture(IVector2 bounds, EPixelInternalFormat internalFormat, EPixelFormat format, EPixelType type)
+            => CreateFrameBufferTexture((uint)bounds.X, (uint)bounds.Y, internalFormat, format, type);
         /// <summary>
         /// Creates a new texture specifically for attaching to a framebuffer.
         /// </summary>
@@ -256,11 +255,11 @@ namespace XREngine.Rendering
         /// <param name="width">The texture's width.</param>
         /// <param name="height">The texture's height.</param>
         /// <param name="internalFmt">The internal texture storage format.</param>
-        /// <param name="fmt">The format of the texture's pixels.</param>
+        /// <param name="format">The format of the texture's pixels.</param>
         /// <param name="pixelType">How pixels are stored.</param>
         /// <returns>A new 2D texture reference.</returns>
-        public static XRTexture2D CreateFrameBufferTexture(uint width, uint height, EPixelInternalFormat internalFmt, EPixelFormat fmt, EPixelType pixelType)
-            => new(width, height, internalFmt, fmt, pixelType)
+        public static XRTexture2D CreateFrameBufferTexture(uint width, uint height, EPixelInternalFormat internalFormat, EPixelFormat format, EPixelType type)
+            => new(width, height, internalFormat, format, type)
             {
                 MinFilter = ETexMinFilter.Nearest,
                 MagFilter = ETexMagFilter.Nearest,

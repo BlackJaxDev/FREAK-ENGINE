@@ -24,7 +24,7 @@ namespace XREngine.Rendering.Pipelines.Commands
         private XRTexture2D? _albedoOpacityTextureCache = null;
         private XRTexture2D? _normalTextureCache = null;
         private XRTexture2D? _rmsiTextureCache = null;
-        private XRTextureView2D? _depthViewTextureCache = null;
+        private XRTexture2DView? _depthViewTextureCache = null;
 
         public XRMeshRenderer? PointLightRenderer { get; private set; }
         public XRMeshRenderer? SpotLightRenderer { get; private set; }
@@ -38,7 +38,7 @@ namespace XREngine.Rendering.Pipelines.Commands
             var albOpacTex = Pipeline.GetTexture<XRTexture2D>(AlbedoOpacityTexture);
             var normTex = Pipeline.GetTexture<XRTexture2D>(NormalTexture);
             var rmsiTex = Pipeline.GetTexture<XRTexture2D>(RMSITexture);
-            var depthViewTex = Pipeline.GetTexture<XRTextureView2D>(DepthViewTexture);
+            var depthViewTex = Pipeline.GetTexture<XRTexture2DView>(DepthViewTexture);
             if (albOpacTex is null || normTex is null || rmsiTex is null || depthViewTex is null)
                 throw new Exception("One or more required textures are missing.");
 
@@ -95,9 +95,9 @@ namespace XREngine.Rendering.Pipelines.Commands
             XRTexture2D albOpacTex,
             XRTexture2D normTex,
             XRTexture2D rmsiTex,
-            XRTextureView2D depthViewTex)
+            XRTexture2DView depthViewTex)
         {
-            XRTexture2D[] lightRefs =
+            XRTexture[] lightRefs =
             [
                 albOpacTex,
                 normTex,

@@ -6,14 +6,14 @@ namespace XREngine.Rendering.Models.Materials.Textures
 {
     public class GLTextureCube(OpenGLRenderer renderer, XRTextureCube data) : GLTexture<XRTextureCube>(renderer, data)
     {
-        private TextureCubeMipmap[]? _mipmaps;
+        private CubeMipmap[]? _mipmaps;
 
         private bool _hasPushed = false;
         private bool _storageSet = false;
 
         public override ETextureTarget TextureTarget => ETextureTarget.TextureCubeMap;
 
-        public TextureCubeMipmap[]? Mipmaps
+        public CubeMipmap[]? Mipmaps
         {
             get => _mipmaps;
             set => _mipmaps = value;

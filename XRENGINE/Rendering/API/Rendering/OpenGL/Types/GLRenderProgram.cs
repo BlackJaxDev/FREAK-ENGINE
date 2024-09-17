@@ -11,81 +11,108 @@ namespace XREngine.Rendering.OpenGL
         public delegate void DelCompile(bool compiledSuccessfully, string? compileInfo);
         public class GLRenderProgram : GLObject<XRRenderProgram>, IEnumerable<GLShader>
         {
-            private GLShader[] _shaderObjects = [];
-            protected GLShader[] ShaderObjects
+            private bool _isValid = true;
+            public bool IsLinked
             {
-                get => _shaderObjects;
-                set
-                {
-                    _shaderObjects = value ?? [];
-                    OnShaderObjectsChanged();
-                }
+                get => _isValid;
+                private set => SetField(ref _isValid, value);
             }
 
-            private void OnShaderObjectsChanged()
-            {
-                if (_shaderObjects.Any(x => x is null))
-                    _shaderObjects = _shaderObjects.Where(x => x != null).ToArray();
-
-                foreach (var shader in _shaderObjects)
-                    shader.SourceText = this;
-
-                //Force a recompilation.
-                //TODO: recompile shaders without destroying program.
-                //Need to attach shaders by id to the program and recompile.
-                Destroy();
-            }
+            public override GLObjectType Type => GLObjectType.Program;
 
             private readonly ConcurrentDictionary<string, int>
                 _uniformCache = new(),
                 _attribCache = new();
 
-            //private Stack<string> StructStack { get; } = new Stack<string>();
-            //private string StructStackString { get; set; }
-            //public void PushTargetStruct(string targetStructName)
-            //{
-            //    StructStack.Push(targetStructName);
-            //    RemakeStructStack();
-            //}
-            //public void PopTargetStruct()
-            //{
-            //    StructStack.Pop();
-            //    RemakeStructStack();
-            //}
-            //private void RemakeStructStack()
-            //{
-            //    StructStackString = string.Empty;
-            //    foreach (string str in StructStack)
-            //        StructStackString += $"{str}.";
-            //}
+            private GLShader[] _shaderCache = [];
+            protected GLShader[] ShaderObjects
+            {
+                get => _shaderCache;
+                set => SetField(ref _shaderCache, value ?? []);
+            }
 
+            protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+            {
+                base.OnPropertyChanged(propName, prev, field);
+                switch (propName)
+                {
+                    case nameof(Data.Shaders):
+                        //Force a recompilation - programs cannot be relinked.
+                        Destroy();
+                        break;
+                }
+            }
+
+            /// <summary>
+            /// If the program has been generated and linked successfully,
+            /// this will return the location of the uniform with the given name.
+            /// Cached for performance and thread-safe.
+            /// </summary>
+            /// <param name="name"></param>
+            /// <returns></returns>
             public int GetUniformLocation(string name)
             {
                 if (!IsGenerated)
                     return -1;
 
-                return _uniformCache.GetOrAdd(name, n => Api.GetUniformLocation(BindingId, n));
+                if (_uniformCache.TryGetValue(name, out int value))
+                    return value;
+
+                if (GetUniform(name, out value))
+                {
+                    _uniformCache.TryAdd(name, value);
+                    return value;
+                }
+
+                return -1;
             }
+            private bool GetUniform(string name, out int location)
+            {
+                location = Api.GetUniformLocation(BindingId, name);
+                if (location < 0)
+                {
+                    Debug.LogWarning($"Uniform {name} not found in program {Data.Name}.");
+                    return false;
+                }
+                return true;
+            }
+            /// <summary>
+            /// If the program has been generated and linked successfully,
+            /// this will return the location of the attribute with the given name.
+            /// Cached for performance and thread-safe.
+            /// </summary>
+            /// <param name="name"></param>
+            /// <returns></returns>
             public int GetAttributeLocation(string name)
             {
-
                 if (!IsGenerated)
                     return -1;
 
-                return _attribCache.GetOrAdd(name, n => Api.GetAttribLocation(BindingId, n));
+                if (_attribCache.TryGetValue(name, out int value))
+                    return value;
+
+                if (GetAttribute(name, out value))
+                {
+                    _attribCache.TryAdd(name, value);
+                    return value;
+                }
+
+                return -1;
             }
-
-            public bool IsValid { get; private set; } = true;
-
-            public override GLObjectType Type => GLObjectType.Program;
+            private bool GetAttribute(string name, out int location)
+            {
+                location = Api.GetAttribLocation(BindingId, name);
+                if (location < 0)
+                {
+                    Debug.LogWarning($"Attribute {name} not found in program {Data.Name}.");
+                    return false;
+                }
+                return true;
+            }
 
             public GLRenderProgram(OpenGLRenderer renderer, XRRenderProgram data)
                 : base(renderer, data)
             {
-                if (data.Shaders.Count == 0)
-                    Debug.LogWarning("No shaders were attached to the program.");
-                
-                _shaderObjects = data.Shaders.Select(x => new GLShader(renderer, x)).ToArray();
                 //data.UniformLocationRequested = GetUniformLocation;
 
                 data.UniformSetVector2Requested += Uniform;
@@ -107,49 +134,71 @@ namespace XREngine.Rendering.OpenGL
                 data.UniformSetUIntArrayRequested += Uniform;
                 data.UniformSetDoubleArrayRequested += Uniform;
                 data.UniformSetMatrix4x4ArrayRequested += Uniform;
+            }
 
-                OnShaderObjectsChanged();
+            private void Reset()
+            {
+                IsLinked = false;
+                _attribCache.Clear();
+                _uniformCache.Clear();
             }
 
             public override void Destroy()
             {
                 base.Destroy();
-
-                IsValid = true;
-
-                _attribCache.Clear();
-                _uniformCache.Clear();
+                Reset();
             }
 
+            private GLShader CreateAndGenerate(XRShader data)
+            {
+                GLShader shader = Renderer.GenericToAPI<GLShader>(data)!;
+                shader.Generate();
+                return shader;
+            }
             protected override uint CreateObject()
             {
-                //Reset caches in case the attached shaders have since the program was last active.
-                _attribCache.Clear();
-                _uniformCache.Clear();
+                Reset();
 
-                IsValid = true;
-
-                if (_shaderObjects.Length == 0)
-                {
-                    IsValid = false;
+                if (_shaderCache.Length == 0)
                     return InvalidBindingId;
-                }
 
-                _shaderObjects.ForEach(x => x.Generate());
+                _shaderCache = Data.Shaders.Select(CreateAndGenerate).ToArray();
 
-                if (_shaderObjects.Any(x => !x.IsCompiled))
-                {
-                    IsValid = false;
+                if (_shaderCache.Any(x => !x.IsCompiled))
                     return InvalidBindingId;
-                }
 
-                uint id = Renderer.GenerateProgram(Engine.Rendering.Settings.AllowShaderPipelines);
+                uint handle = Api.CreateProgram();
+                bool separable = Engine.Rendering.Settings.AllowShaderPipelines;
+                Api.ProgramParameter(handle, GLEnum.ProgramSeparable, separable ? 1 : 0);
+                return handle;
+            }
 
-                _shaderObjects.ForEach(x => Api.AttachShader(x.BindingId, id));
+            private void LinkShader(GLShader shader)
+            {
+                shader.ActivePrograms.Add(this);
+                Api.AttachShader(BindingId, shader.BindingId);
+            }
+            //private void UnlinkShader(GLShader shader)
+            //{
+            //    Api.DetachShader(shader.BindingId, BindingId);
+            //    shader.ActivePrograms.Remove(this);
+            //    shader.Destroy();
+            //}
+            protected internal override void PostGenerated()
+            {
+                _shaderCache.ForEach(LinkShader);
 
-                bool valid = Renderer.LinkProgram(id, out string? info);
-                if (!valid)
+                Api.LinkProgram(BindingId);
+                Api.GetProgram(BindingId, GLEnum.LinkStatus, out int status);
+                IsLinked = status != 0;
+                if (!IsLinked)
                 {
+                    Api.GetProgramInfoLog(BindingId, out string info);
+
+                    Debug.Out(string.IsNullOrWhiteSpace(info) 
+                        ? "Unable to link program, but no error was returned." 
+                        : info);
+
                     //if (info.Contains("Vertex info"))
                     //{
                     //    RenderShader s = _shaders.FirstOrDefault(x => x.File.Type == EShaderMode.Vertex);
@@ -168,35 +217,20 @@ namespace XREngine.Rendering.OpenGL
                     //    string source = s.GetSource(true);
                     //    Engine.PrintLine(source);
                     //}
-
-                    IsValid = false;
-                    Api.DeleteProgram(id);
-                    return InvalidBindingId;
                 }
 
-                _shaderObjects.ForEach(x =>
-                {
-                    Api.DetachShader(x.BindingId, id);
-                    x.Destroy();
-                });
+                //_shaderCache.ForEach(UnlinkShader);
 
-                return id;
-            }
-
-            public uint GenerateProgram(bool separable)
-            {
-                uint handle = Api.CreateProgram();
-                Api.ProgramParameter(handle, GLEnum.ProgramSeparable, separable ? 1 : 0);
-                return handle;
+                base.PostGenerated();
             }
 
             public void Use()
                 => Api.UseProgram(BindingId);
 
             public IEnumerator<GLShader> GetEnumerator()
-                => ((IEnumerable<GLShader>)_shaderObjects).GetEnumerator();
+                => ((IEnumerable<GLShader>)_shaderCache).GetEnumerator();
             IEnumerator IEnumerable.GetEnumerator()
-                => ((IEnumerable<GLShader>)_shaderObjects).GetEnumerator();
+                => ((IEnumerable<GLShader>)_shaderCache).GetEnumerator();
 
             #region Uniforms
             public void Uniform(EEngineUniform name, Vector2 p)
@@ -364,31 +398,7 @@ namespace XREngine.Rendering.OpenGL
             #endregion
         }
 
-        private uint GenerateProgram(bool allowShaderPipelines)
-        {
-            uint handle = Api.CreateProgram();
-            Api.ProgramParameter(handle, GLEnum.ProgramSeparable, allowShaderPipelines ? 1 : 0);
-            return handle;
-        }
-
         private void SetActiveTexture(int textureUnit)
             => Api.ActiveTexture(GLEnum.Texture0 + textureUnit);
-
-        public bool LinkProgram(uint bindingId, out string? info)
-        {
-            info = null;
-            Api.LinkProgram(bindingId);
-            Api.GetProgram(bindingId, GLEnum.LinkStatus, out int status);
-            if (status == 0)
-            {
-#if DEBUG
-                Api.GetProgramInfoLog(bindingId, out info);
-                Debug.Out(string.IsNullOrWhiteSpace(info) ? "Unable to link program, but no error was returned." : info);
-#endif
-                return false;
-            }
-            else
-                return true;
-        }
     }
 }

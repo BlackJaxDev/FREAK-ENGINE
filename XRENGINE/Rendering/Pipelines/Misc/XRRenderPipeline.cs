@@ -220,13 +220,19 @@ public abstract class XRRenderPipeline : XRBase
     /// <returns></returns>
     public static XRTexture2D PrecomputeBRDF(uint width = 2048, uint height = 2048)
     {
-        XRTexture2D brdf = XRTexture2D.CreateFrameBufferTexture(width, height, EPixelInternalFormat.Rg16f, EPixelFormat.Rg, EPixelType.HalfFloat);
+        XRTexture2D brdf = XRTexture2D.CreateFrameBufferTexture(
+            width, height,
+            EPixelInternalFormat.Rg16f,
+            EPixelFormat.Rgb,
+            EPixelType.Float,
+            EFrameBufferAttachment.ColorAttachment0);
         brdf.Resizable = true;
         brdf.UWrap = ETexWrapMode.ClampToEdge;
         brdf.VWrap = ETexWrapMode.ClampToEdge;
         brdf.MinFilter = ETexMinFilter.Linear;
         brdf.MagFilter = ETexMagFilter.Linear;
         brdf.SamplerName = "BRDF";
+        brdf.Name = "BRDF";
         XRTexture2D[] texRefs = [brdf];
 
         XRShader shader = XRShader.EngineShader(Path.Combine("Scene3D", "BRDF.fs"), EShaderType.Fragment);
@@ -252,7 +258,7 @@ public abstract class XRRenderPipeline : XRBase
                 false, false).ToTriangles();
 
         using XRMaterialFrameBuffer fbo = new(mat);
-        fbo.SetRenderTargets((brdf, EFrameBufferAttachment.ColorAttachment0, 0, -1));
+        fbo.Generate();
 
         using XRMesh data = XRMesh.Create(tris);
         using XRMeshRenderer quad = new(data, mat);

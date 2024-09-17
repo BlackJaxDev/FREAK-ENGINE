@@ -1,4 +1,5 @@
-﻿using Silk.NET.OpenGL;
+﻿using Silk.NET.Assimp;
+using Silk.NET.OpenGL;
 using XREngine.Data.Rendering;
 using static XREngine.Rendering.OpenGL.OpenGLRenderer;
 
@@ -8,28 +9,38 @@ namespace XREngine.Rendering.OpenGL
     {
         public override GLObjectType Type => GLObjectType.Renderbuffer;
 
-        public void SetStorage(ERenderBufferStorage type, uint width, uint height)
-            => Api.NamedRenderbufferStorage(BindingId, ToGLEnum(type), width, height);
+        protected override void LinkData()
+        {
+            base.LinkData();
+            Data.AllocateRequested += Allocate;
+            Data.BindRequested += Bind;
+            Data.UnbindRequested += Unbind;
+            Data.AttachToFBORequested += AttachToFBO;
+            Data.DetachFromFBORequested += DetachFromFBO;
+        }
+
+        protected override void UnlinkData()
+        {
+            base.UnlinkData();
+            Data.AllocateRequested -= Allocate;
+            Data.BindRequested -= Bind;
+            Data.UnbindRequested -= Unbind;
+            Data.AttachToFBORequested -= AttachToFBO;
+            Data.DetachFromFBORequested -= DetachFromFBO;
+        }
 
         public void Bind()
             => Api.BindRenderbuffer(GLEnum.Renderbuffer, BindingId);
         public void Unbind()
             => Api.BindRenderbuffer(GLEnum.Renderbuffer, 0);
 
-        public void AttachToFBO(GLFrameBuffer fbo, EFrameBufferAttachment attachment)
-            => AttachToFBO(fbo.BindingId, attachment);
-        public void DetachFromFBO(GLFrameBuffer fbo, EFrameBufferAttachment attachment)
-            => DetachFromFBO(fbo.BindingId, attachment);
+        private void Allocate()
+            => Api.NamedRenderbufferStorage(BindingId, ToGLEnum(Data.Type), Data.Width, Data.Height);
 
-        public void AttachToFBO(EFramebufferTarget fboType, EFrameBufferAttachment attachment)
-            => Api.FramebufferRenderbuffer(ToGLEnum2(fboType), ToGLEnum(attachment), GLEnum.Renderbuffer, BindingId);
-        public void DetachFromFBO(EFramebufferTarget fboType, EFrameBufferAttachment attachment)
-           => Api.FramebufferRenderbuffer(ToGLEnum2(fboType), ToGLEnum(attachment), GLEnum.Renderbuffer, 0);
-
-        public void AttachToFBO(uint fboBindingId, EFrameBufferAttachment attachment)
-            => Api.NamedFramebufferRenderbuffer(fboBindingId, ToGLEnum(attachment), GLEnum.Renderbuffer, BindingId);
-        public void DetachFromFBO(uint fboBindingId, EFrameBufferAttachment attachment)
-            => Api.NamedFramebufferRenderbuffer(fboBindingId, ToGLEnum(attachment), GLEnum.Renderbuffer, 0);
+        public void AttachToFBO(XRFrameBuffer target, EFrameBufferAttachment attachment, int mipLevel)
+            => Api.NamedFramebufferRenderbuffer(Renderer.GenericToAPI<GLFrameBuffer>(target)!.BindingId, ToGLEnum(attachment), GLEnum.Renderbuffer, BindingId);
+        public void DetachFromFBO(XRFrameBuffer target, EFrameBufferAttachment attachment, int mipLevel)
+            => Api.NamedFramebufferRenderbuffer(Renderer.GenericToAPI<GLFrameBuffer>(target)!.BindingId, ToGLEnum(attachment), GLEnum.Renderbuffer, 0);
 
         private static GLEnum ToGLEnum2(EFramebufferTarget fboType) => fboType switch
         {

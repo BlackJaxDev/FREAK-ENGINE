@@ -100,7 +100,7 @@ namespace XREngine.Components.Lights
                 WWrap = ETexWrapMode.ClampToEdge,
             };
 
-            PrefilterTex = new XRTextureCube(ColorResolution, EPixelInternalFormat.Rgb16f, EPixelFormat.Rgb, EPixelType.HalfFloat)
+            PrefilterTex = new XRTextureCube(ColorResolution, EPixelInternalFormat.Rgb16f, EPixelFormat.Rgb, EPixelType.Float)
             {
                 MinFilter = ETexMinFilter.LinearMipmapLinear,
                 MagFilter = ETexMagFilter.Linear,

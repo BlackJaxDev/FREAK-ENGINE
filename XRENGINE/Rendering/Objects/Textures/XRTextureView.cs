@@ -2,42 +2,43 @@
 
 namespace XREngine.Rendering
 {
-    public class XRTextureView2D : XRTexture2D
+    public abstract class XRTextureView<T>(
+        T viewedTexture,
+        int minLevel,
+        int numLevels,
+        int minLayer,
+        int numLayers,
+        EPixelInternalFormat internalFormat) 
+        : XRTextureViewBase(minLevel, numLevels, minLayer, numLayers, internalFormat) where T : XRTexture
     {
-        private XRTexture2D _viewedTexture;
-        private int _minLevel;
-        private int _numLevels;
-        private int _minLayer;
-        private int _numLayers;
+        public T ViewedTexture { get; } = viewedTexture;
+        public override XRTexture GetViewedTexture()
+            => ViewedTexture;
+    }
 
-        public XRTextureView2D(
-            XRTexture2D viewedTexture,
-            int minLevel, 
+    public abstract class XRTextureViewBase : XRTexture, IFrameBufferAttachement
+    {
+        public int MinLevel { get; set; }
+        public int NumLevels { get; set; }
+        public int MinLayer { get; set; }
+        public int NumLayers { get; set; }
+
+        public XRTextureViewBase(
+            int minLevel,
             int numLevels,
-            int minLayer, 
-            int numLayers, 
-            EPixelType type,
-            EPixelFormat format,
+            int minLayer,
+            int numLayers,
             EPixelInternalFormat internalFormat)
         {
-            if (viewedTexture is null)
-                throw new InvalidOperationException("Viewed texture cannot be null.");
-
-            _viewedTexture = viewedTexture;
-            _minLevel = minLevel;
-            _numLevels = numLevels;
-            _minLayer = minLayer;
-            _numLayers = numLayers;
-            PixelType = type;
-            PixelFormat = format;
+            MinLevel = minLevel;
+            NumLevels = numLevels;
+            MinLayer = minLayer;
+            NumLayers = numLayers;
             InternalFormat = internalFormat;
-            _width = viewedTexture.Width;
-            _height = viewedTexture.Height;
-            MinFilter = viewedTexture.MinFilter;
-            MagFilter = viewedTexture.MagFilter;
-            _mipmaps = null;
         }
-        
+
+        public abstract XRTexture GetViewedTexture();
+
         //protected override void CreateRenderTexture()
         //{
         //    //base.CreateRenderTexture();
@@ -65,7 +66,7 @@ namespace XREngine.Rendering
         {
             //Textures.GLTexture vtex = _viewedTexture.GetRenderTextureGeneric(true);
             //Api.TextureView(
-            //    _texture.BindingId, ETextureTarget.Texture2D, vtex.BindingId, InternalFormat,
+            //    BindingId, ETextureTarget.Texture2D, vtex.BindingId, InternalFormat,
             //    _minLevel, _numLevels, _minLayer, _numLayers);
 
             //_texture.Bind();
@@ -76,6 +77,26 @@ namespace XREngine.Rendering
             //Api.TexParameter(ETextureTarget.Texture2D, ETexParamName.TextureMinFilter, (int)MinFilter);
             //Api.TexParameter(ETextureTarget.Texture2D, ETexParamName.TextureWrapS, (int)UWrap);
             //Api.TexParameter(ETextureTarget.Texture2D, ETexParamName.TextureWrapT, (int)VWrap);
+        }
+
+        public void AttachToFBO(XRFrameBuffer target, int mipLevel = 0)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void DetachFromFBO(XRFrameBuffer target, int mipLevel = 0)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void AttachToFBO(XRFrameBuffer target, EFrameBufferAttachment attachment, int mipLevel = 0)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void DetachFromFBO(XRFrameBuffer target, EFrameBufferAttachment attachment, int mipLevel = 0)
+        {
+            throw new NotImplementedException();
         }
     }
 }
