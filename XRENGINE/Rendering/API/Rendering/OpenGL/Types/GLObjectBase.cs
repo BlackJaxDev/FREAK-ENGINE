@@ -115,9 +115,9 @@
                             return InvalidBindingId;
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        Debug.LogWarning($"Failed to generate object of type {Type}.");
+                        Debug.LogException(ex, $"Failed to generate object of type {Type}.");
                         return InvalidBindingId;
                     }
                 }

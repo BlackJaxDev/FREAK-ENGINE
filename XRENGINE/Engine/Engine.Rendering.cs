@@ -39,7 +39,7 @@ namespace XREngine
             public static VisualScene NewVisualScene()
                 => new VisualScene3D();
 
-            public static XRRenderPipeline NewRenderPipeline()
+            public static RenderPipeline NewRenderPipeline()
                 => new DefaultRenderPipeline();
         }
     }

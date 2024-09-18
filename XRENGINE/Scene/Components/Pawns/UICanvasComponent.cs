@@ -75,11 +75,11 @@ namespace XREngine.Components
         //    //base.OnResizeLayout(parentRegion);
         //}
 
-        public void PreRenderUpdate(CameraComponent camera)
+        public void PreRender(CameraComponent camera)
         {
 
         }
-        public void PreRenderSwap()
+        public void SwapBuffers()
         {
 
         }

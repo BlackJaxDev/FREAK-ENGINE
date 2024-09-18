@@ -6,7 +6,7 @@ namespace XREngine.Rendering.Models.Materials
     public class ShaderBVector4 : ShaderVar
     {
         [Browsable(false)]
-        public override EShaderVarType TypeName => EShaderVarType._bVector4;
+        public override EShaderVarType TypeName => EShaderVarType._bvec4;
         [Category(CategoryName)]
         public BoolVector4 Value { get => _value; set { _value = value; OnValueChanged(); } }
         protected override void SetProgramUniform(XRRenderProgram program, string location)

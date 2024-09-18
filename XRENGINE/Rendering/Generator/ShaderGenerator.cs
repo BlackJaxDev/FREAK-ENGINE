@@ -2,15 +2,17 @@
 
 namespace XREngine.Rendering.Shaders.Generator
 {
-    public abstract class ShaderGeneratorBase
+    public abstract class ShaderGeneratorBase(XRMesh mesh)
     {
-        private const EGLSLVersion GLSLCurrentVersion = EGLSLVersion.Ver_450;
+        private const EGLSLVersion GLSLCurrentVersion = EGLSLVersion.Ver_460;
         private readonly string NewLine = Environment.NewLine;
 
         private string _shaderCode = "";
         private int _tabCount = 0;
 
-        public abstract string Generate(XRMesh mesh);
+        public XRMesh Mesh { get; } = mesh;
+
+        public abstract string Generate();
 
         #region String Helpers
         private string Tabs
@@ -28,43 +30,53 @@ namespace XREngine.Rendering.Shaders.Generator
             _shaderCode = "";
             _tabCount = 0;
         }
+
         public void WriteVersion(EGLSLVersion version)
-        {
-            Line("#version {0}", version.ToString()[4..]);
-        }
+            => Line($"#version {version.ToString()[4..]}");
         public void WriteVersion()
-        {
-            WriteVersion(GLSLCurrentVersion);
-        }
+            => WriteVersion(GLSLCurrentVersion);
         public void WriteInVar(uint layoutLocation, EShaderVarType type, string name)
-        {
-            Line("layout (location = {0}) in {1} {2};", layoutLocation, type.ToString()[1..], name);
-        }
+            => Line($"layout (location = {layoutLocation}) in {type.ToString()[1..]} {name};");
         public void WriteInVar(EShaderVarType type, string name)
-        {
-            Line("in {0} {1};", type.ToString()[1..], name);
-        }
+            => Line($"in {type.ToString()[1..]} {name};");
+
         public void WriteOutVar(int layoutLocation, EShaderVarType type, string name)
-        {
-            Line("layout (location = {0}) out {1} {2};", layoutLocation, type.ToString()[1..], name);
-        }
+            => Line($"layout (location = {layoutLocation}) out {type.ToString()[1..]} {name};");
+
         public void WriteOutVar(EShaderVarType type, string name)
-        {
-            Line("out {0} {1};", type.ToString()[1..], name);
-        }
+            => Line($"out {type.ToString()[1..]} {name};");
+
         public void WriteUniform(int layoutLocation, EShaderVarType type, string name)
-        {
-            Line("layout (location = {0}) uniform {1} {2};", layoutLocation, type.ToString()[1..], name);
-        }
+            => Line($"layout (location = {layoutLocation}) uniform {type.ToString()[1..]} {name};");
+
         public void WriteUniform(EShaderVarType type, string name)
+            => Line($"{(_inBlock ? string.Empty : "uniform ")}{type.ToString()[1..]} {name};");
+
+        public StateObject StartBufferBlock(string bufferName, int binding)
         {
-            Line("{2}{0} {1};", type.ToString()[1..], name, _inBlock ? "" : "uniform ");
+            _inBlock = true;
+            Line($"layout(std430, binding = {binding}) buffer {bufferName}");
+            OpenBracket();
+            return new StateObject(() => EndBufferBlock());
         }
+        public void EndBufferBlock()
+        {
+            CloseBracket(null, true);
+            _inBlock = false;
+        }
+
         private bool _inBlock = false;
+        public StateObject StartUniformBlock(string structName, string variableName)
+        {
+            _inBlock = true;
+            Line($"uniform {structName}");
+            OpenBracket();
+            return new StateObject(() => EndUniformBlock(variableName));
+        }
         public void StartUniformBlock(string structName)
         {
             _inBlock = true;
-            Line("uniform {0}", structName);
+            Line($"uniform {structName}");
             OpenBracket();
         }
         public void EndUniformBlock(string? variableName = null)
@@ -74,7 +86,7 @@ namespace XREngine.Rendering.Shaders.Generator
         }
         public void Comment(string comment, params object[] args)
         {
-            Line("//" + comment, args);
+            Line($"//{comment}");
         }
         public void OpenLoop(int startIndex, int count, string varName = "i")
         {
@@ -86,6 +98,11 @@ namespace XREngine.Rendering.Shaders.Generator
         {
             Line("void main()");
             OpenBracket();
+            //Create MVP matrix right away
+            Line($"mat4 mvpMatrix = {EEngineUniform.ProjMatrix} * {EEngineUniform.ViewMatrix} * {EEngineUniform.ModelMatrix};");
+            if (Mesh.NormalsBuffer is not null)
+                Line("mat3 normalMatrix = transpose(inverse(mat3(mvpMatrix)));");
+            Line();
         }
         public string EndMain()
         {
@@ -98,12 +115,12 @@ namespace XREngine.Rendering.Shaders.Generator
         /// Writes the current line and increments to the next line.
         /// Do not use arguments if you need to include brackets in the string.
         /// </summary>
-        public void Line(string str = "", params object[] args)
+        public void Line(string str = "")
         {
             str += NewLine;
 
             //Decrease tabs for every close bracket
-            if (args.Length == 0)
+            //if (args.Length == 0)
                 _tabCount -= str.Count(x => x == '}');
 
             bool s = false;
@@ -117,10 +134,10 @@ namespace XREngine.Rendering.Shaders.Generator
             if (s)
                 str += NewLine;
 
-            _shaderCode += Tabs + (args.Length > 0 ? string.Format(str, args) : str);
+            _shaderCode += Tabs + str;
 
             //Increase tabs for every open bracket
-            if (args.Length == 0)
+            //if (args.Length == 0)
                 _tabCount += str.Count(x => x == '{');
         }
         public void OpenBracket()
@@ -130,19 +147,9 @@ namespace XREngine.Rendering.Shaders.Generator
         public void CloseBracket(string? name = null, bool includeSemicolon = false)
         {
             if (!string.IsNullOrWhiteSpace(name))
-            {
-                if (includeSemicolon)
-                    Line("} " + name + ";");
-                else
-                    Line("} " + name);
-            }
+                Line($"}} {name}{(includeSemicolon ? ";" : string.Empty)}");
             else
-            {
-                if (includeSemicolon)
-                    Line("};");
-                else
-                    Line("}");
-            }
+                Line(includeSemicolon ? "};" : "}");
         }
         #endregion
 

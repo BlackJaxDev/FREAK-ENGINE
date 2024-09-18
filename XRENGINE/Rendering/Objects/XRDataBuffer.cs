@@ -17,6 +17,7 @@ namespace XREngine.Rendering
         public event Action? UnmapBufferDataRequested;
         public event DelSetBlockName? SetBlockNameRequested;
         public event DelSetBlockIndex? SetBlockIndexRequested;
+        public event Action<VoidPtr>? DataPointerSet;
 
         //public XRMeshRenderer? MeshRenderer { get; set; } = null;
 
@@ -39,7 +40,7 @@ namespace XREngine.Rendering
             _normalize = normalize;
             _integral = integral;
 
-            _source = DataSource.Allocate(Length);
+            _clientSideSource = DataSource.Allocate(Length);
         }
 
         public XRDataBuffer(
@@ -124,11 +125,11 @@ namespace XREngine.Rendering
             set => SetField(ref _elementCount, value);
         }
 
-        private DataSource? _source = null;
+        private DataSource? _clientSideSource = null;
         public DataSource? Source
         {
-            get => _source;
-            set => SetField(ref _source, value);
+            get => _clientSideSource;
+            set => SetField(ref _clientSideSource, value);
         }
 
         public bool _integral = false;
@@ -155,7 +156,7 @@ namespace XREngine.Rendering
             set => SetField(ref _divisor, value);
         }
 
-        public VoidPtr Address => _source!.Address;
+        public VoidPtr Address => _clientSideSource!.Address;
 
         /// <summary>
         /// The total size in bytes of this buffer.
@@ -256,7 +257,7 @@ namespace XREngine.Rendering
         /// <param name="offset">The offset into the buffer, in bytes.</param>
         /// <returns>The T value at the given offset.</returns>
         public T? Get<T>(uint offset) where T : struct
-            => _source != null ? (T?)Marshal.PtrToStructure(_source.Address + offset, typeof(T)) : default;
+            => _clientSideSource != null ? (T?)Marshal.PtrToStructure(_clientSideSource.Address + offset, typeof(T)) : default;
 
         /// <summary>
         /// Writes the struct value into the buffer at the given index.
@@ -268,8 +269,16 @@ namespace XREngine.Rendering
         /// <param name="value">The value to write.</param>
         public void Set<T>(uint index, T value) where T : struct
         {
-            if (_source != null)
-                Marshal.StructureToPtr(value, _source.Address[index, ElementSize], true);
+            if (_clientSideSource != null)
+                Marshal.StructureToPtr(value, _clientSideSource.Address[index, ElementSize], true);
+        }
+
+        public void SetDataPointer(VoidPtr data)
+        {
+            if (_clientSideSource != null)
+                Memory.Move(_clientSideSource.Address, data, Length);
+            else
+                DataPointerSet?.Invoke(data);
         }
 
         public Remapper? SetDataRaw<T>(IList<T> list, bool remap = false) where T : struct
@@ -334,11 +343,11 @@ namespace XREngine.Rendering
                 Remapper remapper = new();
                 remapper.Remap(list, null);
                 _elementCount = remapper.ImplementationLength;
-                _source = DataSource.Allocate(Length);
+                _clientSideSource = DataSource.Allocate(Length);
                 uint stride = ElementSize;
                 for (uint i = 0; i < remapper.ImplementationLength; ++i)
                 {
-                    VoidPtr addr = _source.Address[i, stride];
+                    VoidPtr addr = _clientSideSource.Address[i, stride];
                     T value = list[remapper.ImplementationTable![i]];
                     //Debug.Write(value.ToString() + " ");
                     Marshal.StructureToPtr(value, addr, true);
@@ -349,11 +358,11 @@ namespace XREngine.Rendering
             else
             {
                 _elementCount = (uint)list.Count;
-                _source = DataSource.Allocate(Length);
+                _clientSideSource = DataSource.Allocate(Length);
                 uint stride = ElementSize;
                 for (uint i = 0; i < list.Count; ++i)
                 {
-                    VoidPtr addr = _source.Address[i, stride];
+                    VoidPtr addr = _clientSideSource.Address[i, stride];
                     T value = list[(int)i];
                     //Debug.Write(value.ToString() + " ");
                     Marshal.StructureToPtr(value, addr, true);
@@ -377,19 +386,19 @@ namespace XREngine.Rendering
                 remapper.Remap(list, null);
 
                 _elementCount = remapper.ImplementationLength;
-                _source = DataSource.Allocate(Length);
+                _clientSideSource = DataSource.Allocate(Length);
                 uint stride = ElementSize;
                 for (uint i = 0; i < remapper.ImplementationLength; ++i)
-                    list[remapper.ImplementationTable![i]].Write(_source.Address[i, stride]);
+                    list[remapper.ImplementationTable![i]].Write(_clientSideSource.Address[i, stride]);
                 return remapper;
             }
             else
             {
                 _elementCount = (uint)list.Count;
-                _source = DataSource.Allocate(Length);
+                _clientSideSource = DataSource.Allocate(Length);
                 uint stride = ElementSize;
                 for (uint i = 0; i < list.Count; ++i)
-                    list[(int)i].Write(_source.Address[i, stride]);
+                    list[(int)i].Write(_clientSideSource.Address[i, stride]);
                 return null;
             }
         }
@@ -410,7 +419,7 @@ namespace XREngine.Rendering
             for (uint i = 0; i < _elementCount; ++i)
             {
                 T value = default;
-                value.Read(_source!.Address[i, stride]);
+                value.Read(_clientSideSource!.Address[i, stride]);
                 array[i] = value;
             }
 
@@ -483,7 +492,7 @@ namespace XREngine.Rendering
             uint stride = ElementSize;
             array = new T[_elementCount];
             for (uint i = 0; i < _elementCount; ++i)
-                array[i] = Marshal.PtrToStructure<T>(_source!.Address[i, stride]);
+                array[i] = Marshal.PtrToStructure<T>(_clientSideSource!.Address[i, stride]);
             
             if (!remap)
                 return null;
@@ -508,10 +517,10 @@ namespace XREngine.Rendering
             //if (disposing)
             //    Destroy();
 
-            if (_source != null)
+            if (_clientSideSource != null)
             {
-                _source.Dispose();
-                _source = null;
+                _clientSideSource.Dispose();
+                _clientSideSource = null;
             }
 
             //_vaoId = 0;

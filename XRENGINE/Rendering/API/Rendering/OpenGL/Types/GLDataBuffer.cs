@@ -144,7 +144,11 @@ namespace XREngine.Rendering.OpenGL
                 }
             }
 
-            public void MapBufferData()
+            public void MapBufferData(
+                bool read = true,
+                bool write = true,
+                bool persistent = true,
+                bool coherent = true)
             {
                 if (Data.ActivelyMapping.Contains(this))
                     return;
@@ -183,13 +187,23 @@ namespace XREngine.Rendering.OpenGL
             }
 
             public void SetBlockName(XRRenderProgram program, string blockName)
-                => SetBlockIndex(Api.GetUniformBlockIndex(Renderer.GenericToAPI<GLRenderProgram>(program).BindingId, blockName));
+                => SetBlockIndex(Api.GetUniformBlockIndex(Renderer.GenericToAPI<GLRenderProgram>(program)!.BindingId, blockName));
 
             public void SetBlockIndex(uint blockIndex)
-                => Api.BindBufferBase(OpenGLRenderer.ToGLEnum(base.Data.Target), blockIndex, BindingId);
+                => Api.BindBufferBase(OpenGLRenderer.ToGLEnum(Data.Target), blockIndex, BindingId);
 
             protected internal override void PreDeleted()
                 => UnmapBufferData();
+
+            public void Bind()
+            {
+                Api.BindBuffer(OpenGLRenderer.ToGLEnum(Data.Target), BindingId);
+            }
+
+            public void Unbind()
+            {
+                Api.BindBuffer(OpenGLRenderer.ToGLEnum(Data.Target), 0);
+            }
         }
     }
 }

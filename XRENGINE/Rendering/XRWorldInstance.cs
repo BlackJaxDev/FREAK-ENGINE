@@ -77,8 +77,7 @@ namespace XREngine.Rendering
             PreBeginPlay.Invoke(this);
             PhysicsScene.Initialize();
             BeginPlayInternal();
-            Time.Timer.UpdateFrame += Update;
-            Time.Timer.FixedUpdate += FixedUpdate;
+            LinkTimeCallbacks();
             PostBeginPlay.Invoke(this);
         }
 
@@ -89,13 +88,13 @@ namespace XREngine.Rendering
                 if (node.IsActiveSelf)
                     node.Start();
             IsPlaying = true;
-            Task.Run(RecalcTransforms);
+            //Task.Run(RecalcTransforms);
         }
 
         public void EndPlay()
         {
             PreEndPlay.Invoke(this);
-            Time.Timer.UpdateFrame -= Update;
+            UnlinkTimeCallbacks();
             PhysicsScene.Destroy();
             EndPlayInternal();
             PostEndPlay.Invoke(this);
@@ -108,22 +107,56 @@ namespace XREngine.Rendering
                     node.Stop();
             IsPlaying = false;
         }
-        
-        public async Task RecalcTransforms()
+
+        private void SwapBuffers()
+        {
+            ConsumeTransformChanges();
+            VisualScene.SwapBuffers();
+        }
+
+        private void LinkTimeCallbacks()
+        {
+            Time.Timer.UpdateFrame += Update;
+            Time.Timer.FixedUpdate += FixedUpdate;
+            Time.Timer.SwapBuffers += SwapBuffers;
+        }
+
+        private void UnlinkTimeCallbacks()
+        {
+            Time.Timer.UpdateFrame -= Update;
+            Time.Timer.FixedUpdate -= FixedUpdate;
+            Time.Timer.SwapBuffers -= SwapBuffers;
+        }
+
+        public void ConsumeTransformChanges()
+        {
+            static void TaskRunner(TransformBase t)
+                => t.TryParallelDepthRecalculate();
+
+            foreach (var key in DirtyTransforms.Keys)
+            {
+                var (set, locker) = DirtyTransforms[key];
+                set.ForEach(TaskRunner);
+            }
+        }
+
+        public async Task ConsumeTransformChangesAsync()
         {
             static Task TaskRunner(TransformBase t)
                 => Task.Run(t.TryParallelDepthRecalculate);
 
-            while (IsPlaying)
+            foreach (var key in DirtyTransforms.Keys)
             {
-                foreach (var key in DirtyTransforms.Keys)
-                {
-                    var (set, locker) = DirtyTransforms[key];
-                    //locker.EnterReadLock();
-                    await Task.WhenAll(set.Select(TaskRunner));
-                    //locker.ExitReadLock();
-                }
+                var (set, locker) = DirtyTransforms[key];
+                //locker.EnterReadLock();
+                await Task.WhenAll(set.Select(TaskRunner));
+                //locker.ExitReadLock();
             }
+        }
+        public async Task RecalcTransforms()
+        {
+            while (IsPlaying)
+                await ConsumeTransformChangesAsync();
         }
         /// <summary>
         /// Dictionary of dirty transforms that need to be recalculated.
@@ -176,6 +209,8 @@ namespace XREngine.Rendering
                 }
             }
         }
+
+        public EventList<CameraComponent> FramebufferCameras { get; } = [];
 
         public void LoadScene(XRScene scene)
         {

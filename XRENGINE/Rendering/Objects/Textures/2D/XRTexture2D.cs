@@ -2,6 +2,7 @@
 using ImageMagick.Drawing;
 using XREngine.Data.Rendering;
 using XREngine.Data.Vectors;
+using static XREngine.Rendering.OpenGL.OpenGLRenderer;
 
 namespace XREngine.Rendering
 {
@@ -266,5 +267,46 @@ namespace XREngine.Rendering
                 UWrap = ETexWrapMode.ClampToEdge,
                 VWrap = ETexWrapMode.ClampToEdge,
             };
+
+        private XRDataBuffer? _pbo;
+        public bool ShouldLoadDataFromPBO
+        {
+            get => _pbo != null;
+            set
+            {
+                if (value)
+                {
+                    if (_pbo == null)
+                    {
+                        _pbo = new XRDataBuffer(EBufferTarget.PixelUnpackBuffer, true);
+                        _pbo.Generate();
+                    }
+                }
+                else
+                {
+                    if (_pbo != null)
+                    {
+                        _pbo.Destroy();
+                        _pbo = null;
+                    }
+                }
+            }
+        }
+
+        public unsafe void LoadFromPBO(int mipIndex)
+        {
+            if (_pbo is null)
+                return;
+
+            MagickImage mipmap = Mipmaps[mipIndex];
+            if (mipmap is null)
+                return;
+
+            _pbo.MapBufferData();
+            var dataPtr = mipmap.GetPixelsUnsafe().GetAreaPointer(0, 0, mipmap.Width, mipmap.Height).ToPointer();
+            _pbo.SetDataPointer(dataPtr);
+            _pbo.UnmapBufferData();
+        }
+
     }
 }

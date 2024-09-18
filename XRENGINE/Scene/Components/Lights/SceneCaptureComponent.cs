@@ -129,7 +129,7 @@ namespace XREngine.Components.Lights
                     (depthAttachment, EFrameBufferAttachment.DepthAttachment, 0, depthLayer));
 
                 _viewport!.Camera = RenderFBO.Cameras[i];
-                _viewport.RenderPipeline.Render(scene3D, _viewport.Camera, _viewport, RenderFBO, false);
+                _viewport.Render(World.VisualScene, RenderFBO, true);
             }
 
             if (_envTex is not null)

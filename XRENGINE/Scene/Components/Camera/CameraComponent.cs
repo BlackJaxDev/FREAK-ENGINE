@@ -1,9 +1,14 @@
 ﻿using Extensions;
 using System.ComponentModel;
+using System.Numerics;
+using XREngine.Data.Components;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
+using XREngine.Data.Trees;
 using XREngine.Input;
 using XREngine.Rendering;
+using XREngine.Rendering.Info;
+using XREngine.Scene.Transforms;
 
 namespace XREngine.Components
 {
@@ -15,11 +20,29 @@ namespace XREngine.Components
         private readonly Lazy<XRCamera> _camera;
         public XRCamera Camera => _camera.Value;
 
+        private XRFrameBuffer? _defaultRenderTarget = null;
+        public XRFrameBuffer? DefaultRenderTarget 
+        {
+            get => _defaultRenderTarget;
+            set => SetField(ref _defaultRenderTarget, value);
+        }
+
         private ELocalPlayerIndex? _localPlayerIndex = null;
         public ELocalPlayerIndex? LocalPlayerIndex
         {
             get => _localPlayerIndex;
             set => SetField(ref _localPlayerIndex, value);
+        }
+
+        private RenderPipeline? _renderPipeline = null;
+        /// <summary>
+        /// This is the rendering setup this viewport will use to render the scene the camera sees.
+        /// A render pipeline is a collection of render passes that will be executed in order to render the scene and post-process the result, etc.
+        /// </summary>
+        public RenderPipeline RenderPipeline
+        {
+            get => _renderPipeline ?? SetFieldReturn(ref _renderPipeline, Engine.Rendering.NewRenderPipeline())!;
+            set => SetField(ref _renderPipeline, value);
         }
 
         public UICanvasComponent? _userInterface;
@@ -84,6 +107,14 @@ namespace XREngine.Components
                         if (LocalPlayerIndex is not null)
                             Engine.State.GetLocalPlayer(LocalPlayerIndex.Value)?.Cameras.Remove(this);
                         break;
+                    case nameof(DefaultRenderTarget):
+                        if (DefaultRenderTarget is not null && World is not null)
+                            World.FramebufferCameras.Remove(this);
+                        break;
+                    case nameof(World):
+                        if (DefaultRenderTarget is not null && World is not null)
+                            World.FramebufferCameras.Remove(this);
+                        break;
                 }
             }
             return change;
@@ -96,6 +127,20 @@ namespace XREngine.Components
                 case nameof(LocalPlayerIndex):
                     if (LocalPlayerIndex is not null)
                         Engine.State.GetLocalPlayer(LocalPlayerIndex.Value)?.Cameras.Add(this);
+                    break;
+                case nameof(RenderPipeline):
+                    if (_fboRenderPipeline is not null)
+                        _fboRenderPipeline.Pipeline = RenderPipeline;
+                    break;
+                case nameof(DefaultRenderTarget):
+                    if (DefaultRenderTarget is not null && World is not null)
+                        if (!World.FramebufferCameras.Contains(this))
+                            World.FramebufferCameras.Add(this);
+                    break;
+                case nameof(World):
+                    if (DefaultRenderTarget is not null && World is not null)
+                        if (!World.FramebufferCameras.Contains(this))
+                            World.FramebufferCameras.Add(this);
                     break;
             }
         }
@@ -134,5 +179,52 @@ namespace XREngine.Components
                     break;
             }
         }
+
+        private readonly XRRenderPipelineInstance _fboRenderPipeline = new();
+
+        //public List<View> CalculateMirrorBounces(int max = 4)
+        //{
+        //    List<View> bounces = [];
+        //    if (max < 1)
+        //        return bounces;
+
+        //    Frustum lastFrustum = Camera.WorldFrustum();
+        //    bounces.Add(new View(Camera.WorldViewProjectionMatrix, lastFrustum));
+        //    //Determine if there are any mirror components that intersect the camera frustum
+        //    if (World?.VisualScene?.RenderablesTree is not I3DRenderTree tree)
+        //        return bounces;
+
+        //    SortedSet<RenderInfo3D> mirrors = [];
+        //    tree.CollectIntersecting(lastFrustum, false, x =>
+        //    {
+        //        if (x is RenderInfo3D info && info.Owner is MirrorComponent mirror)
+        //            return true;
+        //    });
+        //    Matrix4x4 mirrorScaleZ = Matrix4x4.CreateScale(1, 1, -1);
+        //    foreach (var mirror in Engine.State.GetComponents<MirrorComponent>())
+        //    {
+        //        if (mirror.CullWithFrustum && !lastFrustum.Intersects(mirror.WorldVolume))
+        //            continue;
+
+        //        //Calculate the reflection matrix
+        //        Matrix4x4 mirrorMatrix = mirror.WorldMatrix;
+        //        Matrix4x4 reflectionMatrix = mirrorScaleZ * mirrorMatrix;
+        //        Matrix4x4 mvp = Camera.WorldViewProjectionMatrix * reflectionMatrix;
+        //        Frustum frustum = lastFrustum.Transform(reflectionMatrix);
+        //        bounces.Add(new View(mvp, frustum));
+        //        lastFrustum = frustum;
+        //    }
+
+
+        //    return bounces;
+        //}
+    }
+
+    internal record struct View(Matrix4x4 MVP, Frustum Frustum)
+    {
+        public static implicit operator (Matrix4x4 mvp, Frustum frustum)(View value)
+            => (value.MVP, value.Frustum);
+        public static implicit operator View((Matrix4x4 mvp, Frustum frustum) value)
+            => new(value.mvp, value.frustum);
     }
 }

@@ -5,6 +5,7 @@ using System.Numerics;
 using XREngine.Data.Core;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
+using XREngine.Rendering.Shaders.Generator;
 using XREngine.Scene.Transforms;
 
 namespace XREngine.Rendering
@@ -39,9 +40,9 @@ namespace XREngine.Rendering
             List<Vertex> triangles = [];
 
             Dictionary<TransformBase, float>[]? weights = null;
-            Vector3[] posBuffers;
-            Vector3[]? normBuffers = null;
-            Vector3[]? tanBuffers = null;
+            Vector3[] posBuffer;
+            Vector3[]? normBuffer = null;
+            Vector3[]? tanBuffer = null;
             Vector4[][]? colorBuffers = null;
             Vector2[][]? uvBuffers = null;
 
@@ -54,6 +55,7 @@ namespace XREngine.Rendering
             bool hasTangents = false;
             int maxColorCount = 0;
             int maxTexCoordCount = 0;
+            bool hasBlendshapes = false;
 
             //For each vertex, we double check what data it has and add verify that the corresponding add-to-buffer action is added
             void AddVertex(List<Vertex> vertices, Vertex v)
@@ -74,7 +76,7 @@ namespace XREngine.Rendering
                     hasNormals = true;
                     vertexActions.Add((i, x, vtx) =>
                     {
-                        normBuffers![i] = vtx.Normal ?? Vector3.Zero;
+                        normBuffer![i] = vtx.Normal ?? Vector3.Zero;
                     });
                 }
 
@@ -83,7 +85,7 @@ namespace XREngine.Rendering
                     hasTangents = true;
                     vertexActions.Add((i, x, vtx) =>
                     {
-                        tanBuffers![i] = vtx.Tangent ?? Vector3.Zero;
+                        tanBuffer![i] = vtx.Tangent ?? Vector3.Zero;
                     });
                 }
 
@@ -108,6 +110,25 @@ namespace XREngine.Rendering
                             colorBuffers![colorIndex][i] = vtx.ColorSets != null && colorIndex < vtx.ColorSets.Count
                                 ? vtx.ColorSets[colorIndex]
                                 : Vector4.Zero;
+                    });
+                }
+
+                if (!hasBlendshapes && v.Blendshapes is not null && v.Blendshapes.Count > 0)
+                {
+                    hasBlendshapes = true;
+                    vertexActions.Add((i, x, vtx) =>
+                    {
+                        foreach (var pair in vtx.Blendshapes!)
+                        {
+                            string name = pair.Key;
+                            var data = pair.Value;
+                            Vector3 deltaPos = data.Position - vtx.Position;
+                            Vector3? deltaNorm = data.Normal - vtx.Normal;
+                            Vector3? deltaTan = data.Tangent - vtx.Tangent;
+                            //List<Vector4> colors = data.ColorSets;
+                            //List<Vector2> texCoords = data.TextureCoordinateSets;
+
+                        }
                     });
                 }
             }
@@ -187,9 +208,9 @@ namespace XREngine.Rendering
 
             InitBuffers(
                 ref weights,
-                out posBuffers,
-                ref normBuffers,
-                ref tanBuffers,
+                out posBuffer,
+                ref normBuffer,
+                ref tanBuffer,
                 ref colorBuffers,
                 ref uvBuffers,
                 hasSkinning,
@@ -199,7 +220,7 @@ namespace XREngine.Rendering
                 maxTexCoordCount,
                 firstAppearanceArray.Length);
 
-            vertexActions.Add((i, x, vtx) => posBuffers[i] = vtx.Position);
+            vertexActions.Add((i, x, vtx) => posBuffer[i] = vtx.Position);
 
             //Fill the buffers with the vertex data using the command list
             //We can do this in parallel since each vertex is independent
@@ -215,26 +236,51 @@ namespace XREngine.Rendering
             if (weights is not null)
                 SetBoneWeights(weights);
 
-            //TODO: blendshape support
-            //for (uint i = 0; i < info.BlendshapeCount + 1; ++i)
-            //{
-            //    AddBuffer(posBuffers, new VertexAttribInfo(EBufferType.Position, i));
+            string binding = DefaultVertexShaderGenerator.VertPosName;
+            PositionsBuffer = new XRDataBuffer(binding, EBufferTarget.ArrayBuffer, false);
+            PositionsBuffer.SetDataRaw(posBuffer);
+            Buffers.Add(binding, PositionsBuffer);
 
-            //    if (normBuffers is not null)
-            //        AddBuffer(normBuffers, new VertexAttribInfo(EBufferType.Normal, i));
+            if (normBuffer is not null)
+            {
+                binding = DefaultVertexShaderGenerator.VertNormName;
+                NormalsBuffer = new XRDataBuffer(binding, EBufferTarget.ArrayBuffer, false);
+                NormalsBuffer.SetDataRaw(normBuffer);
+                Buffers.Add(binding, NormalsBuffer);
+            }
 
-            //    if (tanBuffers is not null)
-            //        AddBuffer(tanBuffers, new VertexAttribInfo(EBufferType.Tangent, i));
+            if (tanBuffer is not null)
+            {
+                binding = DefaultVertexShaderGenerator.VertTanName;
+                TangentsBuffer = new XRDataBuffer(binding, EBufferTarget.ArrayBuffer, false);
+                TangentsBuffer.SetDataRaw(tanBuffer);
+                Buffers.Add(binding, TangentsBuffer);
+            }
 
-            //    if (colorBuffers is not null)
-            //        AddBuffer(colorBuffers[i], new VertexAttribInfo(EBufferType.Color, i));
+            if (colorBuffers is not null)
+            {
+                for (int colorIndex = 0; colorIndex < colorBuffers.Length; ++colorIndex)
+                {
+                    binding = string.Format(DefaultVertexShaderGenerator.VertColorName, colorIndex);
+                    ColorBuffers[colorIndex] = new XRDataBuffer(binding, EBufferTarget.ArrayBuffer, false);
+                    ColorBuffers[colorIndex].SetDataRaw(colorBuffers[colorIndex]);
+                    Buffers.Add(binding, ColorBuffers[colorIndex]);
+                }
+            }
 
-            //    if (uvBuffers is not null)
-            //        AddBuffer(uvBuffers[i], new VertexAttribInfo(EBufferType.TexCoord, i));
-            //}
+            if (uvBuffers is not null)
+            {
+                for (int texCoordIndex = 0; texCoordIndex < uvBuffers.Length; ++texCoordIndex)
+                {
+                    binding = string.Format(DefaultVertexShaderGenerator.VertUVName, texCoordIndex);
+                    TexCoordBuffers[texCoordIndex] = new XRDataBuffer(binding, EBufferTarget.ArrayBuffer, false);
+                    TexCoordBuffers[texCoordIndex].SetDataRaw(uvBuffers[texCoordIndex]);
+                    Buffers.Add(binding, TexCoordBuffers[texCoordIndex]);
+                }
+            }
         }
 
-        private static void InitBuffers(
+        private void InitBuffers(
             ref Dictionary<TransformBase, float>[]? weights,
             out Vector3[] posBuffer,
             ref Vector3[]? normBuffer,
@@ -262,6 +308,7 @@ namespace XREngine.Rendering
             if (maxColorCount > 0)
             {
                 colorBuffers = new Vector4[maxColorCount][];
+                ColorBuffers = new XRDataBuffer[maxColorCount];
                 for (int colorIndex = 0; colorIndex < maxColorCount; ++colorIndex)
                 {
                     if (colorBuffers[colorIndex] is null)
@@ -272,6 +319,7 @@ namespace XREngine.Rendering
             if (maxTexCoordCount > 0)
             {
                 uvBuffers = new Vector2[maxTexCoordCount][];
+                TexCoordBuffers = new XRDataBuffer[maxTexCoordCount];
                 for (int texCoordIndex = 0; texCoordIndex < maxTexCoordCount; ++texCoordIndex)
                 {
                     if (uvBuffers[texCoordIndex] is null)
@@ -367,7 +415,7 @@ namespace XREngine.Rendering
 
         #endregion
 
-        public Dictionary<string, XRDataBuffer> Buffers
+        public EventDictionary<string, XRDataBuffer> Buffers
         {
             get => _buffers;
             set => SetField(ref _buffers, value);
@@ -430,7 +478,7 @@ namespace XREngine.Rendering
         //This is the buffer data that will be passed to the shader.
         //Each buffer may have repeated values, as there must be a value for each remapped face point.
         //The key is the binding name and the value is the buffer.
-        private Dictionary<string, XRDataBuffer> _buffers = [];
+        private EventDictionary<string, XRDataBuffer> _buffers = [];
         //Face data last
         //Face points have indices that refer to each buffer.
         //These may contain repeat buffer indices but each point is unique.

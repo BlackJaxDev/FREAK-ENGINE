@@ -215,7 +215,7 @@ namespace XREngine.Rendering.OpenGL
                 Renderer.GlobalMaterialOverride ?? 
                 (localMaterialOverride is null ? null : (Renderer.GetOrCreateAPIRenderObject(localMaterialOverride) as GLMaterial)) ??
                 Material ?? 
-                Renderer.GenericToAPI<GLMaterial>(Engine.Rendering.State.RenderPipeline!.InvalidMaterial)!;
+                Renderer.GenericToAPI<GLMaterial>(Engine.Rendering.State.CurrentPipeline!.Pipeline!.InvalidMaterial)!;
 
             public void Render(Matrix4x4 modelMatrix, XRMaterial? materialOverride, uint instances)
             {
@@ -281,7 +281,8 @@ namespace XREngine.Rendering.OpenGL
                     projMatrix = Matrix4x4.Identity;
                 }
 
-                vertexProgram.Uniform(EEngineUniform.WorldToCameraSpaceMatrix, worldMatrix);
+                vertexProgram.Uniform(EEngineUniform.ModelMatrix, Data?.SingleBind?.WorldMatrix ?? Matrix4x4.Identity);
+                vertexProgram.Uniform(EEngineUniform.ViewMatrix, worldMatrix);
                 vertexProgram.Uniform(EEngineUniform.ProjMatrix, projMatrix);
 
                 material.SetUniforms();
@@ -308,7 +309,7 @@ namespace XREngine.Rendering.OpenGL
                 }
                 else
                 {
-                    var material = Material ?? Renderer.GenericToAPI<GLMaterial>(Engine.Rendering.State.RenderPipeline!.InvalidMaterial); //Don't use GetRenderMaterial here, global and local override materials are for current render only
+                    var material = Material ?? Renderer.GenericToAPI<GLMaterial>(Engine.Rendering.State.CurrentPipeline!.Pipeline!.InvalidMaterial); //Don't use GetRenderMaterial here, global and local override materials are for current render only
                     IEnumerable<XRShader> shaders = material!.Data.Shaders;
 
                     //If the material doesn't have a vertex shader, use the default one
@@ -340,7 +341,7 @@ namespace XREngine.Rendering.OpenGL
                 _buffers = [];
                 foreach (var pair in mesh.Buffers)
                 {
-                    GLDataBuffer buffer = new(Renderer, pair.Value);
+                    GLDataBuffer buffer = Renderer.GenericToAPI<GLDataBuffer>(pair.Value)!;
                     buffer.Generate();
                     buffer.BindArrayToMeshRenderer(this);
                     _buffers.Add(pair.Key, buffer);

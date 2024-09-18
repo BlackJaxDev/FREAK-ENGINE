@@ -64,7 +64,7 @@ namespace XREngine.Rendering
         protected abstract Matrix4x4 CalculateProjectionMatrix();
 
         /// <summary>
-        /// Returns the world transformation of the left and right eyes.
+        /// Returns the world transformation of the camera.
         /// </summary>
         /// <param name="camera"></param>
         /// <param name="left"></param>

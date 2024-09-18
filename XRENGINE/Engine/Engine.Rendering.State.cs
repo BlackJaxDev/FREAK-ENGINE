@@ -62,7 +62,7 @@ namespace XREngine
                     => RenderingViewports.TryPeek(out var vp) ? vp : null;
                 public static Stack<XRViewport> RenderingViewports { get; } = new();
 
-                public static XRRenderPipeline? RenderPipeline { get; set; }
+                public static XRRenderPipelineInstance? CurrentPipeline { get; set; }
 
                 public static StateObject PushRenderingViewport(XRViewport vp)
                 {

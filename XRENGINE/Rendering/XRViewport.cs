@@ -8,6 +8,7 @@ using XREngine.Input;
 using XREngine.Physics;
 using XREngine.Physics.RayTracing;
 using XREngine.Rendering.UI;
+using XREngine.Scene;
 using State = XREngine.Engine.Rendering.State;
 
 namespace XREngine.Rendering
@@ -150,34 +151,33 @@ namespace XREngine.Rendering
         /// </summary>
         /// <param name="vp"></param>
         /// <param name="targetFbo"></param>
-        public void Render(XRFrameBuffer? targetFbo = null, bool preRenderUpdateAndSwap = false)
+        public void Render(VisualScene? sceneOverride = null, XRFrameBuffer? targetFbo = null, bool preRenderAndSwapNow = false)
         {
             XRCamera? camera = ActiveCamera;
             if (camera is null)
                 return;
 
-            var world = World;
-            if (world is null || State.RenderingViewport == this)
+            var scene = sceneOverride ?? World?.VisualScene;
+            if (scene is null || State.RenderingViewport == this)
                 return;
 
-            var scene = world.VisualScene;
-            var component = CameraComponent;
-
-            if (preRenderUpdateAndSwap)
+            var cameraComponent = CameraComponent;
+            if (preRenderAndSwapNow)
             {
-                IVolume? volume = (component?.CullWithFrustum ?? true) ? camera.WorldFrustum() : component.CullingFrustumOverride;
-                scene.PreRenderUpdate(RenderPipeline.MeshRenderCommands, volume, camera);
-                scene.PreRenderSwap();
+                IVolume? volume = (cameraComponent?.CullWithFrustum ?? true) ? camera.WorldFrustum() : cameraComponent.CullingFrustumOverride;
 
-                component?.UserInterface?.PreRenderSwap();
-                RenderPipeline.MeshRenderCommands.SwapBuffers();
+                scene.PreRender(_renderPipeline.MeshRenderCommands, volume, camera);
+                scene.SwapBuffers();
+
+                if (cameraComponent?.UserInterface is not null)
+                {
+                    cameraComponent.UserInterface.PreRender(this, cameraComponent);
+                    cameraComponent.UserInterface.SwapBuffers();
+                }
+
+                PreRender();
+                _renderPipeline.MeshRenderCommands.SwapBuffers();
             }
-
-            targetFbo ??= RenderPipeline.DefaultRenderTarget;
-
-            scene.PreRender(this, camera);
-
-            component?.UserInterface?.PreRender(this, component);
 
             using (State.PushRenderingViewport(this))
             {
@@ -188,13 +188,7 @@ namespace XREngine.Rendering
                 //    iblCap = true;
                 //}
 
-                //TODO: assign a requested render pipeline via the camera component. Cache FBOs to the viewport for that camera component.
-                RenderPipeline.Render(
-                    world.VisualScene,
-                    camera,
-                    this,
-                    targetFbo,
-                    false);
+                _renderPipeline.Render(scene, camera, this, targetFbo, false);
 
                 //hud may sample scene colors, render it after scene
                 //if (vp.RenderPipeline.UserInterfaceFBO is not null)
@@ -205,17 +199,7 @@ namespace XREngine.Rendering
             }
         }
 
-
-        private XRRenderPipeline? _renderPipeline = null;
-        /// <summary>
-        /// This is the rendering setup this viewport will use to render the scene the camera sees.
-        /// A render pipeline is a collection of render passes that will be executed in order to render the scene and post-process the result, etc.
-        /// </summary>
-        public XRRenderPipeline RenderPipeline
-        {
-            get => _renderPipeline ?? SetFieldReturn(ref _renderPipeline, Engine.Rendering.NewRenderPipeline())!;
-            set => SetField(ref _renderPipeline, value);
-        }
+        private readonly XRRenderPipelineInstance _renderPipeline = new();
 
         protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
         {
@@ -225,10 +209,11 @@ namespace XREngine.Rendering
                 switch (propName)
                 {
                     case nameof(Camera):
-                        _camera?.Viewports.Remove(this);
-                        break;
-                    case nameof(RenderPipeline):
-                        _renderPipeline?.DestroyCache();
+                        if (_camera is not null)
+                        {
+                            _camera.Viewports.Remove(this);
+                            Engine.Time.Timer.PreRenderFrame -= PreRender;
+                        }
                         break;
                 }
             }
@@ -243,17 +228,21 @@ namespace XREngine.Rendering
                     if (_camera is not null)
                     {
                         _camera.Viewports.Add(this);
-                        if (_camera.Parameters is XRPerspectiveCameraParameters p)
-                            p.AspectRatio = (float)Width / Height;
+                        SetAspectRatioToCamera();
+                        Engine.Time.Timer.PreRenderFrame += PreRender;
                     }
                     break;
                 case nameof(CameraComponent):
+                    ResizeCameraComponentUI();
                     Camera = CameraComponent?.Camera;
-                    break;
-                case nameof(RenderPipeline):
-                    _renderPipeline?.GenerateCommandChain();
+                    _renderPipeline.Pipeline = CameraComponent?.RenderPipeline;
                     break;
             }
+        }
+
+        private void PreRender()
+        {
+
         }
 
         /// <summary>
@@ -279,16 +268,33 @@ namespace XREngine.Rendering
             _region.Width = (int)(_rightPercentage * w - _region.X);
             _region.Height = (int)(_topPercentage * h - _region.Y);
 
-            if (setInternalResolution) 
+            if (setInternalResolution)
                 SetInternalResolution(
                     internalResolutionWidth <= 0 ? _region.Width : internalResolutionWidth,
                     internalResolutionHeight <= 0 ? _region.Height : internalResolutionHeight,
                     true);
 
+            ResizeCameraComponentUI();
+            SetAspectRatioToCamera();
+            ResizeRenderPipeline();
+        }
+
+        private void ResizeRenderPipeline()
+        {
+            _renderPipeline.ViewportResized(Width, Height);
+        }
+
+        private void SetAspectRatioToCamera()
+        {
+            if (Camera?.Parameters is not XRPerspectiveCameraParameters p || !p.InheritAspectRatio)
+                return;
+
+            p.AspectRatio = (float)_region.Width / _region.Height;
+        }
+
+        private void ResizeCameraComponentUI()
+        {
             CameraComponent?.UserInterface?.Resize(_region.Extents);
-            if (Camera?.Parameters is XRPerspectiveCameraParameters p && p.InheritAspectRatio)
-                p.AspectRatio = (float)_region.Width / _region.Height;
-            RenderPipeline.ViewportResized(Width, Height);
         }
 
         /// <summary>
@@ -309,7 +315,7 @@ namespace XREngine.Rendering
                 else
                     _internalResolutionRegion.Width = (int)(_internalResolutionRegion.Height * aspect);
             }
-            RenderPipeline.InternalResolutionResized(InternalWidth, InternalHeight);
+            _renderPipeline.InternalResolutionResized(InternalWidth, InternalHeight);
         }
 
         #region Coordinate conversion

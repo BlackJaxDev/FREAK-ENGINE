@@ -4,24 +4,27 @@
     {
         UpdateDelta,
 
+        //Multiply together in the shader
         ModelMatrix,
-        WorldToCameraSpaceMatrix,
+
+        ViewMatrix, //Desktop
+        LeftEyeViewMatrix, //Stereo
+        RightEyeViewMatrix, //Stereo
+
         ProjMatrix, //Desktop
         LeftEyeProjMatrix, //VR
         RightEyeProjMatrix, //VR
-        NormalMatrix,
 
-        InvModelMatrix,
-        CameraToWorldSpaceMatrix,
-        InvProjMatrix,
-
+        //Multiply together in the shader
         PrevModelMatrix,
-        PrevViewMatrix,
-        PrevProjMatrix,
 
-        PrevInvModelMatrix,
-        PrevInvViewMatrix,
-        PrevInvProjMatrix,
+        PrevViewMatrix, //Desktop
+        PrevLeftEyeViewMatrix, //Stereo
+        PrevRightEyeViewMatrix, //Stereo
+        
+        PrevProjMatrix, //Desktop
+        PrevLeftEyeProjMatrix, //VR
+        PrevRightEyeProjMatrix, //VR
 
         ScreenWidth,
         ScreenHeight,

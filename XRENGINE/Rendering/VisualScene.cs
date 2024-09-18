@@ -25,7 +25,7 @@ namespace XREngine.Scene
         /// <param name="commands"></param>
         /// <param name="collectionVolume"></param>
         /// <param name="camera"></param>
-        public void PreRenderUpdate(RenderCommandCollection commands, IVolume? collectionVolume, XRCamera camera)
+        public void PreRender(RenderCommandCollection commands, IVolume? collectionVolume, XRCamera camera)
         {
             CollectRenderedItems(commands, collectionVolume, camera);
 
@@ -69,8 +69,10 @@ namespace XREngine.Scene
         //public void CollectVisible(RenderCommandCollection passes, IVolume collectionVolume, XRCamera camera)
         //    => Tree.CollectVisible(collectionVolume, false, x => x.AddRenderCommands(passes, camera));
 
-        public void PreRenderSwap()
+        public void SwapBuffers()
         {
+            RenderablesTree.Swap();
+
             foreach (IPreRendered p in _preRenderRemoveWaitList)
                 _preRenderList.Remove(p);
             foreach (IPreRendered p in _preRenderAddWaitList)
@@ -82,12 +84,6 @@ namespace XREngine.Scene
             //foreach (IPreRendered p in _preRenderList)
             //    if (p.PreRenderEnabled)
             //        p.PreRenderSwap();
-        }
-        public void PreRender(XRViewport? viewport, XRCamera camera)
-        {
-            foreach (IPreRendered p in _preRenderList)
-                if (p.PreRenderEnabled)
-                    p.PreRender(viewport, camera);
         }
         public void AddPreRenderedObject(IPreRendered obj)
         {

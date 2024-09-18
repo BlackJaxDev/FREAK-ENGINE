@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Numerics;
+using XREngine.Data.Core;
 using XREngine.Data.Rendering;
 
 namespace XREngine.Data.Geometry
@@ -31,12 +32,41 @@ namespace XREngine.Data.Geometry
 
         private readonly Plane[] _planes;
 
-        public Plane Left => _planes[0];
-        public Plane Right => _planes[1];
-        public Plane Bottom => _planes[2];
-        public Plane Top => _planes[3];
-        public Plane Near => _planes[4];
-        public Plane Far => _planes[5];
+        public Plane Left
+        {
+            get => _planes[0];
+            set => _planes[0] = value;
+        }
+
+        public Plane Right
+        {
+            get => _planes[1];
+            set => _planes[1] = value;
+        }
+
+        public Plane Bottom
+        {
+            get => _planes[2];
+            set => _planes[2] = value;
+        }
+
+        public Plane Top
+        {
+            get => _planes[3];
+            set => _planes[3] = value;
+        }
+
+        public Plane Near
+        {
+            get => _planes[4];
+            set => _planes[4] = value;
+        }
+
+        public Plane Far
+        {
+            get => _planes[5];
+            set => _planes[5] = value;
+        }
 
         private Frustum(Plane[] planes) => _planes = planes;
         public Frustum() => _planes = new Plane[6];
@@ -91,12 +121,66 @@ namespace XREngine.Data.Geometry
             return Math.Abs(Vector3.Dot(normal, point) + plane.D) / normal.Length();
         }
 
+        /// <summary>
+        /// Retrieves a slice of the frustum between two depths
+        /// </summary>
+        /// <param name="startDepth"></param>
+        /// <param name="endDepth"></param>
+        /// <returns></returns>
         public Frustum GetFrustumSlice(float startDepth, float endDepth)
         {
             Frustum f = Clone();
             f[4] = new Plane(_planes[4].Normal, _planes[4].D - startDepth);
             f[5] = new Plane(_planes[5].Normal, _planes[5].D + endDepth);
             return f;
+        }
+
+        public Plane GetBetweenNearAndFar(bool normalFacesNear)
+            => GetBetween(normalFacesNear, Near, Far);
+        public Plane GetBetweenLeftAndRight(bool normalFacesLeft)
+            => GetBetween(normalFacesLeft, Left, Right);
+        public Plane GetBetweenTopAndBottom(bool normalFacesTop)
+            => GetBetween(normalFacesTop, Top, Bottom);
+        public static Plane GetBetween(bool normalFacesFirst, Plane first, Plane second)
+        {
+            Vector3 topPoint = XRMath.GetPlanePoint(first);
+            Vector3 bottomPoint = XRMath.GetPlanePoint(second);
+            Vector3 normal = Vector3.Normalize(normalFacesFirst 
+                ? second.Normal - first.Normal 
+                : first.Normal - second.Normal);
+            Vector3 midPoint = (topPoint + bottomPoint) / 2.0f;
+            return XRMath.CreatePlaneFromPointAndNormal(midPoint, normal);
+        }
+
+        /// <summary>
+        /// Divides the frustum into four frustum quadrants
+        /// </summary>
+        /// <returns></returns>
+        public void DivideIntoFourths(
+            out Frustum topLeft,
+            out Frustum topRight,
+            out Frustum bottomLeft,
+            out Frustum bottomRight)
+        {
+            topLeft = Clone();
+            //Fix bottom and right planes
+            topLeft.Bottom = GetBetweenTopAndBottom(true);
+            topLeft.Right = GetBetweenLeftAndRight(true);
+
+            topRight = Clone();
+            //Fix bottom and left planes
+            topRight.Bottom = GetBetweenTopAndBottom(true);
+            topRight.Left = GetBetweenLeftAndRight(false);
+
+            bottomLeft = Clone();
+            //Fix top and right planes
+            bottomLeft.Top = GetBetweenTopAndBottom(false);
+            bottomLeft.Right = GetBetweenLeftAndRight(true);
+
+            bottomRight = Clone();
+            //Fix top and left planes
+            bottomRight.Top = GetBetweenTopAndBottom(false);
+            bottomRight.Left = GetBetweenLeftAndRight(false);
         }
 
         public IEnumerator<Plane> GetEnumerator() => ((IEnumerable<Plane>)_planes).GetEnumerator();

@@ -6,7 +6,7 @@ namespace XREngine.Rendering.Models.Materials
     public class ShaderUVector3 : ShaderVar
     {
         [Browsable(false)]
-        public override EShaderVarType TypeName => EShaderVarType._uVector3;
+        public override EShaderVarType TypeName => EShaderVarType._uvec3;
         [Category(CategoryName)]
         public UVector3 Value { get => _value; set { _value = value; OnValueChanged(); } }
         protected override void SetProgramUniform(XRRenderProgram program, string location)

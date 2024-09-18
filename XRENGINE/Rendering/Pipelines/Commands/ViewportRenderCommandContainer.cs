@@ -3,7 +3,7 @@ using XREngine.Data.Core;
 
 namespace XREngine.Rendering.Pipelines.Commands
 {
-    public class ViewportRenderCommandContainer(XRRenderPipeline pipeline) : XRBase, IReadOnlyList<ViewportRenderCommand>
+    public class ViewportRenderCommandContainer : XRBase, IReadOnlyList<ViewportRenderCommand>
     {
         private readonly List<ViewportRenderCommand> _commands = [];
         public IReadOnlyList<ViewportRenderCommand> Commands => _commands;
@@ -12,8 +12,6 @@ namespace XREngine.Rendering.Pipelines.Commands
         //public bool ModifyingFBOs { get; protected set; } = false;
 
         public int Count => Commands.Count;
-
-        public XRRenderPipeline Pipeline { get; } = pipeline;
 
         public ViewportRenderCommand this[int index] => Commands[index];
 

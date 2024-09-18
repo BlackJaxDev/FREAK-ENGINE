@@ -118,6 +118,7 @@ namespace XREngine.Rendering.OpenGL
             }
             else
             {
+                // If a non-zero named buffer object is bound to the GL_PIXEL_UNPACK_BUFFER target (see glBindBuffer) while a texture image is specified, data is treated as a byte offset into the buffer object's data store. 
                 GetFormat(bmp, Data.InternalCompression, out GLEnum internalPixelFormat, out GLEnum pixelFormat, out GLEnum pixelType);
                 var bytes = bmp.GetPixelsUnsafe().GetAreaPointer(0, 0, bmp.Width, bmp.Height).ToPointer();
                 if (_hasPushed || _storageSet)

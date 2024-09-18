@@ -1,24 +1,41 @@
-﻿using Extensions;
-using System.Numerics;
-using XREngine.Data;
+﻿using System.Numerics;
 using XREngine.Data.Colors;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
-using XREngine.Data.Trees;
 using XREngine.Rendering;
 using XREngine.Rendering.Commands;
 using XREngine.Rendering.Info;
+using XREngine.Rendering.Pipelines.Commands;
 using XREngine.Scene;
 
 namespace XREngine.Components.Lights
 {
+    //public class ShadowRenderPipeline : RenderPipeline
+    //{
+    //    protected override ViewportRenderCommandContainer GenerateCommandChain()
+    //    {
+
+    //    }
+    //    protected override Dictionary<int, IComparer<RenderCommand>?> GetPassIndicesAndSorters()
+    //    {
+    //        return new()
+    //        {
+    //            //{ 0, _nearToFarSorter }, //No background pass
+    //            { 1, null }, //OpaqueDeferredLit
+    //            //{ 2, _nearToFarSorter }, //No decals
+    //            { 3, null }, //OpaqueForward
+    //            { 4, null }, //TransparentForward
+    //            //{ 5, _nearToFarSorter }, //No on top (UI)
+    //        };
+    //    }
+    //}
+
     public abstract class LightComponent : XRComponent, IRenderable
     {
         protected ColorF3 _color = new(1.0f, 1.0f, 1.0f);
         protected float _diffuseIntensity = 1.0f;
 
         protected int _lightIndex = -1;
-        protected RenderCommandCollection _renderCommands;
         private XRMaterialFrameBuffer? _shadowMap;
         private XRCamera? _shadowCamera;
 
@@ -39,21 +56,10 @@ namespace XREngine.Components.Lights
         {
             //This can have a limited number of render passes compared to a normal, non-shadow pass render
             //No sorting is needed either
-            _renderCommands = new RenderCommandCollection(new()
-            {
-                //{ 0, _nearToFarSorter }, //No background pass
-                { 1, null }, //OpaqueDeferredLit
-                //{ 2, _nearToFarSorter }, //No decals
-                { 3, null }, //OpaqueForward
-                { 4, null }, //TransparentForward
-                //{ 5, _nearToFarSorter }, //No on top (UI)
-            })
-            {
-                IsShadowPass = true
-            };
             RenderInfo = RenderInfo3D.New(this);
             RenderInfo.VisibleInLightingProbes = false;
             RenderedObjects = [RenderInfo];
+            //ShadowRenderPipeline = new ShadowRenderPipeline();
         }
 
         public Matrix4x4 LightMatrix
@@ -168,42 +174,19 @@ namespace XREngine.Components.Lights
             if (!CastsShadows || ShadowCamera is null)
                 return;
 
-            void AddRenderable(RenderInfo renderable)
-            {
-                renderable.AddRenderCommands(_renderCommands, ShadowCamera);
-            }
-            void AddOctreeItem(IOctreeItem octreeItem)
-            {
-                if (octreeItem is not RenderInfo3D renderable)
-                    return;
-                
-                //TODO: render commands need to be in render info
-                AddRenderable(renderable);
-            }
-
-            IVolume? volume = GetShadowVolume();
-            if (volume is null)
-            {
-                //TODO: parallel renderable consumption thread?
-                scene.Renderables.ForEach(AddRenderable);
-                //scene.Tree.CollectAll(AddRenderable);
-            }
-            else if (scene.RenderablesTree is I3DRenderTree tree)
-                tree.CollectIntersecting(volume, false, AddOctreeItem);
+            scene.PreRender(_shadowRenderPipeline.MeshRenderCommands, GetShadowVolume(), ShadowCamera);
         }
 
-        internal void SwapBuffers()
-            => _renderCommands.SwapBuffers();
-
-        private XRRenderPipeline? _shadowRenderPipeline = null;
-        /// <summary>
-        /// This is the rendering setup this viewport will use to render the scene the camera sees.
-        /// A render pipeline is a collection of render passes that will be executed in order to render the scene and post-process the result, etc.
-        /// </summary>
-        public XRRenderPipeline ShadowRenderPipeline
+        public void SwapBuffers()
         {
-            get => _shadowRenderPipeline ?? SetFieldReturn(ref _shadowRenderPipeline, Engine.Rendering.NewRenderPipeline())!;
-            set => SetField(ref _shadowRenderPipeline, value);
+
+        }
+
+        private readonly XRRenderPipelineInstance _shadowRenderPipeline = new();
+        public RenderPipeline? ShadowRenderPipeline
+        {
+            get => _shadowRenderPipeline.Pipeline;
+            set => _shadowRenderPipeline.Pipeline = value;
         }
 
         public void RenderShadowMap(VisualScene scene)
@@ -213,9 +196,7 @@ namespace XREngine.Components.Lights
 
             using var overrideMat = Engine.Rendering.State.PushOverrideMaterial(ShadowMap.Material);
             using var overrideRegion = Engine.Rendering.State.PushRenderArea(_shadowMapRenderRegion);
-            
-            scene.PreRender(null, ShadowCamera);
-            ShadowRenderPipeline.Render(scene, ShadowCamera, null, ShadowMap, true);
+            _shadowRenderPipeline.Render(scene, ShadowCamera, null, ShadowMap, true);
         }
 
         public static EPixelInternalFormat GetShadowDepthMapFormat(EDepthPrecision precision)

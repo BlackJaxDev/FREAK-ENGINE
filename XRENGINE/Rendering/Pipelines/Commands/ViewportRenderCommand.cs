@@ -5,7 +5,7 @@
         public const string SceneShaderPath = "Scene3D";
 
         public ViewportRenderCommandContainer CommandContainer { get; } = commandContainer;
-        public XRRenderPipeline Pipeline => CommandContainer.Pipeline;
+        public static XRRenderPipelineInstance Pipeline => Engine.Rendering.State.CurrentPipeline!;
 
         /// <summary>
         /// If true, the command will execute in the shadow pass.

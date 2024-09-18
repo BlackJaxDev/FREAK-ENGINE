@@ -9,14 +9,15 @@ using static XREngine.Engine.Rendering.State;
 
 namespace XREngine.Rendering;
 
-public class DefaultRenderPipeline : XRRenderPipeline
+public class DefaultRenderPipeline : RenderPipeline
 {
+    public const string SceneShaderPath = "Scene3D";
+
     private readonly NearToFarRenderCommandSorter _nearToFarSorter = new();
     private readonly FarToNearRenderCommandSorter _farToNearSorter = new();
 
-    public DefaultRenderPipeline() : base()
-    {
-        MeshRenderCommands.SetRenderPasses(new()
+    protected override Dictionary<int, IComparer<RenderCommand>?> GetPassIndicesAndSorters()
+        => new()
         {
             { (int)EDefaultRenderPass.Background, null },
             { (int)EDefaultRenderPass.OpaqueDeferredLit, _nearToFarSorter },
@@ -24,9 +25,9 @@ public class DefaultRenderPipeline : XRRenderPipeline
             { (int)EDefaultRenderPass.OpaqueForward, _nearToFarSorter },
             { (int)EDefaultRenderPass.TransparentForward, _farToNearSorter },
             { (int)EDefaultRenderPass.OnTopForward, null },
-        });
-    }
-    protected override Lazy<XRMaterial> LazyInvalidMaterial => new(XRMaterial.CreateColorMaterialDeferred);
+        };
+
+    protected override Lazy<XRMaterial> InvalidMaterialFactory => new(XRMaterial.CreateColorMaterialDeferred);
 
     //FBOs
     const string SSAOFBOName = "SSAOFBO";
@@ -52,9 +53,9 @@ public class DefaultRenderPipeline : XRRenderPipeline
     const string HUDTextureName = "HUDTexture";
     const string BRDFTextureName = "BRDF";
 
-    protected override ViewportRenderCommandContainer GenerateCommandChainInternal()
+    protected override ViewportRenderCommandContainer GenerateCommandChain()
     {
-        ViewportRenderCommandContainer c = new(this);
+        ViewportRenderCommandContainer c = [];
         var ifElse = c.Add<VPRC_IfElse>();
         ifElse.ConditionEvaluator = () => RenderStatus.Viewport is not null;
         ifElse.TrueCommands = CreateViewportTargetCommands();
@@ -64,7 +65,7 @@ public class DefaultRenderPipeline : XRRenderPipeline
 
     private ViewportRenderCommandContainer CreateFBOTargetCommands()
     {
-        ViewportRenderCommandContainer c = new(this);
+        ViewportRenderCommandContainer c = [];
         using (c.AddUsing<VPRC_PushOutputFBORenderArea>())
         {
             using (c.AddUsing<VPRC_BindOutputFBO>())
@@ -96,7 +97,7 @@ public class DefaultRenderPipeline : XRRenderPipeline
 
     private ViewportRenderCommandContainer CreateViewportTargetCommands()
     {
-        ViewportRenderCommandContainer c = new(this);
+        ViewportRenderCommandContainer c = [];
         CacheTextures(c);
 
         //Create FBOs only after all their texture dependencies have been cached.
@@ -487,6 +488,7 @@ public class DefaultRenderPipeline : XRRenderPipeline
         
         return fbo;
     }
+
 
     private void BrightPassFBO_SettingUniforms(XRRenderProgram program)
         => RenderingCamera?.SetBloomUniforms(program);

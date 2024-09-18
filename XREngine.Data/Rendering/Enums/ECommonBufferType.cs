@@ -30,6 +30,7 @@
 
         /// <summary>
         /// The offset into the blendshape delta buffers for each vertex.
+        /// Add indices up until count to retrieve all deltas for a vertex.
         /// </summary>
         BlendshapeOffsetsPerFacepoint,
         /// <summary>
@@ -38,7 +39,8 @@
         BlendshapeCountsPerFacepoint,
 
         /// <summary>
-        /// The offset into the bone matrix array for each vertex.
+        /// The offset into the indices/weights array for each vertex.
+        /// Add indices up until count to retrieve all bone indices/weights for a vertex.
         /// </summary>
         BoneMatrixOffsetsPerFacepoint,
         /// <summary>
@@ -54,6 +56,7 @@
         /// The index into the bone matrix buffer for each bone affecting each vertex.
         /// </summary>
         BoneMatrixIndices,
+
         /// <summary>
         /// The user-set weight of each blendshape affecting each vertex.
         /// </summary>
@@ -63,7 +66,26 @@
         /// </summary>
         BlendshapeIndices,
 
+        /// <summary>
+        /// The bone matrices for each bone in the skeleton.
+        /// The first matrix is the identity matrix.
+        /// </summary>
         BoneMatrices,
 
+        /// <summary>
+        /// Remapped array of position offsets.
+        /// No 0 values are stored in this buffer.
+        /// </summary>
+        BlendshapePositionDeltas,
+        /// <summary>
+        /// Remapped array of normal offsets.
+        /// No 0 values are stored in this buffer.
+        /// </summary>
+        BlendshapeNormalDeltas,
+        /// <summary>
+        /// Remapped array of tangent offsets.
+        /// No 0 values are stored in this buffer.
+        /// </summary>
+        BlendshapeTangentDeltas,
     }
 }

@@ -1,4 +1,5 @@
 ﻿using Extensions;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using XREngine.Data.Colors;
 using XREngine.Data.Rendering;
@@ -43,12 +44,12 @@ namespace XREngine.Rendering
         private Dictionary<uint, Matrix4x4> _modifiedBonesRendering = [];
         private Dictionary<uint, Matrix4x4> _modifiedBonesUpdating = [];
 
-        public string? GenerateVertexShaderSource<T>() where T : ShaderGeneratorBase, new()
+        public string? GenerateVertexShaderSource<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>() where T : ShaderGeneratorBase
         {
             if (Mesh is null)
                 return null;
 
-            return new T().Generate(Mesh);
+            return ((T)Activator.CreateInstance(typeof(T), Mesh)!).Generate();
         }
 
         /// <summary>
@@ -185,7 +186,7 @@ namespace XREngine.Rendering
             BoneMatricesBuffer?.Dispose();
             BoneMatricesBuffer = null;
 
-            if (Mesh is null)
+            if (Mesh is null || Mesh?.UtilizedBones is null)
                 return;
 
             _bones = new RenderBone[Mesh.UtilizedBones.Length];
@@ -207,7 +208,6 @@ namespace XREngine.Rendering
             foreach (RenderBone bone in _bones)
                 _modifiedBonesUpdating.Add(bone.Index, bone.Transform.WorldMatrix);
         }
-
 
         /// <summary>
         /// All bone matrices for the mesh.
