@@ -53,7 +53,7 @@ namespace XREngine.Rendering
 
         protected virtual void SwapBuffers()
         {
-            //Window.SwapBuffers();
+
         }
 
         protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
@@ -318,7 +318,7 @@ namespace XREngine.Rendering
         protected abstract AbstractRenderAPIObject CreateAPIRenderObject(GenericRenderObject renderObject);
 
         public XRViewport GetOrAddViewportForPlayer(LocalPlayerController controller, bool autoSizeAllViewports)
-            => controller.Viewport ?? AddViewportForPlayer(controller, autoSizeAllViewports);
+            => controller.Viewport ??= AddViewportForPlayer(controller, autoSizeAllViewports);
 
         private XRViewport AddViewportForPlayer(LocalPlayerController? controller, bool autoSizeAllViewports)
         {

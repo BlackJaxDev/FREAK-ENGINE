@@ -36,7 +36,7 @@ namespace XREngine.Rendering.OpenGL
 
         protected internal override void PostGenerated()
         {
-            Invalidate();
+            //Invalidate();
             _hasPushed = false;
             _storageSet = false;
             base.PostGenerated();
@@ -75,8 +75,7 @@ namespace XREngine.Rendering.OpenGL
                 {
                     if (!Data.Resizable && !_storageSet)
                     {
-                        GetFormat(Data.Mipmaps[0], Data.InternalCompression, out GLEnum sizedInternalFormat, out GLEnum pixelFormat, out GLEnum pixelType);
-                        Api.TexStorage2D(glTarget, (uint)Data.Mipmaps.Length, sizedInternalFormat, Data.Width, Data.Height);
+                        //Api.TexStorage2D(glTarget, (uint)Data.Mipmaps.Length, sizedInternalFormat, Data.Width, Data.Height);
                         _storageSet = true;
                     }
 
@@ -111,61 +110,30 @@ namespace XREngine.Rendering.OpenGL
         private unsafe void PushMipmap(GLEnum glTarget, int i, MagickImage? bmp)
         {
             //Api.PixelStore(PixelStoreParameter.UnpackAlignment, 1);
+
+            GLEnum pixelFormat = ToGLEnum(Data.PixelFormat);
+            GLEnum internalPixelFormat = ToGLEnum(Data.InternalFormat);
+
             if (bmp is null)
             {
                 if (!_hasPushed && !_storageSet)
-                    Api.TexImage2D(glTarget, i, (int)GLEnum.Rgb, Data.Width >> i, Data.Height >> i, 0, GLEnum.Rgb, GLEnum.Float, in IntPtr.Zero);
+                    Api.TexImage2D(glTarget, i, (int)internalPixelFormat, Data.Width >> i, Data.Height >> i, 0, pixelFormat, GLEnum.Float, in IntPtr.Zero);
             }
             else
             {
                 // If a non-zero named buffer object is bound to the GL_PIXEL_UNPACK_BUFFER target (see glBindBuffer) while a texture image is specified, data is treated as a byte offset into the buffer object's data store. 
-                GetFormat(bmp, Data.InternalCompression, out GLEnum internalPixelFormat, out GLEnum pixelFormat, out GLEnum pixelType);
-                var bytes = bmp.GetPixelsUnsafe().GetAreaPointer(0, 0, bmp.Width, bmp.Height).ToPointer();
-                if (_hasPushed || _storageSet)
-                    Api.TexSubImage2D(glTarget, i, 0, 0, bmp.Width, bmp.Height, pixelFormat, pixelType, bytes);
-                else
-                    Api.TexImage2D(glTarget, i, (int)internalPixelFormat, bmp.Width, bmp.Height, 0, pixelFormat, pixelType, bytes);
-
+                //GetFormat(bmp, Data.InternalCompression, out GLEnum internalPixelFormat, out GLEnum pixelFormat, out GLEnum pixelType);
+                var bytes = bmp.GetPixels().GetArea(0, 0, bmp.Width, bmp.Height);
+                fixed (float* pBytes = bytes)
+                {
+                    if (_hasPushed || _storageSet)
+                        Api.TexSubImage2D(glTarget, i, 0, 0, bmp.Width, bmp.Height, pixelFormat, GLEnum.Float, pBytes);
+                    else
+                        Api.TexImage2D(glTarget, i, (int)internalPixelFormat, bmp.Width, bmp.Height, 0, pixelFormat, GLEnum.Float, pBytes);
+                }
                 var error = Api.GetError();
                 if (error != GLEnum.NoError)
                     Debug.LogWarning($"Error pushing texture data: {error}");
-            }
-        }
-
-        private unsafe void GetFormat(MagickImage bmp, bool internalCompression, out GLEnum internalPixelFormat, out GLEnum pixelFormat, out GLEnum pixelType)
-        {
-            //Internal format must match pixel format
-            //GL_ALPHA, GL_LUMINANCE, GL_LUMINANCE_ALPHA, GL_RGB, GL_RGBA
-            //bool hasAlpha = bmp.HasAlpha;
-            uint channels = bmp.ChannelCount;
-            bool signed = bmp.Settings.ColorSpace == ColorSpace.sRGB;
-            uint depth = bmp.Depth; //8 is s/byte, 16 is u/short, 32 is float
-            pixelType = depth switch
-            {
-                8 => signed ? GLEnum.Byte : GLEnum.UnsignedByte,
-                16 => signed ? GLEnum.Short : GLEnum.UnsignedShort,
-                32 => GLEnum.Float,
-                _ => throw new NotSupportedException($"Unsupported pixel depth: {depth}"),
-            };
-            switch (channels)
-            {
-                case 1:
-                    internalPixelFormat = internalCompression ? GLEnum.CompressedRed : GLEnum.Red;
-                    pixelFormat = GLEnum.Red;
-                    break;
-                case 2:
-                    internalPixelFormat = internalCompression ? GLEnum.CompressedRG : GLEnum.RG;
-                    pixelFormat = GLEnum.RG;
-                    break;
-                case 3:
-                    internalPixelFormat = internalCompression ? GLEnum.CompressedRgb : GLEnum.Rgb;
-                    pixelFormat = GLEnum.Rgb;
-                    break;
-                default:
-                case 4:
-                    internalPixelFormat = internalCompression ? GLEnum.CompressedRgba : GLEnum.Rgba;
-                    pixelFormat = GLEnum.Rgba;
-                    break;
             }
         }
 

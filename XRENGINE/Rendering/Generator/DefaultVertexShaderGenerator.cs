@@ -8,13 +8,6 @@ namespace XREngine.Rendering.Shaders.Generator
     /// </summary>
     public class DefaultVertexShaderGenerator(XRMesh mesh) : ShaderGeneratorBase(mesh)
     {
-        //Buffers coming into the vertex shader for each vertex
-        public const string VertPosName = "Position";
-        public const string VertNormName = "Normal";
-        public const string VertTanName = "Tangent";
-        public const string VertColorName = "Color{0}";
-        public const string VertUVName = "UV{0}";
-
         //Buffers leaving the vertex shader for each vertex
         public const string FragPosName = "FragPos";
         public const string FragNormName = "FragNorm";
@@ -72,14 +65,14 @@ namespace XREngine.Rendering.Shaders.Generator
 
             if (Mesh.ColorBuffers is not null)
                 for (int i = 0; i < Mesh.ColorBuffers.Length; ++i)
-                    Line($"{string.Format(FragColorName, i)} = {ECommonBufferType.Colors}{i};");
+                    Line($"{string.Format(FragColorName, i)} = {ECommonBufferType.Color}{i};");
 
             if (Mesh.TexCoordBuffers is not null)
                 for (int i = 0; i < Mesh.TexCoordBuffers.Length; ++i)
-                    Line($"{string.Format(FragUVName, i)} = {ECommonBufferType.TextureCoordinates}{i};");
+                    Line($"{string.Format(FragUVName, i)} = {ECommonBufferType.TexCoord}{i};");
 
             string source = EndMain();
-            Debug.Out(source);
+            //Debug.Out(source);
             return source;
         }
 
@@ -90,7 +83,7 @@ namespace XREngine.Rendering.Shaders.Generator
             
             Line("out gl_PerVertex");
             OpenBracket();
-            Line("Vector4 gl_Position;");
+            Line("vec4 gl_Position;");
             Line("float gl_PointSize;");
             Line("float gl_ClipDistance[];");
             CloseBracket(null, true);
@@ -104,32 +97,32 @@ namespace XREngine.Rendering.Shaders.Generator
             EShaderVarType intVarType = Engine.Rendering.Settings.UseIntegerUniformsInShaders ? EShaderVarType._int : EShaderVarType._float;
             uint location = 0u;
 
-            WriteInVar(location++, EShaderVarType._vec3, ECommonBufferType.Positions.ToString());
+            WriteInVar(location++, EShaderVarType._vec3, ECommonBufferType.Position.ToString());
 
             if (Mesh.NormalsBuffer is not null)
-                WriteInVar(location++, EShaderVarType._vec3, ECommonBufferType.Normals.ToString());
+                WriteInVar(location++, EShaderVarType._vec3, ECommonBufferType.Normal.ToString());
 
             if (Mesh.TangentsBuffer is not null)
-                WriteInVar(location++, EShaderVarType._vec3, ECommonBufferType.Tangents.ToString());
+                WriteInVar(location++, EShaderVarType._vec3, ECommonBufferType.Tangent.ToString());
 
             if (Mesh.ColorBuffers is not null)
                 for (uint i = 0; i < Mesh.ColorBuffers.Length; ++i)
-                    WriteInVar(location++, EShaderVarType._vec4, ECommonBufferType.Colors + i.ToString());
+                    WriteInVar(location++, EShaderVarType._vec4, $"{ECommonBufferType.Color}{i}");
 
             if (Mesh.TexCoordBuffers is not null)
                 for (uint i = 0; i < Mesh.TexCoordBuffers.Length; ++i)
-                    WriteInVar(location++, EShaderVarType._vec2, ECommonBufferType.TextureCoordinates + i.ToString());
+                    WriteInVar(location++, EShaderVarType._vec2, $"{ECommonBufferType.TexCoord}{i}");
 
             if (weighted)
             {
-                WriteInVar(location++, intVarType, ECommonBufferType.BoneMatrixOffsetsPerFacepoint.ToString());
-                WriteInVar(location++, intVarType, ECommonBufferType.BoneMatrixCountsPerFacepoint.ToString());
+                WriteInVar(location++, intVarType, ECommonBufferType.BoneMatrixOffset.ToString());
+                WriteInVar(location++, intVarType, ECommonBufferType.BoneMatrixCount.ToString());
             }
 
             if (blendshapeCount > 0)
             {
-                WriteInVar(location++, intVarType, ECommonBufferType.BlendshapeOffsetsPerFacepoint.ToString());
-                WriteInVar(location++, intVarType, ECommonBufferType.BlendshapeCountsPerFacepoint.ToString());
+                WriteInVar(location++, intVarType, ECommonBufferType.BlendshapeOffset.ToString());
+                WriteInVar(location++, intVarType, ECommonBufferType.BlendshapeCount.ToString());
             }
         }
 
@@ -172,9 +165,12 @@ namespace XREngine.Rendering.Shaders.Generator
             {
                 using (StartBufferBlock(BlendshapeDeltas, bindingIndex++))
                 {
-                    WriteUniform(EShaderVarType._vec3, ECommonBufferType.BlendshapePositionDeltas.ToString());
-                    WriteUniform(EShaderVarType._vec3, ECommonBufferType.BlendshapeNormalDeltas.ToString());
-                    WriteUniform(EShaderVarType._vec3, ECommonBufferType.BlendshapeTangentDeltas.ToString());
+                    if (Mesh.BlendshapePositionDeltasBuffer is not null)
+                        WriteUniform(EShaderVarType._vec3, ECommonBufferType.BlendshapePositionDeltas.ToString());
+                    if (Mesh.BlendshapeNormalDeltasBuffer is not null)
+                        WriteUniform(EShaderVarType._vec3, ECommonBufferType.BlendshapeNormalDeltas.ToString());
+                    if (Mesh.BlendshapeTangentDeltasBuffer is not null)
+                        WriteUniform(EShaderVarType._vec3, ECommonBufferType.BlendshapeTangentDeltas.ToString());
                 }
 
                 using (StartBufferBlock(BlendshapeData, bindingIndex++))
@@ -193,21 +189,21 @@ namespace XREngine.Rendering.Shaders.Generator
             int location = 0;
             WriteOutVar(location++, EShaderVarType._vec3, FragPosName);
 
-            if (mesh.NormalsBuffer is not null)
+            if (Mesh.NormalsBuffer is not null)
                 WriteOutVar(location++, EShaderVarType._vec3, FragNormName);
 
-            if (mesh.TangentsBuffer is not null)
+            if (Mesh.TangentsBuffer is not null)
             {
                 WriteOutVar(location++, EShaderVarType._vec3, FragTanName);
                 WriteOutVar(location++, EShaderVarType._vec3, FragBinormName);
             }
 
-            if (mesh.ColorBuffers is not null)
-                for (int i = 0; i < mesh.ColorBuffers.Length; ++i)
+            if (Mesh.ColorBuffers is not null)
+                for (int i = 0; i < Mesh.ColorBuffers.Length; ++i)
                     WriteOutVar(location++, EShaderVarType._vec4, string.Format(FragColorName, i));
 
-            if (mesh.TexCoordBuffers is not null)
-                for (int i = 0; i < mesh.TexCoordBuffers.Length; ++i)
+            if (Mesh.TexCoordBuffers is not null)
+                for (int i = 0; i < Mesh.TexCoordBuffers.Length; ++i)
                     WriteOutVar(location++, EShaderVarType._vec2, string.Format(FragUVName, i));
         }
 
@@ -221,17 +217,17 @@ namespace XREngine.Rendering.Shaders.Generator
             bool hasNBT = hasNormals || hasTangents;
 
             Line("vec4 finalPosition = vec4(0.0f);");
-            Line("vec4 basePosition = vec4(Position, 1.0f);");
+            Line($"vec4 basePosition = vec4({ECommonBufferType.Position}, 1.0f);");
 
             if (hasNormals)
             {
                 Line("vec3 finalNormal = vec3(0.0f);");
-                Line("vec4 baseNormal = vec4(Normal, 0.0);");
+                Line($"vec4 baseNormal = vec4({ECommonBufferType.Normal}, 0.0);");
             }
             if (hasTangents)
             {
                 Line("vec3 finalTangent = vec3(0.0f);");
-                Line("vec4 baseTangent = vec4(Tangent, 0.0);");
+                Line($"vec4 baseTangent = vec4({ECommonBufferType.Tangent}, 0.0);");
             }
 
             Line();
@@ -242,10 +238,10 @@ namespace XREngine.Rendering.Shaders.Generator
             }
 
             //Loop over the bone count supplied to this vertex
-            Line($"for (int i = 0; i < {ECommonBufferType.BoneMatrixCountsPerFacepoint}; i++)");
+            Line($"for (int i = 0; i < {ECommonBufferType.BoneMatrixCount}; i++)");
             OpenBracket();
             {
-                Line($"int index = {ECommonBufferType.BoneMatrixOffsetsPerFacepoint} + i;");
+                Line($"int index = {ECommonBufferType.BoneMatrixOffset} + i;");
                 Line($"int boneIndex = {ECommonBufferType.BoneMatrixIndices}[index]");
                 Line($"float weight = {ECommonBufferType.BoneMatrixWeights}[index];");
 
@@ -278,11 +274,11 @@ namespace XREngine.Rendering.Shaders.Generator
         /// </summary>
         private void WriteStaticMeshInputs()
         {
-            Line("vec4 position = vec4(Position, 1.0f);");
-            if (mesh.NormalsBuffer is not null)
-                Line("vec3 normal = Normal;");
-            if (mesh.TangentsBuffer is not null)
-                Line("vec3 tangent = Tangent;");
+            Line($"vec4 position = vec4({ECommonBufferType.Position}, 1.0f);");
+            if (Mesh.NormalsBuffer is not null)
+                Line($"vec3 normal = {ECommonBufferType.Normal};");
+            if (Mesh.TangentsBuffer is not null)
+                Line($"vec3 tangent = {ECommonBufferType.Tangent};");
             Line();
 
             if (Mesh.BlendshapeCount > 0)
@@ -328,10 +324,10 @@ namespace XREngine.Rendering.Shaders.Generator
 
             ResolvePosition("position");
 
-            if (mesh.NormalsBuffer is not null)
+            if (Mesh.NormalsBuffer is not null)
             {
                 Line($"{FragNormName} = normalize(normalMatrix * normal);");
-                if (mesh.TangentsBuffer is not null)
+                if (Mesh.TangentsBuffer is not null)
                 {
                     Line($"{FragTanName} = normalize(normalMatrix * tangent);");
                     Line("vec3 binormal = cross(normal, tangent);");

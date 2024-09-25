@@ -54,9 +54,13 @@ namespace XREngine.Rendering.Info
 
         public bool ShouldRender { get; set; } = true;
 
+        public delegate void DelAddRenderCommandsCallback(RenderInfo info, RenderCommandCollection passes, XRCamera camera);
+        public DelAddRenderCommandsCallback? PreAddRenderCommandsCallback { get; set; }
+
         public void AddRenderCommands(RenderCommandCollection passes, XRCamera camera)
         {
-
+            PreAddRenderCommandsCallback?.Invoke(this, passes, camera);
+            passes.AddRange(RenderCommands);
         }
     }
 }

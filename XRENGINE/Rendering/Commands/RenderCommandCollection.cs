@@ -96,5 +96,11 @@ namespace XREngine.Rendering.Commands
             _renderingPasses.ForEach(x => x.Value.Clear());
             (_updatingPasses, _renderingPasses) = (_renderingPasses, _updatingPasses);
         }
+
+        public void AddRange(IEnumerable<RenderCommand> renderCommands)
+        {
+            foreach (RenderCommand renderCommand in renderCommands)
+                Add(renderCommand);
+        }
     }
 }

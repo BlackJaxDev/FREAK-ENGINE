@@ -2,23 +2,43 @@
 using XREngine.Rendering.Commands;
 using XREngine.Rendering;
 using XREngine.Rendering.Models;
+using XREngine.Rendering.Info;
 
 namespace XREngine.Components.Scene.Mesh
 {
-    public class RenderableMesh
+    public class RenderableMesh : IDisposable
     {
-        public RenderCommandMesh3D RenderCommand { get; } = new RenderCommandMesh3D(0);
+        public RenderInfo3D RenderInfo { get; }
+        private readonly RenderCommandMesh3D _rc;
+
         /// <summary>
         /// The transform that owns this mesh.
         /// </summary>
         public RenderableComponent Component { get; }
 
-        public RenderableMesh(SubMesh mesh, RenderableComponent transform)
+        public RenderableMesh(SubMesh mesh, RenderableComponent component)
         {
-            Component = transform;
+            Component = component;
 
             foreach (var lod in mesh.LODs)
                 LODs.AddLast(new RenderableLOD(lod.NewRenderer(), lod.MaxVisibleDistance));
+
+            RenderInfo = RenderInfo3D.New(component, _rc = new RenderCommandMesh3D(0));
+            RenderInfo.CullingVolume = mesh.Bounds;
+            RenderInfo.PreAddRenderCommandsCallback = BeforeAdd;
+        }
+
+        private void BeforeAdd(RenderInfo info, RenderCommandCollection passes, XRCamera camera)
+        {
+            float distance = camera?.DistanceFromNearPlane(Component.Transform.WorldTranslation) ?? 0.0f;
+
+            if (!passes.IsShadowPass)
+                UpdateLOD(distance);
+
+            _rc.Mesh = CurrentLOD?.Value?.Manager;
+            _rc.WorldMatrix = Component.Transform.WorldMatrix;
+            _rc.RenderDistance = distance;
+            _rc.RenderPass = CurrentLOD?.Value?.Manager?.Material?.RenderPass ?? 0;
         }
 
         public record RenderableLOD(XRMeshRenderer Manager, float MaxVisibleDistance);
@@ -45,21 +65,6 @@ namespace XREngine.Components.Scene.Mesh
 
             if (CurrentLOD.Previous is not null && distanceToCamera < CurrentLOD.Previous.Value.MaxVisibleDistance)
                 CurrentLOD = CurrentLOD.Previous;
-        }
-
-        public void AddRenderables(RenderCommandCollection passes, XRCamera camera)
-        {
-            float distance = camera?.DistanceFromNearPlane(Component.Transform.WorldTranslation) ?? 0.0f;
-
-            if (!passes.IsShadowPass)
-                UpdateLOD(distance);
-
-            RenderCommand.Mesh = CurrentLOD?.Value?.Manager;
-            RenderCommand.WorldMatrix = Component.Transform.WorldMatrix;
-            RenderCommand.RenderDistance = distance;
-            RenderCommand.RenderPass = CurrentLOD?.Value?.Manager?.Material?.RenderPass ?? 0;
-
-            passes.Add(RenderCommand);
         }
 
         public void Dispose()

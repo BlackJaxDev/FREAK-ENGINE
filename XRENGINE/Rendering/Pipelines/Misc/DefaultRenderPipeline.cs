@@ -27,7 +27,13 @@ public class DefaultRenderPipeline : RenderPipeline
             { (int)EDefaultRenderPass.OnTopForward, null },
         };
 
-    protected override Lazy<XRMaterial> InvalidMaterialFactory => new(XRMaterial.CreateColorMaterialDeferred);
+    protected override Lazy<XRMaterial> InvalidMaterialFactory => new(MakeInvalidMaterial, LazyThreadSafetyMode.PublicationOnly);
+
+    private XRMaterial MakeInvalidMaterial()
+    {
+        Debug.Out("Generating invalid material");
+        return XRMaterial.CreateColorMaterialDeferred();
+    }
 
     //FBOs
     const string SSAOFBOName = "SSAOFBO";
@@ -37,6 +43,9 @@ public class DefaultRenderPipeline : RenderPipeline
     const string ForwardPassFBOName = "ForwardPassFBO";
     const string PostProcessFBOName = "PostProcessFBO";
     const string UserInterfaceFBOName = "UserInterfaceFBO";
+
+    public override string GetUserInterfaceFBOName()
+        => UserInterfaceFBOName;
 
     //Textures
     const string SSAONoiseTextureName = "SSAONoiseTexture";
@@ -218,9 +227,9 @@ public class DefaultRenderPipeline : RenderPipeline
                 },
             }
         };
-        var UserInterfaceFBO = new XRQuadFrameBuffer(hudMat);
-        UserInterfaceFBO.SetRenderTargets((hudTexture, EFrameBufferAttachment.ColorAttachment0, 0, -1));
-        return UserInterfaceFBO;
+        var uiFBO = new XRQuadFrameBuffer(hudMat);
+        uiFBO.SetRenderTargets((hudTexture, EFrameBufferAttachment.ColorAttachment0, 0, -1));
+        return uiFBO;
     }
 
     private uint w => (uint)RenderStatus.Viewport!.InternalWidth;
@@ -228,12 +237,16 @@ public class DefaultRenderPipeline : RenderPipeline
 
     private bool NeedsRecreateTextureInternalSize(XRTexture t)
     {
-        var t2d = t as XRTexture2D ?? throw new Exception("Must be a 2D texture.");
+        if (t is not XRTexture2D t2d)
+            return false;
+
         return t2d.Width != w || t2d.Height != h;
     }
     private bool NeedsRecreateTextureFullSize(XRTexture t)
     {
-        var t2d = t as XRTexture2D ?? throw new Exception("Must be a 2D texture.");
+        if (t is not XRTexture2D t2d)
+            return false;
+
         uint w2 = (uint)RenderStatus.Viewport!.Width;
         uint h2 = (uint)RenderStatus.Viewport!.Height;
         return t2d.Width != w2 || t2d.Height != h2;

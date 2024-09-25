@@ -36,9 +36,9 @@ namespace XREngine.Rendering.OpenGL
 
                 //TODO: get GL version
                 int glVer = 2;
-                int location = renderer.VertexProgram?.GetUniformLocation(Data.BindingName) ?? -1;
+                int location = renderer.VertexProgram?.GetAttributeLocation(Data.BindingName) ?? -1;
                 if (location == -1)
-                    throw new Exception($"Uniform location for {Data.BindingName} not found.");
+                    return;
 
                 uint index = (uint)location;
                 int componentType = (int)Data.ComponentType;
@@ -187,23 +187,33 @@ namespace XREngine.Rendering.OpenGL
             }
 
             public void SetBlockName(XRRenderProgram program, string blockName)
-                => SetBlockIndex(Api.GetUniformBlockIndex(Renderer.GenericToAPI<GLRenderProgram>(program)!.BindingId, blockName));
+            {
+                var apiProgram = Renderer.GenericToAPI<GLRenderProgram>(program);
+                if (apiProgram is null)
+                    return;
+
+                var bindingID = apiProgram.BindingId;
+                if (bindingID == InvalidBindingId)
+                    return;
+
+                SetBlockIndex(Api.GetUniformBlockIndex(bindingID, blockName));
+            }
 
             public void SetBlockIndex(uint blockIndex)
-                => Api.BindBufferBase(OpenGLRenderer.ToGLEnum(Data.Target), blockIndex, BindingId);
+            {
+                if (blockIndex == uint.MaxValue)
+                    return;
+
+                Api.BindBufferBase(OpenGLRenderer.ToGLEnum(Data.Target), blockIndex, BindingId);
+            }
 
             protected internal override void PreDeleted()
                 => UnmapBufferData();
 
             public void Bind()
-            {
-                Api.BindBuffer(OpenGLRenderer.ToGLEnum(Data.Target), BindingId);
-            }
-
+                => Api.BindBuffer(OpenGLRenderer.ToGLEnum(Data.Target), BindingId);
             public void Unbind()
-            {
-                Api.BindBuffer(OpenGLRenderer.ToGLEnum(Data.Target), 0);
-            }
+                => Api.BindBuffer(OpenGLRenderer.ToGLEnum(Data.Target), 0);
         }
     }
 }

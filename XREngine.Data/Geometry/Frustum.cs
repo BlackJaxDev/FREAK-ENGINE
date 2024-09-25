@@ -192,9 +192,7 @@ namespace XREngine.Data.Geometry
         }
 
         public EContainment Contains(AABB box)
-        {
-            throw new NotImplementedException();
-        }
+            => GeoUtil.FrustumContainsAABB(this, box.Min, box.Max);
 
         public EContainment Contains(Sphere sphere)
         {

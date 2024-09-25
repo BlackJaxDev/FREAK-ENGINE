@@ -68,7 +68,7 @@ namespace XREngine.Rendering
 
         public XRTexture2D(params string[] mipMapPaths)
         {
-            _mipmaps = new MagickImage[mipMapPaths.Length];
+            _mipmaps = new MagickImage?[mipMapPaths.Length];
             for (int i = 0; i < mipMapPaths.Length; ++i)
             {
                 string path = mipMapPaths[i];
@@ -78,29 +78,37 @@ namespace XREngine.Rendering
             }
             if (_mipmaps.Length > 0)
             {
-                _width = _mipmaps[0].Width;
-                _height = _mipmaps[0].Height;
+                var mip = _mipmaps[0];
+                if (mip is null)
+                {
+                    _width = 0;
+                    _height = 0;
+                }
+                else
+                {
+                    _width = mip.Width;
+                    _height = mip.Height;
+                }
             }
         }
         public XRTexture2D(uint width, uint height, EPixelInternalFormat internalFormat, EPixelFormat format, EPixelType type)
         {
-            _mipmaps = new MagickImage[1];
-            _mipmaps[0] = NewImage(width, height, format, type);
+            _mipmaps = [null];
             _width = width;
             _height = height;
             InternalFormat = internalFormat;
             PixelFormat = format;
         }
-        public XRTexture2D(uint width, uint height, params MagickImage[] mipmaps)
+        public XRTexture2D(uint width, uint height, params MagickImage?[] mipmaps)
         {
-            _mipmaps = new MagickImage[mipmaps.Length];
+            _mipmaps = new MagickImage?[mipmaps.Length];
             for (int i = 0; i < mipmaps.Length; ++i)
                 _mipmaps[i] = mipmaps[i];
             Resize(width, height);
         }
 
-        public MagickImage[] _mipmaps = [];
-        public MagickImage[] Mipmaps
+        public MagickImage?[] _mipmaps = [];
+        public MagickImage?[] Mipmaps
         {
             get => _mipmaps;
             set => SetField(ref _mipmaps, value);
@@ -182,7 +190,7 @@ namespace XREngine.Rendering
                 if (_mipmaps[i] is null)
                     continue;
 
-                _mipmaps[i].Resize(width, height);
+                _mipmaps[i]?.Resize(width, height);
 
                 width >>= 1;
                 height >>= 1;
@@ -210,9 +218,9 @@ namespace XREngine.Rendering
             
             for (int i = 1; i < _mipmaps.Length; ++i)
             {
-                var clone = _mipmaps[i - 1].Clone();
-                clone.Resize(_width >> i, _height >> i);
-                _mipmaps[i] = (MagickImage)clone;
+                var clone = _mipmaps[i - 1]?.Clone();
+                clone?.Resize(_width >> i, _height >> i);
+                _mipmaps[i] = clone as MagickImage;
             }
         }
 
@@ -298,7 +306,7 @@ namespace XREngine.Rendering
             if (_pbo is null)
                 return;
 
-            MagickImage mipmap = Mipmaps[mipIndex];
+            MagickImage? mipmap = Mipmaps[mipIndex];
             if (mipmap is null)
                 return;
 

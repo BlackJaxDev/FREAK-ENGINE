@@ -10,43 +10,43 @@
         /// <summary>
         /// 3D coordinates for the location of each vertex.
         /// </summary>
-        Positions,
+        Position,
         /// <summary>
         /// 3D normals to calculate lighting for each vertex.
         /// </summary>
-        Normals,
+        Normal,
         /// <summary>
         /// 3D tangents to calculate lighting for each vertex.
         /// </summary>
-        Tangents,
+        Tangent,
         /// <summary>
         /// Color values for each vertex.
         /// </summary>
-        Colors,
+        Color,
         /// <summary>
         /// Texture coordinates to align textures for each vertex.
         /// </summary>
-        TextureCoordinates,
+        TexCoord,
 
         /// <summary>
         /// The offset into the blendshape delta buffers for each vertex.
         /// Add indices up until count to retrieve all deltas for a vertex.
         /// </summary>
-        BlendshapeOffsetsPerFacepoint,
+        BlendshapeOffset,
         /// <summary>
         /// The number of blendshapes affecting each vertex.
         /// </summary>
-        BlendshapeCountsPerFacepoint,
+        BlendshapeCount,
 
         /// <summary>
         /// The offset into the indices/weights array for each vertex.
         /// Add indices up until count to retrieve all bone indices/weights for a vertex.
         /// </summary>
-        BoneMatrixOffsetsPerFacepoint,
+        BoneMatrixOffset,
         /// <summary>
         /// The number of bones affecting the postion of each vertex.
         /// </summary>
-        BoneMatrixCountsPerFacepoint,
+        BoneMatrixCount,
 
         /// <summary>
         /// The weight of each bone affecting the position of each vertex.

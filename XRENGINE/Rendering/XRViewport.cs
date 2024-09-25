@@ -108,6 +108,25 @@ namespace XREngine.Rendering
             Resize(width, height);
         }
 
+        private void PreRender()
+        {
+            XRCamera? camera = ActiveCamera;
+            if (camera is null)
+                return;
+
+            var cameraComponent = CameraComponent;
+            IVolume? cullingVolume = (cameraComponent?.CullWithFrustum ?? true) ? camera.WorldFrustum() : cameraComponent.CullingFrustumOverride;
+            World?.VisualScene?.PreRender(_renderPipeline.MeshRenderCommands, cullingVolume, camera);
+            cameraComponent?.UserInterface?.PreRender(this, cameraComponent);
+        }
+
+        private void SwapBuffers()
+        {
+            World?.VisualScene?.SwapBuffers();
+            CameraComponent?.UserInterface?.SwapBuffers();
+            _renderPipeline.MeshRenderCommands.SwapBuffers();
+        }
+
         public static XRViewport ForTotalViewportCount(int totalViewportCount)
         {
             int index = totalViewportCount;
@@ -151,7 +170,7 @@ namespace XREngine.Rendering
         /// </summary>
         /// <param name="vp"></param>
         /// <param name="targetFbo"></param>
-        public void Render(VisualScene? sceneOverride = null, XRFrameBuffer? targetFbo = null, bool preRenderAndSwapNow = false)
+        public void Render(XRFrameBuffer? targetFbo = null, VisualScene? sceneOverride = null)
         {
             XRCamera? camera = ActiveCamera;
             if (camera is null)
@@ -161,41 +180,21 @@ namespace XREngine.Rendering
             if (scene is null || State.RenderingViewport == this)
                 return;
 
-            var cameraComponent = CameraComponent;
-            if (preRenderAndSwapNow)
+            if (sceneOverride is not null)
             {
-                IVolume? volume = (cameraComponent?.CullWithFrustum ?? true) ? camera.WorldFrustum() : cameraComponent.CullingFrustumOverride;
-
-                scene.PreRender(_renderPipeline.MeshRenderCommands, volume, camera);
-                scene.SwapBuffers();
-
-                if (cameraComponent?.UserInterface is not null)
-                {
-                    cameraComponent.UserInterface.PreRender(this, cameraComponent);
-                    cameraComponent.UserInterface.SwapBuffers();
-                }
-
+                //Pre-render and swap now
                 PreRender();
-                _renderPipeline.MeshRenderCommands.SwapBuffers();
+                SwapBuffers();
             }
 
             using (State.PushRenderingViewport(this))
             {
-                //bool iblCap = false;
-                //if (!vp.RenderPipeline.FBOsInitialized)
-                //{
-                //    vp.RenderPipeline.InitializeFBOs();
-                //    iblCap = true;
-                //}
-
                 _renderPipeline.Render(scene, camera, this, targetFbo, false);
 
                 //hud may sample scene colors, render it after scene
-                //if (vp.RenderPipeline.UserInterfaceFBO is not null)
-                //    UserInterface?.RenderScreenSpace(vp, vp.RenderPipeline.UserInterfaceFBO);
-
-                //if (iblCap)
-                //    world.CaptureIBL();
+                var fbo = _renderPipeline.GetFBO<XRQuadFrameBuffer>(_renderPipeline.Pipeline!.GetUserInterfaceFBOName());
+                if (fbo is not null)
+                    CameraComponent?.UserInterface?.RenderScreenSpace(this, fbo);
             }
         }
 
@@ -212,6 +211,7 @@ namespace XREngine.Rendering
                         if (_camera is not null)
                         {
                             _camera.Viewports.Remove(this);
+                            Engine.Time.Timer.SwapBuffers -= SwapBuffers;
                             Engine.Time.Timer.PreRenderFrame -= PreRender;
                         }
                         break;
@@ -229,6 +229,7 @@ namespace XREngine.Rendering
                     {
                         _camera.Viewports.Add(this);
                         SetAspectRatioToCamera();
+                        Engine.Time.Timer.SwapBuffers += SwapBuffers;
                         Engine.Time.Timer.PreRenderFrame += PreRender;
                     }
                     break;
@@ -238,11 +239,6 @@ namespace XREngine.Rendering
                     _renderPipeline.Pipeline = CameraComponent?.RenderPipeline;
                     break;
             }
-        }
-
-        private void PreRender()
-        {
-
         }
 
         /// <summary>

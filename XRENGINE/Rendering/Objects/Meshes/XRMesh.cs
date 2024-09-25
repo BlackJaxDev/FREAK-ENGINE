@@ -236,14 +236,14 @@ namespace XREngine.Rendering
             if (weights is not null)
                 SetBoneWeights(weights);
 
-            string binding = DefaultVertexShaderGenerator.VertPosName;
+            string binding = ECommonBufferType.Position.ToString();
             PositionsBuffer = new XRDataBuffer(binding, EBufferTarget.ArrayBuffer, false);
             PositionsBuffer.SetDataRaw(posBuffer);
             Buffers.Add(binding, PositionsBuffer);
 
             if (normBuffer is not null)
             {
-                binding = DefaultVertexShaderGenerator.VertNormName;
+                binding = ECommonBufferType.Normal.ToString();
                 NormalsBuffer = new XRDataBuffer(binding, EBufferTarget.ArrayBuffer, false);
                 NormalsBuffer.SetDataRaw(normBuffer);
                 Buffers.Add(binding, NormalsBuffer);
@@ -251,7 +251,7 @@ namespace XREngine.Rendering
 
             if (tanBuffer is not null)
             {
-                binding = DefaultVertexShaderGenerator.VertTanName;
+                binding = ECommonBufferType.Tangent.ToString();
                 TangentsBuffer = new XRDataBuffer(binding, EBufferTarget.ArrayBuffer, false);
                 TangentsBuffer.SetDataRaw(tanBuffer);
                 Buffers.Add(binding, TangentsBuffer);
@@ -261,7 +261,7 @@ namespace XREngine.Rendering
             {
                 for (int colorIndex = 0; colorIndex < colorBuffers.Length; ++colorIndex)
                 {
-                    binding = string.Format(DefaultVertexShaderGenerator.VertColorName, colorIndex);
+                    binding = string.Format(ECommonBufferType.Color.ToString(), colorIndex);
                     ColorBuffers[colorIndex] = new XRDataBuffer(binding, EBufferTarget.ArrayBuffer, false);
                     ColorBuffers[colorIndex].SetDataRaw(colorBuffers[colorIndex]);
                     Buffers.Add(binding, ColorBuffers[colorIndex]);
@@ -272,7 +272,7 @@ namespace XREngine.Rendering
             {
                 for (int texCoordIndex = 0; texCoordIndex < uvBuffers.Length; ++texCoordIndex)
                 {
-                    binding = string.Format(DefaultVertexShaderGenerator.VertUVName, texCoordIndex);
+                    binding = string.Format(ECommonBufferType.TexCoord.ToString(), texCoordIndex);
                     TexCoordBuffers[texCoordIndex] = new XRDataBuffer(binding, EBufferTarget.ArrayBuffer, false);
                     TexCoordBuffers[texCoordIndex].SetDataRaw(uvBuffers[texCoordIndex]);
                     Buffers.Add(binding, TexCoordBuffers[texCoordIndex]);
@@ -389,7 +389,7 @@ namespace XREngine.Rendering
         /// Remapped array of normal deltas for all blendshapes on this mesh.
         /// Static read-only buffer.
         /// </summary>
-        public XRDataBuffer? BlendshapeNormalDeltasuffer { get; private set; }
+        public XRDataBuffer? BlendshapeNormalDeltasBuffer { get; private set; }
         /// <summary>
         /// Remapped array of tangent deltas for all blendshapes on this mesh.
         /// Static read-only buffer.

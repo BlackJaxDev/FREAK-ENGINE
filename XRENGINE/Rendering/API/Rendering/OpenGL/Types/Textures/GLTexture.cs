@@ -157,7 +157,7 @@ namespace XREngine.Rendering.OpenGL
             => Api.CreateTexture(ToGLEnum(TextureTarget));
 
         protected internal override void PostGenerated()
-            => PushData();
+            => Invalidate();
 
         public void AttachToFBO(XRFrameBuffer fbo, EFrameBufferAttachment attachment, int mipLevel = 0)
             => Api.NamedFramebufferTexture(Renderer.GenericToAPI<GLFrameBuffer>(fbo)!.BindingId, ToGLEnum(attachment), BindingId, mipLevel);

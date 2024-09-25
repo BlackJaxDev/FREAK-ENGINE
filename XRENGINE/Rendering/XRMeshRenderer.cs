@@ -123,8 +123,8 @@ namespace XREngine.Rendering
                     }
                 }
 
-                Mesh.SetBufferRaw(boneWeightCounts, ECommonBufferType.BoneMatrixCountsPerFacepoint.ToString(), false, true);
-                Mesh.SetBufferRaw(boneWeightOffsets, ECommonBufferType.BoneMatrixOffsetsPerFacepoint.ToString(), false, true);
+                Mesh.SetBufferRaw(boneWeightCounts, ECommonBufferType.BoneMatrixCount.ToString(), false, true);
+                Mesh.SetBufferRaw(boneWeightOffsets, ECommonBufferType.BoneMatrixOffset.ToString(), false, true);
             }
         }
         private void BoneTransformUpdated(RenderBone bone)

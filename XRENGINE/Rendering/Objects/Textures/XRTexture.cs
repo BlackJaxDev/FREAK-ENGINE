@@ -7,16 +7,55 @@ namespace XREngine.Rendering
     public abstract class XRTexture : GenericRenderObject, IFrameBufferAttachement
     {
         public static MagickImage NewImage(uint width, uint height, EPixelFormat format, EPixelType type)
-            => new(
-                new byte[width * height * ComponentSize(type) * GetComponentCount(format)],
-                new MagickReadSettings()
-                {
-                    Width = width,
-                    Height = height,
-                    FillColor = HasAlpha(format) ? MagickColor.FromRgba(0, 0, 0, 1) : MagickColor.FromRgb(0, 0, 0),
-                    Format = GetMagickFormat(format),
-                    ColorSpace = IsSigned(type) ? ColorSpace.sRGB : ColorSpace.RGB,
-                });
+        {
+            byte[] data = new byte[width * height * ComponentSize(type) * GetComponentCount(format)];
+            MagickReadSettings settings = new()
+            {
+                Width = width,
+                Height = height,
+                FillColor = HasAlpha(format) ? MagickColor.FromRgba(0, 0, 0, 1) : MagickColor.FromRgb(0, 0, 0),
+                Format = GetMagickFormat(format),
+                ColorSpace = IsSigned(type) ? ColorSpace.sRGB : ColorSpace.RGB,
+            };
+            return new(data, settings);
+        }
+
+        //private unsafe void GetFormat(MagickImage bmp, bool internalCompression, out GLEnum internalPixelFormat, out GLEnum pixelFormat, out GLEnum pixelType)
+        //{
+        //    //Internal format must match pixel format
+        //    //GL_ALPHA, GL_LUMINANCE, GL_LUMINANCE_ALPHA, GL_RGB, GL_RGBA
+        //    //bool hasAlpha = bmp.HasAlpha;
+        //    uint channels = bmp.ChannelCount;
+        //    bool signed = bmp.Settings.ColorSpace == ColorSpace.sRGB;
+        //    uint depth = bmp.Depth; //8 is s/byte, 16 is u/short, 32 is float
+        //    pixelType = depth switch
+        //    {
+        //        8 => signed ? GLEnum.Byte : GLEnum.UnsignedByte,
+        //        16 => signed ? GLEnum.Short : GLEnum.UnsignedShort,
+        //        32 => GLEnum.Float,
+        //        _ => throw new NotSupportedException($"Unsupported pixel depth: {depth}"),
+        //    };
+        //    switch (channels)
+        //    {
+        //        case 1:
+        //            internalPixelFormat = internalCompression ? GLEnum.CompressedRed : GLEnum.Red;
+        //            pixelFormat = GLEnum.Red;
+        //            break;
+        //        case 2:
+        //            internalPixelFormat = internalCompression ? GLEnum.CompressedRG : GLEnum.RG;
+        //            pixelFormat = GLEnum.RG;
+        //            break;
+        //        case 3:
+        //            internalPixelFormat = internalCompression ? GLEnum.CompressedRgb : GLEnum.Rgb8;
+        //            pixelFormat = GLEnum.Rgb;
+        //            break;
+        //        default:
+        //        case 4:
+        //            internalPixelFormat = internalCompression ? GLEnum.CompressedRgba : GLEnum.Rgba;
+        //            pixelFormat = GLEnum.Rgba;
+        //            break;
+        //    }
+        //}
 
         public static bool IsSigned(EPixelType type)
             => type switch
@@ -197,24 +236,6 @@ namespace XREngine.Rendering
             => AttachToFBORequested?.Invoke(target, attachment, mipLevel);
         public void DetachFromFBO(XRFrameBuffer target, EFrameBufferAttachment attachment, int mipLevel = 0)
             => DetachFromFBORequested?.Invoke(target, attachment, mipLevel);
-
-        //TODO: support all texture types
-        public static XRTexture New(ETextureType type)
-            => type switch
-            {
-                ETextureType.Tex1D => new XRTexture1D(),
-                ETextureType.Tex2D => new XRTexture2D(),
-                ETextureType.Tex3D => new XRTexture3D(),
-                ETextureType.TexCube => new XRTextureCube(),
-                ETextureType.Tex2DRect => new XRTexture2D() { Rectangle = true },
-                ETextureType.Tex1DArray => new XRTexture1DArray(),
-                ETextureType.Tex2DArray => new XRTexture2DArray(),
-                ETextureType.TexCubeArray => new XRTextureCubeArray(),
-                ETextureType.TexBuffer => new XRTextureBuffer(),
-                ETextureType.Tex2DMultisample => new XRTexture2D() { MultiSample = true },
-                ETextureType.Tex2DMultisampleArray => new XRTexture2DArray() { MultiSample = true },
-                _ => throw new InvalidOperationException($"Invalid texture type: {type}")
-            };
 
         /// <summary>
         /// Returns the sampler name for this texture to bind into the shader.

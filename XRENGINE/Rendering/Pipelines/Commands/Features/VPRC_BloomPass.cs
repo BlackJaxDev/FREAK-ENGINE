@@ -64,9 +64,9 @@ namespace XREngine.Rendering.Pipelines.Commands
             var outputTexture = XRTexture2D.CreateFrameBufferTexture(
                 width,
                 height,
-                EPixelInternalFormat.Rgb8,
+                EPixelInternalFormat.Rgb,
                 EPixelFormat.Rgb,
-                EPixelType.UnsignedByte);
+                EPixelType.Float);
             outputTexture.Name = BloomOutputTextureName;
             outputTexture.MagFilter = ETexMagFilter.Linear;
             outputTexture.MinFilter = ETexMinFilter.LinearMipmapLinear;

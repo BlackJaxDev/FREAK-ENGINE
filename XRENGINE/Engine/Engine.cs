@@ -120,11 +120,10 @@ namespace XREngine
                 return;
             
             for (int i = 0; i < 4; i++)
-            {
                 if (((int)localPlayerMask & (1 << i)) > 0)
                     renderer.RegisterLocalPlayer((ELocalPlayerIndex)i, false);
-                renderer.ResizeAllViewportsAccordingToPlayers();
-            }
+            
+            renderer.ResizeAllViewportsAccordingToPlayers();
         }
 
         private static WindowOptions GetWindowOptions(GameWindowStartupSettings windowSettings)

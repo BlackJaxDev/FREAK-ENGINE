@@ -52,26 +52,21 @@ namespace XREngine.Rendering.OpenGL
             /// <returns></returns>
             public int GetUniformLocation(string name)
             {
-                if (!IsGenerated)
-                    return -1;
-
                 if (_uniformCache.TryGetValue(name, out int value))
                     return value;
 
-                if (GetUniform(name, out value))
-                {
-                    _uniformCache.TryAdd(name, value);
-                    return value;
-                }
+                if (!GetUniform(name, out value))
+                    return -1;
 
-                return -1;
+                _uniformCache.TryAdd(name, value);
+                return value;
             }
             private bool GetUniform(string name, out int location)
             {
                 location = Api.GetUniformLocation(BindingId, name);
                 if (location < 0)
                 {
-                    Debug.LogWarning($"Uniform {name} not found in program {Data.Name}.");
+                    //Debug.LogWarning($"Uniform {name} not found in OpenGL program.");
                     return false;
                 }
                 return true;
@@ -85,26 +80,21 @@ namespace XREngine.Rendering.OpenGL
             /// <returns></returns>
             public int GetAttributeLocation(string name)
             {
-                if (!IsGenerated)
-                    return -1;
-
                 if (_attribCache.TryGetValue(name, out int value))
                     return value;
 
-                if (GetAttribute(name, out value))
-                {
-                    _attribCache.TryAdd(name, value);
-                    return value;
-                }
+                if (!GetAttribute(name, out value))
+                    return -1;
 
-                return -1;
+                _attribCache.TryAdd(name, value);
+                return value;
             }
             private bool GetAttribute(string name, out int location)
             {
                 location = Api.GetAttribLocation(BindingId, name);
                 if (location < 0)
                 {
-                    Debug.LogWarning($"Attribute {name} not found in program {Data.Name}.");
+                    //Debug.LogWarning($"Attribute {name} not found in OpenGL program.");
                     return false;
                 }
                 return true;
@@ -159,10 +149,10 @@ namespace XREngine.Rendering.OpenGL
             {
                 Reset();
 
+                _shaderCache = Data.Shaders.Select(CreateAndGenerate).ToArray();
+
                 if (_shaderCache.Length == 0)
                     return InvalidBindingId;
-
-                _shaderCache = Data.Shaders.Select(CreateAndGenerate).ToArray();
 
                 if (_shaderCache.Any(x => !x.IsCompiled))
                     return InvalidBindingId;
@@ -186,14 +176,17 @@ namespace XREngine.Rendering.OpenGL
             //}
             protected internal override void PostGenerated()
             {
+                if (!TryGetBindingId(out uint bindingId))
+                    return;
+                
                 _shaderCache.ForEach(LinkShader);
 
-                Api.LinkProgram(BindingId);
-                Api.GetProgram(BindingId, GLEnum.LinkStatus, out int status);
+                Api.LinkProgram(bindingId);
+                Api.GetProgram(bindingId, GLEnum.LinkStatus, out int status);
                 IsLinked = status != 0;
                 if (!IsLinked)
                 {
-                    Api.GetProgramInfoLog(BindingId, out string info);
+                    Api.GetProgramInfoLog(bindingId, out string info);
 
                     Debug.Out(string.IsNullOrWhiteSpace(info) 
                         ? "Unable to link program, but no error was returned." 

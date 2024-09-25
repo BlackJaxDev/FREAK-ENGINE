@@ -149,7 +149,9 @@ namespace XREngine.Rendering.Pipelines.Commands
                 VWrap = ETexWrapMode.Repeat,
                 Resizable = false,
             };
-            noiseTex.Mipmaps[0].GetPixels().SetPixels(Noise!.SelectMany(v => new float[] { v.X, v.Y, 0.0f }).ToArray());
+            var tex = XRTexture.NewImage((uint)NoiseWidth, (uint)NoiseHeight, EPixelFormat.Rgb, EPixelType.Float);
+            tex.GetPixels().SetPixels(Noise!.SelectMany(v => new float[] { v.X, v.Y, 0.0f }).ToArray());
+            noiseTex.Mipmaps[0] = tex;
             Pipeline.SetTexture(noiseTex);
 
             XRTexture2D ssaoTex = XRTexture2D.CreateFrameBufferTexture(

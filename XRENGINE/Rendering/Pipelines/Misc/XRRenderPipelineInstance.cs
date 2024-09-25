@@ -35,13 +35,19 @@ public sealed partial class XRRenderPipelineInstance : XRBase
         {
             case nameof(Pipeline):
                 if (Pipeline is not null)
+                {
                     MeshRenderCommands.SetRenderPasses(Pipeline.PassIndicesAndSorters);
+                    InvalidMaterial = Pipeline.InvalidMaterial;
+                }
+                else
+                    InvalidMaterial = null;
                 DestroyCache();
                 break;
         }
     }
 
     public RenderingStatus RenderStatus { get; } = new();
+    public XRMaterial? InvalidMaterial { get; set; }
 
     /// <summary>
     /// Renders the scene to the viewport or framebuffer.
@@ -71,14 +77,14 @@ public sealed partial class XRRenderPipelineInstance : XRBase
         //_timeQuery.BeginQuery(EQueryTarget.TimeElapsed);
         using (PushRenderingCamera(camera))
         {
-            try
-            {
+            //try
+            //{
                 Pipeline.CommandChain.Execute();
-            }
-            catch (Exception e)
-            {
-                Debug.Out(EOutputVerbosity.Verbose, true, true, true, true, 3, 10, e.Message);
-            }
+            //}
+            //catch (Exception e)
+            //{
+            //    Debug.Out(EOutputVerbosity.Verbose, true, true, true, true, 3, 10, e.Message);
+            //}
         }
         //_renderFPS = 1.0f / (_timeQuery.EndAndGetQueryInt() * 1e-9f);
         //Engine.PrintLine(_renderMS.ToString() + " ms");
@@ -174,5 +180,10 @@ public sealed partial class XRRenderPipelineInstance : XRBase
             _frameBuffers[name]?.Destroy();
             _frameBuffers[name] = fbo;
         }
+    }
+
+    internal T GetFBO<T>(object userInterfaceFBOName)
+    {
+        throw new NotImplementedException();
     }
 }

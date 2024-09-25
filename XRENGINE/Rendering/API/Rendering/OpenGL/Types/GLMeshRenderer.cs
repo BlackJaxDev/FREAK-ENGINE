@@ -204,18 +204,11 @@ namespace XREngine.Rendering.OpenGL
                 _combinedProgram = null;
             }
 
-            public static class CommonBindingNames
-            {
-                public const string BoneIndices = "MatrixIds";
-
-                public static string BoneBlockName = "Bones";
-            }
-
             public GLMaterial GetRenderMaterial(XRMaterial? localMaterialOverride = null) =>
                 Renderer.GlobalMaterialOverride ?? 
                 (localMaterialOverride is null ? null : (Renderer.GetOrCreateAPIRenderObject(localMaterialOverride) as GLMaterial)) ??
                 Material ?? 
-                Renderer.GenericToAPI<GLMaterial>(Engine.Rendering.State.CurrentPipeline!.Pipeline!.InvalidMaterial)!;
+                Renderer.GenericToAPI<GLMaterial>(Engine.Rendering.State.CurrentPipeline!.InvalidMaterial)!;
 
             public void Render(Matrix4x4 modelMatrix, XRMaterial? materialOverride, uint instances)
             {
@@ -231,8 +224,19 @@ namespace XREngine.Rendering.OpenGL
 
                 if (Data.SingleBind != null)
                     modelMatrix *= Data.SingleBind.WorldMatrix;
-                
-                GLRenderProgram vertexProgram, materialProgram;
+
+                GetPrograms(material, out GLRenderProgram vertexProgram, out GLRenderProgram materialProgram);
+
+                Data.PushBoneMatricesToGPU();
+                SetMeshUniforms(modelMatrix, vertexProgram);
+                material.SetUniforms();
+                OnSettingUniforms(vertexProgram, materialProgram);
+
+                Renderer.RenderMesh(this, false, instances);
+            }
+
+            private void GetPrograms(GLMaterial material, out GLRenderProgram vertexProgram, out GLRenderProgram materialProgram)
+            {
                 if (Engine.Rendering.Settings.AllowShaderPipelines && _pipeline is not null)
                 {
                     materialProgram = material.Program!;
@@ -240,7 +244,7 @@ namespace XREngine.Rendering.OpenGL
                     _pipeline.Bind();
                     _pipeline.Clear(EProgramStageMask.AllShaderBits);
                     _pipeline.Set(materialProgram.Data.ShaderTypeMask, materialProgram);
-                    
+
                     //If the program doesn't override the vertex shader, use the default one for this mesh
                     if (!materialProgram.Data.ShaderTypeMask.HasFlag(EProgramStageMask.VertexShaderBit))
                     {
@@ -255,41 +259,30 @@ namespace XREngine.Rendering.OpenGL
                     vertexProgram = materialProgram = _combinedProgram!;
                     _combinedProgram!.Use();
                 }
+            }
 
-                Data.PushBoneMatricesToGPU();
-
-                vertexProgram.Uniform(EEngineUniform.ModelMatrix, modelMatrix);
-                //Api.Uniform(vtxId, Uniform.GetLocation(vtxId, ECommonUniform.PrevModelMatrix), _lastRenderedModelMatrix);
-
-                //TODO: normal matrix can be calculated in the shader with invert and transpose of the model matrix
-                //vertexProgram.Uniform(Uniform.GetLocation(vertexProgram, EEngineUniform.NormalMatrix), normalMatrix);
-
+            private static void SetMeshUniforms(Matrix4x4 modelMatrix, GLRenderProgram vertexProgram)
+            {
                 XRCamera? camera = Engine.Rendering.State.RenderingCamera;
-                Matrix4x4 worldMatrix;
+                Matrix4x4 viewMatrix;
                 Matrix4x4 projMatrix;
 
                 if (camera != null)
                 {
-                    worldMatrix = camera.Transform.WorldMatrix;
+                    viewMatrix = camera.Transform.WorldMatrix;
                     projMatrix = camera.ProjectionMatrix;
                 }
                 else
                 {
                     //No camera? Everything will be rendered in world space instead of camera space.
                     //This is used by point lights to render depth cubemaps, for example.
-                    worldMatrix = Matrix4x4.Identity;
+                    viewMatrix = Matrix4x4.Identity;
                     projMatrix = Matrix4x4.Identity;
                 }
 
-                vertexProgram.Uniform(EEngineUniform.ModelMatrix, Data?.SingleBind?.WorldMatrix ?? Matrix4x4.Identity);
-                vertexProgram.Uniform(EEngineUniform.ViewMatrix, worldMatrix);
+                vertexProgram.Uniform(EEngineUniform.ModelMatrix, modelMatrix);
+                vertexProgram.Uniform(EEngineUniform.ViewMatrix, viewMatrix);
                 vertexProgram.Uniform(EEngineUniform.ProjMatrix, projMatrix);
-
-                material.SetUniforms();
-
-                OnSettingUniforms(vertexProgram, materialProgram);
-
-                Renderer.RenderMesh(this, false, instances);
             }
 
             private void OnSettingUniforms(GLRenderProgram vertexProgram, GLRenderProgram materialProgram)
@@ -302,10 +295,17 @@ namespace XREngine.Rendering.OpenGL
                 //Determine how we're combining the material and vertex shader here
                 if (Engine.Rendering.Settings.AllowShaderPipelines)
                 {
+                    string vertexShaderSource = Data.VertexShaderSource!;
+
+                    var pipeline = new XRRenderProgramPipeline();
+                    var shader = new XRShader(EShaderType.Vertex, vertexShaderSource);
+                    var program = new XRRenderProgram(shader);
+
                     _combinedProgram = null;
-                    _defaultVertexProgram = Renderer.GenericToAPI<GLRenderProgram>(new XRRenderProgram(new XRShader(EShaderType.Vertex, Data.VertexShaderSource!)))!;
-                    _pipeline = Renderer.GenericToAPI<GLRenderProgramPipeline>(new XRRenderProgramPipeline())!;
-                    Data.BoneMatricesBuffer?.SetBlockName(_defaultVertexProgram.Data, CommonBindingNames.BoneBlockName);
+                    _defaultVertexProgram = Renderer.GenericToAPI<GLRenderProgram>(program)!;
+                    _pipeline = Renderer.GenericToAPI<GLRenderProgramPipeline>(pipeline)!;
+
+                    LinkBlocksToProgram(_defaultVertexProgram.Data);
                 }
                 else
                 {
@@ -320,13 +320,26 @@ namespace XREngine.Rendering.OpenGL
                     _defaultVertexProgram = null;
                     _combinedProgram = Renderer.GenericToAPI<GLRenderProgram>(new XRRenderProgram(shaders))!;
 
+                    var vtxProg = _combinedProgram.Data;
                     if (useDefaultVertexShader)
-                        Data.BoneMatricesBuffer?.SetBlockName(_combinedProgram.Data, CommonBindingNames.BoneBlockName);
+                        LinkBlocksToProgram(vtxProg);
                 }
 
                 Renderer.BindMesh(this);
                 BindBuffers();
                 Renderer.BindMesh(null);
+            }
+
+            private void LinkBlocksToProgram(XRRenderProgram vtxProg)
+            {
+                Data.BoneMatricesBuffer?.SetBlockName(vtxProg, ECommonBufferType.BoneMatrices.ToString());
+                var mesh = Data.Mesh;
+                if (mesh is not null)
+                {
+                    mesh.BlendshapePositionDeltasBuffer?.SetBlockName(vtxProg, ECommonBufferType.BlendshapePositionDeltas.ToString());
+                    mesh.BlendshapeNormalDeltasBuffer?.SetBlockName(vtxProg, ECommonBufferType.BlendshapeNormalDeltas.ToString());
+                    mesh.BlendshapeTangentDeltasBuffer?.SetBlockName(vtxProg, ECommonBufferType.BlendshapeTangentDeltas.ToString());
+                }
             }
 
             /// <summary>

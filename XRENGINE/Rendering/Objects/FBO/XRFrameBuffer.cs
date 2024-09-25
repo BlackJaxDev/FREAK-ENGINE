@@ -275,7 +275,7 @@ namespace XREngine.Rendering
             {
                 case XRTexture texture:
                     {
-                        texture.PushData();
+                        //texture.PushData();
                         texture.Bind();
 
                         if (texture is XRTextureCube cuberef && LayerIndex >= 0 && LayerIndex < 6)

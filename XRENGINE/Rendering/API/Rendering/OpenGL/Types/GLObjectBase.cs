@@ -78,10 +78,14 @@
                 Debug.Out($"Generating OpenGL object {Type}");
                 PreGenerated();
                 _bindingId = CreateObject();
-                PostGenerated();
-
-                _invalidated = false;
-                _hasSentInvalidationWarning = false;
+                if (_bindingId is not null && _bindingId != InvalidBindingId)
+                {
+                    PostGenerated();
+                    _invalidated = false;
+                    _hasSentInvalidationWarning = false;
+                }
+                else
+                    Debug.Out("Failed to generate OpenGL object.");
             }
 
             protected internal virtual void PreDeleted()

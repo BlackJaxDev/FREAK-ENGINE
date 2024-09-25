@@ -8,7 +8,7 @@
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <RootNamespace>XREngine.Editor</RootNamespace>
     <Platforms>AnyCPU;x64</Platforms>
-    <BaseOutputPath>D:\Documents\XRENGINE\Build\Editor</BaseOutputPath>
+    <BaseOutputPath>$(SolutionDir)Build\Editor\$(Configuration)\$(Platform)</BaseOutputPath>
     <SignAssembly>False</SignAssembly>
     <StartupObject>Program</StartupObject>
   </PropertyGroup>

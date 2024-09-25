@@ -7,7 +7,7 @@
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <PublishAot>true</PublishAot>
     <Platforms>AnyCPU;x64</Platforms>
-    <BaseOutputPath>D:\Documents\XRENGINE\Build\Engine</BaseOutputPath>
+    <BaseOutputPath>$(SolutionDir)Build\Engine\$(Configuration)\$(Platform)</BaseOutputPath>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
