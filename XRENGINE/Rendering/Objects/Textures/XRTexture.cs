@@ -203,7 +203,7 @@ namespace XREngine.Rendering
         public EPixelType PixelType
         {
             get => _pixelType;
-            //set => SetField(ref _pixelType, value);
+            set => SetField(ref _pixelType, value);
         }
 
         private EPixelFormat _pixelFormat = EPixelFormat.Rgba;
@@ -219,6 +219,7 @@ namespace XREngine.Rendering
             get => _internalFormat;
             set => SetField(ref _internalFormat, value);
         }
+        public virtual bool IsResizeable { get; } = false;
 
         public void AttachToFBO(XRFrameBuffer target, int mipLevel = 0)
         {

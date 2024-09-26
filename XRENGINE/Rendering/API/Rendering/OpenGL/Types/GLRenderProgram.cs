@@ -24,6 +24,9 @@ namespace XREngine.Rendering.OpenGL
                 _uniformCache = new(),
                 _attribCache = new();
 
+            private readonly ConcurrentBag<string> _failedAttributes = [];
+            private readonly ConcurrentBag<string> _failedUniforms = [];
+
             private GLShader[] _shaderCache = [];
             protected GLShader[] ShaderObjects
             {
@@ -63,10 +66,20 @@ namespace XREngine.Rendering.OpenGL
             }
             private bool GetUniform(string name, out int location)
             {
+                bool failed = _failedUniforms.Contains(name);
+                if (failed)
+                {
+                    location = -1;
+                    return false;
+                }
                 location = Api.GetUniformLocation(BindingId, name);
                 if (location < 0)
                 {
-                    //Debug.LogWarning($"Uniform {name} not found in OpenGL program.");
+                    if (!failed)
+                    {
+                        _failedUniforms.Add(name);
+                        Debug.LogWarning($"Uniform {name} not found in OpenGL program.");
+                    }
                     return false;
                 }
                 return true;
@@ -91,10 +104,20 @@ namespace XREngine.Rendering.OpenGL
             }
             private bool GetAttribute(string name, out int location)
             {
+                bool failed = _failedAttributes.Contains(name);
+                if (failed)
+                {
+                    location = -1;
+                    return false;
+                }
                 location = Api.GetAttribLocation(BindingId, name);
                 if (location < 0)
                 {
-                    //Debug.LogWarning($"Attribute {name} not found in OpenGL program.");
+                    if (!failed)
+                    {
+                        _failedAttributes.Add(name);
+                        Debug.LogWarning($"Attribute {name} not found in OpenGL program.");
+                    }
                     return false;
                 }
                 return true;
@@ -131,6 +154,8 @@ namespace XREngine.Rendering.OpenGL
                 IsLinked = false;
                 _attribCache.Clear();
                 _uniformCache.Clear();
+                _failedAttributes.Clear();
+                _failedUniforms.Clear();
             }
 
             public override void Destroy()
@@ -304,6 +329,8 @@ namespace XREngine.Rendering.OpenGL
 
             public void Uniform(int location, Vector2[] p)
             {
+                if (location < 0)
+                    return;
                 fixed (Vector2* ptr = p)
                 {
                     Api.ProgramUniform2(BindingId, location, (uint)p.Length, (float*)ptr);
@@ -311,6 +338,8 @@ namespace XREngine.Rendering.OpenGL
             }
             public void Uniform(int location, Vector3[] p)
             {
+                if (location < 0)
+                    return;
                 fixed (Vector3* ptr = p)
                 {
                     Api.ProgramUniform3(BindingId, location, (uint)p.Length, (float*)ptr);
@@ -318,6 +347,8 @@ namespace XREngine.Rendering.OpenGL
             }
             public void Uniform(int location, Vector4[] p)
             {
+                if (location < 0)
+                    return;
                 fixed (Vector4* ptr = p)
                 {
                     Api.ProgramUniform4(BindingId, location, (uint)p.Length, (float*)ptr);
@@ -325,6 +356,8 @@ namespace XREngine.Rendering.OpenGL
             }
             public void Uniform(int location, Quaternion[] p)
             {
+                if (location < 0)
+                    return;
                 fixed (Quaternion* ptr = p)
                 {
                     Api.ProgramUniform4(BindingId, location, (uint)p.Length, (float*)ptr);
@@ -332,6 +365,8 @@ namespace XREngine.Rendering.OpenGL
             }
             public void Uniform(int location, int[] p)
             {
+                if (location < 0)
+                    return;
                 fixed (int* ptr = p)
                 {
                     Api.ProgramUniform1(BindingId, location, (uint)p.Length, ptr);
@@ -339,6 +374,8 @@ namespace XREngine.Rendering.OpenGL
             }
             public void Uniform(int location, float[] p)
             {
+                if (location < 0)
+                    return;
                 fixed (float* ptr = p)
                 {
                     Api.ProgramUniform1(BindingId, location, (uint)p.Length, ptr);
@@ -346,6 +383,8 @@ namespace XREngine.Rendering.OpenGL
             }
             public void Uniform(int location, uint[] p)
             {
+                if (location < 0)
+                    return;
                 fixed (uint* ptr = p)
                 {
                     Api.ProgramUniform1(BindingId, location, (uint)p.Length, ptr);
@@ -353,6 +392,8 @@ namespace XREngine.Rendering.OpenGL
             }
             public void Uniform(int location, double[] p)
             {
+                if (location < 0)
+                    return;
                 fixed (double* ptr = p)
                 {
                     Api.ProgramUniform1(BindingId, location, (uint)p.Length, ptr);
@@ -360,6 +401,8 @@ namespace XREngine.Rendering.OpenGL
             }
             public void Uniform(int location, Matrix4x4[] p)
             {
+                if (location < 0)
+                    return;
                 fixed (Matrix4x4* ptr = p)
                 {
                     Api.ProgramUniformMatrix4(BindingId, location, (uint)p.Length, false, (float*)ptr);

@@ -57,7 +57,7 @@ public unsafe partial class VulkanRenderer
                 try
                 {
                     if (_bindingId is null)
-                        return InvalidBindingId;//Generate();
+                        Generate();
                     return _bindingId!.Value;
                 }
                 catch

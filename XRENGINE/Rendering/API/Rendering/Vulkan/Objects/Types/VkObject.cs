@@ -15,6 +15,11 @@ public unsafe partial class VulkanRenderer
         private readonly List<VkObject<T>?> _objectCache = [];
         public IReadOnlyList<VkObject<T>?> ObjectCache => _objectCache;
 
+        public override string GetDescribingName()
+        {
+            return $"{GetType()} {_bindingId}";
+        }
+
         public uint CacheObject(VkObject<T> obj)
         {
             //Find first null slot

@@ -17,23 +17,31 @@
         /// Cast the texture to the correct type and verify its size with this action.
         /// If true is returned, the texture will be recreated.
         /// </summary>
-        public required Func<XRTexture, bool>? NeedsRecreate { get; set; }
+        public Func<XRTexture, bool>? NeedsRecreate { get; set; } = null;
 
-        public void SetOptions(string name, Func<XRTexture> factory, Func<XRTexture, bool>? needsRecreate)
+        public Action<XRTexture>? Resize { get; set; } = null;
+
+        public void SetOptions(string name, Func<XRTexture> factory, Func<XRTexture, bool>? needsRecreate, Action<XRTexture>? resize)
         {
             Name = name;
             TextureFactory = factory;
             NeedsRecreate = needsRecreate;
+            Resize = resize;
         }
 
         protected override void Execute()
         {
             if (Pipeline.TryGetTexture(Name, out var texture) && (texture is null || !(NeedsRecreate?.Invoke(texture) ?? false)))
                 return;
-            
-            texture = TextureFactory();
-            texture.Name = Name;
-            Pipeline.SetTexture(texture);
+
+            if (texture is not null && texture.IsResizeable && Resize is not null)
+                Resize.Invoke(texture);
+            else
+            {
+                texture = TextureFactory();
+                texture.Name = Name;
+                Pipeline.SetTexture(texture);
+            }
         }
     }
 }

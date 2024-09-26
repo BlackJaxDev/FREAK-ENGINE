@@ -22,6 +22,9 @@ namespace XREngine.Rendering.OpenGL
             
             protected override GenericRenderObject Data_Internal => Data;
 
+            public override string GetDescribingName()
+                => $"{GetType().Name} {(TryGetBindingId(out uint id) ? id.ToString() : "<Ungenerated>")}{(Data.Name is not null ? $" '{Data.Name}'" : "")}";
+
             private T _data;
             public T Data
             {

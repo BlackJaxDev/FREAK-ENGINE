@@ -204,34 +204,50 @@ namespace XREngine.Rendering.OpenGL
         public void CheckFrameBufferErrors(GLFrameBuffer fbo)
         {
             var result = Api.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
+            string debug = GetFBODebugInfo(fbo, Environment.NewLine);
+            string name = fbo.GetDescribingName();
             if (result != GLEnum.FramebufferComplete)
+                Debug.LogWarning($"{name} is not complete. Status: {result}{debug}");
+            else
+                Debug.Out($"{name} updated successfully.{debug}");
+        }
+
+        private static string GetFBODebugInfo(GLFrameBuffer fbo, string splitter)
+        {
+            string debug = string.Empty;
+            if (fbo.Data.Targets is null)
+                return debug;
+
+            foreach (var (Target, Attachment, MipLevel, LayerIndex) in fbo.Data.Targets)
             {
-                Debug.LogWarning($"Framebuffer {fbo.BindingId} is not complete. Status: {result}");
-                switch (result)
-                {
-                    case GLEnum.FramebufferIncompleteMissingAttachment:
-                        {
-                            fbo.Data.Targets?.ForEach(a =>
-                            {
-                                if (a.Target == null)
-                                    Debug.LogWarning($"Framebuffer {fbo.BindingId} has missing attachment.");
-                            });
-                        }
-                        break;
-                    case GLEnum.FramebufferIncompleteAttachment:
-                        {
-                            //Collect all requested attachments
-                            void TestAttachment((IFrameBufferAttachement Target, EFrameBufferAttachment Attachment, int MipLevel, int LayerIndex) a)
-                            {
-                                var attachment = Api.GetNamedFramebufferAttachmentParameter(fbo.BindingId, ToGLEnum(a.Attachment), GLEnum.FramebufferAttachmentObjectType);
-                                if (attachment != (int)GLEnum.Texture)
-                                    Debug.LogWarning($"Framebuffer {fbo.BindingId} has incomplete attachment.");
-                            }
-                            fbo.Data.Targets?.ForEach(TestAttachment);
-                        }
-                        break;
-                }
+                GenericRenderObject? gro = Target as GenericRenderObject;
+                bool targetExists = gro is not null;
+                string texName = targetExists ? gro!.GetDescribingName() : "<null>";
+                debug += $"{splitter}{Attachment}: {texName} Mip{MipLevel}";
+                if (LayerIndex >= 0)
+                    debug += $" Layer{LayerIndex}";
+                if (targetExists)
+                    debug += $" | {GetTargetDebugInfo(gro!)}";
             }
+            return debug;
+        }
+
+        private static string GetTargetDebugInfo(GenericRenderObject gro)
+        {
+            string debug = string.Empty;
+            switch (gro)
+            {
+                case XRTexture2DView t2dv:
+                    debug += $"{t2dv.ViewedTexture.Width}x{t2dv.ViewedTexture.Height} | internal:{t2dv.InternalFormat} | {t2dv.ViewedTexture.PixelFormat}/{t2dv.ViewedTexture.PixelType}";
+                    break;
+                case XRTexture2D t2d:
+                    debug += $"{t2d.Width}x{t2d.Height} | internal:{t2d.InternalFormat} | {t2d.PixelFormat}/{t2d.PixelType}";
+                    break;
+                case XRRenderBuffer rb:
+                    debug += $"{rb.Width}x{rb.Height} | {rb.Type}";
+                    break;
+            }
+            return debug;
         }
 
         public void SetMipmapParameters(uint bindingId, int minLOD, int maxLOD, int largestMipmapLevel, int smallestAllowedMipmapLevel)
@@ -489,27 +505,27 @@ namespace XREngine.Rendering.OpenGL
             => pixelFormat switch
             {
                 EPixelFormat.Red => GLEnum.Red,
-                //EPixelFormat.Rg => GLEnum.RG,
+                EPixelFormat.Rg => GLEnum.RG,
                 EPixelFormat.Rgb => GLEnum.Rgb,
                 EPixelFormat.Bgr => GLEnum.Bgr,
                 EPixelFormat.Rgba => GLEnum.Rgba,
                 EPixelFormat.Bgra => GLEnum.Bgra,
-                //EPixelFormat.RedInteger => GLEnum.RedInteger,
-                //EPixelFormat.RgbInteger => GLEnum.RgbInteger,
-                //EPixelFormat.BgrInteger => GLEnum.BgrInteger,
-                //EPixelFormat.RgbaInteger => GLEnum.RgbaInteger,
-                //EPixelFormat.BgraInteger => GLEnum.BgraInteger,
-                //EPixelFormat.StencilIndex => GLEnum.StencilIndex,
-                //EPixelFormat.DepthComponent => GLEnum.DepthComponent,
-                //EPixelFormat.DepthStencil => GLEnum.DepthStencil,
+                EPixelFormat.RedInteger => GLEnum.RedInteger,
+                EPixelFormat.RgbInteger => GLEnum.RgbInteger,
+                EPixelFormat.BgrInteger => GLEnum.BgrInteger,
+                EPixelFormat.RgbaInteger => GLEnum.RgbaInteger,
+                EPixelFormat.BgraInteger => GLEnum.BgraInteger,
+                EPixelFormat.StencilIndex => GLEnum.StencilIndex,
+                EPixelFormat.DepthComponent => GLEnum.DepthComponent,
+                EPixelFormat.DepthStencil => GLEnum.DepthStencil,
                 EPixelFormat.Green => GLEnum.Green,
                 EPixelFormat.Blue => GLEnum.Blue,
                 EPixelFormat.Alpha => GLEnum.Alpha,
-                //EPixelFormat.UnsignedShort => GLEnum.UnsignedShort,
-                //EPixelFormat.UnsignedInt => GLEnum.UnsignedInt,
-                //EPixelFormat.RgInteger => GLEnum.RGInteger,
-                //EPixelFormat.GreenInteger => GLEnum.GreenInteger,
-                //EPixelFormat.BlueInteger => GLEnum.BlueInteger,
+                EPixelFormat.UnsignedShort => GLEnum.UnsignedShort,
+                EPixelFormat.UnsignedInt => GLEnum.UnsignedInt,
+                EPixelFormat.RgInteger => GLEnum.RGInteger,
+                EPixelFormat.GreenInteger => GLEnum.GreenInteger,
+                EPixelFormat.BlueInteger => GLEnum.BlueInteger,
                 _ => throw new ArgumentOutOfRangeException(nameof(pixelFormat), pixelFormat, null),
             };
 
@@ -559,10 +575,16 @@ namespace XREngine.Rendering.OpenGL
                 EPixelInternalFormat.Rgba32i => GLEnum.Rgba32i,
                 EPixelInternalFormat.Rgba32ui => GLEnum.Rgba32ui,
                 EPixelInternalFormat.One => GLEnum.One,
-                EPixelInternalFormat.DepthComponent => GLEnum.DepthComponent,
                 EPixelInternalFormat.Alpha => GLEnum.Alpha,
                 EPixelInternalFormat.Rgb => GLEnum.Rgb,
                 EPixelInternalFormat.Rgba => GLEnum.Rgba,
+                EPixelInternalFormat.DepthComponent => GLEnum.DepthComponent,
+                EPixelInternalFormat.Depth24Stencil8 => GLEnum.Depth24Stencil8,
+                EPixelInternalFormat.Depth32fStencil8 => GLEnum.Depth32fStencil8,
+                EPixelInternalFormat.DepthComponent16 => GLEnum.DepthComponent16,
+                EPixelInternalFormat.DepthComponent24 => GLEnum.DepthComponent24,
+                EPixelInternalFormat.DepthComponent32 => GLEnum.DepthComponent32,
+                EPixelInternalFormat.DepthStencil => GLEnum.DepthStencil,
                 _ => throw new ArgumentOutOfRangeException(nameof(internalFormat), internalFormat, null),
             };
 

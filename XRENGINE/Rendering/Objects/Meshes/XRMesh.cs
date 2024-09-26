@@ -261,7 +261,7 @@ namespace XREngine.Rendering
             {
                 for (int colorIndex = 0; colorIndex < colorBuffers.Length; ++colorIndex)
                 {
-                    binding = string.Format(ECommonBufferType.Color.ToString(), colorIndex);
+                    binding = $"{ECommonBufferType.Color}{colorIndex}";
                     ColorBuffers[colorIndex] = new XRDataBuffer(binding, EBufferTarget.ArrayBuffer, false);
                     ColorBuffers[colorIndex].SetDataRaw(colorBuffers[colorIndex]);
                     Buffers.Add(binding, ColorBuffers[colorIndex]);
@@ -272,7 +272,7 @@ namespace XREngine.Rendering
             {
                 for (int texCoordIndex = 0; texCoordIndex < uvBuffers.Length; ++texCoordIndex)
                 {
-                    binding = string.Format(ECommonBufferType.TexCoord.ToString(), texCoordIndex);
+                    binding = $"{ECommonBufferType.TexCoord}{texCoordIndex}";
                     TexCoordBuffers[texCoordIndex] = new XRDataBuffer(binding, EBufferTarget.ArrayBuffer, false);
                     TexCoordBuffers[texCoordIndex].SetDataRaw(uvBuffers[texCoordIndex]);
                     Buffers.Add(binding, TexCoordBuffers[texCoordIndex]);

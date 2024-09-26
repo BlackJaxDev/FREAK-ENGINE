@@ -44,7 +44,7 @@ Vector3 WorldPosFromDepth(float depth, Vector2 uv)
 {
     float z = depth * 2.0 - 1.0;
     Vector4 clipSpacePosition = Vector4(uv * 2.0 - 1.0, z, 1.0);
-    Vector4 viewSpacePosition = InvProjMatrix * clipSpacePosition;
+    Vector4 viewSpacePosition = inverse(ProjMatrix) * clipSpacePosition;
     viewSpacePosition /= viewSpacePosition.w;
     Vector4 worldSpacePosition = CameraToWorldSpaceMatrix * viewSpacePosition;
     return worldSpacePosition.xyz;
@@ -54,7 +54,7 @@ Vector3 ViewPosFromDepth(float depth, Vector2 uv)
 {
     float z = depth * 2.0 - 1.0;
     Vector4 clipSpacePosition = Vector4(uv * 2.0 - 1.0, z, 1.0);
-    Vector4 viewSpacePosition = InvProjMatrix * clipSpacePosition;
+    Vector4 viewSpacePosition = inverse(ProjMatrix) * clipSpacePosition;
     return viewSpacePosition.xyz / viewSpacePosition.w;
 }";
         public static readonly string Func_GetDistanceFromDepth = @"

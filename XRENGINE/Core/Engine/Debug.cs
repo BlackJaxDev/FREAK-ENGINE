@@ -12,7 +12,7 @@ namespace XREngine
         /// Prints a message for debugging purposes.
         /// </summary>
         public static void Out(string message, params object[] args)
-            => Out(EOutputVerbosity.Normal, message, args);
+            => Out(EOutputVerbosity.Verbose, message, args);
         /// <summary>
         /// Prints a message for debugging purposes.
         /// </summary>
@@ -108,9 +108,9 @@ namespace XREngine
         {
 #if DEBUG || EDITOR
             if (message != null)
-                Out(EOutputVerbosity.Verbose, false, $"{message}{Environment.NewLine}{ex}");
+                Out(EOutputVerbosity.Minimal, false, $"{message}{Environment.NewLine}{ex}");
             else
-                Out(EOutputVerbosity.Verbose, false, ex.ToString());
+                Out(EOutputVerbosity.Minimal, false, ex.ToString());
 #endif
         }
         public static void LogWarning(string message, int lineIgnoreCount = 0, int includedLineCount = 5)

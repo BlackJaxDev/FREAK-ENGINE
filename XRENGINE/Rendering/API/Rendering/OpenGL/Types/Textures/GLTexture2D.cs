@@ -75,7 +75,8 @@ namespace XREngine.Rendering.OpenGL
                 {
                     if (!Data.Resizable && !_storageSet)
                     {
-                        //Api.TexStorage2D(glTarget, (uint)Data.Mipmaps.Length, sizedInternalFormat, Data.Width, Data.Height);
+                        GLEnum sizedInternalFormat = ToGLEnum(ToSizedInternalFormat(Data.InternalFormat));
+                        Api.TexStorage2D(glTarget, (uint)Data.Mipmaps.Length, sizedInternalFormat, Data.Width, Data.Height);
                         _storageSet = true;
                     }
 
@@ -112,12 +113,13 @@ namespace XREngine.Rendering.OpenGL
             //Api.PixelStore(PixelStoreParameter.UnpackAlignment, 1);
 
             GLEnum pixelFormat = ToGLEnum(Data.PixelFormat);
+            GLEnum pixelType = ToGLEnum(Data.PixelType);
             GLEnum internalPixelFormat = ToGLEnum(Data.InternalFormat);
 
             if (bmp is null)
             {
                 if (!_hasPushed && !_storageSet)
-                    Api.TexImage2D(glTarget, i, (int)internalPixelFormat, Data.Width >> i, Data.Height >> i, 0, pixelFormat, GLEnum.Float, in IntPtr.Zero);
+                    Api.TexImage2D(glTarget, i, (int)internalPixelFormat, Data.Width >> i, Data.Height >> i, 0, pixelFormat, pixelType, null);
             }
             else
             {
@@ -127,9 +129,9 @@ namespace XREngine.Rendering.OpenGL
                 fixed (float* pBytes = bytes)
                 {
                     if (_hasPushed || _storageSet)
-                        Api.TexSubImage2D(glTarget, i, 0, 0, bmp.Width, bmp.Height, pixelFormat, GLEnum.Float, pBytes);
+                        Api.TexSubImage2D(glTarget, i, 0, 0, bmp.Width, bmp.Height, pixelFormat, pixelType, pBytes);
                     else
-                        Api.TexImage2D(glTarget, i, (int)internalPixelFormat, bmp.Width, bmp.Height, 0, pixelFormat, GLEnum.Float, pBytes);
+                        Api.TexImage2D(glTarget, i, (int)internalPixelFormat, bmp.Width, bmp.Height, 0, pixelFormat, pixelType, pBytes);
                 }
                 var error = Api.GetError();
                 if (error != GLEnum.NoError)

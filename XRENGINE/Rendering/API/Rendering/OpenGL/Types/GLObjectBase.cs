@@ -38,12 +38,15 @@
             public override void Destroy()
             {
                 DeleteObject();
+
+                _invalidated = true;
+                _hasSentInvalidationWarning = false;
             }
 
             protected internal virtual void PreGenerated()
             {
                 if (IsGenerated)
-                    DeleteObject();
+                    Destroy();
             }
 
             protected internal virtual void PostGenerated()
@@ -106,8 +109,8 @@
             {
                 get
                 {
-                    try
-                    {
+                    //try
+                    //{
                         if (_bindingId is null)
                             Generate();
 
@@ -118,12 +121,12 @@
                             Debug.LogWarning($"Failed to generate object of type {Type}.");
                             return InvalidBindingId;
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.LogException(ex, $"Failed to generate object of type {Type}.");
-                        return InvalidBindingId;
-                    }
+                    //}
+                    //catch (Exception ex)
+                    //{
+                    //    Debug.LogException(ex, $"Failed to generate object of type {Type}.");
+                    //    return InvalidBindingId;
+                    //}
                 }
             }
 

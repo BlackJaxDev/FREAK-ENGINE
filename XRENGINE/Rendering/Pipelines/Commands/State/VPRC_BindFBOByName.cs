@@ -7,11 +7,11 @@
         protected override void Execute()
         {
             var fbo = Pipeline.GetFBO<XRFrameBuffer>(FrameBufferName);
-            if (fbo != null)
-            {
-                fbo.Bind();
-                PopCommand.FrameBuffer = fbo;
-            }
+            if (fbo is null)
+                return;
+            
+            fbo.Bind();
+            PopCommand.FrameBuffer = fbo;
         }
     }
 }

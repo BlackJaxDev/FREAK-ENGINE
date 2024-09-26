@@ -44,5 +44,7 @@ namespace XREngine.Rendering
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
+
+        public abstract string GetDescribingName();
     }
 }

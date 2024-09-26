@@ -43,6 +43,8 @@ namespace XREngine.Rendering
         private bool _resizable = true;
         private bool _exclusiveSharing = true;
 
+        public override bool IsResizeable => Resizable;
+
         /// <summary>
         /// If false, calling resize will do nothing.
         /// Useful for repeating textures that must always be a certain size or textures that never need to be dynamically resized during the game.
@@ -56,14 +58,17 @@ namespace XREngine.Rendering
 
         public override uint MaxDimension => Math.Max(Width, Height);
 
-        public XRTexture2D() : this(1u, 1u, EPixelFormat.Rgb, EPixelType.UnsignedByte) { }
-        public XRTexture2D(uint width, uint height, EPixelFormat format, EPixelType type, int mipmapCount = 1)
+        public XRTexture2D() : this(1u, 1u, EPixelInternalFormat.Rgb8, EPixelFormat.Rgb, EPixelType.UnsignedByte) { }
+        public XRTexture2D(uint width, uint height, EPixelInternalFormat internalFormat, EPixelFormat format, EPixelType type, int mipmapCount = 1)
         {
             _mipmaps = new MagickImage[mipmapCount];
             for (uint i = 0, scale = 1; i < mipmapCount; scale = 1u << (int)++i)
                 _mipmaps[i] = NewImage(width / scale, height / scale, format, type);
             _width = width;
             _height = height;
+            InternalFormat = internalFormat;
+            PixelFormat = format;
+            PixelType = type;
         }
 
         public XRTexture2D(params string[] mipMapPaths)
@@ -98,6 +103,7 @@ namespace XREngine.Rendering
             _height = height;
             InternalFormat = internalFormat;
             PixelFormat = format;
+            PixelType = type;
         }
         public XRTexture2D(uint width, uint height, params MagickImage?[] mipmaps)
         {

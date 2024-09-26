@@ -176,10 +176,9 @@ namespace XREngine.Rendering.Pipelines.Commands
                 }
             };
 
+            var shader = XRShader.EngineShader(Path.Combine(SceneShaderPath, "SSAOGen.fs"), EShaderType.Fragment);
             var ssaoFbo = new XRQuadFrameBuffer(
-                new([normalTex, noiseTex, depthViewTex],
-                    XRShader.EngineShader(Path.Combine(SceneShaderPath, "SSAOGen.fs"), EShaderType.Fragment)
-                    ) { RenderOptions = renderParams },
+                new([normalTex, noiseTex, depthViewTex], shader) { RenderOptions = renderParams },
                 false,
                 (albedoTex, EFrameBufferAttachment.ColorAttachment0, 0, -1),
                 (normalTex, EFrameBufferAttachment.ColorAttachment1, 0, -1),

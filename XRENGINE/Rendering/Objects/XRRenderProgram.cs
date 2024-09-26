@@ -123,56 +123,96 @@ namespace XREngine.Rendering
         IEnumerator IEnumerable.GetEnumerator()
             => ((IEnumerable)Shaders).GetEnumerator();
 
-        public void Uniform(string name, Matrix4x4 value) => UniformSetMatrix4x4Requested?.Invoke(name, value);
-        public void Uniform(string name, Quaternion value) => UniformSetQuaternionRequested?.Invoke(name, value);
+        public void Uniform(string name, Matrix4x4 value)
+            => UniformSetMatrix4x4Requested?.Invoke(name, value);
+        public void Uniform(string name, Quaternion value)
+            => UniformSetQuaternionRequested?.Invoke(name, value);
 
-        public void Uniform(string name, Matrix4x4[] value) => UniformSetMatrix4x4ArrayRequested?.Invoke(name, value);
-        public void Uniform(string name, Quaternion[] value) => UniformSetQuaternionArrayRequested?.Invoke(name, value);
+        public void Uniform(string name, Matrix4x4[] value)
+            => UniformSetMatrix4x4ArrayRequested?.Invoke(name, value);
+        public void Uniform(string name, Quaternion[] value)
+            => UniformSetQuaternionArrayRequested?.Invoke(name, value);
 
-        public void Uniform(string name, bool value) => UniformSetBoolRequested?.Invoke(name, value);
-        public void Uniform(string name, BoolVector2 value) => UniformSetBoolVector2Requested?.Invoke(name, value);
-        public void Uniform(string name, BoolVector3 value) => UniformSetBoolVector3Requested?.Invoke(name, value);
-        public void Uniform(string name, BoolVector4 value) => UniformSetBoolVector4Requested?.Invoke(name, value);
+        public void Uniform(string name, bool value)
+            => UniformSetBoolRequested?.Invoke(name, value);
+        public void Uniform(string name, BoolVector2 value)
+            => UniformSetBoolVector2Requested?.Invoke(name, value);
+        public void Uniform(string name, BoolVector3 value)
+            => UniformSetBoolVector3Requested?.Invoke(name, value);
+        public void Uniform(string name, BoolVector4 value)
+            => UniformSetBoolVector4Requested?.Invoke(name, value);
 
-        public void Uniform(string name, float value) => UniformSetFloatRequested?.Invoke(name, value);
-        public void Uniform(string name, Vector2 value) => UniformSetVector2Requested?.Invoke(name, value);
-        public void Uniform(string name, Vector3 value) => UniformSetVector3Requested?.Invoke(name, value);
-        public void Uniform(string name, Vector4 value) => UniformSetVector4Requested?.Invoke(name, value);
+        public void Uniform(string name, float value)
+            => UniformSetFloatRequested?.Invoke(name, value);
+        public void Uniform(string name, Vector2 value)
+            => UniformSetVector2Requested?.Invoke(name, value);
+        public void Uniform(string name, Vector3 value)
+            => UniformSetVector3Requested?.Invoke(name, value);
+        public void Uniform(string name, Vector4 value)
+            => UniformSetVector4Requested?.Invoke(name, value);
 
-        public void Uniform(string name, float[] value) => UniformSetFloatArrayRequested?.Invoke(name, value);
-        public void Uniform(string name, Vector2[] value) => UniformSetVector2ArrayRequested?.Invoke(name, value);
-        public void Uniform(string name, Vector3[] value) => UniformSetVector3ArrayRequested?.Invoke(name, value);
-        public void Uniform(string name, Vector4[] value) => UniformSetVector4ArrayRequested?.Invoke(name, value);
+        public void Uniform(string name, float[] value)
+            => UniformSetFloatArrayRequested?.Invoke(name, value);
+        public void Uniform(string name, Vector2[] value)
+            => UniformSetVector2ArrayRequested?.Invoke(name, value);
+        public void Uniform(string name, Vector3[] value)
+            => UniformSetVector3ArrayRequested?.Invoke(name, value);
+        public void Uniform(string name, Vector4[] value)
+            => UniformSetVector4ArrayRequested?.Invoke(name, value);
 
-        public void Uniform(string name, double value) => UniformSetDoubleRequested?.Invoke(name, value);
-        public void Uniform(string name, DVector2 value) => UniformSetDVector2Requested?.Invoke(name, value);
-        public void Uniform(string name, DVector3 value) => UniformSetDVector3Requested?.Invoke(name, value);
-        public void Uniform(string name, DVector4 value) => UniformSetDVector4Requested?.Invoke(name, value);
+        public void Uniform(string name, double value)
+            => UniformSetDoubleRequested?.Invoke(name, value);
+        public void Uniform(string name, DVector2 value)
+            => UniformSetDVector2Requested?.Invoke(name, value);
+        public void Uniform(string name, DVector3 value)
+            => UniformSetDVector3Requested?.Invoke(name, value);
+        public void Uniform(string name, DVector4 value)
+            => UniformSetDVector4Requested?.Invoke(name, value);
 
-        public void Uniform(string name, double[] value) => UniformSetDoubleArrayRequested?.Invoke(name, value);
-        public void Uniform(string name, DVector2[] value) => UniformSetDVector2ArrayRequested?.Invoke(name, value);
-        public void Uniform(string name, DVector3[] value) => UniformSetDVector3ArrayRequested?.Invoke(name, value);
-        public void Uniform(string name, DVector4[] value) => UniformSetDVector4ArrayRequested?.Invoke(name, value);
+        public void Uniform(string name, double[] value)
+            => UniformSetDoubleArrayRequested?.Invoke(name, value);
+        public void Uniform(string name, DVector2[] value)
+            => UniformSetDVector2ArrayRequested?.Invoke(name, value);
+        public void Uniform(string name, DVector3[] value)
+            => UniformSetDVector3ArrayRequested?.Invoke(name, value);
+        public void Uniform(string name, DVector4[] value)
+            => UniformSetDVector4ArrayRequested?.Invoke(name, value);
 
-        public void Uniform(string name, int value) => UniformSetIntRequested?.Invoke(name, value);
-        public void Uniform(string name, IVector2 value) => UniformSetIVector2Requested?.Invoke(name, value);
-        public void Uniform(string name, IVector3 value) => UniformSetIVector3Requested?.Invoke(name, value);
-        public void Uniform(string name, IVector4 value) => UniformSetIVector4Requested?.Invoke(name, value);
+        public void Uniform(string name, int value)
+            => UniformSetIntRequested?.Invoke(name, value);
+        public void Uniform(string name, IVector2 value)
+            => UniformSetIVector2Requested?.Invoke(name, value);
+        public void Uniform(string name, IVector3 value)
+            => UniformSetIVector3Requested?.Invoke(name, value);
+        public void Uniform(string name, IVector4 value)
+            => UniformSetIVector4Requested?.Invoke(name, value);
 
-        public void Uniform(string name, int[] value) => UniformSetIntArrayRequested?.Invoke(name, value);
-        public void Uniform(string name, IVector2[] value) => UniformSetIVector2ArrayRequested?.Invoke(name, value);
-        public void Uniform(string name, IVector3[] value) => UniformSetIVector3ArrayRequested?.Invoke(name, value);
-        public void Uniform(string name, IVector4[] value) => UniformSetIVector4ArrayRequested?.Invoke(name, value);
+        public void Uniform(string name, int[] value)
+            => UniformSetIntArrayRequested?.Invoke(name, value);
+        public void Uniform(string name, IVector2[] value)
+            => UniformSetIVector2ArrayRequested?.Invoke(name, value);
+        public void Uniform(string name, IVector3[] value)
+            => UniformSetIVector3ArrayRequested?.Invoke(name, value);
+        public void Uniform(string name, IVector4[] value)
+            => UniformSetIVector4ArrayRequested?.Invoke(name, value);
 
-        public void Uniform(string name, uint value) => UniformSetUIntRequested?.Invoke(name, value);
-        public void Uniform(string name, UVector2 value) => UniformSetUVector2Requested?.Invoke(name, value);
-        public void Uniform(string name, UVector3 value) => UniformSetUVector3Requested?.Invoke(name, value);
-        public void Uniform(string name, UVector4 value) => UniformSetUVector4Requested?.Invoke(name, value);
+        public void Uniform(string name, uint value)
+            => UniformSetUIntRequested?.Invoke(name, value);
+        public void Uniform(string name, UVector2 value)
+            => UniformSetUVector2Requested?.Invoke(name, value);
+        public void Uniform(string name, UVector3 value)
+            => UniformSetUVector3Requested?.Invoke(name, value);
+        public void Uniform(string name, UVector4 value)
+            => UniformSetUVector4Requested?.Invoke(name, value);
 
-        public void Uniform(string name, uint[] value) => UniformSetUIntArrayRequested?.Invoke(name, value);
-        public void Uniform(string name, UVector2[] value) => UniformSetUVector2ArrayRequested?.Invoke(name, value);
-        public void Uniform(string name, UVector3[] value) => UniformSetUVector3ArrayRequested?.Invoke(name, value);
-        public void Uniform(string name, UVector4[] value) => UniformSetUVector4ArrayRequested?.Invoke(name, value);
+        public void Uniform(string name, uint[] value)
+            => UniformSetUIntArrayRequested?.Invoke(name, value);
+        public void Uniform(string name, UVector2[] value)
+            => UniformSetUVector2ArrayRequested?.Invoke(name, value);
+        public void Uniform(string name, UVector3[] value)
+            => UniformSetUVector3ArrayRequested?.Invoke(name, value);
+        public void Uniform(string name, UVector4[] value)
+            => UniformSetUVector4ArrayRequested?.Invoke(name, value);
 
         public void Sampler(string name, XRTexture texture, int textureUnit)
             => SamplerRequested?.Invoke(name, texture, textureUnit);

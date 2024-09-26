@@ -15,15 +15,14 @@ uniform float Radius = 0.75f;
 uniform float Power = 4.0f;
 uniform vec2 NoiseScale;
 
-uniform mat4 WorldToCameraSpaceMatrix;
-uniform mat4 CameraToWorldSpaceMatrix;
+uniform mat4 ModelMatrix;
+uniform mat4 ViewMatrix;
 uniform mat4 ProjMatrix;
-uniform mat4 InvProjMatrix;
 
 vec3 ViewPosFromDepth(float depth, vec2 uv)
 {
     vec4 clipSpacePosition = vec4(vec3(uv, depth) * 2.0f - 1.0f, 1.0f);
-    vec4 viewSpacePosition = InvProjMatrix * clipSpacePosition;
+    vec4 viewSpacePosition = inverse(ProjMatrix) * clipSpacePosition;
     return viewSpacePosition.xyz / viewSpacePosition.w;
 }
 
@@ -37,10 +36,9 @@ void main()
     float Depth = texture(Texture2, uv).r;
 
     vec3 FragPosVS = ViewPosFromDepth(Depth, uv);
-    //vec3 FragPosWS = (CameraToWorldSpaceMatrix * vec4(FragPosVS, 1.0f)).xyz;
 
     vec3 randomVec = vec3(texture(Texture1, uv * NoiseScale).rg * 2.0f - 1.0f, 0.0f);
-    vec3 viewNormal = normalize(vec3(WorldToCameraSpaceMatrix * vec4(Normal, 0.0f)));
+    vec3 viewNormal = normalize(vec3(ProjMatrix * ViewMatrix * ModelMatrix * vec4(Normal, 0.0f)));
     vec3 viewTangent = normalize(randomVec - viewNormal * dot(randomVec, viewNormal));
     vec3 viewBitangent = cross(viewNormal, viewTangent);
     mat3 TBN = mat3(viewTangent, viewBitangent, viewNormal);

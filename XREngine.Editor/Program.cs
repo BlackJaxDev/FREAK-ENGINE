@@ -87,7 +87,7 @@ internal class Program
                     Height = 1080,
                 }
                 ],
-                OutputVerbosity = EOutputVerbosity.Verbose,
+                OutputVerbosity = EOutputVerbosity.Normal,
                 UseIntegerWeightingIds = true,
                 DefaultUserSettings = new UserSettings()
                 {

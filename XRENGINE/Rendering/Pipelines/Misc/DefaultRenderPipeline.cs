@@ -57,9 +57,9 @@ public class DefaultRenderPipeline : RenderPipeline
     const string RMSITextureName = "RMSI";
     const string DepthStencilTextureName = "DepthStencil";
     const string LightingTextureName = "LightingTexture";
-    const string HDRSceneTextureName = "HDRSceneTexture";
+    const string HDRSceneTextureName = "HDRSceneTex";
     const string BloomBlurTextureName = "BloomBlurTexture";
-    const string HUDTextureName = "HUDTexture";
+    const string HUDTextureName = "HUDTex";
     const string BRDFTextureName = "BRDF";
 
     protected override ViewportRenderCommandContainer GenerateCommandChain()
@@ -232,27 +232,38 @@ public class DefaultRenderPipeline : RenderPipeline
         return uiFBO;
     }
 
-    private uint w => (uint)RenderStatus.Viewport!.InternalWidth;
-    private uint h => (uint)RenderStatus.Viewport!.InternalHeight;
+    private static uint InternalWidth => (uint)RenderStatus.Viewport!.InternalWidth;
+    private static uint InternalHeight => (uint)RenderStatus.Viewport!.InternalHeight;
+    private static uint FullWidth => (uint)RenderStatus.Viewport!.Width;
+    private static uint FullHeight => (uint)RenderStatus.Viewport!.Height;
 
-    private bool NeedsRecreateTextureInternalSize(XRTexture t)
+    private static bool NeedsRecreateTextureInternalSize(XRTexture t)
+        => t is XRTexture2D t2d && (t2d.Width != InternalWidth || t2d.Height != InternalHeight);
+    private static bool NeedsRecreateTextureFullSize(XRTexture t)
+        => t is XRTexture2D t2d && (t2d.Width != FullWidth || t2d.Height != FullHeight);
+
+    private static void ResizeTextureInternalSize(XRTexture t)
     {
-        if (t is not XRTexture2D t2d)
-            return false;
-
-        return t2d.Width != w || t2d.Height != h;
+        switch (t)
+        {
+            case XRTexture2D t2d:
+                t2d.Resize(InternalWidth, InternalHeight);
+                t2d.PushData();
+                break;
+        }
     }
-    private bool NeedsRecreateTextureFullSize(XRTexture t)
+    private static void ResizeTextureFullSize(XRTexture t)
     {
-        if (t is not XRTexture2D t2d)
-            return false;
-
-        uint w2 = (uint)RenderStatus.Viewport!.Width;
-        uint h2 = (uint)RenderStatus.Viewport!.Height;
-        return t2d.Width != w2 || t2d.Height != h2;
+        switch (t)
+        {
+            case XRTexture2D t2d:
+                t2d.Resize(FullWidth, FullHeight);
+                t2d.PushData();
+                break;
+        }
     }
 
-    private (uint x, uint y) GetDesiredFBOSizeInternal() => (w, h);
+    private (uint x, uint y) GetDesiredFBOSizeInternal() => (InternalWidth, InternalHeight);
 
     private (uint x, uint y) GetDesiredFBOSizeFull() => ((uint)RenderStatus.Viewport!.Width, (uint)RenderStatus.Viewport!.Height);
 
@@ -261,14 +272,14 @@ public class DefaultRenderPipeline : RenderPipeline
 
     XRTexture CreateDepthStencilTexture()
     {
-        var dsTex = XRTexture2D.CreateFrameBufferTexture(w, h,
+        var dsTex = XRTexture2D.CreateFrameBufferTexture(InternalWidth, InternalHeight,
             EPixelInternalFormat.Depth24Stencil8,
-            EPixelFormat.Rgb,
-            EPixelType.Float,
+            EPixelFormat.DepthStencil,
+            EPixelType.UnsignedInt248,
             EFrameBufferAttachment.DepthStencilAttachment);
         dsTex.MinFilter = ETexMinFilter.Nearest;
         dsTex.MagFilter = ETexMagFilter.Nearest;
-        dsTex.Resizable = false;
+        dsTex.Resizable = true;
         return dsTex;
     }
 
@@ -304,21 +315,21 @@ public class DefaultRenderPipeline : RenderPipeline
 
     XRTexture CreateAlbedoOpacityTexture() =>
         XRTexture2D.CreateFrameBufferTexture(
-            w, h,
+            InternalWidth, InternalHeight,
             EPixelInternalFormat.Rgba16f,
             EPixelFormat.Rgba,
             EPixelType.Float);
 
     XRTexture CreateNormalTexture() =>
         XRTexture2D.CreateFrameBufferTexture(
-            w, h,
+            InternalWidth, InternalHeight,
             EPixelInternalFormat.Rgba16f,
             EPixelFormat.Rgba,
             EPixelType.Float);
 
     XRTexture CreateRMSITexture() =>
         XRTexture2D.CreateFrameBufferTexture(
-            w, h,
+            InternalWidth, InternalHeight,
             EPixelInternalFormat.Rgba8,
             EPixelFormat.Rgba,
             EPixelType.Float);
@@ -326,7 +337,7 @@ public class DefaultRenderPipeline : RenderPipeline
     XRTexture CreateSSAOTexture()
     {
         var ssao = XRTexture2D.CreateFrameBufferTexture(
-            w, h,
+            InternalWidth, InternalHeight,
             EPixelInternalFormat.R16f,
             EPixelFormat.Red,
             EPixelType.Float);
@@ -337,14 +348,14 @@ public class DefaultRenderPipeline : RenderPipeline
 
     XRTexture CreateLightingTexture() =>
         XRTexture2D.CreateFrameBufferTexture(
-            w, h,
+            InternalWidth, InternalHeight,
             EPixelInternalFormat.Rgb16f,
             EPixelFormat.Rgb,
             EPixelType.Float);
 
     XRTexture CreateHDRSceneTexture()
     {
-        var tex = XRTexture2D.CreateFrameBufferTexture(w, h,
+        var tex = XRTexture2D.CreateFrameBufferTexture(InternalWidth, InternalHeight,
             EPixelInternalFormat.Rgba16f,
             EPixelFormat.Rgba,
             EPixelType.Float,
@@ -364,71 +375,82 @@ public class DefaultRenderPipeline : RenderPipeline
         c.Add<VPRC_CacheOrCreateTexture>().SetOptions(
             BRDFTextureName,
             CreateBRDFTexture,
+            null,
             null);
 
         //Depth + Stencil GBuffer texture
         c.Add<VPRC_CacheOrCreateTexture>().SetOptions(
             DepthStencilTextureName,
             CreateDepthStencilTexture,
-            NeedsRecreateTextureInternalSize);
+            NeedsRecreateTextureInternalSize,
+            ResizeTextureInternalSize);
 
         //Depth view texture
         //This is a view of the depth/stencil texture that only shows the depth values.
         c.Add<VPRC_CacheOrCreateTexture>().SetOptions(
             DepthViewTextureName,
             CreateDepthViewTexture,
-            NeedsRecreateTextureInternalSize);
+            NeedsRecreateTextureInternalSize,
+            ResizeTextureInternalSize);
 
         //Stencil view texture
         //This is a view of the depth/stencil texture that only shows the stencil values.
         c.Add<VPRC_CacheOrCreateTexture>().SetOptions(
             StencilViewTextureName,
             CreateStencilViewTexture,
-            NeedsRecreateTextureInternalSize);
+            NeedsRecreateTextureInternalSize,
+            ResizeTextureInternalSize);
 
         //Albedo/Opacity GBuffer texture
         //RGB = Albedo, A = Opacity
         c.Add<VPRC_CacheOrCreateTexture>().SetOptions(
             AlbedoOpacityTextureName,
             CreateAlbedoOpacityTexture,
-            NeedsRecreateTextureInternalSize);
+            NeedsRecreateTextureInternalSize,
+            ResizeTextureInternalSize);
 
         //Normal GBuffer texture
         c.Add<VPRC_CacheOrCreateTexture>().SetOptions(
             NormalTextureName,
             CreateNormalTexture,
-            NeedsRecreateTextureInternalSize);
+            NeedsRecreateTextureInternalSize,
+            ResizeTextureInternalSize);
 
         //RMSI GBuffer texture
         //R = Roughness, G = Metallic, B = Specular, A = IOR
         c.Add<VPRC_CacheOrCreateTexture>().SetOptions(
             RMSITextureName,
             CreateRMSITexture,
-            NeedsRecreateTextureInternalSize);
+            NeedsRecreateTextureInternalSize,
+            ResizeTextureInternalSize);
 
         //SSAO FBO texture
         c.Add<VPRC_CacheOrCreateTexture>().SetOptions(
             SSAOFBOTextureName,
             CreateSSAOTexture,
-            NeedsRecreateTextureInternalSize);
+            NeedsRecreateTextureInternalSize,
+            ResizeTextureInternalSize);
 
         //Lighting texture
         c.Add<VPRC_CacheOrCreateTexture>().SetOptions(
             LightingTextureName,
             CreateLightingTexture,
-            NeedsRecreateTextureInternalSize);
+            NeedsRecreateTextureInternalSize,
+            ResizeTextureInternalSize);
 
         //HDR Scene texture
         c.Add<VPRC_CacheOrCreateTexture>().SetOptions(
             HDRSceneTextureName,
             CreateHDRSceneTexture,
-            NeedsRecreateTextureInternalSize);
+            NeedsRecreateTextureInternalSize,
+            ResizeTextureInternalSize);
 
         //HUD texture
         c.Add<VPRC_CacheOrCreateTexture>().SetOptions(
             HUDTextureName,
             CreateHUDTexture,
-            NeedsRecreateTextureFullSize);
+            NeedsRecreateTextureFullSize,
+            ResizeTextureFullSize);
     }
 
     private XRTexture CreateHUDTexture()
