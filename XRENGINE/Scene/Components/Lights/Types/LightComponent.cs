@@ -122,13 +122,13 @@ namespace XREngine.Components.Lights
             set => SetShadowMapResolution((uint)_shadowMapRenderRegion.Width, value);
         }
 
-        public ColorF3 LightColor
+        public ColorF3 Color
         {
             get => _color;
             set => SetField(ref _color, value);
         }
 
-        public float DiffuseIntensity
+        public float Intensity
         {
             get => _diffuseIntensity;
             set => SetField(ref _diffuseIntensity, value);

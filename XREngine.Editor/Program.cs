@@ -1,6 +1,7 @@
 ﻿using System.Numerics;
 using XREngine;
 using XREngine.Components;
+using XREngine.Components.Lights;
 using XREngine.Components.Scene.Mesh;
 using XREngine.Editor;
 using XREngine.Rendering;
@@ -52,6 +53,17 @@ internal class Program
             {
                 cameraComp!.Name = "TestCamera";
                 cameraComp.LocalPlayerIndex = ELocalPlayerIndex.One;
+            }
+
+            var dirLight = new SceneNode(rootNode) { Name = "TestDirectionalLight" };
+            var dirLightTransform = dirLight.SetTransform<Transform>();
+            dirLightTransform.Translation = new Vector3(0.0f, 10.0f, 0.0f);
+            dirLightTransform.LookAt(Vector3.Zero);
+            if (dirLight.TryAddComponent<DirectionalLightComponent>(out var dirLightComp))
+            {
+                dirLightComp!.Name = "TestDirectionalLight";
+                dirLightComp.Color = new Vector3(1.0f, 1.0f, 1.0f);
+                dirLightComp.Intensity = 1.0f;
             }
 
             //Pawn

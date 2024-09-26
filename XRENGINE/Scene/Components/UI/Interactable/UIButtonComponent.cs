@@ -23,15 +23,15 @@ namespace XREngine.Rendering.UI
         
         protected virtual void Highlight()
         {
-            var param = Parameter<ShaderVector4>("MatColor");
-            if (param != null)
-                param.Value = Color.Orange.ToVector4();
+            //var param = Parameter<ShaderVector4>("MatColor");
+            //if (param != null)
+            //    param.Value = Color.Orange.ToVector4();
         }
         protected virtual void Unhighlight()
         {
-            var param = Parameter<ShaderVector4>("MatColor");
-            if (param != null)
-                param.Value = Color.Magenta.ToVector4();
+            //var param = Parameter<ShaderVector4>("MatColor");
+            //if (param != null)
+            //    param.Value = Color.Magenta.ToVector4();
         }
     }
 }

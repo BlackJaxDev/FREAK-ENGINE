@@ -8,40 +8,109 @@ namespace XREngine.Rendering.OpenGL
     {
         public enum ESizedInternalFormat
         {
-            Rgba8 = 32856,
-            Rgba16 = 32859,
-            R8 = 33321,
-            R16 = 33322,
-            Rg8 = 33323,
-            Rg16 = 33324,
-            R16f = 33325,
-            R32f = 33326,
-            Rg16f = 33327,
-            Rg32f = 33328,
-            R8i = 33329,
-            R8ui = 33330,
-            R16i = 33331,
-            R16ui = 33332,
-            R32i = 33333,
-            R32ui = 33334,
-            Rg8i = 33335,
-            Rg8ui = 33336,
-            Rg16i = 33337,
-            Rg16ui = 33338,
-            Rg32i = 33339,
-            Rg32ui = 33340,
-            Rgba32f = 34836,
-            Rgba16f = 34842,
-            Rgba32ui = 36208,
-            Rgba16ui = 36214,
-            Rgba8ui = 36220,
-            Rgba32i = 36226,
-            Rgba16i = 36232,
-            Rgba8i = 36238
+            //Red
+            R8,
+            R8Snorm,
+            R16,
+            R16Snorm,
+
+            //Red Green
+            Rg8,
+            Rg8Snorm,
+            Rg16,
+            Rg16Snorm,
+
+            //Red Green Blue
+            R3G3B2,
+            Rgb4,
+            Rgb5,
+            Rgb8,
+            Rgb8Snorm,
+            Rgb10,
+            Rgb12,
+            Rgb16Snorm,
+            Rgba2,
+            Rgba4,
+
+            //Red Green Blue Alpha
+            Rgb5A1,
+            Rgba8,
+            Rgba8Snorm,
+            Rgb10A2,
+            Rgba12,
+            Rgba16,
+
+            //Red Green Blue
+            Srgb8,
+
+            //Red Green Blue Alpha
+            Srgb8Alpha8,
+
+            //Red
+            R16f,
+
+            //Red Green
+            Rg16f,
+
+            //Red Green Blue
+            Rgb16f,
+
+            //Red Green Blue Alpha
+            Rgba16f,
+
+            //Red
+            R32f,
+
+            //Red Green
+            Rg32f,
+
+            //Red Green Blue
+            Rgb32f,
+
+            //Red Green Blue Alpha
+            Rgba32f,
+
+            //Red Green Blue
+            R11fG11fB10f,
+            Rgb9E5,
+
+            //Red
+            R8i,
+            R8ui,
+            R16i,
+            R16ui,
+            R32i,
+            R32ui,
+
+            //Red Green
+            Rg8i,
+            Rg8ui,
+            Rg16i,
+            Rg16ui,
+            Rg32i,
+            Rg32ui,
+
+            //Red Green Blue
+            Rgb8i,
+            Rgb8ui,
+            Rgb16i,
+            Rgb16ui,
+            Rgb32i,
+            Rgb32ui,
+
+            //Red Green Blue Alpha
+            Rgba8i,
+            Rgba8ui,
+            Rgba16i,
+            Rgba16ui,
+            Rgba32i,
+            Rgba32ui
         }
 
         public class GLMaterial(OpenGLRenderer renderer, XRMaterial material) : GLObject<XRMaterial>(renderer, material)
         {
+            private float _secondsLive = 0.0f;
+
             public override GLObjectType Type => GLObjectType.Material;
 
             public GLRenderProgram? Program => Renderer.GenericToAPI<GLRenderProgram>(Data.ShaderPipelineProgram);
@@ -50,20 +119,11 @@ namespace XREngine.Rendering.OpenGL
             {
                 base.UnlinkData();
 
-                foreach (IGLTexture? tex in Textures)
-                    tex?.Destroy();
-
-                Textures = [];
+                foreach (var tex in Data.Textures)
+                    if (Renderer.TryGetAPIRenderObject(tex, out var apiObj))
+                        apiObj?.Destroy();
             }
 
-            protected override void LinkData()
-            {
-                base.LinkData();
-                Textures = Data.Textures?.Select(t => Renderer.GetOrCreateAPIRenderObject(t) as IGLTexture)?.ToArray() ?? [];
-            }
-
-            public IGLTexture?[] Textures { get; private set; } = [];
-            
             public void SetUniforms()
             {
                 //Apply special rendering parameters
@@ -82,7 +142,11 @@ namespace XREngine.Rendering.OpenGL
                 Data.SettingUniforms.Invoke(Data);
             }
 
-            public float SecondsLive { get; set; } = 0.0f;
+            public float SecondsLive
+            {
+                get => _secondsLive;
+                set => SetField(ref _secondsLive, value);
+            }
 
             private void SetEngineUniforms()
             {
@@ -148,8 +212,8 @@ namespace XREngine.Rendering.OpenGL
                 if (!Data.Textures.IndexInRange(textureIndex))
                     return;
                 
-                IGLTexture? texture = Textures[textureIndex];
-                if (texture is null)
+                var tex = Data.Textures[textureIndex];
+                if (tex is null || Renderer.GetOrCreateAPIRenderObject(tex) is not IGLTexture texture)
                     return;
 
                 Program?.Sampler(texture.ResolveSamplerName(textureIndex, samplerNameOverride), texture, textureIndex);

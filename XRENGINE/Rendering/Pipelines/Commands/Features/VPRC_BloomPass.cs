@@ -40,12 +40,34 @@ namespace XREngine.Rendering.Pipelines.Commands
         private uint _lastWidth = 0u;
         private uint _lastHeight = 0u;
 
-        private void RegenerateFBOs(uint width, uint height)
+        private void ResizeFBOs(uint width, uint height)
         {
             width = Math.Max(1u, width);
             height = Math.Max(1u, height);
 
             Debug.Out($"Resizing bloom pass FBOs to {width} x {height}.");
+
+            _lastWidth = width;
+            _lastHeight = height;
+
+            BloomRect16.Width = (int)(width * 0.0625f);
+            BloomRect16.Height = (int)(height * 0.0625f);
+            BloomRect8.Width = (int)(width * 0.125f);
+            BloomRect8.Height = (int)(height * 0.125f);
+            BloomRect4.Width = (int)(width * 0.25f);
+            BloomRect4.Height = (int)(height * 0.25f);
+            BloomRect2.Width = (int)(width * 0.5f);
+            BloomRect2.Height = (int)(height * 0.5f);
+
+            Pipeline.GetTexture<XRTexture2D>(BloomOutputTextureName)?.Resize(width, height);
+        }
+
+        private void RegenerateFBOs(uint width, uint height)
+        {
+            width = Math.Max(1u, width);
+            height = Math.Max(1u, height);
+
+            Debug.Out($"Regenerating bloom pass FBOs at {width} x {height}.");
 
             _lastWidth = width;
             _lastHeight = height;
@@ -123,10 +145,6 @@ namespace XREngine.Rendering.Pipelines.Commands
             var blur2 = Pipeline.GetFBO<XRQuadFrameBuffer>(BloomBlur2FBOName);
             var blur1 = Pipeline.GetFBO<XRQuadFrameBuffer>(BloomBlur1FBOName);
 
-            if (inputFBO.Width != _lastWidth ||
-                inputFBO.Height != _lastHeight)
-                RegenerateFBOs(inputFBO.Width, inputFBO.Height);
-
             if (blur16 is null ||
                 blur8 is null ||
                 blur4 is null ||
@@ -140,6 +158,9 @@ namespace XREngine.Rendering.Pipelines.Commands
                 blur2 = Pipeline.GetFBO<XRQuadFrameBuffer>(BloomBlur2FBOName);
                 blur1 = Pipeline.GetFBO<XRQuadFrameBuffer>(BloomBlur1FBOName);
             }
+            else if (inputFBO.Width != _lastWidth ||
+                inputFBO.Height != _lastHeight)
+                RegenerateFBOs(inputFBO.Width, inputFBO.Height);
 
             using (blur1!.BindForWriting())
                 inputFBO!.Render();

@@ -102,7 +102,7 @@ namespace XREngine.Rendering.OpenGL
             public GLRenderQuery? ConditionalRenderQuery { get; set; } = null;
 
             public uint Instances { get; set; } = 1;
-            public GLMaterial? Material { get; set; }
+            public GLMaterial? Material => Renderer.GenericToAPI<GLMaterial>(Data.Material);
 
             protected override void LinkData()
             {
@@ -204,11 +204,20 @@ namespace XREngine.Rendering.OpenGL
                 _combinedProgram = null;
             }
 
-            public GLMaterial GetRenderMaterial(XRMaterial? localMaterialOverride = null) =>
-                Renderer.GlobalMaterialOverride ?? 
-                (localMaterialOverride is null ? null : (Renderer.GetOrCreateAPIRenderObject(localMaterialOverride) as GLMaterial)) ??
-                Material ?? 
-                Renderer.GenericToAPI<GLMaterial>(Engine.Rendering.State.CurrentPipeline!.InvalidMaterial)!;
+            public GLMaterial GetRenderMaterial(XRMaterial? localMaterialOverride = null)
+            {
+                var mat = 
+                    Renderer.GlobalMaterialOverride ??
+                    (localMaterialOverride is null ? null : (Renderer.GetOrCreateAPIRenderObject(localMaterialOverride) as GLMaterial)) ??
+                    Material;
+
+                if (mat is not null)
+                    return mat;
+
+                Debug.LogWarning("No material found for mesh renderer, using invalid material.");
+                mat = Renderer.GenericToAPI<GLMaterial>(Engine.Rendering.State.CurrentPipeline!.InvalidMaterial)!;
+                return mat;
+            }
 
             public void Render(Matrix4x4 modelMatrix, XRMaterial? materialOverride, uint instances)
             {
@@ -309,7 +318,12 @@ namespace XREngine.Rendering.OpenGL
                 }
                 else
                 {
-                    var material = Material ?? Renderer.GenericToAPI<GLMaterial>(Engine.Rendering.State.CurrentPipeline!.Pipeline!.InvalidMaterial); //Don't use GetRenderMaterial here, global and local override materials are for current render only
+                    var material = Material;
+                    if (material is null)
+                    {
+                        Debug.LogWarning("No material found for mesh renderer, using invalid material.");
+                        material = Renderer.GenericToAPI<GLMaterial>(Engine.Rendering.State.CurrentPipeline!.InvalidMaterial); //Don't use GetRenderMaterial here, global and local override materials are for current render only
+                    }
                     IEnumerable<XRShader> shaders = material!.Data.Shaders;
 
                     //If the material doesn't have a vertex shader, use the default one

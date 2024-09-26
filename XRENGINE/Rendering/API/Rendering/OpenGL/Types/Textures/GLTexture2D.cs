@@ -75,6 +75,7 @@ namespace XREngine.Rendering.OpenGL
                 {
                     if (!Data.Resizable && !_storageSet)
                     {
+                        //TODO: convert internal to sized using pixel format, update ToGLEnum
                         GLEnum sizedInternalFormat = ToGLEnum(ToSizedInternalFormat(Data.InternalFormat));
                         Api.TexStorage2D(glTarget, (uint)Data.Mipmaps.Length, sizedInternalFormat, Data.Width, Data.Height);
                         _storageSet = true;
@@ -142,6 +143,9 @@ namespace XREngine.Rendering.OpenGL
         private static ESizedInternalFormat ToSizedInternalFormat(EPixelInternalFormat internalFormat)
             => internalFormat switch
             {
+                EPixelInternalFormat.Rgb => ESizedInternalFormat.Rgba32f,
+                EPixelInternalFormat.Rgba => ESizedInternalFormat.Rgba32f,
+
                 EPixelInternalFormat.Rgba8 => ESizedInternalFormat.Rgba8,
                 EPixelInternalFormat.Rgba16 => ESizedInternalFormat.Rgba16,
                 EPixelInternalFormat.R8 => ESizedInternalFormat.R8,
