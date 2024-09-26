@@ -1,4 +1,5 @@
-﻿using ImageMagick;
+﻿using Extensions;
+using ImageMagick;
 using Silk.NET.OpenGL;
 using XREngine.Data.Rendering;
 using static XREngine.Rendering.OpenGL.OpenGLRenderer;
@@ -69,18 +70,19 @@ namespace XREngine.Rendering.OpenGL
 
                 var glTarget = ToGLEnum(TextureTarget);
 
+                bool setStorage = !Data.Resizable && !_storageSet;
+                if (setStorage)
+                {
+                    //TODO: convert internal to sized using pixel format, update ToGLEnum
+                    GLEnum sizedInternalFormat = ToGLEnum(ToSizedInternalFormat(Data.InternalFormat));
+                    Api.TexStorage2D(glTarget, Math.Max((uint)Data.Mipmaps.Length, 1u), sizedInternalFormat, Data.Width, Data.Height);
+                    _storageSet = true;
+                }
+
                 if (Data.Mipmaps is null || Data.Mipmaps.Length == 0)
                     PushMipmap(glTarget, 0, null);
                 else
                 {
-                    if (!Data.Resizable && !_storageSet)
-                    {
-                        //TODO: convert internal to sized using pixel format, update ToGLEnum
-                        GLEnum sizedInternalFormat = ToGLEnum(ToSizedInternalFormat(Data.InternalFormat));
-                        Api.TexStorage2D(glTarget, (uint)Data.Mipmaps.Length, sizedInternalFormat, Data.Width, Data.Height);
-                        _storageSet = true;
-                    }
-
                     for (int i = 0; i < Data.Mipmaps.Length; ++i)
                         PushMipmap(glTarget, i, Data.Mipmaps[i]);
 
@@ -115,24 +117,29 @@ namespace XREngine.Rendering.OpenGL
 
             GLEnum pixelFormat = ToGLEnum(Data.PixelFormat);
             GLEnum pixelType = ToGLEnum(Data.PixelType);
-            GLEnum internalPixelFormat = ToGLEnum(Data.InternalFormat);
+            InternalFormat internalPixelFormat = ToInternalFormat(Data.InternalFormat);
+
+            bool setStorage = !Data.Resizable && !_storageSet;
 
             if (bmp is null)
             {
-                if (!_hasPushed && !_storageSet)
-                    Api.TexImage2D(glTarget, i, (int)internalPixelFormat, Data.Width >> i, Data.Height >> i, 0, pixelFormat, pixelType, null);
+                if (_hasPushed || setStorage)
+                    return;
+
+                Api.TexImage2D(glTarget, i, internalPixelFormat, Data.Width >> i, Data.Height >> i, 0, pixelFormat, pixelType, null);
             }
             else
             {
                 // If a non-zero named buffer object is bound to the GL_PIXEL_UNPACK_BUFFER target (see glBindBuffer) while a texture image is specified, data is treated as a byte offset into the buffer object's data store. 
                 //GetFormat(bmp, Data.InternalCompression, out GLEnum internalPixelFormat, out GLEnum pixelFormat, out GLEnum pixelType);
+                Api.PixelStore(PixelStoreParameter.UnpackAlignment, 1);
                 var bytes = bmp.GetPixels().GetArea(0, 0, bmp.Width, bmp.Height);
                 fixed (float* pBytes = bytes)
                 {
-                    if (_hasPushed || _storageSet)
+                    if (_hasPushed || setStorage)
                         Api.TexSubImage2D(glTarget, i, 0, 0, bmp.Width, bmp.Height, pixelFormat, pixelType, pBytes);
                     else
-                        Api.TexImage2D(glTarget, i, (int)internalPixelFormat, bmp.Width, bmp.Height, 0, pixelFormat, pixelType, pBytes);
+                        Api.TexImage2D(glTarget, i, internalPixelFormat, bmp.Width, bmp.Height, 0, pixelFormat, pixelType, pBytes);
                 }
                 var error = Api.GetError();
                 if (error != GLEnum.NoError)
@@ -140,34 +147,37 @@ namespace XREngine.Rendering.OpenGL
             }
         }
 
+        private static InternalFormat ToInternalFormat(EPixelInternalFormat internalFormat)
+            => (InternalFormat)internalFormat.ConvertByName(typeof(InternalFormat));
+
         private static ESizedInternalFormat ToSizedInternalFormat(EPixelInternalFormat internalFormat)
             => internalFormat switch
             {
-                EPixelInternalFormat.Rgb => ESizedInternalFormat.Rgba32f,
-                EPixelInternalFormat.Rgba => ESizedInternalFormat.Rgba32f,
-
+                EPixelInternalFormat.Rgb8 => ESizedInternalFormat.Rgb8,
                 EPixelInternalFormat.Rgba8 => ESizedInternalFormat.Rgba8,
                 EPixelInternalFormat.Rgba16 => ESizedInternalFormat.Rgba16,
                 EPixelInternalFormat.R8 => ESizedInternalFormat.R8,
                 EPixelInternalFormat.R16 => ESizedInternalFormat.R16,
-                EPixelInternalFormat.Rg8 => ESizedInternalFormat.Rg8,
-                EPixelInternalFormat.Rg16 => ESizedInternalFormat.Rg16,
+                EPixelInternalFormat.RG8 => ESizedInternalFormat.Rg8,
+                EPixelInternalFormat.RG16 => ESizedInternalFormat.Rg16,
                 EPixelInternalFormat.R16f => ESizedInternalFormat.R16f,
                 EPixelInternalFormat.R32f => ESizedInternalFormat.R32f,
-                EPixelInternalFormat.Rg16f => ESizedInternalFormat.Rg16f,
-                EPixelInternalFormat.Rg32f => ESizedInternalFormat.Rg32f,
+                EPixelInternalFormat.RG16f => ESizedInternalFormat.Rg16f,
+                EPixelInternalFormat.RG32f => ESizedInternalFormat.Rg32f,
                 EPixelInternalFormat.R8i => ESizedInternalFormat.R8i,
                 EPixelInternalFormat.R8ui => ESizedInternalFormat.R8ui,
                 EPixelInternalFormat.R16i => ESizedInternalFormat.R16i,
                 EPixelInternalFormat.R16ui => ESizedInternalFormat.R16ui,
                 EPixelInternalFormat.R32i => ESizedInternalFormat.R32i,
                 EPixelInternalFormat.R32ui => ESizedInternalFormat.R32ui,
-                EPixelInternalFormat.Rg8i => ESizedInternalFormat.Rg8i,
-                EPixelInternalFormat.Rg8ui => ESizedInternalFormat.Rg8ui,
-                EPixelInternalFormat.Rg16i => ESizedInternalFormat.Rg16i,
-                EPixelInternalFormat.Rg16ui => ESizedInternalFormat.Rg16ui,
-                EPixelInternalFormat.Rg32i => ESizedInternalFormat.Rg32i,
-                EPixelInternalFormat.Rg32ui => ESizedInternalFormat.Rg32ui,
+                EPixelInternalFormat.RG8i => ESizedInternalFormat.Rg8i,
+                EPixelInternalFormat.RG8ui => ESizedInternalFormat.Rg8ui,
+                EPixelInternalFormat.RG16i => ESizedInternalFormat.Rg16i,
+                EPixelInternalFormat.RG16ui => ESizedInternalFormat.Rg16ui,
+                EPixelInternalFormat.RG32i => ESizedInternalFormat.Rg32i,
+                EPixelInternalFormat.RG32ui => ESizedInternalFormat.Rg32ui,
+                EPixelInternalFormat.Rgb16f => ESizedInternalFormat.Rgb16f,
+                EPixelInternalFormat.Rgb32f => ESizedInternalFormat.Rgb32f,
                 EPixelInternalFormat.Rgba32f => ESizedInternalFormat.Rgba32f,
                 EPixelInternalFormat.Rgba16f => ESizedInternalFormat.Rgba16f,
                 EPixelInternalFormat.Rgba32ui => ESizedInternalFormat.Rgba32ui,

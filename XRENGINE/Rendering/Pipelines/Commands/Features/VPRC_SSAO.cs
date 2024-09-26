@@ -138,7 +138,7 @@ namespace XREngine.Rendering.Pipelines.Commands
             XRTexture2D noiseTex = new(
                 (uint)NoiseWidth,
                 (uint)NoiseHeight,
-                EPixelInternalFormat.Rgb,
+                EPixelInternalFormat.Rgb32f,
                 EPixelFormat.Rgb,
                 EPixelType.Float)
             {
@@ -147,12 +147,13 @@ namespace XREngine.Rendering.Pipelines.Commands
                 MagFilter = ETexMagFilter.Nearest,
                 UWrap = ETexWrapMode.Repeat,
                 VWrap = ETexWrapMode.Repeat,
-                Resizable = true,
+                Resizable = false,
             };
             var tex = XRTexture.NewImage((uint)NoiseWidth, (uint)NoiseHeight, EPixelFormat.Rgb, EPixelType.Float);
             tex.GetPixels().SetPixels(Noise!.SelectMany(v => new float[] { v.X, v.Y, 0.0f }).ToArray());
             noiseTex.Mipmaps[0] = tex;
             Pipeline.SetTexture(noiseTex);
+            noiseTex.PushData();
 
             XRTexture2D ssaoTex = XRTexture2D.CreateFrameBufferTexture(
                 (uint)width,

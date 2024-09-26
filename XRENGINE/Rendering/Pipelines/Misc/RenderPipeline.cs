@@ -72,7 +72,7 @@ public abstract class RenderPipeline : XRBase
     {
         XRTexture2D brdf = XRTexture2D.CreateFrameBufferTexture(
             width, height,
-            EPixelInternalFormat.Rg16f,
+            EPixelInternalFormat.RG16f,
             EPixelFormat.Rgb,
             EPixelType.Float,
             EFrameBufferAttachment.ColorAttachment0);
