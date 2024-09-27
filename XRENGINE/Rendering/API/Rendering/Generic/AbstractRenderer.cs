@@ -37,7 +37,7 @@ namespace XREngine.Rendering
             LinkWindow();
 
             //Set the initial object cache for this window of all existing render objects
-            _renderObjectCache = Engine.Rendering.CreateObjectsForWindow(window);
+            _renderObjectCache = Engine.Rendering.CreateObjectsForNewRenderer(this);
 
             _viewports.CollectionChanged += ViewportsChanged;
 
@@ -108,7 +108,7 @@ namespace XREngine.Rendering
         {
             Time.Timer.SwapBuffers -= SwapBuffers;
             Time.Timer.RenderFrame -= RenderFrame;
-            Engine.Rendering.DestroyObjectsForWindow(_window);
+            Engine.Rendering.DestroyObjectsForRenderer(this);
             CleanUp();
             Window.DoEvents();
         }

@@ -3,6 +3,9 @@ using XREngine;
 using XREngine.Components;
 using XREngine.Components.Lights;
 using XREngine.Components.Scene.Mesh;
+using XREngine.Data.Colors;
+using XREngine.Data.Geometry;
+using XREngine.Data.Rendering;
 using XREngine.Editor;
 using XREngine.Rendering;
 using XREngine.Rendering.Commands;
@@ -42,37 +45,40 @@ internal class Program
             if (rootNode.TryAddComponent<ModelComponent>(out var modelComp))
             {
                 modelComp!.Name = "TestModel";
-                var mat = XRMaterial.CreateColorMaterialDeferred();
+                var mat = XRMaterial.CreateUnlitColorMaterialForward(new ColorF4(1.0f, 0.0f, 0.0f, 1.0f));
+                mat.RenderPass = (int)EDefaultRenderPass.OpaqueForward;
                 var mesh = XRMesh.Shapes.SolidBox(-Vector3.One, Vector3.One, false, XRMesh.Shapes.ECubemapTextureUVs.WidthLarger);
                 modelComp!.Model = new Model([new SubMesh(mesh, mat)]);
+                modelComp.Meshes[0].RenderInfo.CullingVolume = new AABB(-Vector3.One, Vector3.One);
             }
 
             //Create the camera
             var cameraNode = new SceneNode(rootNode) { Name = "TestCameraNode" };
             var cameraTransform = cameraNode.SetTransform<Transform>();
-            cameraTransform.Translation = new Vector3(20.0f, 10.0f, 10.0f);
-            cameraTransform.LookAt(Vector3.Zero);
+            cameraTransform.Translation = new Vector3(0.0f, 0.0f, -20.0f);
+            //cameraTransform.LookAt(Vector3.Zero);
             if (cameraNode.TryAddComponent<CameraComponent>(out var cameraComp))
             {
                 cameraComp!.Name = "TestCamera";
                 cameraComp.LocalPlayerIndex = ELocalPlayerIndex.One;
+                cameraComp.Camera.Parameters = new XRPerspectiveCameraParameters(90.0f, null, 0.1f, 1000.0f);
             }
 
-            var dirLight = new SceneNode(rootNode) { Name = "TestDirectionalLight" };
-            var dirLightTransform = dirLight.SetTransform<Transform>();
-            dirLightTransform.Translation = new Vector3(20.0f, 10.0f, 20.0f);
-            dirLightTransform.LookAt(Vector3.Zero);
-            if (dirLight.TryAddComponent<DirectionalLightComponent>(out var dirLightComp))
-            {
-                dirLightComp!.Name = "TestDirectionalLight";
-                dirLightComp.Color = new Vector3(1.0f, 1.0f, 1.0f);
-                dirLightComp.Intensity = 1.0f;
-            }
+            //var dirLight = new SceneNode(rootNode) { Name = "TestDirectionalLightNode" };
+            //var dirLightTransform = dirLight.SetTransform<Transform>();
+            //dirLightTransform.Translation = new Vector3(20.0f, 10.0f, 20.0f);
+            //dirLightTransform.LookAt(Vector3.Zero);
+            //if (dirLight.TryAddComponent<DirectionalLightComponent>(out var dirLightComp))
+            //{
+            //    dirLightComp!.Name = "TestDirectionalLight";
+            //    dirLightComp.Color = new Vector3(1.0f, 1.0f, 1.0f);
+            //    dirLightComp.Intensity = 1.0f;
+            //}
 
             //Pawn
-            cameraNode.TryAddComponent<PawnComponent>(out var pawnComp);
-            pawnComp!.Name = "TestPawn";
-            pawnComp!.CurrentCameraComponent = cameraComp;
+            //cameraNode.TryAddComponent<PawnComponent>(out var pawnComp);
+            //pawnComp!.Name = "TestPawn";
+            //pawnComp!.CurrentCameraComponent = cameraComp;
 
             world.Scenes.Add(scene);
             return world;
@@ -102,7 +108,7 @@ internal class Program
                     Height = 1080,
                 }
                 ],
-                OutputVerbosity = EOutputVerbosity.Normal,
+                OutputVerbosity = EOutputVerbosity.Verbose,
                 UseIntegerWeightingIds = true,
                 DefaultUserSettings = new UserSettings()
                 {

@@ -23,7 +23,7 @@
                 if (_bindingId.HasValue)
                 {
                     bindingId = _bindingId.Value;
-                    return true;
+                    return bindingId != InvalidBindingId;
                 }
                 else
                 {
@@ -77,7 +77,6 @@
                     }
                     return;
                 }
-
                 Debug.Out($"Generating OpenGL object {Type}");
                 PreGenerated();
                 _bindingId = CreateObject();
@@ -91,14 +90,9 @@
                     Debug.Out("Failed to generate OpenGL object.");
             }
 
-            protected internal virtual void PreDeleted()
-            {
-
-            }
+            protected internal virtual void PreDeleted() { }
             protected internal virtual void PostDeleted()
-            {
-                _bindingId = null;
-            }
+                => _bindingId = null;
 
             /// <summary>
             /// The unique id of this object when generated.
@@ -111,7 +105,7 @@
                 {
                     //try
                     //{
-                        if (_bindingId is null)
+                        if (_bindingId is null || _bindingId.Value == InvalidBindingId)
                             Generate();
 
                         if (TryGetBindingId(out uint bindingId))

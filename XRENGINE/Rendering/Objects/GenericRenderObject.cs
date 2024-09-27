@@ -12,6 +12,8 @@ namespace XREngine.Rendering
 
         private static readonly Dictionary<Type, List<GenericRenderObject>> _roCache = [];
 
+        public static IReadOnlyDictionary<Type, List<GenericRenderObject>> RenderObjectCache => _roCache;
+
         /// <summary>
         /// True if this object is currently in use by any window rendering API.
         /// </summary>

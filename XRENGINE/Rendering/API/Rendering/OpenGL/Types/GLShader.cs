@@ -79,7 +79,7 @@ namespace XREngine.Rendering.OpenGL
                 }
                 Api.ShaderSource(BindingId, trueScript);
                 if (compile && !Compile(out _))
-                    Debug.Out(GetFullSource(true));
+                    Debug.LogWarning(GetFullSource(true));
             }
 
             public string GetFullSource(bool lineNumbers)
@@ -116,9 +116,9 @@ namespace XREngine.Rendering.OpenGL
                 if (printLogInfo)
                 {
                     if (!string.IsNullOrEmpty(info))
-                        Debug.Out(info);
+                        Debug.LogWarning(info);
                     else if (!IsCompiled)
-                        Debug.Out("Unable to compile shader, but no error was returned.");
+                        Debug.LogWarning("Unable to compile shader, but no error was returned.");
                 }
                 if (IsCompiled)
                     Compiled?.Invoke();

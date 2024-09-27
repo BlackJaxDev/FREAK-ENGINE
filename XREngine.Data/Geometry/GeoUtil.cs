@@ -1306,6 +1306,11 @@ namespace XREngine.Data.Geometry
                 return Vector3.Distance(point, end);
             return Vector3.Distance(point, start + v * t);
         }
+
+        public static EContainment FrustumContainsCone(Frustum frustum, Vector3 center, Vector3 up, float height, float radius)
+        {
+            throw new NotImplementedException();
+        }
     }
     public enum EContainment
     {

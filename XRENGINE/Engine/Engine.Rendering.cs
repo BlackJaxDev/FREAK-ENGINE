@@ -11,26 +11,29 @@ namespace XREngine
             public static List<AbstractRenderAPIObject?> CreateObjectsForAllWindows(GenericRenderObject obj)
                 => Windows.Select(window => window.Renderer.GetOrCreateAPIRenderObject(obj)).ToList();
 
-            public static Dictionary<GenericRenderObject, AbstractRenderAPIObject> CreateObjectsForWindow(XRWindow window)
+            public static Dictionary<GenericRenderObject, AbstractRenderAPIObject> CreateObjectsForNewRenderer(AbstractRenderer renderer)
             {
                 Dictionary<GenericRenderObject, AbstractRenderAPIObject> roDic = [];
-                foreach (GenericRenderObject obj in RenderObjects)
-                {
-                    AbstractRenderAPIObject? apiRO = window.Renderer.GetOrCreateAPIRenderObject(obj);
-                    if (apiRO is null)
-                        continue;
-                    
-                    roDic.Add(obj, apiRO);
-                    obj.AddWrapper(apiRO);
-                }
+                foreach (var pair in GenericRenderObject.RenderObjectCache)
+                    foreach (var obj in pair.Value)
+                    {
+                        AbstractRenderAPIObject? apiRO = renderer.GetOrCreateAPIRenderObject(obj);
+                        if (apiRO is null)
+                            continue;
+
+                        roDic.Add(obj, apiRO);
+                        obj.AddWrapper(apiRO);
+                    }
+                
                 return roDic;
             }
 
-            public static void DestroyObjectsForWindow(XRWindow window)
+            public static void DestroyObjectsForRenderer(AbstractRenderer renderer)
             {
-                foreach (GenericRenderObject obj in RenderObjects)
-                    if (window.Renderer.TryGetAPIRenderObject(obj, out var apiRO) && apiRO is not null)
-                        obj.RemoveWrapper(apiRO);
+                foreach (var pair in GenericRenderObject.RenderObjectCache)
+                    foreach (var obj in pair.Value)
+                        if (renderer.TryGetAPIRenderObject(obj, out var apiRO) && apiRO is not null)
+                            obj.RemoveWrapper(apiRO);
             }
 
             public static PhysicsScene NewPhysicsScene()
@@ -40,7 +43,7 @@ namespace XREngine
                 => new VisualScene3D();
 
             public static RenderPipeline NewRenderPipeline()
-                => new DefaultRenderPipeline();
+                => new TestRenderPipeline();
         }
     }
 }

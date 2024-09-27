@@ -15,7 +15,6 @@ namespace XREngine
     {
         private static readonly EventList<XRWorldInstance> _worldInstances = [];
         private static readonly EventList<XRWindow> _windows = [];
-        private static readonly EventList<GenericRenderObject> _renderObjects = [];
 
         static Engine()
         {
@@ -55,11 +54,11 @@ namespace XREngine
         /// The list of currently active and rendering windows.
         /// </summary>
         public static IEventListReadOnly<XRWindow> Windows => _windows;
-        /// <summary>
-        /// The list of all active render objects being utilized for rendering.
-        /// Each generic render object has a list of API-specific render objects that represent it for each window.
-        /// </summary>
-        public static IEventListReadOnly<GenericRenderObject> RenderObjects => _renderObjects;
+        ///// <summary>
+        ///// The list of all active render objects being utilized for rendering.
+        ///// Each generic render object has a list of API-specific render objects that represent it for each window.
+        ///// </summary>
+        //public static IEventListReadOnly<GenericRenderObject> RenderObjects => _renderObjects;
         /// <summary>
         /// Manages all assets loaded into the engine.
         /// </summary>

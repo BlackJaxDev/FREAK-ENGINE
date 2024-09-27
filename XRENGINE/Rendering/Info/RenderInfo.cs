@@ -74,7 +74,10 @@ namespace XREngine.Rendering.Info
         public void AddRenderCommands(RenderCommandCollection passes, XRCamera camera)
         {
             PreAddRenderCommandsCallback?.Invoke(this, passes, camera);
-            passes.AddRange(RenderCommands);
+            if (RenderCommands.Count == 0)
+                Debug.LogWarning($"RenderInfo for {(Owner?.GetType()?.Name ?? "null")} has no render commands.");
+            else
+                passes.AddRange(RenderCommands);
         }
     }
 }

@@ -32,10 +32,31 @@ namespace XREngine.Rendering.Shaders.Generator
         /// <returns></returns>
         public override string Generate()
         {
-            //Write #definitions
             WriteVersion();
             Line();
+            WriteInputs();
+            using (StartMain())
+            {
+                //Create MVP matrix right away
+                Line($"mat4 mvpMatrix = {EEngineUniform.ProjMatrix} * {EEngineUniform.ViewMatrix} * {EEngineUniform.ModelMatrix};");
+                if (Mesh.NormalsBuffer is not null)
+                    Line("mat3 normalMatrix = transpose(inverse(mat3(mvpMatrix)));");
+                Line();
 
+                //Transform position, normals and tangents
+                if (Mesh.UtilizedBones.Length > 1)
+                    WriteSkinnedMeshInputs();
+                else
+                    WriteStaticMeshInputs();
+
+                WriteColorOutputs();
+                WriteTexCoordOutputs();
+            }
+            return End();
+        }
+
+        private void WriteInputs()
+        {
             //Write header in fields (from buffers)
             WriteBuffers();
             Line();
@@ -54,39 +75,37 @@ namespace XREngine.Rendering.Shaders.Generator
 
             //For some reason, this is necessary
             WritePipelineData();
+        }
 
-            StartMain();
+        private void WriteTexCoordOutputs()
+        {
+            if (Mesh.TexCoordBuffers is null)
+                return;
 
-            //Transform position, normals and tangents
-            if (Mesh.UtilizedBones.Length > 1)
-                WriteSkinnedMeshInputs();
-            else
-                WriteStaticMeshInputs();
+            for (int i = 0; i < Mesh.TexCoordBuffers.Length; ++i)
+                Line($"{string.Format(FragUVName, i)} = {ECommonBufferType.TexCoord}{i};");
+        }
 
-            if (Mesh.ColorBuffers is not null)
-                for (int i = 0; i < Mesh.ColorBuffers.Length; ++i)
-                    Line($"{string.Format(FragColorName, i)} = {ECommonBufferType.Color}{i};");
+        private void WriteColorOutputs()
+        {
+            if (Mesh.ColorBuffers is null)
+                return;
 
-            if (Mesh.TexCoordBuffers is not null)
-                for (int i = 0; i < Mesh.TexCoordBuffers.Length; ++i)
-                    Line($"{string.Format(FragUVName, i)} = {ECommonBufferType.TexCoord}{i};");
-
-            string source = EndMain();
-            //Debug.Out(source);
-            return source;
+            for (int i = 0; i < Mesh.ColorBuffers.Length; ++i)
+                Line($"{string.Format(FragColorName, i)} = {ECommonBufferType.Color}{i};");
         }
 
         private void WritePipelineData()
         {
             if (!Engine.Rendering.Settings.AllowShaderPipelines)
                 return;
-            
-            Line("out gl_PerVertex");
-            OpenBracket();
-            Line("vec4 gl_Position;");
-            Line("float gl_PointSize;");
-            Line("float gl_ClipDistance[];");
-            CloseBracket(null, true);
+
+            using (StartOutStructState("gl_PerVertex"))
+            {
+                Var("vec4", "gl_Position");
+                Var("float", "gl_PointSize");
+                Var("float", "gl_ClipDistance[]");
+            }
             Line();
         }
 
@@ -94,7 +113,11 @@ namespace XREngine.Rendering.Shaders.Generator
         {
             uint blendshapeCount = Mesh.BlendshapeCount;
             bool weighted = Mesh.UtilizedBones.Length > 1;
-            EShaderVarType intVarType = Engine.Rendering.Settings.UseIntegerUniformsInShaders ? EShaderVarType._int : EShaderVarType._float;
+
+            EShaderVarType intVarType = Engine.Rendering.Settings.UseIntegerUniformsInShaders 
+                ? EShaderVarType._int 
+                : EShaderVarType._float;
+
             uint location = 0u;
 
             WriteInVar(location++, EShaderVarType._vec3, ECommonBufferType.Position.ToString());
@@ -137,7 +160,6 @@ namespace XREngine.Rendering.Shaders.Generator
             //WriteUniform(EShaderVarType._mat4, EEngineUniform.LeftEyeProjMatrix.ToString());
             //WriteUniform(EShaderVarType._mat4, EEngineUniform.RightEyeViewMatrix.ToString());
             //WriteUniform(EShaderVarType._mat4, EEngineUniform.RightEyeProjMatrix.ToString());
-
         }
 
         /// <summary>
@@ -239,21 +261,21 @@ namespace XREngine.Rendering.Shaders.Generator
 
             //Loop over the bone count supplied to this vertex
             Line($"for (int i = 0; i < {ECommonBufferType.BoneMatrixCount}; i++)");
-            OpenBracket();
+            using (OpenBracketState())
             {
                 Line($"int index = {ECommonBufferType.BoneMatrixOffset} + i;");
                 Line($"int boneIndex = {ECommonBufferType.BoneMatrixIndices}[index]");
                 Line($"float weight = {ECommonBufferType.BoneMatrixWeights}[index];");
 
                 Line("if (weight > 0.0)");
-                OpenBracket();
-                Line($"mat4 boneMatrix = {ECommonBufferType.BoneMatrices}[boneIndex];");
-                Line("finalPosition += (boneMatrix * basePosition) * weight;");
-                Line("finalNormal += (boneMatrix * baseNormal).xyz * weight;");
-                Line("finalTangent += (boneMatrix * baseTangent).xyz * weight;");
-                CloseBracket();
+                using (OpenBracketState())
+                {
+                    Line($"mat4 boneMatrix = {ECommonBufferType.BoneMatrices}[boneIndex];");
+                    Line("finalPosition += (boneMatrix * basePosition) * weight;");
+                    Line("finalNormal += (boneMatrix * baseNormal).xyz * weight;");
+                    Line("finalTangent += (boneMatrix * baseTangent).xyz * weight;");
+                }
             }
-            CloseBracket();
 
             Line();
             if (hasNormals)

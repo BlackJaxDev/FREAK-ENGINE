@@ -177,10 +177,16 @@ namespace XREngine.Rendering.OpenGL
                 _shaderCache = Data.Shaders.Select(CreateAndGenerate).ToArray();
 
                 if (_shaderCache.Length == 0)
+                {
+                    Debug.LogWarning("No shaders were provided to the program.");
                     return InvalidBindingId;
+                }
 
                 if (_shaderCache.Any(x => !x.IsCompiled))
+                {
+                    Debug.LogWarning("One or more shaders failed to compile.");
                     return InvalidBindingId;
+                }
 
                 uint handle = Api.CreateProgram();
                 bool separable = Engine.Rendering.Settings.AllowShaderPipelines;

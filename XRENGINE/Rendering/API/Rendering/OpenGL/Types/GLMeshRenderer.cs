@@ -349,13 +349,14 @@ namespace XREngine.Rendering.OpenGL
             private void LinkBlocksToProgram(XRRenderProgram vtxProg)
             {
                 Data.BoneMatricesBuffer?.SetBlockName(vtxProg, ECommonBufferType.BoneMatrices.ToString());
+
                 var mesh = Data.Mesh;
-                if (mesh is not null)
-                {
-                    mesh.BlendshapePositionDeltasBuffer?.SetBlockName(vtxProg, ECommonBufferType.BlendshapePositionDeltas.ToString());
-                    mesh.BlendshapeNormalDeltasBuffer?.SetBlockName(vtxProg, ECommonBufferType.BlendshapeNormalDeltas.ToString());
-                    mesh.BlendshapeTangentDeltasBuffer?.SetBlockName(vtxProg, ECommonBufferType.BlendshapeTangentDeltas.ToString());
-                }
+                if (mesh is null)
+                    return;
+                
+                mesh.BlendshapePositionDeltasBuffer?.SetBlockName(vtxProg, ECommonBufferType.BlendshapePositionDeltas.ToString());
+                mesh.BlendshapeNormalDeltasBuffer?.SetBlockName(vtxProg, ECommonBufferType.BlendshapeNormalDeltas.ToString());
+                mesh.BlendshapeTangentDeltasBuffer?.SetBlockName(vtxProg, ECommonBufferType.BlendshapeTangentDeltas.ToString());
             }
 
             /// <summary>
@@ -439,13 +440,16 @@ namespace XREngine.Rendering.OpenGL
             if (_currentMesh?.Data?.Mesh is null)
                 return;
 
-            Api.DrawElementsInstancedBaseInstance(
-                ToGLEnum(_currentMesh.Data.Mesh.Type),
-                _currentMesh.TriangleIndicesBuffer?.Data?.ElementCount ?? 0,
-                ToGLEnum(_currentMesh.TrianglesElementType),
-                null,
-                instances,
-                0);
+            uint triangles = _currentMesh.TriangleIndicesBuffer?.Data?.ElementCount ?? 0u;
+            uint lines = _currentMesh.LineIndicesBuffer?.Data?.ElementCount ?? 0u;
+            uint points = _currentMesh.PointIndicesBuffer?.Data?.ElementCount ?? 0u;
+
+            if (triangles > 0)
+                Api.DrawElementsInstancedBaseInstance(GLEnum.Triangles, triangles, ToGLEnum(_currentMesh.TrianglesElementType), null, instances, 0);
+            if (lines > 0)
+                Api.DrawElementsInstancedBaseInstance(GLEnum.Lines, lines, ToGLEnum(_currentMesh.LineIndicesElementType), null, instances, 0);
+            if (points > 0)
+                Api.DrawElementsInstancedBaseInstance(GLEnum.Points, points, ToGLEnum(_currentMesh.PointIndicesElementType), null, instances, 0);
         }
 
         /// <summary>

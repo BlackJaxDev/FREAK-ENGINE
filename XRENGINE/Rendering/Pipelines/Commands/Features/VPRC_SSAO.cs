@@ -124,10 +124,18 @@ namespace XREngine.Rendering.Pipelines.Commands
             var area = Engine.Rendering.State.RenderArea;
             int width = area.Width;
             int height = area.Height;
-            if (width == _lastWidth && height == _lastHeight)
+            if (width == _lastWidth && 
+                height == _lastHeight)
                 return;
 
-            RegenerateFBOs(normalTex, depthViewTex, albedoTex, rmsiTex, depthStencilTex, width, height);
+            RegenerateFBOs(
+                normalTex,
+                depthViewTex,
+                albedoTex,
+                rmsiTex,
+                depthStencilTex,
+                width,
+                height);
         }
 
         private void RegenerateFBOs(XRTexture2D normalTex, XRTexture2DView depthViewTex, XRTexture2D albedoTex, XRTexture2D rmsiTex, XRTexture2D depthStencilTex, int width, int height)

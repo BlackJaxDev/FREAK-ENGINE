@@ -94,23 +94,171 @@ namespace XREngine.Rendering.Shaders.Generator
             OpenBracket();
         }
         public void OpenLoop(int count, string varName = "i") => OpenLoop(0, count, varName);
-        public void StartMain()
+        public StateObject StartMain()
         {
             Line("void main()");
-            OpenBracket();
-            //Create MVP matrix right away
-            Line($"mat4 mvpMatrix = {EEngineUniform.ProjMatrix} * {EEngineUniform.ViewMatrix} * {EEngineUniform.ModelMatrix};");
-            if (Mesh.NormalsBuffer is not null)
-                Line("mat3 normalMatrix = transpose(inverse(mat3(mvpMatrix)));");
-            Line();
+            return OpenBracketState();
         }
-        public string EndMain()
+        public string End()
         {
-            CloseBracket();
             string s = _shaderCode;
             Reset();
             return s;
         }
+        public enum EGLVertexShaderInput
+        {
+            gl_VertexID, //in int
+            gl_InstanceID, //in int
+            gl_DrawID, //in int - Requires GLSL 4.60 or ARB_shader_draw_parameters
+            gl_BaseVertex, //in int - Requires GLSL 4.60 or ARB_shader_draw_parameters
+            gl_BaseInstance, //in int - Requires GLSL 4.60 or ARB_shader_draw_parameters
+        }
+        public enum EGLVertexShaderOutput //out gl_PerVertex
+        {
+            gl_Position, //vec4
+            gl_PointSize, //float
+            gl_ClipDistance, //float
+        }
+        public enum EGLFragmentShaderInput
+        {
+            gl_FragCoord, //in vec4
+            gl_FrontFacing, //in bool
+            gl_PointCoord, //in vec2
+            gl_SampleID, //in int
+            gl_SamplePosition, //in vec2
+            gl_SampleMaskIn, //in int
+            gl_ClipDistance, //in float
+            gl_PrimitiveID, //in int
+            gl_Layer, //in int - Requires GL 4.3
+            gl_ViewportIndex, //in int - Requires GL 4.3
+        }
+        public enum EGLFragmentShaderOutput
+        {
+            gl_FragDepth, //out float
+            gl_SampleMask, //out int
+        }
+        public enum ETessControlShaderInput
+        {
+            /// <summary>
+            /// The number of vertices in the input patch.
+            /// </summary>
+            gl_PatchVerticesIn,
+            /// <summary>
+            /// The index of the current patch within this rendering command.
+            /// </summary>
+            gl_PrimitiveID,
+            /// <summary>
+            /// The index of the TCS invocation within this patch.
+            /// A TCS invocation writes to per-vertex output variables by using this to index them.
+            /// </summary>
+            gl_InvocationID,
+        }
+        public enum ETessControlShaderOutput
+        {
+            gl_TessLevelOuter, //patch out float[4]
+            gl_TessLevelInner, //patch out float[2]
+        }
+        public enum ETessControlShaderInputPerVertex //in gl_PerVertex
+        {
+            gl_Position, //vec4
+            gl_PointSize, //float
+            gl_ClipDistance, //float[]
+        } // gl_in[gl_MaxPatchVertices];
+        public enum ETessControlShaderOutputPerVertex //out gl_PerVertex
+        {
+            gl_Position, //vec4
+            gl_PointSize, //float
+            gl_ClipDistance, //float[]
+        } // gl_out[];
+        public enum ETessEvalShaderInput
+        {
+            gl_TessCoord, //in vec3
+            gl_PatchVerticesIn, //in int
+            gl_PrimitiveID, //in int
+            gl_TessLevelOuter, //patch in float[4]
+            gl_TessLevelInner, //patch in float[2]
+        }
+        public enum ETessEvalShaderInputPerVertex //in gl_PerVertex
+        {
+            gl_Position, //vec4
+            gl_PointSize, //float
+            gl_ClipDistance, //float[]
+        } // gl_in[gl_MaxPatchVertices];
+        public enum ETessEvalShaderOutputPerVertex //out gl_PerVertex
+        {
+            /// <summary>
+            /// The clip-space output position of the current vertex.
+            /// </summary>
+            gl_Position, //vec4
+            /// <summary>
+            /// The pixel width/height of the point being rasterized.
+            /// It only has a meaning when rendering point primitives, which in a TES requires using the point_mode​ input layout qualifier.
+            /// </summary>
+            gl_PointSize, //float
+            /// <summary>
+            /// Allows the shader to set the distance from the vertex to each User-Defined Clip Plane. 
+            /// A positive distance means that the vertex is inside/behind the clip plane, and a negative distance means it is outside/in front of the clip plane.
+            /// Each element in the array is one clip plane.
+            /// In order to use this variable, the user must manually redeclare it with an explicit size.
+            /// </summary>
+            gl_ClipDistance, //float[]
+        }
+        public enum EComputeShaderInput
+        {
+            /// <summary>
+            /// This variable contains the number of work groups passed to the dispatch function.
+            /// </summary>
+            gl_NumWorkGroups, //in uvec3
+            /// <summary>
+            /// This is the current work group for this shader invocation. Each of the XYZ components will be on the half-open range [0, gl_NumWorkGroups.XYZ).
+            /// </summary>
+            gl_WorkGroupID, //in uvec3
+            /// <summary>
+            /// This is the current invocation of the shader within the work group. Each of the XYZ components will be on the half-open range [0, gl_WorkGroupSize.XYZ).
+            /// </summary>
+            gl_LocalInvocationID, //in uvec3
+            /// <summary>
+            /// This value uniquely identifies this particular invocation of the compute shader among all invocations of this compute dispatch call. It's a short-hand for the math computation:
+            /// </summary>
+            gl_GlobalInvocationID, //in uvec3
+            /// <summary>
+            /// This is a 1D version of gl_LocalInvocationID. It identifies this invocation's index within the work group. It is short-hand for this math computation:
+            /// gl_LocalInvocationIndex =
+            /// gl_LocalInvocationID.z * gl_WorkGroupSize.x * gl_WorkGroupSize.y +
+            /// gl_LocalInvocationID.y * gl_WorkGroupSize.x + 
+            /// gl_LocalInvocationID.x;
+            /// </summary>
+            gl_LocalInvocationIndex, //in uint
+            /// <summary>
+            /// The gl_WorkGroupSize variable is a constant that contains the local work-group size of the shader, in 3 dimensions. It is defined by the layout qualifiers local_size_x/y/z. This is a compile-time constant. 
+            /// </summary>
+            gl_WorkGroupSize, //const uvec3 - GLSL ≥ 4.30
+        }
+        public enum EGeometryShaderInputPerVertex //in gl_PerVertex
+        {
+            gl_Position, //vec4
+            gl_PointSize, //float
+            gl_ClipDistance, //float[]
+        } //gl_in[];
+        public enum EGeometryShaderOutputPerVertex //out gl_PerVertex
+        {
+            gl_Position, //vec4
+            gl_PointSize, //float
+            gl_ClipDistance, //float[]
+        }
+        public enum EGeometryShaderOutput
+        {
+            gl_PrimitiveID, //out int
+            gl_Layer, //out int
+            gl_ViewportIndex, //out int - Requires GL 4.1 or ARB_viewport_array.
+        }
+        public StateObject StartOutStructState(string structName)
+        {
+            Line($"out {structName}");
+            return OpenBracketState(null, true);
+        }
+        public void Var(string varType, string varName)
+            => Line($"{varType} {varName};");
         /// <summary>
         /// Writes the current line and increments to the next line.
         /// Do not use arguments if you need to include brackets in the string.
@@ -143,6 +291,11 @@ namespace XREngine.Rendering.Shaders.Generator
         public void OpenBracket()
         {
             Line("{");
+        }
+        public StateObject OpenBracketState(string? closeBracketName = null, bool closeBracketIncludeSemicolon = false)
+        {
+            Line("{");
+            return new StateObject(() => CloseBracket(closeBracketName, closeBracketIncludeSemicolon));
         }
         public void CloseBracket(string? name = null, bool includeSemicolon = false)
         {

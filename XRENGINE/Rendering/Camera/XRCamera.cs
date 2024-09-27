@@ -106,7 +106,7 @@ namespace XREngine.Rendering
             => Parameters.GetProjectionMatrix();
 
         private static XRPerspectiveCameraParameters GetDefaultCameraParameters()
-            => new(90.0f, 16.0f / 9.0f, 0.1f, 10000.0f);
+            => new(90.0f, null, 0.1f, 10000.0f);
 
         protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
         {

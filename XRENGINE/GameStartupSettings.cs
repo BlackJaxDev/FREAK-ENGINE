@@ -7,7 +7,7 @@ namespace XREngine
     public class GameStartupSettings : XRBase
     {
         public List<GameWindowStartupSettings> StartupWindows { get; set; } = [];
-        public EOutputVerbosity OutputVerbosity { get; set; } = EOutputVerbosity.Normal;
+        public EOutputVerbosity OutputVerbosity { get; set; } = EOutputVerbosity.Verbose;
         public bool UseIntegerWeightingIds { get; set; } = true;
         public UserSettings DefaultUserSettings { get; set; } = new UserSettings();
         public ETwoPlayerPreference TwoPlayerViewportPreference { get; set; }

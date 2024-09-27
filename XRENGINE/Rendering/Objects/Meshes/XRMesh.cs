@@ -5,7 +5,6 @@ using System.Numerics;
 using XREngine.Data.Core;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
-using XREngine.Rendering.Shaders.Generator;
 using XREngine.Scene.Transforms;
 
 namespace XREngine.Rendering
@@ -335,7 +334,7 @@ namespace XREngine.Rendering
         #region Per-Facepoint Buffers
 
         #region Data Buffers
-        public XRDataBuffer PositionsBuffer { get; private set; } //Required
+        public XRDataBuffer? PositionsBuffer { get; private set; } //Required
         public XRDataBuffer? NormalsBuffer { get; private set; }
         public XRDataBuffer? TangentsBuffer { get; private set; }
         public XRDataBuffer[]? ColorBuffers { get; private set; } = [];
@@ -563,29 +562,29 @@ namespace XREngine.Rendering
             _faceIndices[_points[index]] = point;
         }
 
-        private static Dictionary<Type, EPrimitiveType> PrimTypeDic { get; }
-            = new Dictionary<Type, EPrimitiveType>()
-            {
-                { typeof(VertexQuad), EPrimitiveType.Quads },
-                { typeof(VertexTriangle), EPrimitiveType.Triangles },
-                { typeof(VertexTriangleFan), EPrimitiveType.TriangleFan },
-                { typeof(VertexTriangleStrip), EPrimitiveType.TriangleStrip },
-                { typeof(VertexLine), EPrimitiveType.Lines },
-                { typeof(VertexLineStrip), EPrimitiveType.LineStrip },
-                { typeof(Vertex), EPrimitiveType.Points },
-            };
+        //private static Dictionary<Type, EPrimitiveType> PrimTypeDic { get; }
+        //    = new Dictionary<Type, EPrimitiveType>()
+        //    {
+        //        { typeof(VertexQuad), EPrimitiveType.Quads },
+        //        { typeof(VertexTriangle), EPrimitiveType.Triangles },
+        //        { typeof(VertexTriangleFan), EPrimitiveType.TriangleFan },
+        //        { typeof(VertexTriangleStrip), EPrimitiveType.TriangleStrip },
+        //        { typeof(VertexLine), EPrimitiveType.Lines },
+        //        { typeof(VertexLineStrip), EPrimitiveType.LineStrip },
+        //        { typeof(Vertex), EPrimitiveType.Points },
+        //    };
 
-        private static Dictionary<EPrimitiveType, Func<IEnumerable<VertexPrimitive>, IEnumerable<Vertex>>> PrimConvDic { get; }
-            = new Dictionary<EPrimitiveType, Func<IEnumerable<VertexPrimitive>, IEnumerable<Vertex>>>()
-            {
-                { EPrimitiveType.Quads, p => p.SelectMany(x => ((VertexQuad)x).ToTriangles()).SelectMany(x => x.Vertices) },
-                { EPrimitiveType.Triangles, p => p.SelectMany(x => x.Vertices) },
-                { EPrimitiveType.TriangleFan, p => p.SelectMany(x => ((VertexTriangleFan)x).ToTriangles()).SelectMany(x => x.Vertices) },
-                { EPrimitiveType.TriangleStrip, p => p.SelectMany(x => ((VertexTriangleStrip)x).ToTriangles()).SelectMany(x => x.Vertices) },
-                { EPrimitiveType.Lines, p => p.SelectMany(x => x.Vertices) },
-                { EPrimitiveType.LineStrip, p => p.SelectMany(x => ((VertexLineStrip)x).ToLines()).SelectMany(x => x.Vertices) },
-                { EPrimitiveType.Points, p => p.Select(x => (Vertex)x) },
-            };
+        //private static Dictionary<EPrimitiveType, Func<IEnumerable<VertexPrimitive>, IEnumerable<Vertex>>> PrimConvDic { get; }
+        //    = new Dictionary<EPrimitiveType, Func<IEnumerable<VertexPrimitive>, IEnumerable<Vertex>>>()
+        //    {
+        //        { EPrimitiveType.Quads, p => p.SelectMany(x => ((VertexQuad)x).ToTriangles()).SelectMany(x => x.Vertices) },
+        //        { EPrimitiveType.Triangles, p => p.SelectMany(x => x.Vertices) },
+        //        { EPrimitiveType.TriangleFan, p => p.SelectMany(x => ((VertexTriangleFan)x).ToTriangles()).SelectMany(x => x.Vertices) },
+        //        { EPrimitiveType.TriangleStrip, p => p.SelectMany(x => ((VertexTriangleStrip)x).ToTriangles()).SelectMany(x => x.Vertices) },
+        //        { EPrimitiveType.Lines, p => p.SelectMany(x => x.Vertices) },
+        //        { EPrimitiveType.LineStrip, p => p.SelectMany(x => ((VertexLineStrip)x).ToLines()).SelectMany(x => x.Vertices) },
+        //        { EPrimitiveType.Points, p => p.Select(x => (Vertex)x) },
+        //    };
 
         /// <summary>
         /// The axis-aligned bounds of this mesh before any vertex transformations.
@@ -610,10 +609,12 @@ namespace XREngine.Rendering
 
         public static XRMesh Create<T>(params T[] prims) where T : VertexPrimitive
         {
-            if (!GetPrimType<T>(out EPrimitiveType type))
-                type = EPrimitiveType.Triangles;
+            //No more need to convert types, this is handled by the constructor now
+            //if (!GetPrimType<T>(out EPrimitiveType type))
+            //    type = EPrimitiveType.Triangles;
 
-            return new(PrimConvDic[type](prims));
+            //return new(PrimConvDic[type](prims));
+            return new(prims);
         }
 
         public static XRMesh Create<T>(IEnumerable<T> prims) where T : VertexPrimitive
@@ -631,8 +632,8 @@ namespace XREngine.Rendering
         public static XRMesh CreatePoints(IEnumerable<Vector3> positions)
             => new(positions.Select(x => new Vertex(x)));
 
-        private static bool GetPrimType<T>(out EPrimitiveType type) where T : VertexPrimitive
-            => PrimTypeDic.TryGetValue(typeof(T), out type);
+        //private static bool GetPrimType<T>(out EPrimitiveType type) where T : VertexPrimitive
+        //    => PrimTypeDic.TryGetValue(typeof(T), out type);
 
         public void RemoveBuffer(string name)
         {
