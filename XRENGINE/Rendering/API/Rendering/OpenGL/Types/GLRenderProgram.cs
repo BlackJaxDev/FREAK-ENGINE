@@ -170,27 +170,44 @@ namespace XREngine.Rendering.OpenGL
                 shader.Generate();
                 return shader;
             }
+            //TODO: serialize this cache and load on startup
+            private readonly ConcurrentDictionary<ulong, BinaryProgram> _binaryCache = new();
+            public ulong Hash { get; private set; }
+            private BinaryProgram? _cachedProgram = null;
             protected override uint CreateObject()
             {
                 Reset();
 
-                _shaderCache = Data.Shaders.Select(CreateAndGenerate).ToArray();
-
-                if (_shaderCache.Length == 0)
+                if (Data.Shaders.Count == 0)
                 {
                     Debug.LogWarning("No shaders were provided to the program.");
                     return InvalidBindingId;
                 }
 
-                if (_shaderCache.Any(x => !x.IsCompiled))
+                Hash = CalcHash(Data.Shaders.Select(x => x.Source.Text ?? string.Empty));
+                bool isCached = _binaryCache.TryGetValue(Hash, out var binProg);
+
+                if (isCached)
+                    _cachedProgram = binProg;
+                else
                 {
-                    Debug.LogWarning("One or more shaders failed to compile.");
-                    return InvalidBindingId;
+                    _cachedProgram = null;
+
+                    //Try compiling the shaders
+                    _shaderCache = Data.Shaders.Select(CreateAndGenerate).ToArray();
+                    if (_shaderCache.Any(x => !x.IsCompiled))
+                    {
+                        Debug.LogWarning("One or more shaders failed to compile.");
+                        _shaderCache.ForEach(x => x.Destroy());
+                        _shaderCache = [];
+                        return InvalidBindingId;
+                    }
                 }
 
                 uint handle = Api.CreateProgram();
                 bool separable = Engine.Rendering.Settings.AllowShaderPipelines;
                 Api.ProgramParameter(handle, GLEnum.ProgramSeparable, separable ? 1 : 0);
+
                 return handle;
             }
 
@@ -199,53 +216,98 @@ namespace XREngine.Rendering.OpenGL
                 shader.ActivePrograms.Add(this);
                 Api.AttachShader(BindingId, shader.BindingId);
             }
-            //private void UnlinkShader(GLShader shader)
-            //{
-            //    Api.DetachShader(shader.BindingId, BindingId);
-            //    shader.ActivePrograms.Remove(this);
-            //    shader.Destroy();
-            //}
+            private void UnlinkShader(GLShader shader)
+            {
+                Api.DetachShader(shader.BindingId, BindingId);
+                shader.ActivePrograms.Remove(this);
+                shader.Destroy();
+            }
+
             protected internal override void PostGenerated()
             {
                 if (!TryGetBindingId(out uint bindingId))
                     return;
+
+                if (_cachedProgram is null)
+                    LinkNewProgram(bindingId);
+                else
+                    LoadCachedProgram(bindingId);
                 
+                base.PostGenerated();
+            }
+
+            private void LoadCachedProgram(uint bindingId)
+            {
+                fixed (byte* ptr = _cachedProgram!.Value.Binary)
+                    Api.ProgramBinary(bindingId, _cachedProgram.Value.Format, ptr, _cachedProgram.Value.Length);
+            }
+
+            private void LinkNewProgram(uint bindingId)
+            {
                 _shaderCache.ForEach(LinkShader);
 
                 Api.LinkProgram(bindingId);
                 Api.GetProgram(bindingId, GLEnum.LinkStatus, out int status);
                 IsLinked = status != 0;
-                if (!IsLinked)
+                if (IsLinked)
+                    CacheBinary(bindingId);
+                else
+                    PrintLinkDebug(bindingId);
+
+                _shaderCache.ForEach(UnlinkShader);
+                _shaderCache = [];
+            }
+
+            private void PrintLinkDebug(uint bindingId)
+            {
+                Api.GetProgramInfoLog(bindingId, out string info);
+
+                Debug.Out(string.IsNullOrWhiteSpace(info)
+                    ? "Unable to link program, but no error was returned."
+                    : info);
+
+                //if (info.Contains("Vertex info"))
+                //{
+                //    RenderShader s = _shaders.FirstOrDefault(x => x.File.Type == EShaderMode.Vertex);
+                //    string source = s.GetSource(true);
+                //    Engine.PrintLine(source);
+                //}
+                //else if (info.Contains("Geometry info"))
+                //{
+                //    RenderShader s = _shaders.FirstOrDefault(x => x.File.Type == EShaderMode.Geometry);
+                //    string source = s.GetSource(true);
+                //    Engine.PrintLine(source);
+                //}
+                //else if (info.Contains("Fragment info"))
+                //{
+                //    RenderShader s = _shaders.FirstOrDefault(x => x.File.Type == EShaderMode.Fragment);
+                //    string source = s.GetSource(true);
+                //    Engine.PrintLine(source);
+                //}
+            }
+
+            private void CacheBinary(uint bindingId)
+            {
+                Api.GetProgram(bindingId, GLEnum.ProgramBinaryLength, out int len);
+                if (len <= 0)
+                    return;
+                
+                byte[] binary = new byte[len];
+                GLEnum format;
+                uint binaryLength;
+                fixed (byte* ptr = binary)
                 {
-                    Api.GetProgramInfoLog(bindingId, out string info);
-
-                    Debug.Out(string.IsNullOrWhiteSpace(info) 
-                        ? "Unable to link program, but no error was returned." 
-                        : info);
-
-                    //if (info.Contains("Vertex info"))
-                    //{
-                    //    RenderShader s = _shaders.FirstOrDefault(x => x.File.Type == EShaderMode.Vertex);
-                    //    string source = s.GetSource(true);
-                    //    Engine.PrintLine(source);
-                    //}
-                    //else if (info.Contains("Geometry info"))
-                    //{
-                    //    RenderShader s = _shaders.FirstOrDefault(x => x.File.Type == EShaderMode.Geometry);
-                    //    string source = s.GetSource(true);
-                    //    Engine.PrintLine(source);
-                    //}
-                    //else if (info.Contains("Fragment info"))
-                    //{
-                    //    RenderShader s = _shaders.FirstOrDefault(x => x.File.Type == EShaderMode.Fragment);
-                    //    string source = s.GetSource(true);
-                    //    Engine.PrintLine(source);
-                    //}
+                    Api.GetProgramBinary(bindingId, (uint)len, &binaryLength, &format, ptr);
                 }
+                _binaryCache.TryAdd(Hash, (binary, format, binaryLength));
+            }
 
-                //_shaderCache.ForEach(UnlinkShader);
-
-                base.PostGenerated();
+            private static ulong CalcHash(IEnumerable<string> enumerable)
+            {
+                ulong hash = 17ul;
+                foreach (string item in enumerable)
+                    hash = hash * 31ul + (ulong)(item?.GetHashCode() ?? 0);
+                return hash;
             }
 
             public void Use()
@@ -442,5 +504,18 @@ namespace XREngine.Rendering.OpenGL
 
         private void SetActiveTexture(int textureUnit)
             => Api.ActiveTexture(GLEnum.Texture0 + textureUnit);
+    }
+
+    internal record struct BinaryProgram(byte[] Binary, GLEnum Format, uint Length)
+    {
+        public static implicit operator (byte[] bin, GLEnum fmt, uint len)(BinaryProgram value)
+        {
+            return (value.Binary, value.Format, value.Length);
+        }
+
+        public static implicit operator BinaryProgram((byte[] bin, GLEnum fmt, uint len) value)
+        {
+            return new BinaryProgram(value.bin, value.fmt, value.len);
+        }
     }
 }

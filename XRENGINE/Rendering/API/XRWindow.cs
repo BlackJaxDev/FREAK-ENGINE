@@ -32,6 +32,14 @@ namespace XREngine.Rendering
                 ContextAPI.Vulkan => new VulkanRenderer(this),
                 _ => throw new Exception($"Unsupported API: {Window.API.API}"),
             };
+            Window.Closing += Window_Closing;
+        }
+
+        private void Window_Closing()
+        {
+            //Renderer.Dispose();
+            //Window.Dispose();
+            Engine.RemoveWindow(this);
         }
 
         private void Window_Resize(Vector2D<int> obj)

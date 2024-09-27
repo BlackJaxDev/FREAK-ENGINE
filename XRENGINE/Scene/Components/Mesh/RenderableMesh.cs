@@ -24,7 +24,7 @@ namespace XREngine.Components.Scene.Mesh
                 LODs.AddLast(new RenderableLOD(lod.NewRenderer(), lod.MaxVisibleDistance));
 
             RenderInfo = RenderInfo3D.New(component, _rc = new RenderCommandMesh3D(0));
-            RenderInfo.CullingVolume = mesh.Bounds;
+            RenderInfo.CullingVolume = mesh.CullingVolumeOverride ?? mesh.Bounds;
             RenderInfo.PreAddRenderCommandsCallback = BeforeAdd;
         }
 

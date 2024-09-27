@@ -23,8 +23,9 @@ namespace XREngine
             switch (propName)
             {
                 case nameof(World):
-                    foreach (var (group, order, tick) in _tickCache)
-                        RegisterTick(group, order, tick);
+                    if (World is not null)
+                        foreach (var (group, order, tick) in _tickCache)
+                            World?.RegisterTick(group, order, tick);
                     break;
             }
         }
@@ -36,12 +37,9 @@ namespace XREngine
                 switch (propName)
                 {
                     case nameof(World):
-                        while (_tickCache.Count > 0)
-                        {
-                            var (group, order, tick) = _tickCache[^1];
-                            UnregisterTick(group, order, tick);
-                            _tickCache.RemoveAt(_tickCache.Count - 1);
-                        }
+                        if (World is not null)
+                            foreach (var (group, order, tick) in _tickCache)
+                                World?.UnregisterTick(group, order, tick);
                         break;
                 }
             }

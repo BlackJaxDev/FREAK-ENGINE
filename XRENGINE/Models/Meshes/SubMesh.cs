@@ -1,5 +1,6 @@
 ﻿using XREngine.Core.Files;
 using XREngine.Data.Geometry;
+using XREngine.Data.Rendering;
 
 namespace XREngine.Rendering.Models
 {
@@ -11,10 +12,18 @@ namespace XREngine.Rendering.Models
         public SortedSet<SubMeshLOD> LODs { get; } = new(new LODSorter());
 
         private AABB _bounds;
+        private IVolume? cullingVolumeOverride;
+
         public AABB Bounds
         {
             get => _bounds;
             set => SetField(ref _bounds, value);
+        }
+
+        public IVolume? CullingVolumeOverride
+        {
+            get => cullingVolumeOverride;
+            set => SetField(ref cullingVolumeOverride, value);
         }
 
         public SubMesh() { }
@@ -29,6 +38,7 @@ namespace XREngine.Rendering.Models
         {
             foreach (SubMeshLOD lod in lods)
                 LODs.Add(lod);
+            Bounds = CalculateBoundingBox();
         }
 
         /// <summary>

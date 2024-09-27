@@ -6,9 +6,9 @@ using XREngine.Rendering.Pipelines.Commands;
 using static XREngine.Engine.Rendering.State;
 
 namespace XREngine.Rendering;
-
 public class TestRenderPipeline : RenderPipeline
 {
+    private readonly FarToNearRenderCommandSorter _farToNearSorter = new();
     protected override Lazy<XRMaterial> InvalidMaterialFactory => new(MakeInvalidMaterial, LazyThreadSafetyMode.PublicationOnly);
 
     private XRMaterial MakeInvalidMaterial()
@@ -18,7 +18,7 @@ public class TestRenderPipeline : RenderPipeline
     }
 
     protected override Dictionary<int, IComparer<RenderCommand>?> GetPassIndicesAndSorters()
-        => new() { { (int)EDefaultRenderPass.OpaqueForward, null }, };
+        => new() { { (int)EDefaultRenderPass.OpaqueForward, _farToNearSorter }, };
 
     protected override ViewportRenderCommandContainer GenerateCommandChain()
     {
@@ -27,7 +27,11 @@ public class TestRenderPipeline : RenderPipeline
         {
             c.Add<VPRC_Manual>().ManualAction = () =>
             {
+                ClearDepth(1.0f);
                 EnableDepthTest(true);
+                AllowDepthWrite(true);
+                StencilMask(~0u);
+                ClearStencil(0);
                 DepthFunc(EComparison.Lequal);
                 Clear(new ColorF4(0.0f, 0.0f, 1.0f, 1.0f));
                 Clear(true, true, true);

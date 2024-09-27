@@ -238,6 +238,8 @@ namespace XREngine.Rendering.OpenGL
                     out GLRenderProgram vertexProgram,
                     out GLRenderProgram materialProgram);
 
+                Api.BindFragDataLocation(materialProgram.BindingId, 0, "OutColor");
+
                 Data.PushBoneMatricesToGPU();
                 SetMeshUniforms(modelMatrix, vertexProgram);
                 material.SetUniforms();
@@ -280,7 +282,7 @@ namespace XREngine.Rendering.OpenGL
 
                 if (camera != null)
                 {
-                    viewMatrix = camera.Transform.WorldMatrix;
+                    viewMatrix = camera.Transform.InverseWorldMatrix;
                     projMatrix = camera.ProjectionMatrix;
                 }
                 else

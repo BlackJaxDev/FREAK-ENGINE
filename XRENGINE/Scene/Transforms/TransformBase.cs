@@ -16,12 +16,6 @@ namespace XREngine.Scene.Transforms
     /// </summary>
     public abstract partial class TransformBase : XRWorldObjectBase, IList, IList<TransformBase>, IEnumerable<TransformBase>
     {
-        public override XRWorldInstance? World 
-        {
-            get => SceneNode?.World;
-            internal set { }
-        }
-
         public XREvent<TransformBase> LocalMatrixChanged;
         public XREvent<TransformBase> InverseLocalMatrixChanged;
         public XREvent<TransformBase> WorldMatrixChanged;
@@ -106,6 +100,9 @@ namespace XREngine.Scene.Transforms
                     else
                         Depth = 0;
                     MarkWorldModified();
+                    break;
+                case nameof(SceneNode):
+                    World = SceneNode?.World;
                     break;
             }
         }

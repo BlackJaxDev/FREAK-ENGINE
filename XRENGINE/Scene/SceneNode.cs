@@ -93,6 +93,7 @@ namespace XREngine.Scene
                         break;
                     case nameof(World):
                         ClearWorldFromChildNodes();
+                        Transform.World = null;
                         break;
                 }
             }
@@ -115,6 +116,7 @@ namespace XREngine.Scene
                     break;
                 case nameof(World):
                     SetWorldToChildNodes(World);
+                    Transform.World = World;
                     break;
                 case nameof(Parent):
                     World = Parent?.World;

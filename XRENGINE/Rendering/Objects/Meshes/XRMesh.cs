@@ -55,11 +55,13 @@ namespace XREngine.Rendering
             int maxColorCount = 0;
             int maxTexCoordCount = 0;
             bool hasBlendshapes = false;
+            _bounds = new AABB(Vector3.Zero, Vector3.Zero);
 
             //For each vertex, we double check what data it has and add verify that the corresponding add-to-buffer action is added
             void AddVertex(List<Vertex> vertices, Vertex v)
             {
                 vertices.Add(v);
+                _bounds.ExpandToInclude(v.Position);
 
                 if (!hasSkinning && v.Weights is not null && v.Weights.Count > 0)
                 {
@@ -490,6 +492,7 @@ namespace XREngine.Rendering
         private List<IndexTriangle>? _triangles = null;
 
         private EPrimitiveType _type = EPrimitiveType.Triangles;
+        private AABB _bounds = new AABB(Vector3.Zero, Vector3.Zero);
 
         public void GetTriangle(int index, out VertexIndices point0, out VertexIndices point1, out VertexIndices point2)
         {
@@ -589,8 +592,11 @@ namespace XREngine.Rendering
         /// <summary>
         /// The axis-aligned bounds of this mesh before any vertex transformations.
         /// </summary>
-        public AABB Bounds { get; private set; }
-
+        public AABB Bounds
+        {
+            get => _bounds;
+            private set => _bounds = value;
+        }
         //private static EPrimitiveType ConvertType(EPrimitiveType type)
         //    => type switch
         //    {

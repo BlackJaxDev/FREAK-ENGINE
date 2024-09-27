@@ -190,13 +190,21 @@ namespace XREngine
         /// </summary>
         public static void ShutDown()
         {
+            //foreach (var window in _windows)
+            //    window.Window.Close();
+            //_windows.Clear();
+
             ShuttingDown = true;
             Time.Timer.Stop();
-            _windows.Clear();
             Assets.Dispose();
             ShuttingDown = false;
-            foreach (var window in _windows)
-                window.Window.Close();
+        }
+
+        public static void RemoveWindow(XRWindow window)
+        {
+            _windows.Remove(window);
+            if (_windows.Count == 0)
+                ShutDown();
         }
 
         public delegate int DelBeginOperation(

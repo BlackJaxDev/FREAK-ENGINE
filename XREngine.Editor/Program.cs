@@ -30,76 +30,80 @@ internal class Program
 
         Engine.Initialize(GetEngineSettings(CreateTestWorld()), GetGameState());
         Engine.Run();
+    }
 
-        XRWorld CreateTestWorld()
+    static void TickRotation(OrbitTransform t) 
+        => t.Angle += Engine.Delta * 10.0f;
+
+    static XRWorld CreateTestWorld()
+    {
+        var world = new XRWorld() { Name = "TestWorld" };
+        var scene = new XRScene() { Name = "TestScene" };
+        var rootNode = new SceneNode(scene) { Name = "TestRootNode" };
+
+        //Create a test cube
+        var modelNode = new SceneNode(rootNode) { Name = "TestModelNode" };
+        var modelTransform = modelNode.SetTransform<OrbitTransform>();
+        modelTransform.Radius = 0.0f;
+        modelTransform.RegisterAnimationTick<OrbitTransform>(TickRotation);
+        if (rootNode.TryAddComponent<ModelComponent>(out var modelComp))
         {
-            var world = new XRWorld() { Name = "TestWorld" };
-            var scene = new XRScene() { Name = "TestScene" };
-            var rootNode = new SceneNode(scene) { Name = "TestRootNode" };
-
-            //Create a test cube
-            var modelNode = new SceneNode(rootNode) { Name = "TestModelNode" };
-            var modelTransform = modelNode.SetTransform<OrbitTransform>();
-            modelTransform.Radius = 0.0f;
-            modelTransform.RegisterAnimationTick<OrbitTransform>(t => t.Angle += Engine.Delta * 10.0f);
-            if (rootNode.TryAddComponent<ModelComponent>(out var modelComp))
-            {
-                modelComp!.Name = "TestModel";
-                var mat = XRMaterial.CreateUnlitColorMaterialForward(new ColorF4(1.0f, 0.0f, 0.0f, 1.0f));
-                mat.RenderPass = (int)EDefaultRenderPass.OpaqueForward;
-                var mesh = XRMesh.Shapes.SolidBox(-Vector3.One, Vector3.One, false, XRMesh.Shapes.ECubemapTextureUVs.WidthLarger);
-                modelComp!.Model = new Model([new SubMesh(mesh, mat)]);
-                modelComp.Meshes[0].RenderInfo.CullingVolume = new AABB(-Vector3.One, Vector3.One);
-            }
-
-            //Create the camera
-            var cameraNode = new SceneNode(rootNode) { Name = "TestCameraNode" };
-            var cameraTransform = cameraNode.SetTransform<Transform>();
-            cameraTransform.Translation = new Vector3(0.0f, 0.0f, -20.0f);
-            //cameraTransform.LookAt(Vector3.Zero);
-            if (cameraNode.TryAddComponent<CameraComponent>(out var cameraComp))
-            {
-                cameraComp!.Name = "TestCamera";
-                cameraComp.LocalPlayerIndex = ELocalPlayerIndex.One;
-                cameraComp.Camera.Parameters = new XRPerspectiveCameraParameters(90.0f, null, 0.1f, 1000.0f);
-            }
-
-            //var dirLight = new SceneNode(rootNode) { Name = "TestDirectionalLightNode" };
-            //var dirLightTransform = dirLight.SetTransform<Transform>();
-            //dirLightTransform.Translation = new Vector3(20.0f, 10.0f, 20.0f);
-            //dirLightTransform.LookAt(Vector3.Zero);
-            //if (dirLight.TryAddComponent<DirectionalLightComponent>(out var dirLightComp))
-            //{
-            //    dirLightComp!.Name = "TestDirectionalLight";
-            //    dirLightComp.Color = new Vector3(1.0f, 1.0f, 1.0f);
-            //    dirLightComp.Intensity = 1.0f;
-            //}
-
-            //Pawn
-            //cameraNode.TryAddComponent<PawnComponent>(out var pawnComp);
-            //pawnComp!.Name = "TestPawn";
-            //pawnComp!.CurrentCameraComponent = cameraComp;
-
-            world.Scenes.Add(scene);
-            return world;
+            modelComp!.Name = "TestModel";
+            var mat = XRMaterial.CreateUnlitColorMaterialForward(new ColorF4(1.0f, 0.0f, 0.0f, 1.0f));
+            mat.RenderPass = (int)EDefaultRenderPass.OpaqueForward;
+            var mesh = XRMesh.Shapes.SolidBox(-Vector3.One, Vector3.One, false, XRMesh.Shapes.ECubemapTextureUVs.WidthLarger);
+            modelComp!.Model = new Model([new SubMesh(mesh, mat)]);
         }
 
-        GameState GetGameState()
+        //Create the camera
+        var cameraNode = new SceneNode(rootNode) { Name = "TestCameraNode" };
+        var cameraTransform = cameraNode.SetTransform<Transform>();
+        cameraTransform.Translation = new Vector3(0.0f, 0.0f, -20.0f);
+        //cameraTransform.LookAt(Vector3.Zero);
+        if (cameraNode.TryAddComponent<CameraComponent>(out var cameraComp))
         {
-            return new GameState()
-            {
-
-            };
+            cameraComp!.Name = "TestCamera";
+            cameraComp.LocalPlayerIndex = ELocalPlayerIndex.One;
+            cameraComp.Camera.Parameters = new XRPerspectiveCameraParameters(90.0f, null, 0.1f, 1000.0f);
+            cameraComp.RenderPipeline = new TestRenderPipeline();
         }
 
-        GameStartupSettings GetEngineSettings(XRWorld? targetWorld = null)
+        //var dirLight = new SceneNode(rootNode) { Name = "TestDirectionalLightNode" };
+        //var dirLightTransform = dirLight.SetTransform<Transform>();
+        //dirLightTransform.Translation = new Vector3(20.0f, 10.0f, 20.0f);
+        //dirLightTransform.LookAt(Vector3.Zero);
+        //if (dirLight.TryAddComponent<DirectionalLightComponent>(out var dirLightComp))
+        //{
+        //    dirLightComp!.Name = "TestDirectionalLight";
+        //    dirLightComp.Color = new Vector3(1.0f, 1.0f, 1.0f);
+        //    dirLightComp.Intensity = 1.0f;
+        //}
+
+        //Pawn
+        //cameraNode.TryAddComponent<PawnComponent>(out var pawnComp);
+        //pawnComp!.Name = "TestPawn";
+        //pawnComp!.CurrentCameraComponent = cameraComp;
+
+        world.Scenes.Add(scene);
+        return world;
+    }
+
+    static GameState GetGameState()
+    {
+        return new GameState()
         {
-            //TODO: read from init file if it exists
-            return new GameStartupSettings()
-            {
-                StartupWindows =
-                [
-                    new()
+
+        };
+    }
+
+    static GameStartupSettings GetEngineSettings(XRWorld? targetWorld = null)
+    {
+        //TODO: read from init file if it exists
+        return new GameStartupSettings()
+        {
+            StartupWindows =
+            [
+                new()
                 {
                     WindowTitle = "XREngine Editor",
                     TargetWorld = targetWorld ?? new XRWorld(),
@@ -107,16 +111,15 @@ internal class Program
                     Width = 1920,
                     Height = 1080,
                 }
-                ],
-                OutputVerbosity = EOutputVerbosity.Verbose,
-                UseIntegerWeightingIds = true,
-                DefaultUserSettings = new UserSettings()
-                {
-                    TargetFramesPerSecond = 90.0f,
-                    TargetUpdatesPerSecond = 90.0f,
-                    VSync = EVSyncMode.Off,
-                }
-            };
-        }
+            ],
+            OutputVerbosity = EOutputVerbosity.Verbose,
+            UseIntegerWeightingIds = true,
+            DefaultUserSettings = new UserSettings()
+            {
+                TargetFramesPerSecond = 90.0f,
+                TargetUpdatesPerSecond = 90.0f,
+                VSync = EVSyncMode.Off,
+            }
+        };
     }
 }
