@@ -13,7 +13,6 @@ namespace XREngine.Rendering.Models.Materials
         private DepthTest _depthTest = new();
         private StencilTest _stencilTest = new();
         private BlendMode _blendMode = new();
-        private EUniformRequirements _uniformRequirements;
         private float _lineWidth = AbstractRenderer.DefaultLineSize;
         private float _pointSize = AbstractRenderer.DefaultPointSize;
         private ECulling _cullMode = ECulling.Back;
@@ -112,11 +111,6 @@ namespace XREngine.Rendering.Models.Materials
         {
             get => _blendMode;
             set => SetField(ref _blendMode, value);
-        }
-        public EUniformRequirements UniformRequirements
-        {
-            get => _uniformRequirements;
-            set => SetField(ref _uniformRequirements, value);
         }
     }
 }

@@ -51,6 +51,20 @@ internal class Program
             modelComp!.Name = "TestModel";
             var mat = XRMaterial.CreateUnlitColorMaterialForward(new ColorF4(1.0f, 0.0f, 0.0f, 1.0f));
             mat.RenderPass = (int)EDefaultRenderPass.OpaqueForward;
+            mat.RenderOptions = new RenderingParameters()
+            {
+                CullMode = ECulling.None,
+                DepthTest = new DepthTest()
+                {
+                    UpdateDepth = true,
+                    Enabled = ERenderParamUsage.Enabled,
+                    Function = EComparison.Less,
+                },
+                AlphaTest = new AlphaTest()
+                {
+                    Enabled = ERenderParamUsage.Disabled,
+                },
+            };
             var mesh = XRMesh.Shapes.SolidBox(-Vector3.One, Vector3.One, false, XRMesh.Shapes.ECubemapTextureUVs.WidthLarger);
             modelComp!.Model = new Model([new SubMesh(mesh, mat)]);
         }

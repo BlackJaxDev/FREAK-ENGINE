@@ -5,8 +5,6 @@
         public required int RenderPass { get; set; }
 
         protected override void Execute()
-        {
-            Pipeline.MeshRenderCommands.Render(RenderPass);
-        }
+            => Pipeline.MeshRenderCommands.Render(RenderPass);
     }
 }

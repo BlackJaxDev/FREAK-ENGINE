@@ -27,12 +27,8 @@ public class TestRenderPipeline : RenderPipeline
         {
             c.Add<VPRC_Manual>().ManualAction = () =>
             {
-                ClearDepth(1.0f);
-                EnableDepthTest(true);
-                AllowDepthWrite(true);
                 StencilMask(~0u);
                 ClearStencil(0);
-                DepthFunc(EComparison.Lequal);
                 Clear(new ColorF4(0.0f, 0.0f, 1.0f, 1.0f));
                 Clear(true, true, true);
             };

@@ -38,7 +38,7 @@ namespace XREngine.Rendering.Shaders.Generator
             using (StartMain())
             {
                 //Create MVP matrix right away
-                Line($"mat4 mvpMatrix = {EEngineUniform.ProjMatrix} * {EEngineUniform.ViewMatrix} * {EEngineUniform.ModelMatrix};");
+                Line($"mat4 mvpMatrix = {EEngineUniform.ProjMatrix} * inverse({EEngineUniform.InverseViewMatrix}) * {EEngineUniform.ModelMatrix};");
                 if (Mesh.NormalsBuffer is not null)
                     Line("mat3 normalMatrix = transpose(inverse(mat3(mvpMatrix)));");
                 Line();
@@ -154,7 +154,7 @@ namespace XREngine.Rendering.Shaders.Generator
             WriteUniform(EShaderVarType._mat4, EEngineUniform.ModelMatrix.ToString());
 
             //TODO: stereo support
-            WriteUniform(EShaderVarType._mat4, EEngineUniform.ViewMatrix.ToString());
+            WriteUniform(EShaderVarType._mat4, EEngineUniform.InverseViewMatrix.ToString());
             WriteUniform(EShaderVarType._mat4, EEngineUniform.ProjMatrix.ToString());
             //WriteUniform(EShaderVarType._mat4, EEngineUniform.LeftEyeViewMatrix.ToString());
             //WriteUniform(EShaderVarType._mat4, EEngineUniform.LeftEyeProjMatrix.ToString());

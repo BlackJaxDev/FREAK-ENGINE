@@ -136,7 +136,7 @@ namespace XREngine.Rendering.Pipelines.Commands
                 //Render only the backside so that the light still shows if the camera is inside of the volume
                 //and the light does not add itself twice for the front and back faces.
                 CullMode = ECulling.Front,
-                UniformRequirements = EUniformRequirements.Camera,
+                RequiredEngineUniforms = EUniformRequirements.Camera,
                 BlendMode = new()
                 {
                     //Add the previous and current light colors together using FuncAdd with each mesh render

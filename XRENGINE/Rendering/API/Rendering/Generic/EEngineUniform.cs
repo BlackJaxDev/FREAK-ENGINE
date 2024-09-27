@@ -8,6 +8,7 @@
         ModelMatrix,
 
         ViewMatrix, //Desktop
+        InverseViewMatrix, //Desktop
         LeftEyeViewMatrix, //Stereo
         RightEyeViewMatrix, //Stereo
 

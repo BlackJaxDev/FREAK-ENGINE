@@ -227,7 +227,8 @@ namespace XREngine.Rendering
                 case nameof(Camera):
                     if (_camera is not null)
                     {
-                        _camera.Viewports.Add(this);
+                        if (!_camera.Viewports.Contains(this))
+                            _camera.Viewports.Add(this);
                         SetAspectRatioToCamera();
                         Engine.Time.Timer.SwapBuffers += SwapBuffers;
                         Engine.Time.Timer.PreRenderFrame += PreRender;

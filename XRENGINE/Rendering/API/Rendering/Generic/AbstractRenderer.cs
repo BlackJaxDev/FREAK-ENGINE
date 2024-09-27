@@ -212,8 +212,6 @@ namespace XREngine.Rendering
 
                 PushRenderArea(0, 0, Window.Size.X, Window.Size.Y);
                 {
-                    Clear(true, true, true);
-                    ClearColor(new ColorF4(0.0f, 0.0f, 0.0f));
                     foreach (var viewport in Viewports)
                         viewport.Render();
                 }
@@ -339,7 +337,7 @@ namespace XREngine.Rendering
         /// </summary>
         public void ResizeAllViewportsAccordingToPlayers()
         {
-            LocalPlayerController[] players = [.. Viewports.Select(x => x.AssociatedPlayer).Where(x => x is not null).OrderBy(x => (int)x!.LocalPlayerIndex)];
+            LocalPlayerController[] players = [.. Viewports.Select(x => x.AssociatedPlayer).Where(x => x is not null).Distinct().OrderBy(x => (int)x!.LocalPlayerIndex)];
             Viewports.Clear();
             for (int i = 0; i < players.Length; i++)
                 AddViewportForPlayer(players[i], false);

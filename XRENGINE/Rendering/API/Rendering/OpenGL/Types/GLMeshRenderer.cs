@@ -277,24 +277,24 @@ namespace XREngine.Rendering.OpenGL
             private static void SetMeshUniforms(Matrix4x4 modelMatrix, GLRenderProgram vertexProgram)
             {
                 XRCamera? camera = Engine.Rendering.State.RenderingCamera;
-                Matrix4x4 viewMatrix;
+                Matrix4x4 inverseViewMatrix;
                 Matrix4x4 projMatrix;
 
                 if (camera != null)
                 {
-                    viewMatrix = camera.Transform.InverseWorldMatrix;
+                    inverseViewMatrix = camera.Transform.WorldMatrix;
                     projMatrix = camera.ProjectionMatrix;
                 }
                 else
                 {
                     //No camera? Everything will be rendered in world space instead of camera space.
                     //This is used by point lights to render depth cubemaps, for example.
-                    viewMatrix = Matrix4x4.Identity;
+                    inverseViewMatrix = Matrix4x4.Identity;
                     projMatrix = Matrix4x4.Identity;
                 }
 
                 vertexProgram.Uniform(EEngineUniform.ModelMatrix, modelMatrix);
-                vertexProgram.Uniform(EEngineUniform.ViewMatrix, viewMatrix);
+                vertexProgram.Uniform(EEngineUniform.InverseViewMatrix, inverseViewMatrix);
                 vertexProgram.Uniform(EEngineUniform.ProjMatrix, projMatrix);
             }
 
@@ -380,20 +380,13 @@ namespace XREngine.Rendering.OpenGL
                 }
 
                 if (TriangleIndicesBuffer is not null)
-                {
-                    TriangleIndicesBuffer.Generate();
                     Api.VertexArrayElementBuffer(BindingId, TriangleIndicesBuffer.BindingId);
-                }
+                
                 if (LineIndicesBuffer is not null)
-                {
-                    LineIndicesBuffer.Generate();
                     Api.VertexArrayElementBuffer(BindingId, LineIndicesBuffer.BindingId);
-                }
+                
                 if (PointIndicesBuffer is not null)
-                {
-                    PointIndicesBuffer.Generate();
                     Api.VertexArrayElementBuffer(BindingId, PointIndicesBuffer.BindingId);
-                }
             }
 
             protected internal override void PostDeleted()
