@@ -234,7 +234,9 @@ namespace XREngine.Rendering.OpenGL
                 if (Data.SingleBind != null)
                     modelMatrix *= Data.SingleBind.WorldMatrix;
 
-                GetPrograms(material, out GLRenderProgram vertexProgram, out GLRenderProgram materialProgram);
+                GetPrograms(material,
+                    out GLRenderProgram vertexProgram,
+                    out GLRenderProgram materialProgram);
 
                 Data.PushBoneMatricesToGPU();
                 SetMeshUniforms(modelMatrix, vertexProgram);

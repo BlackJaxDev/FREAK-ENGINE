@@ -132,15 +132,12 @@ namespace XREngine.Rendering.OpenGL
             {
                 // If a non-zero named buffer object is bound to the GL_PIXEL_UNPACK_BUFFER target (see glBindBuffer) while a texture image is specified, data is treated as a byte offset into the buffer object's data store. 
                 //GetFormat(bmp, Data.InternalCompression, out GLEnum internalPixelFormat, out GLEnum pixelFormat, out GLEnum pixelType);
-                Api.PixelStore(PixelStoreParameter.UnpackAlignment, 1);
-                var bytes = bmp.GetPixels().GetArea(0, 0, bmp.Width, bmp.Height);
-                fixed (float* pBytes = bytes)
-                {
-                    if (_hasPushed || setStorage)
-                        Api.TexSubImage2D(glTarget, i, 0, 0, bmp.Width, bmp.Height, pixelFormat, pixelType, pBytes);
-                    else
-                        Api.TexImage2D(glTarget, i, internalPixelFormat, bmp.Width, bmp.Height, 0, pixelFormat, pixelType, pBytes);
-                }
+                //Api.PixelStore(PixelStoreParameter.UnpackAlignment, 1);
+                var pBytes = bmp.GetPixelsUnsafe().GetAreaPointer(0, 0, bmp.Width, bmp.Height).ToPointer();
+                if (_hasPushed || setStorage)
+                    Api.TexSubImage2D(glTarget, i, 0, 0, bmp.Width, bmp.Height, pixelFormat, pixelType, pBytes);
+                else
+                    Api.TexImage2D(glTarget, i, internalPixelFormat, bmp.Width, bmp.Height, 0, pixelFormat, pixelType, pBytes);
                 var error = Api.GetError();
                 if (error != GLEnum.NoError)
                     Debug.LogWarning($"Error pushing texture data: {error}");
@@ -188,8 +185,5 @@ namespace XREngine.Rendering.OpenGL
                 EPixelInternalFormat.Rgba8i => ESizedInternalFormat.Rgba8i,
                 _ => throw new ArgumentOutOfRangeException(nameof(internalFormat), internalFormat, null),
             };
-
-        public override string ResolveSamplerName(int textureIndex, string? samplerNameOverride)
-            => samplerNameOverride ?? $"Texture{textureIndex}";
     }
 }

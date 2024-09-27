@@ -140,27 +140,6 @@ namespace XREngine.Rendering
             _modifiedBonesUpdating.Clear();
         }
 
-        private void DestroySkinningBuffers()
-        {
-            if (Mesh is null)
-                return;
-
-            var matrixIdsBuffer = Mesh["MatrixIds"];
-            if (matrixIdsBuffer != null)
-            {
-                matrixIdsBuffer.Dispose();
-                Mesh.RemoveBuffer("MatrixIds");
-            }
-            var matrixWeightsBuffer = Mesh["MatrixWeights"];
-            if (matrixWeightsBuffer != null)
-            {
-                matrixWeightsBuffer.Dispose();
-                Mesh.RemoveBuffer("MatrixWeights");
-            }
-            BoneMatricesBuffer?.Dispose();
-            BoneMatricesBuffer = null;
-        }
-
         public void PushBoneMatricesToGPU()
         {
             if (BoneMatricesBuffer is null)
@@ -283,8 +262,6 @@ namespace XREngine.Rendering
         }
 
         internal void OnSettingUniforms(XRRenderProgram vertexProgram, XRRenderProgram materialProgram)
-        {
-            SettingUniforms?.Invoke(vertexProgram, materialProgram);
-        }
+            => SettingUniforms?.Invoke(vertexProgram, materialProgram);
     }
 }

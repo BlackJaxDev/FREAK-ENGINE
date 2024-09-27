@@ -6,6 +6,8 @@ namespace XREngine.Data.Trees
 {
     public abstract class OctreeNodeBase(AABB bounds, int subDivIndex, int subDivLevel) : XRBase, ITreeNode
     {
+        public const float MinVolume = 1f;
+
         protected int _subDivIndex = subDivIndex, _subDivLevel = subDivLevel;
         protected AABB _bounds = bounds;
         public int SubDivIndex { get => _subDivIndex; set => _subDivIndex = value; }
@@ -30,7 +32,7 @@ namespace XREngine.Data.Trees
                 return null;
 
             Vector3 center = Center;
-            return index switch
+            AABB? box = index switch
             {
                 0 => new(new Vector3(Min.X, Min.Y, Min.Z), new Vector3(center.X, center.Y, center.Z)),
                 1 => new(new Vector3(Min.X, Min.Y, center.Z), new Vector3(center.X, center.Y, Max.Z)),
@@ -42,6 +44,11 @@ namespace XREngine.Data.Trees
                 7 => new(new Vector3(center.X, center.Y, center.Z), new Vector3(Max.X, Max.Y, Max.Z)),
                 _ => null,
             };
+
+            if (box is not null && box.Value.Volume < MinVolume)
+                return null;
+
+            return box;
         }
     }
 }

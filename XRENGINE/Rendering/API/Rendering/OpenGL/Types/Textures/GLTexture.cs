@@ -166,6 +166,7 @@ namespace XREngine.Rendering.OpenGL
             => Api.NamedFramebufferTexture(Renderer.GenericToAPI<GLFrameBuffer>(fbo)!.BindingId, ToGLEnum(attachment), 0, mipLevel);
 
         public abstract void PushData();
-        public abstract string ResolveSamplerName(int textureIndex, string? samplerNameOverride);
+        public string ResolveSamplerName(int textureIndex, string? samplerNameOverride)
+            => Data.ResolveSamplerName(textureIndex, samplerNameOverride);
     }
 }

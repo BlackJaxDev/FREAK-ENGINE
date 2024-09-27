@@ -1,6 +1,6 @@
 #version 410
 layout(location = 0) out vec2 OutColor;
-layout(location = 6) in vec3 FragUV0;
+layout(location = 0) in vec3 FragUV0;
 
 const float PI = 3.14159265359f;
 

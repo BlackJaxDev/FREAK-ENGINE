@@ -30,6 +30,8 @@ namespace XREngine.Rendering.Pipelines.Commands
         public float MinSampleDist { get; private set; } = DefaultMinSampleDist;
         public float MaxSampleDist { get; private set; } = DefaultMaxSampleDist;
 
+        private XRTexture2D? NoiseTexture { get; set; } = null;
+
         public void GenerateNoiseKernel()
         {
             Random r = new();
@@ -124,7 +126,12 @@ namespace XREngine.Rendering.Pipelines.Commands
             int height = area.Height;
             if (width == _lastWidth && height == _lastHeight)
                 return;
-            
+
+            RegenerateFBOs(normalTex, depthViewTex, albedoTex, rmsiTex, depthStencilTex, width, height);
+        }
+
+        private void RegenerateFBOs(XRTexture2D normalTex, XRTexture2DView depthViewTex, XRTexture2D albedoTex, XRTexture2D rmsiTex, XRTexture2D depthStencilTex, int width, int height)
+        {
             Debug.Out($"SSAO: Regenerating FBOs for {width}x{height}");
             _lastWidth = width;
             _lastHeight = height;
@@ -134,26 +141,6 @@ namespace XREngine.Rendering.Pipelines.Commands
             NoiseScale = new Vector2(
                 (float)width / NoiseWidth,
                 (float)height / NoiseHeight);
-
-            XRTexture2D noiseTex = new(
-                (uint)NoiseWidth,
-                (uint)NoiseHeight,
-                EPixelInternalFormat.Rgb32f,
-                EPixelFormat.Rgb,
-                EPixelType.Float)
-            {
-                Name = SSAONoiseTextureName,
-                MinFilter = ETexMinFilter.Nearest,
-                MagFilter = ETexMagFilter.Nearest,
-                UWrap = ETexWrapMode.Repeat,
-                VWrap = ETexWrapMode.Repeat,
-                Resizable = false,
-            };
-            var tex = XRTexture.NewImage((uint)NoiseWidth, (uint)NoiseHeight, EPixelFormat.Rgb, EPixelType.Float);
-            tex.GetPixels().SetPixels(Noise!.SelectMany(v => new float[] { v.X, v.Y, 0.0f }).ToArray());
-            noiseTex.Mipmaps[0] = tex;
-            Pipeline.SetTexture(noiseTex);
-            noiseTex.PushData();
 
             XRTexture2D ssaoTex = XRTexture2D.CreateFrameBufferTexture(
                 (uint)width,
@@ -179,18 +166,47 @@ namespace XREngine.Rendering.Pipelines.Commands
 
             var shader = XRShader.EngineShader(Path.Combine(SceneShaderPath, "SSAOGen.fs"), EShaderType.Fragment);
             var ssaoFbo = new XRQuadFrameBuffer(
-                new([normalTex, noiseTex, depthViewTex], shader) { RenderOptions = renderParams },
+                new([normalTex, GetOrCreateNoiseTexture(), depthViewTex], shader) { RenderOptions = renderParams },
                 false,
                 (albedoTex, EFrameBufferAttachment.ColorAttachment0, 0, -1),
                 (normalTex, EFrameBufferAttachment.ColorAttachment1, 0, -1),
                 (rmsiTex, EFrameBufferAttachment.ColorAttachment2, 0, -1),
-                (depthStencilTex, EFrameBufferAttachment.DepthStencilAttachment, 0, -1)) { Name = SSAOFBOName };
+                (depthStencilTex, EFrameBufferAttachment.DepthStencilAttachment, 0, -1))
+            { Name = SSAOFBOName };
 
             ssaoFbo.SettingUniforms += SSAO_SetUniforms;
 
             Pipeline.SetFBO(ssaoFbo);
             Pipeline.SetFBO(new XRQuadFrameBuffer(new([ssaoTex], XRShader.EngineShader(Path.Combine(SceneShaderPath, "SSAOBlur.fs"), EShaderType.Fragment)) { RenderOptions = renderParams }) { Name = SSAOBlurFBOName });
             Pipeline.SetFBO(new XRFrameBuffer((ssaoTex, EFrameBufferAttachment.ColorAttachment0, 0, -1)) { Name = GBufferFBOFBOName });
+        }
+
+        private XRTexture2D GetOrCreateNoiseTexture()
+        {
+            if (NoiseTexture != null)
+                return NoiseTexture;
+
+            XRTexture2D noiseTex = new(
+                (uint)NoiseWidth,
+                (uint)NoiseHeight,
+                EPixelInternalFormat.Rgb,
+                EPixelFormat.Rgb,
+                EPixelType.Float)
+            {
+                Name = SSAONoiseTextureName,
+                MinFilter = ETexMinFilter.Nearest,
+                MagFilter = ETexMagFilter.Nearest,
+                UWrap = ETexWrapMode.Repeat,
+                VWrap = ETexWrapMode.Repeat,
+                Resizable = true,
+            };
+
+            var tex = XRTexture.NewImage((uint)NoiseWidth, (uint)NoiseHeight, EPixelFormat.Rgb, EPixelType.Float);
+            tex.GetPixels().SetPixels(Noise!.SelectMany(v => new float[] { v.X, v.Y, 0.0f }).ToArray());
+            noiseTex.Mipmaps[0] = tex;
+            Pipeline.SetTexture(noiseTex);
+            noiseTex.PushData();
+            return NoiseTexture = noiseTex;
         }
     }
 }

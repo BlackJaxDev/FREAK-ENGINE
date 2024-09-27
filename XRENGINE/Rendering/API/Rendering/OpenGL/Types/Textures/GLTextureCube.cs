@@ -158,13 +158,5 @@ namespace XREngine.Rendering.Models.Materials.Textures
                 _disposedValue = true;
             }
         }
-
-        public override string ResolveSamplerName(int textureIndex, string? samplerNameOverride)
-        {
-            if (samplerNameOverride != null)
-                return samplerNameOverride;
-
-            return $"texCube_{textureIndex}";
-        }
     }
 }

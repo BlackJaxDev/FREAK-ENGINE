@@ -134,10 +134,10 @@ namespace XREngine.Rendering
             => CreateColorMaterialDeferred(Color.DarkTurquoise);
 
         public static XRMaterial CreateColorMaterialDeferred(ColorF4 color)
-            => new([new ShaderVector4(color, "MatColor")], ShaderHelper.LitColorFragDeferred());
+            => new([new ShaderVector4(color, "BaseColor")], ShaderHelper.LitColorFragDeferred());
 
         public static XRMaterial CreateUnlitColorMaterialForward(ColorF4 color)
-            => new([new ShaderVector4(color, "MatColor")], ShaderHelper.UnlitColorFragForward());
+            => new([new ShaderVector4(color, "BaseColor")], ShaderHelper.UnlitColorFragForward());
 
         public static XRMaterial CreateLitColorMaterial(bool deferred = true)
             => CreateLitColorMaterial(Color.DarkTurquoise, deferred);

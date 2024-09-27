@@ -8,6 +8,7 @@ using XREngine.Rendering;
 using XREngine.Rendering.Commands;
 using XREngine.Rendering.Info;
 using XREngine.Rendering.Models;
+using XREngine.Rendering.Models.Materials;
 using XREngine.Scene;
 using XREngine.Scene.Transforms;
 
@@ -41,13 +42,15 @@ internal class Program
             if (rootNode.TryAddComponent<ModelComponent>(out var modelComp))
             {
                 modelComp!.Name = "TestModel";
-                modelComp!.Model = new Model([new SubMesh(XRMesh.Shapes.SolidBox(-Vector3.One, Vector3.One, false, XRMesh.Shapes.ECubemapTextureUVs.WidthLarger), XRMaterial.CreateColorMaterialDeferred())]);
+                var mat = XRMaterial.CreateColorMaterialDeferred();
+                var mesh = XRMesh.Shapes.SolidBox(-Vector3.One, Vector3.One, false, XRMesh.Shapes.ECubemapTextureUVs.WidthLarger);
+                modelComp!.Model = new Model([new SubMesh(mesh, mat)]);
             }
 
             //Create the camera
             var cameraNode = new SceneNode(rootNode) { Name = "TestCameraNode" };
             var cameraTransform = cameraNode.SetTransform<Transform>();
-            cameraTransform.Translation = new Vector3(2.0f, 10.0f, 10.0f);
+            cameraTransform.Translation = new Vector3(20.0f, 10.0f, 10.0f);
             cameraTransform.LookAt(Vector3.Zero);
             if (cameraNode.TryAddComponent<CameraComponent>(out var cameraComp))
             {
@@ -57,7 +60,7 @@ internal class Program
 
             var dirLight = new SceneNode(rootNode) { Name = "TestDirectionalLight" };
             var dirLightTransform = dirLight.SetTransform<Transform>();
-            dirLightTransform.Translation = new Vector3(0.0f, 10.0f, 0.0f);
+            dirLightTransform.Translation = new Vector3(20.0f, 10.0f, 20.0f);
             dirLightTransform.LookAt(Vector3.Zero);
             if (dirLight.TryAddComponent<DirectionalLightComponent>(out var dirLightComp))
             {

@@ -16,6 +16,15 @@ namespace XREngine.Rendering
                 FillColor = HasAlpha(format) ? MagickColor.FromRgba(0, 0, 0, 1) : MagickColor.FromRgb(0, 0, 0),
                 Format = GetMagickFormat(format),
                 ColorSpace = IsSigned(type) ? ColorSpace.sRGB : ColorSpace.RGB,
+                Depth = type switch
+                {
+                    EPixelType.Byte => 8,
+                    EPixelType.Short => 16,
+                    EPixelType.Int => 32,
+                    EPixelType.Float => 32,
+                    EPixelType.HalfFloat => 16,
+                    _ => 8,
+                },
             };
             return new(data, settings);
         }
@@ -245,7 +254,7 @@ namespace XREngine.Rendering
         /// <param name="samplerNameOverride">The binding name to force bind to, if desired.</param>
         /// <returns></returns>
         public string ResolveSamplerName(int textureIndex, string? samplerNameOverride = null)
-            => samplerNameOverride ?? SamplerName ?? ($"Texture{textureIndex}");
+            => samplerNameOverride ?? SamplerName ?? $"Texture{textureIndex}";
 
         //public XREvent<XRTexture> SetParametersRequested { get; } = new XREvent<XRTexture>();
         //public void SetParameters() => SetParametersRequested.Invoke(this);

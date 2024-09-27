@@ -52,6 +52,20 @@ namespace XREngine.Rendering.Info
             set => SetField(ref _worldInstance, value);
         }
 
+        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+        {
+            base.OnPropertyChanged(propName, prev, field);
+            switch (propName)
+            {
+                case nameof(WorldInstance):
+                    if (prev is XRWorldInstance prevInstance)
+                        prevInstance.VisualScene?.RemoveRenderable(this);
+                    if (field is XRWorldInstance newInstance)
+                        newInstance.VisualScene?.AddRenderable(this);
+                    break;
+            }
+        }
+
         public bool ShouldRender { get; set; } = true;
 
         public delegate void DelAddRenderCommandsCallback(RenderInfo info, RenderCommandCollection passes, XRCamera camera);

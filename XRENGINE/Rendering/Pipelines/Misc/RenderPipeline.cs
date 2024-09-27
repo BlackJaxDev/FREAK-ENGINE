@@ -83,7 +83,7 @@ public abstract class RenderPipeline : XRBase
         brdf.MagFilter = ETexMagFilter.Linear;
         brdf.SamplerName = "BRDF";
         brdf.Name = "BRDF";
-        XRTexture2D[] texRefs = [brdf];
+        XRTexture2D[] texRefs = [];
 
         XRShader shader = XRShader.EngineShader(Path.Combine("Scene3D", "BRDF.fs"), EShaderType.Fragment);
         XRMaterial mat = new(texRefs, shader)
@@ -108,6 +108,7 @@ public abstract class RenderPipeline : XRBase
                 false, false).ToTriangles();
 
         using XRMaterialFrameBuffer fbo = new(mat);
+        fbo.SetRenderTargets((brdf, EFrameBufferAttachment.ColorAttachment0, 0 , -1));
         fbo.Generate();
 
         using XRMesh data = XRMesh.Create(tris);

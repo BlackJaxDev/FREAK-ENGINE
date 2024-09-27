@@ -10,10 +10,5 @@ namespace XREngine.Rendering.OpenGL
         {
 
         }
-
-        public override string ResolveSamplerName(int textureIndex, string? samplerNameOverride)
-        {
-            return samplerNameOverride ?? $"uTexture3D{textureIndex}";
-        }
     }
 }

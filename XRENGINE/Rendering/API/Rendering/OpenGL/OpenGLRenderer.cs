@@ -207,7 +207,7 @@ namespace XREngine.Rendering.OpenGL
             string debug = GetFBODebugInfo(fbo, Environment.NewLine);
             string name = fbo.GetDescribingName();
             if (result != GLEnum.FramebufferComplete)
-                Debug.LogWarning($"{name} is not complete. Status: {result}{debug}");
+                Debug.LogWarning($"{name} is not complete. Status: {result}{debug}", 0, 20);
             else
                 Debug.Out($"{name} updated successfully.{debug}");
         }
@@ -215,8 +215,11 @@ namespace XREngine.Rendering.OpenGL
         private static string GetFBODebugInfo(GLFrameBuffer fbo, string splitter)
         {
             string debug = string.Empty;
-            if (fbo.Data.Targets is null)
+            if (fbo.Data.Targets is null || fbo.Data.Targets.Length == 0)
+            {
+                debug += $"{splitter}This FBO has no targets.";
                 return debug;
+            }
 
             foreach (var (Target, Attachment, MipLevel, LayerIndex) in fbo.Data.Targets)
             {
