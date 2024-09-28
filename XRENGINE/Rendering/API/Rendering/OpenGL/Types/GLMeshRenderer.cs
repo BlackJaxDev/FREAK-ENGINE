@@ -173,7 +173,7 @@ namespace XREngine.Rendering.OpenGL
             private void SetIndexBuffer(ref GLDataBuffer? buffer, ref IndexSize bufferElementSize, XRMesh mesh, EPrimitiveType type)
             {
                 var indices = mesh.GetIndices(type);
-                if (indices is null)
+                if (indices is null || indices.Length == 0)
                     return;
 
                 buffer = Renderer.GenericToAPI<GLDataBuffer>(new XRDataBuffer(EBufferTarget.ElementArrayBuffer, true) { BindingName = type.ToString() })!;

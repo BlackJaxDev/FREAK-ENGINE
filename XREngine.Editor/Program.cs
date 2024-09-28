@@ -1,12 +1,11 @@
 ﻿using System.Numerics;
 using XREngine;
 using XREngine.Components;
-using XREngine.Components.Lights;
 using XREngine.Components.Scene.Mesh;
 using XREngine.Data.Colors;
-using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
 using XREngine.Editor;
+using XREngine.Native;
 using XREngine.Rendering;
 using XREngine.Rendering.Commands;
 using XREngine.Rendering.Info;
@@ -46,10 +45,10 @@ internal class Program
         var modelTransform = modelNode.SetTransform<OrbitTransform>();
         modelTransform.Radius = 0.0f;
         modelTransform.RegisterAnimationTick<OrbitTransform>(TickRotation);
-        if (rootNode.TryAddComponent<ModelComponent>(out var modelComp))
+        if (modelNode.TryAddComponent<ModelComponent>(out var modelComp))
         {
             modelComp!.Name = "TestModel";
-            var mat = XRMaterial.CreateUnlitColorMaterialForward(new ColorF4(1.0f, 1.0f, 0.0f, 1.0f));
+            var mat = XRMaterial.CreateUnlitColorMaterialForward(new ColorF4(1.0f, 0.0f, 0.0f, 1.0f));
             mat.RenderPass = (int)EDefaultRenderPass.OpaqueForward;
             mat.RenderOptions = new RenderingParameters()
             {
@@ -66,7 +65,7 @@ internal class Program
                 },
                 LineWidth = 5.0f,
             };
-            var mesh = XRMesh.Shapes.WireframeBox(-Vector3.One, Vector3.One);
+            var mesh = XRMesh.Shapes.SolidBox(-Vector3.One, Vector3.One);
             modelComp!.Model = new Model([new SubMesh(mesh, mat)]);
         }
 
@@ -80,7 +79,7 @@ internal class Program
             cameraComp!.Name = "TestCamera";
             cameraComp.LocalPlayerIndex = ELocalPlayerIndex.One;
             cameraComp.Camera.Parameters = new XRPerspectiveCameraParameters(60.0f, null, 0.1f, 1000.0f);
-            cameraComp.CullWithFrustum = false;
+            cameraComp.CullWithFrustum = true;
             cameraComp.RenderPipeline = new TestRenderPipeline();
         }
 
@@ -114,6 +113,13 @@ internal class Program
 
     static GameStartupSettings GetEngineSettings(XRWorld? targetWorld = null)
     {
+        int w = 1920;
+        int h = 1080;
+        float fps = 60.0f;
+
+        int primaryX = NativeMethods.GetSystemMetrics(0);
+        int primaryY = NativeMethods.GetSystemMetrics(1);
+
         //TODO: read from init file if it exists
         return new GameStartupSettings()
         {
@@ -124,16 +130,18 @@ internal class Program
                     WindowTitle = "XREngine Editor",
                     TargetWorld = targetWorld ?? new XRWorld(),
                     WindowState = EWindowState.Windowed,
-                    Width = 1920,
-                    Height = 1080,
+                    X = primaryX / 2 - w / 2,
+                    Y = primaryY / 2 - h / 2,
+                    Width = w,
+                    Height = h,
                 }
             ],
             OutputVerbosity = EOutputVerbosity.Verbose,
             UseIntegerWeightingIds = true,
             DefaultUserSettings = new UserSettings()
             {
-                TargetFramesPerSecond = 90.0f,
-                TargetUpdatesPerSecond = 90.0f,
+                TargetFramesPerSecond = fps,
+                TargetUpdatesPerSecond = fps,
                 VSync = EVSyncMode.Off,
             }
         };

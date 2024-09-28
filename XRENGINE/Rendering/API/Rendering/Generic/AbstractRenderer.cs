@@ -40,20 +40,16 @@ namespace XREngine.Rendering
             _renderObjectCache = Engine.Rendering.CreateObjectsForNewRenderer(this);
 
             _viewports.CollectionChanged += ViewportsChanged;
-
-            Time.Timer.SwapBuffers += SwapBuffers;
-            Time.Timer.RenderFrame += RenderFrame;
         }
 
         protected virtual void RenderFrame()
         {
-            Window.DoEvents();
             Window.DoRender();
         }
 
         protected virtual void SwapBuffers()
         {
-
+            Window.DoEvents();
         }
 
         protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
