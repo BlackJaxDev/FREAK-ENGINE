@@ -4,6 +4,7 @@ using System.Numerics;
 using XREngine.Data.Colors;
 using XREngine.Data.Rendering;
 using XREngine.Rendering.Models.Materials;
+using XREngine.Rendering.Models.Materials.Shaders.Parameters;
 using XREngine.Rendering.Shaders.Generator;
 using XREngine.Scene.Transforms;
 
@@ -165,7 +166,7 @@ namespace XREngine.Rendering
             BoneMatricesBuffer?.Dispose();
             BoneMatricesBuffer = null;
 
-            if (Mesh is null || Mesh?.UtilizedBones is null)
+            if (Mesh is null || Mesh?.UtilizedBones is null || Mesh.UtilizedBones.Length == 0)
                 return;
 
             _bones = new RenderBone[Mesh.UtilizedBones.Length];
@@ -239,34 +240,21 @@ namespace XREngine.Rendering
         public T? Parameter<T>(string name) where T : ShaderVar
             => Material?.Parameter<T>(name);
 
-        public void SetParameter(int index, ColorF4 color)
-        {
+        public void SetParameter(int index, ColorF4 color) => Parameter<ShaderVector4>(index)?.SetValue(color);
+        public void SetParameter(int index, int value) => Parameter<ShaderInt>(index)?.SetValue(value);
+        public void SetParameter(int index, float value) => Parameter<ShaderFloat>(index)?.SetValue(value);
+        public void SetParameter(int index, Vector2 value) => Parameter<ShaderVector2>(index)?.SetValue(value);
+        public void SetParameter(int index, Vector3 value) => Parameter<ShaderVector3>(index)?.SetValue(value);
+        public void SetParameter(int index, Vector4 value) => Parameter<ShaderVector4>(index)?.SetValue(value);
+        public void SetParameter(int index, Matrix4x4 value) => Parameter<ShaderMat4>(index)?.SetValue(value);
 
-        }
-        public void SetParameter(int index, int value)
-        {
-
-        }
-        public void SetParameter(int index, float value)
-        {
-
-        }
-        public void SetParameter(int index, Vector2 value)
-        {
-
-        }
-        public void SetParameter(int index, Vector3 value)
-        {
-
-        }
-        public void SetParameter(int index, Vector4 value)
-        {
-
-        }
-        public void SetParameter(int index, Matrix4x4 value)
-        {
-
-        }
+        public void SetParameter(string name, ColorF4 color) => Parameter<ShaderVector4>(name)?.SetValue(color);
+        public void SetParameter(string name, int value) => Parameter<ShaderInt>(name)?.SetValue(value);
+        public void SetParameter(string name, float value) => Parameter<ShaderFloat>(name)?.SetValue(value);
+        public void SetParameter(string name, Vector2 value) => Parameter<ShaderVector2>(name)?.SetValue(value);
+        public void SetParameter(string name, Vector3 value) => Parameter<ShaderVector3>(name)?.SetValue(value);
+        public void SetParameter(string name, Vector4 value) => Parameter<ShaderVector4>(name)?.SetValue(value);
+        public void SetParameter(string name, Matrix4x4 value) => Parameter<ShaderMat4>(name)?.SetValue(value);
 
         internal void OnSettingUniforms(XRRenderProgram vertexProgram, XRRenderProgram materialProgram)
             => SettingUniforms?.Invoke(vertexProgram, materialProgram);

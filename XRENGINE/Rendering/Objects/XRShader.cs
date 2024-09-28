@@ -26,6 +26,7 @@ namespace XREngine.Rendering
         {
             Type = type;
             Source = source;
+            Debug.Out($"Loaded shader of type {type} from {source.FilePath}{Environment.NewLine}{source.Text}");
         }
 
         public static EShaderType ResolveType(string extension)

@@ -49,7 +49,7 @@ internal class Program
         if (rootNode.TryAddComponent<ModelComponent>(out var modelComp))
         {
             modelComp!.Name = "TestModel";
-            var mat = XRMaterial.CreateUnlitColorMaterialForward(new ColorF4(1.0f, 0.0f, 0.0f, 1.0f));
+            var mat = XRMaterial.CreateUnlitColorMaterialForward(new ColorF4(1.0f, 1.0f, 0.0f, 1.0f));
             mat.RenderPass = (int)EDefaultRenderPass.OpaqueForward;
             mat.RenderOptions = new RenderingParameters()
             {
@@ -64,21 +64,23 @@ internal class Program
                 {
                     Enabled = ERenderParamUsage.Disabled,
                 },
+                LineWidth = 5.0f,
             };
-            var mesh = XRMesh.Shapes.SolidBox(-Vector3.One, Vector3.One, false, XRMesh.Shapes.ECubemapTextureUVs.WidthLarger);
+            var mesh = XRMesh.Shapes.WireframeBox(-Vector3.One, Vector3.One);
             modelComp!.Model = new Model([new SubMesh(mesh, mat)]);
         }
 
         //Create the camera
         var cameraNode = new SceneNode(rootNode) { Name = "TestCameraNode" };
         var cameraTransform = cameraNode.SetTransform<Transform>();
-        cameraTransform.Translation = new Vector3(0.0f, 0.0f, -20.0f);
+        cameraTransform.Translation = new Vector3(0.0f, 0.0f, 10.0f);
         //cameraTransform.LookAt(Vector3.Zero);
         if (cameraNode.TryAddComponent<CameraComponent>(out var cameraComp))
         {
             cameraComp!.Name = "TestCamera";
             cameraComp.LocalPlayerIndex = ELocalPlayerIndex.One;
-            cameraComp.Camera.Parameters = new XRPerspectiveCameraParameters(90.0f, null, 0.1f, 1000.0f);
+            cameraComp.Camera.Parameters = new XRPerspectiveCameraParameters(60.0f, null, 0.1f, 1000.0f);
+            cameraComp.CullWithFrustum = false;
             cameraComp.RenderPipeline = new TestRenderPipeline();
         }
 

@@ -64,6 +64,7 @@ namespace XREngine.Rendering.OpenGL
             protected internal override void PreGenerated() { }
             protected internal override void PostGenerated()
                 => PushSource();
+
             protected override uint CreateObject()
                 => Api.CreateShader(ToGLEnum(Mode));
 

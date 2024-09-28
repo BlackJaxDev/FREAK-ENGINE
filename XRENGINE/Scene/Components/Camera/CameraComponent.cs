@@ -1,14 +1,10 @@
 ﻿using Extensions;
 using System.ComponentModel;
 using System.Numerics;
-using XREngine.Data.Components;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
-using XREngine.Data.Trees;
 using XREngine.Input;
 using XREngine.Rendering;
-using XREngine.Rendering.Info;
-using XREngine.Scene.Transforms;
 
 namespace XREngine.Components
 {

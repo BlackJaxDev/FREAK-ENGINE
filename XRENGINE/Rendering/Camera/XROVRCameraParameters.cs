@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using Valve.VR;
+using XREngine.Data.Geometry;
 
 namespace XREngine.Rendering
 {
@@ -24,5 +25,8 @@ namespace XREngine.Rendering
 
         protected override Matrix4x4 CalculateProjectionMatrix()
             => Engine.VRState.Api.CVR.GetProjectionMatrix(LeftEye ? EVREye.Eye_Left : EVREye.Eye_Right, NearPlane, FarPlane).ToNumerics();
+
+        protected override Frustum CalculateUntransformedFrustum()
+            => new(GetProjectionMatrix());
     }
 }

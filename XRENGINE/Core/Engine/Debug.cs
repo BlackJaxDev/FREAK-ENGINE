@@ -1,10 +1,12 @@
 ﻿using Extensions;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 
 namespace XREngine
 {
     public class Debug
     {
+        public static ConcurrentDictionary<string, DateTime> RecentMessageCache = new ConcurrentDictionary<string, DateTime>();
         public static Queue<(string, DateTime)> Output { get; } = new Queue<(string, DateTime)>();
         public static bool AllowOutput { get; set; } = true;
 
@@ -61,29 +63,29 @@ namespace XREngine
 
             DateTime now = DateTime.Now;
 
-            //double recentness = Settings.AllowedOutputRecencySeconds;
-            //if (recentness > 0.0)
-            //{
-            //    List<string> removeKeys = [];
-            //    RecentMessageCache.ForEach(x =>
-            //    {
-            //        TimeSpan span = now - x.Value;
-            //        if (span.TotalSeconds >= recentness)
-            //            removeKeys.Add(x.Key);
-            //    });
-            //    removeKeys.ForEach(x => RecentMessageCache.TryRemove(x, out _));
+            double recentness = Engine.UserSettings.DebugOutputRecencySeconds;
+            if (recentness > 0.0)
+            {
+                List<string> removeKeys = [];
+                RecentMessageCache.ForEach(x =>
+                {
+                    TimeSpan span = now - x.Value;
+                    if (span.TotalSeconds >= recentness)
+                        removeKeys.Add(x.Key);
+                });
+                removeKeys.ForEach(x => RecentMessageCache.TryRemove(x, out _));
 
-            //    if (RecentMessageCache.ContainsKey(message))
-            //    {
-            //        //Messages already cleaned above, just return here
+                if (RecentMessageCache.ContainsKey(message))
+                {
+                    //Messages already cleaned above, just return here
 
-            //        //TimeSpan span = now - RecentMessages[message];
-            //        //if (span.TotalSeconds <= AllowedOutputRecentness)
-            //        return;
-            //    }
-            //    else
-            //        RecentMessageCache.TryAdd(message, now);
-            //}
+                    //TimeSpan span = now - RecentMessages[message];
+                    //if (span.TotalSeconds <= AllowedOutputRecentness)
+                    return;
+                }
+                else
+                    RecentMessageCache.TryAdd(message, now);
+            }
 
             bool printDomain = printAppDomain/* || Settings.PrintAppDomainInOutput*/;
 

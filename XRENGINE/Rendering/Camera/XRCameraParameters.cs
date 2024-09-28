@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using XREngine.Data.Core;
+using XREngine.Data.Geometry;
 using XRBase = XREngine.Data.Core.XRBase;
 
 namespace XREngine.Rendering
@@ -15,6 +16,7 @@ namespace XREngine.Rendering
             => _projectionMatrix is null;
 
         protected Matrix4x4? _projectionMatrix;
+        protected Frustum? _untransformedFrustum;
 
         /// <summary>
         /// The distance to the near clipping plane (closest to the eye).
@@ -42,6 +44,16 @@ namespace XREngine.Rendering
             _projectionMatrix = null;
         }
 
+        private void VerifyProjection()
+        {
+            if (_projectionMatrix is not null)
+                return;
+            
+            _projectionMatrix = CalculateProjectionMatrix();
+            _untransformedFrustum = CalculateUntransformedFrustum();
+            ProjectionMatrixChanged.Invoke(this);
+        }
+
         /// <summary>
         /// Returns the projection matrix for the parameters set in this class.
         /// Recalculates the projection matrix if it has been invalidated by any parameter changes.
@@ -49,12 +61,8 @@ namespace XREngine.Rendering
         /// <returns></returns>
         public Matrix4x4 GetProjectionMatrix()
         {
-            if (_projectionMatrix is null)
-            {
-                _projectionMatrix = CalculateProjectionMatrix();
-                ProjectionMatrixChanged.Invoke(this);
-            }
-            return _projectionMatrix.Value;
+            VerifyProjection();
+            return _projectionMatrix!.Value;
         }
 
         /// <summary>
@@ -70,6 +78,13 @@ namespace XREngine.Rendering
         /// <param name="left"></param>
         /// <param name="right"></param>
         public virtual Matrix4x4 GetViewMatrix(XRCamera camera)
-            => camera.Transform.WorldMatrix;
+            => camera.Transform.InverseWorldMatrix;
+
+        public Frustum GetUntransformedFrustum()
+        {
+            VerifyProjection();
+            return _untransformedFrustum!.Value;
+        }
+        protected abstract Frustum CalculateUntransformedFrustum();
     }
 }

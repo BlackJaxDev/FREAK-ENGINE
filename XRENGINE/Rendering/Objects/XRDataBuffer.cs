@@ -19,8 +19,6 @@ namespace XREngine.Rendering
         public event DelSetBlockIndex? SetBlockIndexRequested;
         public event Action<VoidPtr>? DataPointerSet;
 
-        //public XRMeshRenderer? MeshRenderer { get; set; } = null;
-
         public XRDataBuffer() { }
         public XRDataBuffer(
             string bindingName,
@@ -340,6 +338,7 @@ namespace XREngine.Rendering
             _normalize = false;
             if (remap)
             {
+                Debug.Out($"Setting remapped buffer data for {BindingName}");
                 Remapper remapper = new();
                 remapper.Remap(list, null);
                 _elementCount = remapper.ImplementationLength;
@@ -349,7 +348,7 @@ namespace XREngine.Rendering
                 {
                     VoidPtr addr = _clientSideSource.Address[i, stride];
                     T value = list[remapper.ImplementationTable![i]];
-                    //Debug.Write(value.ToString() + " ");
+                    Debug.Out($"{value} ");
                     Marshal.StructureToPtr(value, addr, true);
                 }
                 //Engine.DebugPrint();
@@ -357,6 +356,7 @@ namespace XREngine.Rendering
             }
             else
             {
+                Debug.Out($"Setting buffer data for {BindingName}");
                 _elementCount = (uint)list.Count;
                 _clientSideSource = DataSource.Allocate(Length);
                 uint stride = ElementSize;
@@ -364,7 +364,7 @@ namespace XREngine.Rendering
                 {
                     VoidPtr addr = _clientSideSource.Address[i, stride];
                     T value = list[(int)i];
-                    //Debug.Write(value.ToString() + " ");
+                    Debug.Out($"{value} ");
                     Marshal.StructureToPtr(value, addr, true);
                 }
                 //Engine.DebugPrint("\n");
@@ -382,6 +382,7 @@ namespace XREngine.Rendering
 
             if (remap)
             {
+                Debug.Out($"Setting remapped buffer data for {BindingName}");
                 Remapper remapper = new();
                 remapper.Remap(list, null);
 
@@ -389,16 +390,25 @@ namespace XREngine.Rendering
                 _clientSideSource = DataSource.Allocate(Length);
                 uint stride = ElementSize;
                 for (uint i = 0; i < remapper.ImplementationLength; ++i)
-                    list[remapper.ImplementationTable![i]].Write(_clientSideSource.Address[i, stride]);
+                {
+                    var item = list[remapper.ImplementationTable![i]];
+                    Debug.Out(item.ToString() ?? "");
+                    item.Write(_clientSideSource.Address[i, stride]);
+                }
                 return remapper;
             }
             else
             {
+                Debug.Out($"Setting buffer data for {BindingName}");
                 _elementCount = (uint)list.Count;
                 _clientSideSource = DataSource.Allocate(Length);
                 uint stride = ElementSize;
                 for (uint i = 0; i < list.Count; ++i)
-                    list[(int)i].Write(_clientSideSource.Address[i, stride]);
+                {
+                    var item = list[(int)i];
+                    Debug.Out(item.ToString() ?? "");
+                    item.Write(_clientSideSource.Address[i, stride]);
+                }
                 return null;
             }
         }

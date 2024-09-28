@@ -1,4 +1,5 @@
-﻿using XREngine.Data.Colors;
+﻿using System.Numerics;
+using XREngine.Data.Colors;
 using XREngine.Data.Rendering;
 using XREngine.Rendering.Commands;
 using XREngine.Rendering.Models.Materials;
@@ -31,6 +32,7 @@ public class TestRenderPipeline : RenderPipeline
                 ClearStencil(0);
                 Clear(new ColorF4(0.0f, 0.0f, 1.0f, 1.0f));
                 Clear(true, true, true);
+                //Engine.Rendering.Debug.RenderSphere(new Vector3(0.0f, 0.0f, 0.0f), 1.0f, true, new ColorF4(1.0f, 0.0f, 0.0f, 1.0f));
             };
             c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.OpaqueForward;
         }

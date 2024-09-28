@@ -1,6 +1,7 @@
 ﻿using Extensions;
 using Silk.NET.OpenGL;
 using System.Numerics;
+using Silk.NET.Core.Attributes;
 using XREngine.Data.Colors;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
@@ -11,7 +12,89 @@ namespace XREngine.Rendering.OpenGL
 {
     public unsafe partial class OpenGLRenderer : AbstractRenderer<GL>
     {
-        public OpenGLRenderer(XRWindow window) : base(window) { }
+        public OpenGLRenderer(XRWindow window) : base(window)
+        {
+            Api.Enable(EnableCap.DebugOutput);
+            Api.Enable(EnableCap.DebugOutputSynchronous);
+            Api.DebugMessageCallback(DebugCallback, null);
+            uint[] ids = [];
+            fixed (uint* ptr = ids)
+                Api.DebugMessageControl(GLEnum.DontCare, GLEnum.DontCare, GLEnum.DontCare, 0, ptr, true);
+        }
+
+        private int[] _ignoredMessageIds =
+        [
+            //131185, //buffer will use video memory
+            //131204, //no base level, no mipmaps, etc
+            //131169, //allocated memory for render buffer
+            ////131216,
+            //131218,
+            //131076,
+            //1282,
+            //0,
+            //9,
+        ];
+        private int[] _printMessageIds =
+        [
+            //1280, //Invalid texture format and type combination
+            //1281, //Invalid texture format
+            //1282,
+        ];
+        public void DebugCallback(GLEnum source, GLEnum type, int id, GLEnum severity, int length, nint message, nint userParam)
+        {
+            if (_ignoredMessageIds.IndexOf(id) >= 0)
+                return;
+
+            string messageStr = new((sbyte*)message);
+            Debug.LogWarning($"OPENGL {FormatSeverity(severity)} #{id} | {FormatSource(source)} {FormatType(type)} | {messageStr}", 1, 5);
+        }
+
+        private string FormatSeverity(GLEnum severity)
+            => severity switch
+            {
+                GLEnum.DebugSeverityHigh => "High",
+                GLEnum.DebugSeverityMedium => "Medium",
+                GLEnum.DebugSeverityLow => "Low",
+                GLEnum.DebugSeverityNotification => "Notification",
+                _ => severity.ToString(),
+            };
+
+        private string FormatType(GLEnum type)
+            => type switch
+            {
+                GLEnum.DebugTypeError => "Error",
+                GLEnum.DebugTypeDeprecatedBehavior => "Deprecated Behavior",
+                GLEnum.DebugTypeUndefinedBehavior => "Undefined Behavior",
+                GLEnum.DebugTypePortability => "Portability",
+                GLEnum.DebugTypePerformance => "Performance",
+                GLEnum.DebugTypeOther => "Other",
+                GLEnum.DebugTypeMarker => "Marker",
+                GLEnum.DebugTypePushGroup => "Push Group",
+                GLEnum.DebugTypePopGroup => "Pop Group",
+                _ => type.ToString(),
+            };
+
+        private string FormatSource(GLEnum source)
+            => source switch
+            {
+                GLEnum.DebugSourceApi => "API",
+                GLEnum.DebugSourceWindowSystem => "Window System",
+                GLEnum.DebugSourceShaderCompiler => "Shader Compiler",
+                GLEnum.DebugSourceThirdParty => "Third Party",
+                GLEnum.DebugSourceApplication => "Application",
+                GLEnum.DebugSourceOther => "Other",
+                _ => source.ToString(),
+            };
+
+        public static void CheckError(string? name)
+        {
+            //if (Current is not OpenGLRenderer renderer)
+            //    return;
+
+            //var error = renderer.Api.GetError();
+            //if (error != GLEnum.NoError)
+            //    Debug.LogWarning(name is null ? error.ToString() : $"{name}: {error}", 1);
+        }
 
         protected override AbstractRenderAPIObject CreateAPIRenderObject(GenericRenderObject renderObject)
             => renderObject switch

@@ -218,7 +218,7 @@ namespace XREngine.Rendering.OpenGL
             }
             private void UnlinkShader(GLShader shader)
             {
-                Api.DetachShader(shader.BindingId, BindingId);
+                Api.DetachShader(BindingId, shader.BindingId);
                 shader.ActivePrograms.Remove(this);
                 shader.Destroy();
             }
@@ -261,7 +261,6 @@ namespace XREngine.Rendering.OpenGL
             private void PrintLinkDebug(uint bindingId)
             {
                 Api.GetProgramInfoLog(bindingId, out string info);
-
                 Debug.Out(string.IsNullOrWhiteSpace(info)
                     ? "Unable to link program, but no error was returned."
                     : info);
@@ -509,13 +508,9 @@ namespace XREngine.Rendering.OpenGL
     internal record struct BinaryProgram(byte[] Binary, GLEnum Format, uint Length)
     {
         public static implicit operator (byte[] bin, GLEnum fmt, uint len)(BinaryProgram value)
-        {
-            return (value.Binary, value.Format, value.Length);
-        }
+            => (value.Binary, value.Format, value.Length);
 
         public static implicit operator BinaryProgram((byte[] bin, GLEnum fmt, uint len) value)
-        {
-            return new BinaryProgram(value.bin, value.fmt, value.len);
-        }
+            => new(value.bin, value.fmt, value.len);
     }
 }

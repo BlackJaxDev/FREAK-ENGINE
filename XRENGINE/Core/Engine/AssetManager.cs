@@ -162,7 +162,6 @@ namespace XREngine
                 : XRAsset.Load<T>(path);
         }
 
-
         public async Task<T?> LoadEngine3rdPartyAssetAsync<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(params string[] relativePathFolders) where T : XR3rdPartyAsset, new()
         {
             string path = Path.Combine(EngineAssetsPath, Path.Combine(relativePathFolders));

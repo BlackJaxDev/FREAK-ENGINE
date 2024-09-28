@@ -151,6 +151,10 @@ namespace XREngine.Rendering
                                     AddVertex(lines, v);
                         }
                         break;
+                    case VertexLine line:
+                        foreach (Vertex v in line.Vertices)
+                            AddVertex(lines, v);
+                        break;
                     case VertexPolygon t:
                         {
                             var asTris = t.ToTriangles();
@@ -225,14 +229,7 @@ namespace XREngine.Rendering
 
             //Fill the buffers with the vertex data using the command list
             //We can do this in parallel since each vertex is independent
-            Parallel.For(0, firstAppearanceArray.Length, i =>
-            //for (int i = 0; i < firstAppearanceArray.Length; ++i)
-            {
-                int x = firstAppearanceArray[i];
-                Vertex vtx = sourceList[x];
-                foreach (var action in vertexActions)
-                    action.Invoke(i, x, vtx);
-            });
+            PopulateVertexData(vertexActions, sourceList, firstAppearanceArray);
 
             if (weights is not null)
                 SetBoneWeights(weights);
@@ -279,6 +276,23 @@ namespace XREngine.Rendering
                     Buffers.Add(binding, TexCoordBuffers[texCoordIndex]);
                 }
             }
+        }
+
+        private static void PopulateVertexData(List<Action<int, int, Vertex>> vertexActions, List<Vertex> sourceList, int[] firstAppearanceArray, bool parallel = true)
+        {
+            if (parallel)
+                Parallel.For(0, firstAppearanceArray.Length, i => SetVertexData(i, vertexActions, sourceList, firstAppearanceArray));
+            else
+                for (int i = 0; i < firstAppearanceArray.Length; ++i)
+                    SetVertexData(i, vertexActions, sourceList, firstAppearanceArray);
+        }
+
+        private static void SetVertexData(int i, List<Action<int, int, Vertex>> vertexActions, List<Vertex> sourceList, int[] firstAppearanceArray)
+        {
+            int x = firstAppearanceArray[i];
+            Vertex vtx = sourceList[x];
+            foreach (var action in vertexActions)
+                action.Invoke(i, x, vtx);
         }
 
         private void InitBuffers(

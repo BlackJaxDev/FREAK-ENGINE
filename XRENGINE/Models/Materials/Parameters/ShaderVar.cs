@@ -41,6 +41,37 @@ namespace XREngine.Rendering.Models.Materials
     public interface IShaderSignedType : IShaderVarType { }
     public interface IShaderUnsignedType : IShaderVarType { }
 
+    public abstract class ShaderVar<T> : ShaderVar where T : struct
+    {
+        protected T _value;
+        public T Value
+        {
+            get => _value;
+            set
+            {
+                SetField(ref _value, value);
+                OnValueChanged();
+            }
+        }
+
+        public void SetValue(T value)
+            => Value = value;
+
+        internal override string GetShaderValueString()
+            => Value.ToString() ?? string.Empty;
+
+        [Browsable(false)]
+        public override object GenericValue => Value;
+
+        public ShaderVar()
+            : this(default, NoName) { }
+        public ShaderVar(T defaultValue, string name)
+            : this(defaultValue, name, null) { }
+        public ShaderVar(T defaultValue, string name, IShaderVarOwner? owner)
+            : base(name, owner) => _value = defaultValue;
+        public ShaderVar(string name, IShaderVarOwner? owner)
+            : base(name, owner) { }
+    }
     public abstract class ShaderVar : XRBase, IShaderVarOwner, IUniformable
     {
         internal const string CategoryName = "Material Parameter";

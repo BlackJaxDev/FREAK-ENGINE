@@ -176,7 +176,7 @@ namespace XREngine.Rendering.OpenGL
                 if (indices is null)
                     return;
 
-                buffer = new GLDataBuffer(Renderer, new XRDataBuffer(EBufferTarget.ElementArrayBuffer, true));
+                buffer = Renderer.GenericToAPI<GLDataBuffer>(new XRDataBuffer(EBufferTarget.ElementArrayBuffer, true) { BindingName = type.ToString() })!;
                 //TODO: primitive restart will use MaxValue for restart id
                 if (mesh.FaceIndices.Length < byte.MaxValue)
                 {
@@ -238,7 +238,7 @@ namespace XREngine.Rendering.OpenGL
                     out GLRenderProgram vertexProgram,
                     out GLRenderProgram materialProgram);
 
-                Api.BindFragDataLocation(materialProgram.BindingId, 0, "OutColor");
+                //Api.BindFragDataLocation(materialProgram.BindingId, 0, "OutColor");
 
                 Data.PushBoneMatricesToGPU();
                 SetMeshUniforms(modelMatrix, vertexProgram);
@@ -375,7 +375,6 @@ namespace XREngine.Rendering.OpenGL
                 {
                     GLDataBuffer buffer = Renderer.GenericToAPI<GLDataBuffer>(pair.Value)!;
                     buffer.Generate();
-                    buffer.BindArrayToMeshRenderer(this);
                     _buffers.Add(pair.Key, buffer);
                 }
 
@@ -415,15 +414,16 @@ namespace XREngine.Rendering.OpenGL
             }
         }
 
-        private GLMeshRenderer? _currentMesh;
+        public GLMeshRenderer? ActiveMeshRenderer { get; private set; } = null;
 
-        public virtual void BindMesh(GLMeshRenderer? mesh)
+        public void BindMesh(GLMeshRenderer? mesh)
         {
-            _currentMesh = mesh;
+            Api.BindVertexArray(mesh?.BindingId ?? 0);
+            ActiveMeshRenderer = mesh;
         }
         public void RenderMesh(GLMeshRenderer manager, bool preservePreviouslyBound = true, uint instances = 1)
         {
-            GLMeshRenderer? prev = _currentMesh;
+            GLMeshRenderer? prev = ActiveMeshRenderer;
             BindMesh(manager);
             RenderCurrentMesh(instances);
             BindMesh(preservePreviouslyBound ? prev : null);
@@ -432,19 +432,28 @@ namespace XREngine.Rendering.OpenGL
         //TODO: use instances for left eye, right eye, visible scene mirrors, and shadow maps in parallel
         public void RenderCurrentMesh(uint instances = 1)
         {
-            if (_currentMesh?.Data?.Mesh is null)
+            if (ActiveMeshRenderer?.Data?.Mesh is null)
                 return;
 
-            uint triangles = _currentMesh.TriangleIndicesBuffer?.Data?.ElementCount ?? 0u;
-            uint lines = _currentMesh.LineIndicesBuffer?.Data?.ElementCount ?? 0u;
-            uint points = _currentMesh.PointIndicesBuffer?.Data?.ElementCount ?? 0u;
+            uint triangles = ActiveMeshRenderer.TriangleIndicesBuffer?.Data?.ElementCount ?? 0u;
+            uint lines = ActiveMeshRenderer.LineIndicesBuffer?.Data?.ElementCount ?? 0u;
+            uint points = ActiveMeshRenderer.PointIndicesBuffer?.Data?.ElementCount ?? 0u;
 
             if (triangles > 0)
-                Api.DrawElementsInstancedBaseInstance(GLEnum.Triangles, triangles, ToGLEnum(_currentMesh.TrianglesElementType), null, instances, 0);
+            {
+                Api.DrawElements(GLEnum.Triangles, triangles, ToGLEnum(ActiveMeshRenderer.TrianglesElementType), null);
+                //Api.DrawElementsInstancedBaseInstance(GLEnum.Triangles, triangles, ToGLEnum(ActiveMeshRenderer.TrianglesElementType), null, instances, 0);
+            }
             if (lines > 0)
-                Api.DrawElementsInstancedBaseInstance(GLEnum.Lines, lines, ToGLEnum(_currentMesh.LineIndicesElementType), null, instances, 0);
+            {
+                Api.DrawElements(GLEnum.Lines, lines, ToGLEnum(ActiveMeshRenderer.LineIndicesElementType), null);
+                //Api.DrawElementsInstancedBaseInstance(GLEnum.Lines, lines, ToGLEnum(ActiveMeshRenderer.LineIndicesElementType), null, instances, 0);
+            }
             if (points > 0)
-                Api.DrawElementsInstancedBaseInstance(GLEnum.Points, points, ToGLEnum(_currentMesh.PointIndicesElementType), null, instances, 0);
+            {
+                Api.DrawElements(GLEnum.Points, points, ToGLEnum(ActiveMeshRenderer.PointIndicesElementType), null);
+                //Api.DrawElementsInstancedBaseInstance(GLEnum.Points, points, ToGLEnum(ActiveMeshRenderer.PointIndicesElementType), null, instances, 0);
+            }
         }
 
         /// <summary>
@@ -463,7 +472,13 @@ namespace XREngine.Rendering.OpenGL
                 return;
 
             Api.ColorMask(r.WriteRed, r.WriteGreen, r.WriteBlue, r.WriteAlpha);
-            Api.CullFace(ToGLEnum(r.CullMode));
+            if (r.CullMode != ECulling.None)
+            {
+                Api.Enable(EnableCap.CullFace);
+                Api.CullFace(ToGLEnum(r.CullMode));
+            }
+            else
+                Api.Disable(EnableCap.CullFace);
 
             Api.PointSize(r.PointSize);
             Api.LineWidth(r.LineWidth.Clamp(0.0f, 1.0f));
@@ -582,7 +597,6 @@ namespace XREngine.Rendering.OpenGL
         private GLEnum ToGLEnum(ECulling cullMode)
             => cullMode switch
             {
-                ECulling.None => GLEnum.None,
                 ECulling.Front => GLEnum.Front,
                 ECulling.Back => GLEnum.Back,
                 _ => GLEnum.FrontAndBack,

@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using XREngine.Data.Geometry;
 
 namespace XREngine.Rendering
 {
@@ -19,5 +20,8 @@ namespace XREngine.Rendering
 
         protected override Matrix4x4 CalculateProjectionMatrix()
             => Matrix4x4.CreateOrthographic(Width, Height, NearPlane, FarPlane);
+
+        protected override Frustum CalculateUntransformedFrustum()
+            => new(Width, Height, NearPlane, FarPlane);
     }
 }

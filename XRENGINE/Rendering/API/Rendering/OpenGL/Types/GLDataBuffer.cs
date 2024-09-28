@@ -8,8 +8,6 @@ namespace XREngine.Rendering.OpenGL
     {
         public class GLDataBuffer(OpenGLRenderer renderer, XRDataBuffer buffer) : GLObject<XRDataBuffer>(renderer, buffer)
         {
-            //public GLMeshRenderer? MeshRenderer => Renderer.GenericToAPI(Data.MeshRenderer);
-
             protected override void UnlinkData()
             {
                 base.UnlinkData();
@@ -27,20 +25,24 @@ namespace XREngine.Rendering.OpenGL
 
             public override GLObjectType Type => GLObjectType.Buffer;
 
-            protected internal override void PostGenerated() { }
-
-            public void BindArrayToMeshRenderer(GLMeshRenderer renderer)
+            protected internal override void PostGenerated()
             {
-                if (Data.Target != EBufferTarget.ArrayBuffer)
+                var rend = Renderer.ActiveMeshRenderer;
+                if (rend is null)
+                {
+                    var target = Data.Target;
+                    if (target == EBufferTarget.ArrayBuffer)
+                        Debug.LogWarning($"{GetDescribingName()} generated without a mesh renderer.");
                     return;
+                }
+                BindBuffer(rend);
+            }
 
+            private void BindBuffer(GLMeshRenderer renderer)
+            {
                 //TODO: get GL version
                 int glVer = 2;
-                int location = renderer.VertexProgram?.GetAttributeLocation(Data.BindingName) ?? -1;
-                if (location == -1)
-                    return;
-
-                uint index = (uint)location;
+                uint index = GetBindingLocation(renderer);
                 int componentType = (int)Data.ComponentType;
                 uint componentCount = Data.ComponentCount;
                 bool integral = Data.Integral;
@@ -48,43 +50,51 @@ namespace XREngine.Rendering.OpenGL
                 switch (glVer)
                 {
                     case 0:
-
-                        Api.BindBuffer(OpenGLRenderer.ToGLEnum(Data.Target), BindingId);
-
-                        Api.EnableVertexAttribArray(index);
-                        void* addr = Data.Address;
-                        if (integral)
-                            Api.VertexAttribIPointer(index, (int)componentCount, GLEnum.Byte + componentType, 0, addr);
-                        else
-                            Api.VertexAttribPointer(index, (int)componentCount, GLEnum.Byte + componentType, Data.Normalize, 0, addr);
-
+                        Bind();
+                        if (Data.Target == EBufferTarget.ArrayBuffer)
+                        {
+                            Api.EnableVertexAttribArray(index);
+                            void* addr = Data.Address;
+                            if (integral)
+                                Api.VertexAttribIPointer(index, (int)componentCount, GLEnum.Byte + componentType, 0, addr);
+                            else
+                                Api.VertexAttribPointer(index, (int)componentCount, GLEnum.Byte + componentType, Data.Normalize, 0, addr);
+                        }
+                        Unbind();
                         break;
 
                     case 1:
 
                         Api.BindVertexBuffer(index, BindingId, IntPtr.Zero, Data.ElementSize);
 
-                        Api.EnableVertexAttribArray(index);
-                        Api.VertexAttribBinding(index, index);
-                        if (integral)
-                            Api.VertexAttribIFormat(index, (int)componentCount, GLEnum.Byte + componentType, 0);
-                        else
-                            Api.VertexAttribFormat(index, (int)componentCount, GLEnum.Byte + componentType, Data.Normalize, 0);
+                        if (Data.Target == EBufferTarget.ArrayBuffer)
+                        {
+                            Api.EnableVertexAttribArray(index);
+                            Api.VertexAttribBinding(index, index);
+                            if (integral)
+                                Api.VertexAttribIFormat(index, (int)componentCount, GLEnum.Byte + componentType, 0);
+                            else
+                                Api.VertexAttribFormat(index, (int)componentCount, GLEnum.Byte + componentType, Data.Normalize, 0);
+                        }
 
                         break;
 
                     default:
                     case 2:
 
-                        uint vaoId = renderer.BindingId;
-                        Api.EnableVertexArrayAttrib(vaoId, index);
-                        Api.VertexArrayBindingDivisor(vaoId, index, Data.InstanceDivisor);
-                        Api.VertexArrayAttribBinding(vaoId, index, index);
-                        if (integral)
-                            Api.VertexArrayAttribIFormat(vaoId, index, (int)componentCount, GLEnum.Byte + componentType, 0);
-                        else
-                            Api.VertexArrayAttribFormat(vaoId, index, (int)componentCount, GLEnum.Byte + componentType, Data.Normalize, 0);
-                        Api.VertexArrayVertexBuffer(vaoId, index, BindingId, IntPtr.Zero, Data.ElementSize);
+                        if (Data.Target == EBufferTarget.ArrayBuffer)
+                        {
+                            uint vaoId = renderer.BindingId;
+
+                            Api.EnableVertexArrayAttrib(vaoId, index);
+                            Api.VertexArrayBindingDivisor(vaoId, index, Data.InstanceDivisor);
+                            Api.VertexArrayAttribBinding(vaoId, index, index);
+                            if (integral)
+                                Api.VertexArrayAttribIFormat(vaoId, index, (int)componentCount, GLEnum.Byte + componentType, 0);
+                            else
+                                Api.VertexArrayAttribFormat(vaoId, index, (int)componentCount, GLEnum.Byte + componentType, Data.Normalize, 0);
+                            Api.VertexArrayVertexBuffer(vaoId, index, BindingId, 0, Data.ElementSize);
+                        }
 
                         break;
                 }
@@ -95,6 +105,27 @@ namespace XREngine.Rendering.OpenGL
                     PushData();
             }
 
+            private uint GetBindingLocation(GLMeshRenderer renderer)
+            {
+                uint index = 0u;
+                if (Data.Target != EBufferTarget.ArrayBuffer)
+                    return index;
+
+                string bindingName = Data.BindingName;
+
+                if (string.IsNullOrWhiteSpace(bindingName))
+                    Debug.LogWarning($"{GetDescribingName()} has no binding name.");
+
+                if (renderer.VertexProgram is null)
+                    Debug.LogWarning($"{GetDescribingName()} has no vertex program.");
+
+                int location = renderer.VertexProgram?.GetAttributeLocation(bindingName) ?? -1;
+                if (location >= 0)
+                    index = (uint)location;
+
+                return index;
+            }
+
             /// <summary>
             /// Allocates and pushes the buffer to the GPU.
             /// </summary>
@@ -103,8 +134,8 @@ namespace XREngine.Rendering.OpenGL
                 if (Data.ActivelyMapping.Contains(this))
                     return;
 
-                VoidPtr addr = Data.Address;
-                Api.NamedBufferData(BindingId, Data.Length, ref addr, ToGLEnum(Data.Usage));
+                void* addr = Data.Address;
+                Api.NamedBufferData(BindingId, Data.Length, addr, ToGLEnum(Data.Usage));
             }
 
             public static GLEnum ToGLEnum(EBufferUsage usage) => usage switch
@@ -139,8 +170,8 @@ namespace XREngine.Rendering.OpenGL
                     Generate();
                 else
                 {
-                    var addr = Data.Address;
-                    Api.NamedBufferSubData(BindingId, offset, length, ref addr);
+                    void* addr = Data.Address;
+                    Api.NamedBufferSubData(BindingId, offset, length, addr);
                 }
             }
 
@@ -196,7 +227,9 @@ namespace XREngine.Rendering.OpenGL
                 if (bindingID == InvalidBindingId)
                     return;
 
+                Bind();
                 SetBlockIndex(Api.GetUniformBlockIndex(bindingID, blockName));
+                Unbind();
             }
 
             public void SetBlockIndex(uint blockIndex)
@@ -204,7 +237,9 @@ namespace XREngine.Rendering.OpenGL
                 if (blockIndex == uint.MaxValue)
                     return;
 
+                Bind();
                 Api.BindBufferBase(OpenGLRenderer.ToGLEnum(Data.Target), blockIndex, BindingId);
+                Unbind();
             }
 
             protected internal override void PreDeleted()

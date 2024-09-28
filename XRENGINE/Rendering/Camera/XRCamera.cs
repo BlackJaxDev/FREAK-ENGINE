@@ -263,14 +263,14 @@ namespace XREngine.Rendering
         /// </summary>
         /// <returns></returns>
         public Frustum WorldFrustum()
-            => new(WorldViewProjectionMatrix);
+            => UntransformedFrustum().TransformedBy(Transform.WorldMatrix);
 
         /// <summary>
         /// The projection frustum of this camera with no transformation applied.
         /// </summary>
         /// <returns></returns>
         public Frustum UntransformedFrustum()
-            => new(ProjectionMatrix);
+            => Parameters.GetUntransformedFrustum();
 
         /// <summary>
         /// Returns a scale value that maintains the size of an object relative to the camera's distance.

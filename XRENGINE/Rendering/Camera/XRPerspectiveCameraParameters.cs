@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using XREngine.Data.Core;
+using XREngine.Data.Geometry;
 
 namespace XREngine.Rendering
 {
@@ -55,5 +56,8 @@ namespace XREngine.Rendering
 
         protected override Matrix4x4 CalculateProjectionMatrix()
             => Matrix4x4.CreatePerspectiveFieldOfView(XRMath.DegToRad(VerticalFieldOfView), AspectRatio, NearPlane, FarPlane);
+
+        protected override Frustum CalculateUntransformedFrustum()
+            => new(VerticalFieldOfView, AspectRatio, NearPlane, FarPlane, Globals.Forward, Globals.Up, Vector3.Zero);
     }
 }

@@ -212,7 +212,12 @@ namespace XREngine.Components
         protected internal virtual void Start()
             => VerifyInterfacesOnStart();
 
-        public bool ClearTicksOnStop
+        /// <summary>
+        /// If true, all registered ticks will be unregistered when the component is set to inactive.
+        /// If false, ticks will remain registered when the component is stopped and must be manually unregistered.
+        /// True by default.
+        /// </summary>
+        public bool UnregisterTicksOnStop
         {
             get => _clearTicksOnStop;
             set => SetField(ref _clearTicksOnStop, value);
@@ -224,7 +229,7 @@ namespace XREngine.Components
         protected internal virtual void Stop()
         {
             VerifyInterfacesOnStop();
-            if (ClearTicksOnStop)
+            if (UnregisterTicksOnStop)
                 ClearTicks();
         }
 

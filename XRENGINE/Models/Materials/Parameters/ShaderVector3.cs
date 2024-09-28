@@ -6,34 +6,34 @@ using Color = System.Drawing.Color;
 
 namespace XREngine.Rendering.Models.Materials
 {
-    public class ShaderVector3 : ShaderVar
+    public class ShaderVector3 : ShaderVar<Vector3>
     {
         [Browsable(false)]
         public override EShaderVarType TypeName => EShaderVarType._vec3;
-        [Category(CategoryName)]
-        public Vector3 Value { get => _value; set { _value = value; OnValueChanged(); } }
+
         protected override void SetProgramUniform(XRRenderProgram program, string location)
-            => program.Uniform(location, _value);
+            => program.Uniform(location, Value);
+
         internal override string GetShaderValueString()
              => $"Vector3({_value.X:0.0######}f, {_value.Y:0.0######}f, {_value.Z:0.0######}f)";
-        [Browsable(false)]
-        public override object GenericValue => Value;
 
-        private Vector3 _value;
-
-        public ShaderVector3() : this(new Vector3(), NoName) { }
+        public ShaderVector3()
+            : this(new Vector3(), NoName) { }
         public ShaderVector3(Vector3 defaultValue, string name)
             : this(defaultValue, name, null) { }
         public ShaderVector3(Vector3 defaultValue, string name, IShaderVarOwner? owner)
-            : base(name, owner)
+            : base(defaultValue, name, owner)
         {
-            _value = defaultValue;
             _fields.Add(".x", new ShaderFloat(defaultValue.X, "X", this));
             _fields.Add(".y", new ShaderFloat(defaultValue.Y, "Y", this));
             _fields.Add(".z", new ShaderFloat(defaultValue.Z, "Z", this));
         }
 
-        public Color Color { get => (Color)this; set => Value = value.ToVector3(); }
+        public Color Color
+        {
+            get => (Color)this;
+            set => Value = value.ToVector3();
+        }
 
         public ShaderVector3(float x, float y, float z)
             : this(x, y, z, NoName) { }
