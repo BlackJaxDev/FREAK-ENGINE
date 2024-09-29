@@ -9,9 +9,25 @@ namespace XREngine
         public static partial class Rendering
         {
             //TODO: create objects for only relevant windows that house the viewports that this object is visible in
-            public static IEnumerable<AbstractRenderAPIObject?> CreateObjectsForAllWindows(GenericRenderObject obj)
-                => Windows.Select(window => window.Renderer.GetOrCreateAPIRenderObject(obj));
 
+            /// <summary>
+            /// Called when a new render object is created.
+            /// Tells all current windows to create an API-specific object for this object.
+            /// </summary>
+            /// <param name="obj"></param>
+            /// <returns></returns>
+            public static IEnumerable<AbstractRenderAPIObject?> CreateObjectsForAllWindows(GenericRenderObject obj)
+            {
+                lock (Windows)
+                    return Windows.Select(window => window.Renderer.GetOrCreateAPIRenderObject(obj));
+            }
+
+            /// <summary>
+            /// Called when a new window is created.
+            /// Tells all current render objects to create an API-specific object for this window.
+            /// </summary>
+            /// <param name="renderer"></param>
+            /// <returns></returns>
             public static ConcurrentDictionary<GenericRenderObject, AbstractRenderAPIObject> CreateObjectsForNewRenderer(AbstractRenderer renderer)
             {
                 ConcurrentDictionary<GenericRenderObject, AbstractRenderAPIObject> roDic = [];

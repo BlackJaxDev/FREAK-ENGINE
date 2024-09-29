@@ -55,6 +55,7 @@ namespace XREngine.Components
             
             var component = (XRComponent)obj;
             component.Constructing();
+            component.World = component.SceneNode.World;
 
             ComponentCreated.Invoke(component);
 
@@ -95,7 +96,6 @@ namespace XREngine.Components
 #pragma warning restore IDE0051 // Remove unused private members
         {
             _sceneNode = node;
-            _world = _sceneNode.World;
             _sceneNode.PropertyChanging += SceneNodePropertyChanging;
             _sceneNode.PropertyChanged += SceneNodePropertyChanged;
             Transform.LocalMatrixChanged += OnTransformLocalMatrixChanged;

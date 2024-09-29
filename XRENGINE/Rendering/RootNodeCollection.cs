@@ -41,16 +41,24 @@ namespace XREngine.Rendering
                 => node.IterateHierarchy(c =>
                 {
                     NodeCacheAction?.Invoke(c);
-                    foreach (var comp in c.Components)
-                        ComponentCacheAction?.Invoke(comp);
+
+                    lock (c.Components)
+                    {
+                        foreach (var comp in c.Components)
+                            ComponentCacheAction?.Invoke(comp);
+                    }
                 });
 
             private void UncacheComponents(SceneNode node)
                 => node.IterateHierarchy(c =>
                 {
                     NodeUncacheAction?.Invoke(c);
-                    foreach (var comp in c.Components)
-                        ComponentUncacheAction?.Invoke(comp);
+
+                    lock (c.Components)
+                    {
+                        foreach (var comp in c.Components)
+                            ComponentUncacheAction?.Invoke(comp);
+                    }
                 });
 
             public IEnumerator<SceneNode> GetEnumerator()

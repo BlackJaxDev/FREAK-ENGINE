@@ -38,7 +38,8 @@ namespace XREngine.Rendering
             LinkWindow();
 
             //Set the initial object cache for this window of all existing render objects
-            _renderObjectCache = Engine.Rendering.CreateObjectsForNewRenderer(this);
+            lock (_roCacheLock)
+                _renderObjectCache = Engine.Rendering.CreateObjectsForNewRenderer(this);
 
             _viewports.CollectionChanged += ViewportsChanged;
         }
@@ -120,6 +121,7 @@ namespace XREngine.Rendering
         private bool ShouldBeRendering()
             => Viewports.Count > 0 && TargetWorldInstance is not null;
 
+        private readonly object _roCacheLock = new();
         private readonly ConcurrentDictionary<GenericRenderObject, AbstractRenderAPIObject> _renderObjectCache = [];
         public IReadOnlyDictionary<GenericRenderObject, AbstractRenderAPIObject> RenderObjectCache => _renderObjectCache;
 
@@ -277,9 +279,14 @@ namespace XREngine.Rendering
             if (renderObject is null)
                 return null;
 
-            var obj = _renderObjectCache.GetOrAdd(renderObject, _ => CreateAPIRenderObject(renderObject));
-            if (generateNow && !obj.IsGenerated)
-                obj.Generate();
+            AbstractRenderAPIObject? obj;
+            lock (_roCacheLock)
+            {
+                obj = _renderObjectCache.GetOrAdd(renderObject, _ => CreateAPIRenderObject(renderObject));
+                if (generateNow && !obj.IsGenerated)
+                    obj.Generate();
+            }
+
             return obj;
         }
 
@@ -290,7 +297,10 @@ namespace XREngine.Rendering
                 apiObject = null;
                 return false;
             }
-            return _renderObjectCache.TryGetValue(renderObject, out apiObject);
+            lock (_roCacheLock)
+            {
+                return _renderObjectCache.TryGetValue(renderObject, out apiObject);
+            }
         }
 
         /// <summary>

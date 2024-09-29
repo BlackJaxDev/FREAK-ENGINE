@@ -101,7 +101,10 @@ namespace XREngine.Scene.Transforms
                         Depth = _parent.Depth + 1;
 
                         lock (_parent.Children)
-                            _parent.Children.Add(this);
+                        {
+                            if (!_parent.Children.Contains(this))
+                                _parent.Children.Add(this);
+                        }
                     }
                     else
                         Depth = 0;

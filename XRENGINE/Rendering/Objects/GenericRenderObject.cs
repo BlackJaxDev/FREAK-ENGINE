@@ -38,8 +38,27 @@ namespace XREngine.Rendering
             }
         }
 
+        //public void VerifyWrappers()
+        //{
+        //    //Make sure every current window using this object has a wrapper for it
+        //    lock (_apiWrappers)
+        //    {
+        //        foreach (var window in Engine.Windows)
+        //        {
+        //            var wrapper = _apiWrappers.FirstOrDefault(w => w.Window == window);
+        //            if (wrapper is null)
+        //            {
+        //                wrapper = Engine.Rendering.CreateObjectForWindow(this, window);
+        //                if (wrapper is not null)
+        //                    _apiWrappers.Add(wrapper);
+        //            }
+        //        }
+        //    }
+        //}
+
         public void Generate()
         {
+            //GetWrappers();
             lock (_apiWrappers)
             {
                 foreach (var wrapper in APIWrappers)
@@ -73,15 +92,21 @@ namespace XREngine.Rendering
                 list.Add(this);
             }
 
-            //lock (_apiWrappers)
-            //{
-            //    //Create this object for all windows (but don't generate it yet)
-            //    var wrappers = Engine.Rendering.CreateObjectsForAllWindows(this);
-            //    foreach (var wrapper in wrappers)
-            //        if (wrapper is not null)
-            //            _apiWrappers.Add(wrapper);
-            //}
+            GetWrappers();
         }
+
+        private void GetWrappers()
+        {
+            lock (_apiWrappers)
+            {
+                //Create this object for all windows (but don't generate it yet)
+                var wrappers = Engine.Rendering.CreateObjectsForAllWindows(this);
+                foreach (var wrapper in wrappers)
+                    if (wrapper is not null)
+                        _apiWrappers.Add(wrapper);
+            }
+        }
+
         ~GenericRenderObject()
         {
             Destroy();

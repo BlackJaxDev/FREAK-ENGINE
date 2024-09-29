@@ -95,22 +95,6 @@ namespace XREngine.Scene
             }
         }
 
-        protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
-        {
-            bool change = base.OnPropertyChanging(propName, field, @new);
-            if (change)
-            {
-                switch (propName)
-                {
-                    case nameof(World):
-                        ClearWorldFromChildNodes();
-                        Transform.World = null;
-                        break;
-                }
-            }
-            return change;
-        }
-
         protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
         {
             base.OnPropertyChanged(propName, prev, field);
@@ -124,10 +108,6 @@ namespace XREngine.Scene
                     break;
                 case nameof(World):
                     SetWorldToChildNodes(World);
-                    Transform.World = World;
-                    break;
-                case nameof(Parent):
-                    World = Parent?.World;
                     break;
             }
         }
@@ -173,7 +153,7 @@ namespace XREngine.Scene
 
         private void OnParentChanged()
         {
-
+            World = Parent?.World;
         }
 
         /// <summary>
@@ -239,8 +219,13 @@ namespace XREngine.Scene
 
         private void SetWorldToChildNodes(XRWorldInstance? value)
         {
-            foreach (var component in this)
-                component.World = value;
+            Transform.World = World;
+
+            lock (Components)
+            {
+                foreach (var component in this)
+                    component.World = value;
+            }
 
             lock (Transform.Children)
             {
@@ -249,22 +234,6 @@ namespace XREngine.Scene
                     var child = Transform.Children[i];
                     if (child?.SceneNode is SceneNode node)
                         node.World = value;
-                }
-            }
-        }
-
-        private void ClearWorldFromChildNodes()
-        {
-            foreach (var component in this)
-                component.World = null;
-
-            lock (Transform.Children)
-            {
-                for (int i = 0; i < Transform.Children.Count; i++)
-                {
-                    var child = Transform.Children[i];
-                    if (child?.SceneNode is SceneNode node)
-                        node.World = null;
                 }
             }
         }
@@ -298,7 +267,10 @@ namespace XREngine.Scene
             if (!VerifyComponentAttributesOnAdd(comp))
                 return null;
 
-            ComponentsInternal.Add(comp);
+            lock (Components)
+            {
+                ComponentsInternal.Add(comp);
+            }
             return comp;
         }
 
@@ -311,7 +283,10 @@ namespace XREngine.Scene
             if (XRComponent.New(this, type) is not XRComponent comp || !VerifyComponentAttributesOnAdd(comp))
                 return null;
 
-            ComponentsInternal.Add(comp);
+            lock (Components)
+            {
+                ComponentsInternal.Add(comp);
+            }
             comp.Destroying += ComponentDestroying;
             comp.Destroyed += ComponentDestroyed;
             return comp;
@@ -341,7 +316,7 @@ namespace XREngine.Scene
             var attribs = comp.GetType().GetCustomAttributes(true);
             if (attribs.Length == 0)
                 return true;
-            
+
             foreach (var attrib in attribs)
                 if (attrib is XRComponentAttribute xrAttrib && !xrAttrib.VerifyComponentOnAdd(this, comp))
                     return false;
@@ -359,7 +334,10 @@ namespace XREngine.Scene
             if (comp is null)
                 return;
 
-            ComponentsInternal.Remove(comp);
+            lock (Components)
+            {
+                ComponentsInternal.Remove(comp);
+            }
             comp.Destroying -= ComponentDestroying;
             comp.Destroyed -= ComponentDestroyed;
             comp.Destroy();
@@ -375,7 +353,10 @@ namespace XREngine.Scene
             if (comp is null)
                 return;
 
-            ComponentsInternal.Remove(comp);
+            lock (Components)
+            {
+                ComponentsInternal.Remove(comp);
+            }
             comp.Destroying -= ComponentDestroying;
             comp.Destroyed -= ComponentDestroyed;
             comp.Destroy();
@@ -389,8 +370,11 @@ namespace XREngine.Scene
         {
             if (comp is not XRComponent xrComp)
                 return;
-            
-            ComponentsInternal.Remove(xrComp);
+
+            lock (Components)
+            {
+                ComponentsInternal.Remove(xrComp);
+            }
             xrComp.Destroying -= ComponentDestroying;
             xrComp.Destroyed -= ComponentDestroyed;
         }
@@ -401,7 +385,12 @@ namespace XREngine.Scene
         /// <typeparam name="T1"></typeparam>
         /// <returns></returns>
         public T1? GetComponent<T1>() where T1 : XRComponent
-            => ComponentsInternal.FirstOrDefault(x => x is T1) as T1;
+        {
+            lock (Components)
+            {
+                return ComponentsInternal.FirstOrDefault(x => x is T1) as T1;
+            }
+        }
 
         /// <summary>
         /// Gets or adds a component of type T to the scene node.
@@ -429,15 +418,25 @@ namespace XREngine.Scene
         /// <typeparam name="T1"></typeparam>
         /// <returns></returns>
         public T1? GetLastComponent<T1>() where T1 : XRComponent
-            => ComponentsInternal.LastOrDefault(x => x is T1) as T1;
-        
+        {
+            lock (Components)
+            {
+                return ComponentsInternal.LastOrDefault(x => x is T1) as T1;
+            }
+        }
+
         /// <summary>
         /// Returns all components of type T attached to the scene node.
         /// </summary>
         /// <typeparam name="T1"></typeparam>
         /// <returns></returns>
         public T1[] GetComponents<T1>() where T1 : XRComponent
-            => ComponentsInternal.OfType<T1>().ToArray();
+        {
+            lock (Components)
+            {
+                return ComponentsInternal.OfType<T1>().ToArray();
+            }
+        }
 
         /// <summary>
         /// Returns the first component of type attached to the scene node.
@@ -445,7 +444,12 @@ namespace XREngine.Scene
         /// <param name="type"></param>
         /// <returns></returns>
         public XRComponent? GetComponent(Type type)
-            => ComponentsInternal.FirstOrDefault(type.IsInstanceOfType);
+        {
+            lock (Components)
+            {
+                return ComponentsInternal.FirstOrDefault(type.IsInstanceOfType);
+            }
+        }
 
         /// <summary>
         /// Returns the last component of type attached to the scene node.
@@ -453,7 +457,12 @@ namespace XREngine.Scene
         /// <param name="type"></param>
         /// <returns></returns>
         public XRComponent? GetLastComponent(Type type)
-            => ComponentsInternal.LastOrDefault(type.IsInstanceOfType);
+        {
+            lock (Components)
+            {
+                return ComponentsInternal.LastOrDefault(type.IsInstanceOfType);
+            }
+        }
 
         /// <summary>
         /// Returns all components of type attached to the scene node.
@@ -461,9 +470,23 @@ namespace XREngine.Scene
         /// <param name="type"></param>
         /// <returns></returns>
         public XRComponent[] GetComponents(Type type)
-            => ComponentsInternal.Where(type.IsInstanceOfType).ToArray();
+        {
+            lock (Components)
+            {
+                return ComponentsInternal.Where(type.IsInstanceOfType).ToArray();
+            }
+        }
 
-        public XRComponent this[int index] => ComponentsInternal.ElementAtOrDefault(index) ?? throw new IndexOutOfRangeException();
+        public XRComponent this[int index]
+        {
+            get
+            {
+                lock (Components)
+                {
+                    return ComponentsInternal.ElementAtOrDefault(index) ?? throw new IndexOutOfRangeException();
+                }
+            }
+        }
         public XRComponent? this[Type type] => GetComponent(type);
 
         /// <summary>
@@ -537,9 +560,20 @@ namespace XREngine.Scene
         }
 
         public bool HasComponent(Type requiredType)
-            => ComponentsInternal.Any(requiredType.IsInstanceOfType);
+        {
+            lock (Components)
+            {
+                return ComponentsInternal.Any(requiredType.IsInstanceOfType);
+            }
+        }
+
         public bool HasComponent<T>() where T : XRComponent
-            => ComponentsInternal.Any(x => x is T);
+        {
+            lock (Components)
+            {
+                return ComponentsInternal.Any(x => x is T);
+            }
+        }
 
         public bool TryGetComponent(Type type, out XRComponent? comp)
         {

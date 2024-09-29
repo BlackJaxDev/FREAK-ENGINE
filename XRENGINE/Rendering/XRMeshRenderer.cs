@@ -229,14 +229,7 @@ namespace XREngine.Rendering
         /// <param name="worldMatrix"></param>
         /// <param name="materialOverride"></param>
         public void Render(Matrix4x4 worldMatrix, XRMaterial? materialOverride = null, uint instances = 1u)
-        {
-            if (RenderRequested is null)
-            {
-                //Debug.LogWarning("No APIs are subscribed to render this mesh.");
-                return;
-            }
-            RenderRequested?.Invoke(worldMatrix, materialOverride, instances);
-        }
+            => RenderRequested?.Invoke(worldMatrix, materialOverride, instances);
 
         public T? Parameter<T>(int index) where T : ShaderVar 
             => Material?.Parameter<T>(index);

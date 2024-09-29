@@ -10,7 +10,7 @@ namespace XREngine.Data.Rendering
         /// <summary>
         /// References the mesh's buffers via binding name to index positions, normals etc for this vertex.
         /// </summary>
-        public Dictionary<string, uint> BufferBindings { get; } = [];
+        public Dictionary<string, uint> BufferBindings { get; set; } = [];
 
         /// <summary>
         /// Index into the mesh's weights list.

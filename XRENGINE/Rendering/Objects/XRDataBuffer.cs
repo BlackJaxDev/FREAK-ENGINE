@@ -285,6 +285,70 @@ namespace XREngine.Rendering
                 DataPointerSet?.Invoke(data);
         }
 
+        public void Allocate<T>(uint listCount) where T : struct
+        {
+            _componentCount = 1;
+            
+            switch (typeof(T))
+            {
+                case Type t when t == typeof(sbyte):
+                    _componentType = EComponentType.SByte;
+                    break;
+                case Type t when t == typeof(byte):
+                    _componentType = EComponentType.Byte;
+                    break;
+                case Type t when t == typeof(short):
+                    _componentType = EComponentType.Short;
+                    break;
+                case Type t when t == typeof(ushort):
+                    _componentType = EComponentType.UShort;
+                    break;
+                case Type t when t == typeof(int):
+                    _componentType = EComponentType.Int;
+                    break;
+                case Type t when t == typeof(uint):
+                    _componentType = EComponentType.UInt;
+                    break;
+                case Type t when t == typeof(float):
+                    _componentType = EComponentType.Float;
+                    break;
+                case Type t when t == typeof(double):
+                    _componentType = EComponentType.Double;
+                    break;
+                case Type t when t == typeof(Vector2):
+                    _componentType = EComponentType.Float;
+                    _componentCount = 2;
+                    break;
+                case Type t when t == typeof(Vector3):
+                    _componentType = EComponentType.Float;
+                    _componentCount = 3;
+                    break;
+                case Type t when t == typeof(Vector4):
+                    _componentType = EComponentType.Float;
+                    _componentCount = 4;
+                    break;
+                case Type t when t == typeof(Matrix4x4):
+                    _componentType = EComponentType.Float;
+                    _componentCount = 16;
+                    break;
+                case Type t when t == typeof(Quaternion):
+                    _componentType = EComponentType.Float;
+                    _componentCount = 4;
+                    break;
+                default:
+                    throw new InvalidOperationException("Not a proper numeric data type.");
+            }
+
+            _normalize = false;
+            _elementCount = listCount;
+            _clientSideSource = DataSource.Allocate(Length);
+        }
+
+        public void SetDataRawAtIndex<T>(uint index, T data) where T : struct
+        {
+            Marshal.StructureToPtr(data, _clientSideSource!.Address[index, ElementSize], true);
+        }
+
         public Remapper? SetDataRaw<T>(IList<T> list, bool remap = false) where T : struct
         {
             _componentCount = 1;

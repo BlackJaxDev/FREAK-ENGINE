@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using Silk.NET.Assimp;
+using System.Numerics;
 using XREngine.Scene.Transforms;
 
 namespace XREngine.Data.Rendering
@@ -96,5 +97,130 @@ namespace XREngine.Data.Rendering
                 ColorSets = [.. ColorSets],
                 Blendshapes = Blendshapes is null ? null : new Dictionary<string, VertexData>(Blendshapes),
             };
+
+        public static unsafe Vertex FromAssimp(Mesh* mesh, uint vertexIndex)
+        {
+            Vector3 pos = mesh->MVertices[vertexIndex];
+            Vector3? normal = mesh->MNormals == null ? null : mesh->MNormals[vertexIndex];
+            Vector3? tangent = mesh->MTangents == null ? null : mesh->MTangents[vertexIndex];
+            Vector3? bitangent = mesh->MBitangents == null ? null : mesh->MBitangents[vertexIndex];
+
+            //If two of the three vectors are zero, the normal is calculated from the cross product of the other two.
+            if (normal == null)
+            {
+                if (tangent != null && bitangent != null)
+                    normal = Vector3.Cross(tangent.Value, bitangent.Value);
+                //else if (tangent != null)
+                //    normal = Vector3.Cross(tangent.Value, pos);
+                //else if (bitangent != null)
+                //    normal = Vector3.Cross(bitangent.Value, pos);
+            }
+            if (tangent == null)
+            {
+                if (normal != null && bitangent != null)
+                    tangent = Vector3.Cross(normal.Value, bitangent.Value);
+                //else if (normal != null)
+                //    tangent = Vector3.Cross(normal.Value, pos);
+                //else if (bitangent != null)
+                //    tangent = Vector3.Cross(bitangent.Value, pos);
+            }
+            //We don't save the bitangent, as it can be calculated from the normal and tangent on the GPU.
+            //if (bitangent == null)
+            //{
+            //    if (normal != null && tangent != null)
+            //        bitangent = Vector3.Cross(normal.Value, tangent.Value);
+            //    else if (normal != null)
+            //        bitangent = Vector3.Cross(normal.Value, pos);
+            //    else if (tangent != null)
+            //        bitangent = Vector3.Cross(tangent.Value, pos);
+            //}
+
+            Vertex v = new()
+            {
+                Position = pos,
+                Normal = normal,
+                Tangent = tangent
+            };
+
+            for (int i = 0; i < 8; ++i)
+            {
+                if (mesh->MTextureCoords[i] == null)
+                    break;
+
+                Vector3 uv = mesh->MTextureCoords[i][vertexIndex];
+                v.TextureCoordinateSets.Add(new Vector2(uv.X, uv.Y));
+            }
+            for (int i = 0; i < 8; ++i)
+            {
+                if (mesh->MColors[i] == null)
+                    break;
+
+                Vector4 color = mesh->MColors[i][vertexIndex];
+                v.ColorSets.Add(color);
+            }
+
+            ////Weights
+            //uint boneCount = mesh->MNumBones;
+            //for (uint i = 0; i < boneCount; ++i)
+            //{
+            //    var bone = mesh->MBones[i];
+            //    for (uint j = 0; j < bone->MNumWeights; ++j)
+            //    {
+            //        var weight = bone->MWeights[j];
+            //        if (weight.MVertexId == vertexIndex)
+            //        {
+            //            if (v.Weights == null)
+            //                v.Weights = [];
+
+            //            //v.Weights.Add(new TransformBase(bone->MName.ToString()), weight.MWeight);
+            //        }
+            //    }
+            //}
+
+            //Blendshapes
+            uint blendshapeCount = mesh->MNumAnimMeshes;
+            if (blendshapeCount > 0)
+            {
+                v.Blendshapes = [];
+                for (uint i = 0; i < blendshapeCount; ++i)
+                {
+                    var blendshape = mesh->MAnimMeshes[i];
+                    if (blendshape->MVertices == null)
+                        continue;
+
+                    VertexData data = new()
+                    {
+                        Position = blendshape->MVertices[vertexIndex]
+                    };
+
+                    if (blendshape->MNormals != null)
+                        data.Normal = blendshape->MNormals[vertexIndex];
+
+                    if (blendshape->MTangents != null)
+                        data.Tangent = blendshape->MTangents[vertexIndex];
+
+                    for (int j = 0; j < 8; ++j)
+                    {
+                        if (blendshape->MTextureCoords[j] == null)
+                            break;
+
+                        Vector3 uv = blendshape->MTextureCoords[j][vertexIndex];
+                        data.TextureCoordinateSets.Add(new Vector2(uv.X, uv.Y));
+                    }
+                    for (int j = 0; j < 8; ++j)
+                    {
+                        if (blendshape->MColors[j] == null)
+                            break;
+
+                        Vector4 color = blendshape->MColors[j][vertexIndex];
+                        data.ColorSets.Add(color);
+                    }
+
+                    v.Blendshapes.Add(blendshape->MName.ToString(), data);
+                }
+            }
+
+            return v;
+        }
     }
 }

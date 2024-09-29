@@ -11,7 +11,7 @@ namespace XREngine
     public abstract class XRWorldObjectBase : XRObjectBase
     {
         internal XRWorldInstance? _world;
-        public virtual XRWorldInstance? World 
+        public XRWorldInstance? World 
         {
             get => _world;
             internal set => SetField(ref _world, value);
@@ -23,7 +23,7 @@ namespace XREngine
             switch (propName)
             {
                 case nameof(World):
-                    if (World is not null)
+                    if (World is not null && _tickCache is not null)
                         foreach (var (group, order, tick) in _tickCache)
                             World?.RegisterTick(group, order, tick);
                     break;
@@ -37,7 +37,7 @@ namespace XREngine
                 switch (propName)
                 {
                     case nameof(World):
-                        if (World is not null)
+                        if (World is not null && _tickCache is not null)
                             foreach (var (group, order, tick) in _tickCache)
                                 World?.UnregisterTick(group, order, tick);
                         break;

@@ -34,7 +34,7 @@ internal class Program
     }
 
     static void TickRotation(OrbitTransform t) 
-        => t.Angle += Engine.Delta * 5.0f;
+        => t.Angle += Engine.DilatedDelta * 5.0f;
 
     static XRWorld CreateTestWorld()
     {
@@ -69,22 +69,22 @@ internal class Program
                 },
                 LineWidth = 5.0f,
             };
-            //var mesh = XRMesh.Shapes.SolidBox(-Vector3.One, Vector3.One);
+            var mesh = XRMesh.Shapes.SolidBox(-Vector3.One, Vector3.One);
             //Engine.Assets.SaveTo(mesh, desktopDir);
-            //modelComp!.Model = new Model([new SubMesh(mesh, mat)]);
+            modelComp!.Model = new Model([new SubMesh(mesh, mat)]);
         }
 
         //Create the camera
         var cameraNode = new SceneNode(rootNode) { Name = "TestCameraNode" };
         var cameraTransform = cameraNode.SetTransform<Transform>();
-        cameraTransform.Translation = new Vector3(10.0f, 0.0f, 10.0f);
+        cameraTransform.Translation = new Vector3(0.0f, 0.0f, 20.0f);
         cameraTransform.LookAt(Vector3.Zero);
         if (cameraNode.TryAddComponent<CameraComponent>(out var cameraComp))
         {
             cameraComp!.Name = "TestCamera";
             cameraComp.LocalPlayerIndex = ELocalPlayerIndex.One;
             cameraComp.Camera.Parameters = new XRPerspectiveCameraParameters(60.0f, null, 0.1f, 1000.0f);
-            cameraComp.CullWithFrustum = false;
+            cameraComp.CullWithFrustum = true;
             cameraComp.RenderPipeline = new TestRenderPipeline();
         }
 
@@ -133,7 +133,7 @@ internal class Program
     {
         int w = 1920;
         int h = 1080;
-        float fps = 0.0f;
+        float fps = 60.0f;
 
         int primaryX = NativeMethods.GetSystemMetrics(0);
         int primaryY = NativeMethods.GetSystemMetrics(1);

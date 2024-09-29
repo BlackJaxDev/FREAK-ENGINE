@@ -57,7 +57,6 @@ namespace XREngine
             ProcessNode(scene->MRootNode, scene, Matrix4x4.Identity, rootNode);
 
             Task.Run(() => Parallel.ForEach(_meshProcessActions, action => action()));
-            //Task.WaitAll([.. _meshProcessActions]);
 
             for (int i = 0; i < scene->MNumSkeletons; i++)
             {
@@ -217,9 +216,11 @@ namespace XREngine
 
         private XRMesh LoadMesh(Mesh* mesh)
         {
-            var vertices = CollectVertices(mesh);
-            var indices = CollectIndices(mesh);
-            return XRMesh.Create(CreatePrimitivesParallel(vertices, indices));
+            return new XRMesh(mesh, _assimp);
+
+            //var vertices = CollectVertices(mesh);
+            //var indices = CollectIndices(mesh);
+            //return XRMesh.Create(CreatePrimitivesParallel(vertices, indices));
         }
 
         private List<VertexPrimitive> CreatePrimitivesSequential(Vertex[] vertices, uint[][] indices)

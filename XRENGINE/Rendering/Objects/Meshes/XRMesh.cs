@@ -1,4 +1,6 @@
 ﻿using Extensions;
+using Silk.NET.Assimp;
+using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Numerics;
@@ -7,6 +9,7 @@ using XREngine.Data.Core;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
 using XREngine.Scene.Transforms;
+using XREngine.TriangleConverter;
 using YamlDotNet.Serialization;
 
 namespace XREngine.Rendering
@@ -19,291 +22,6 @@ namespace XREngine.Rendering
         [YamlIgnore]
         public XREvent<XRMesh> DataChanged;
 
-        public XRMesh()
-        {
-            _utilizedBones = [];
-            _weightsPerVertex = [];
-            _faceIndices = [];
-        }
-
-        /// <summary>
-        /// This constructor converts a simple list of vertices into a mesh optimized for rendering.
-        /// </summary>
-        /// <param name="info"></param>
-        /// <param name="primitives"></param>
-        /// <param name="type"></param>
-        public XRMesh(IEnumerable<VertexPrimitive> primitives)
-        {
-#if DEBUG
-            Stopwatch sw = new();
-            sw.Start();
-#endif
-            //TODO: convert triangles to tristrips and use primitive restart to render them all in one call? is this more efficient?
-
-            //Convert all primitives to simple primitives
-            List<Vertex> points = [];
-            List<Vertex> lines = [];
-            List<Vertex> triangles = [];
-
-            Dictionary<TransformBase, float>[]? weights = null;
-            Vector3[] posBuffer;
-            Vector3[]? normBuffer = null;
-            Vector3[]? tanBuffer = null;
-            Vector4[][]? colorBuffers = null;
-            Vector2[][]? uvBuffers = null;
-
-            //Create an action for each vertex attribute to set the buffer data
-            //This lets us avoid redundant LINQ code by looping through the vertices only once
-            List<Action<int, int, Vertex>> vertexActions = [];
-
-            bool hasSkinning = false;
-            bool hasNormals = false;
-            bool hasTangents = false;
-            int maxColorCount = 0;
-            int maxTexCoordCount = 0;
-            bool hasBlendshapes = false;
-            AABB? bounds = null;
-
-            //For each vertex, we double check what data it has and add verify that the corresponding add-to-buffer action is added
-            void AddVertex(List<Vertex> vertices, Vertex v)
-            {
-                if (v is null)
-                {
-                    Debug.LogWarning("Null vertex found in mesh.");
-                    return;
-                }
-
-                vertices.Add(v);
-
-                if (bounds is null)
-                    bounds = new AABB(v.Position, v.Position);
-                else
-                    bounds.Value.ExpandToInclude(v.Position);
-
-                if (!hasSkinning && v.Weights is not null && v.Weights.Count > 0)
-                {
-                    hasSkinning = true;
-                    vertexActions.Add((i, x, vtx) =>
-                    {
-                        weights![i] = vtx.Weights ?? [];
-                    });
-                }
-
-                if (!hasNormals && v.Normal is not null)
-                {
-                    hasNormals = true;
-                    vertexActions.Add((i, x, vtx) =>
-                    {
-                        normBuffer![i] = vtx.Normal ?? Vector3.Zero;
-                    });
-                }
-
-                if (!hasTangents && v.Tangent is not null)
-                {
-                    hasTangents = true;
-                    vertexActions.Add((i, x, vtx) =>
-                    {
-                        tanBuffer![i] = vtx.Tangent ?? Vector3.Zero;
-                    });
-                }
-
-                maxTexCoordCount = Math.Max(maxTexCoordCount, v.TextureCoordinateSets.Count);
-                if (v.TextureCoordinateSets is not null && v.TextureCoordinateSets.Count > 0)
-                {
-                    vertexActions.Add((i, x, vtx) =>
-                    {
-                        for (int texCoordIndex = 0; texCoordIndex < v.TextureCoordinateSets.Count; ++texCoordIndex)
-                            uvBuffers![texCoordIndex][i] = vtx.TextureCoordinateSets != null && texCoordIndex < vtx.TextureCoordinateSets.Count
-                                ? vtx.TextureCoordinateSets[texCoordIndex]
-                                : Vector2.Zero;
-                    });
-                }
-
-                maxColorCount = Math.Max(maxColorCount, v.ColorSets.Count);
-                if (v.ColorSets is not null && v.ColorSets.Count > 0)
-                {
-                    vertexActions.Add((i, x, vtx) =>
-                    {
-                        for (int colorIndex = maxColorCount; colorIndex < v.ColorSets.Count; ++colorIndex)
-                            colorBuffers![colorIndex][i] = vtx.ColorSets != null && colorIndex < vtx.ColorSets.Count
-                                ? vtx.ColorSets[colorIndex]
-                                : Vector4.Zero;
-                    });
-                }
-
-                if (!hasBlendshapes && v.Blendshapes is not null && v.Blendshapes.Count > 0)
-                {
-                    hasBlendshapes = true;
-                    vertexActions.Add((i, x, vtx) =>
-                    {
-                        foreach (var pair in vtx.Blendshapes!)
-                        {
-                            string name = pair.Key;
-                            var data = pair.Value;
-                            Vector3 deltaPos = data.Position - vtx.Position;
-                            Vector3? deltaNorm = data.Normal - vtx.Normal;
-                            Vector3? deltaTan = data.Tangent - vtx.Tangent;
-                            //List<Vector4> colors = data.ColorSets;
-                            //List<Vector2> texCoords = data.TextureCoordinateSets;
-
-                        }
-                    });
-                }
-            }
-
-            //Convert all primitives to simple primitives
-            //While doing this, compile a command list of actions to set buffer data
-            foreach (VertexPrimitive prim in primitives)
-            {
-                switch (prim)
-                {
-                    case Vertex v:
-                        AddVertex(points, v);
-                        break;
-                    case VertexLinePrimitive l:
-                        {
-                            var asLines = l.ToLines();
-                            foreach (VertexLine line in asLines)
-                                foreach (Vertex v in line.Vertices)
-                                    AddVertex(lines, v);
-                        }
-                        break;
-                    case VertexLine line:
-                        foreach (Vertex v in line.Vertices)
-                            AddVertex(lines, v);
-                        break;
-                    case VertexPolygon t:
-                        {
-                            var asTris = t.ToTriangles();
-                            foreach (VertexTriangle tri in asTris)
-                                foreach (Vertex v in tri.Vertices)
-                                    AddVertex(triangles, v);
-                        }
-                        break;
-                }
-            }
-
-            _bounds = bounds ?? new AABB(Vector3.Zero, Vector3.Zero);
-
-            //Remap vertices to unique indices for each type of simple primitive
-            Remapper? triRemap = SetTriangleIndices(triangles);
-            Remapper? lineRemap = SetLineIndices(lines);
-            Remapper? pointRemap = SetPointIndices(points);
-
-            //Determine which type of primitive has the most data and use that as the primary type
-            int count;
-            Remapper? remapper;
-            List<Vertex> sourceList;
-            if (triangles.Count > lines.Count && triangles.Count > points.Count)
-            {
-                _type = EPrimitiveType.Triangles;
-                count = triangles.Count;
-                remapper = triRemap;
-                sourceList = triangles;
-            }
-            else if (lines.Count > triangles.Count && lines.Count > points.Count)
-            {
-                _type = EPrimitiveType.Lines;
-                count = lines.Count;
-                remapper = lineRemap;
-                sourceList = lines;
-            }
-            else
-            {
-                _type = EPrimitiveType.Points;
-                count = points.Count;
-                remapper = pointRemap;
-                sourceList = points;
-            }
-
-            //Generate the unallocated buffers
-            int[] firstAppearanceArray;
-            if (remapper?.ImplementationTable is null)
-            {
-                firstAppearanceArray = new int[count];
-                for (int i = 0; i < count; ++i)
-                    firstAppearanceArray[i] = i;
-            }
-            else
-                firstAppearanceArray = remapper.ImplementationTable!;
-
-            _faceIndices = new VertexIndices[firstAppearanceArray.Length];
-            _faceIndices.Fill();
-
-            InitBuffers(
-                ref weights,
-                out posBuffer,
-                ref normBuffer,
-                ref tanBuffer,
-                ref colorBuffers,
-                ref uvBuffers,
-                hasSkinning,
-                hasNormals,
-                hasTangents,
-                maxColorCount,
-                maxTexCoordCount,
-                firstAppearanceArray.Length);
-
-            vertexActions.Add((i, x, vtx) => posBuffer[i] = vtx.Position);
-
-            //Fill the buffers with the vertex data using the command list
-            //We can do this in parallel since each vertex is independent
-            PopulateVertexData(vertexActions, sourceList, firstAppearanceArray, true);
-
-            if (weights is not null)
-                SetBoneWeights(weights);
-
-            string binding = ECommonBufferType.Position.ToString();
-            PositionsBuffer = new XRDataBuffer(binding, EBufferTarget.ArrayBuffer, false);
-            PositionsBuffer.SetDataRaw(posBuffer);
-            Buffers.Add(binding, PositionsBuffer);
-
-            if (normBuffer is not null)
-            {
-                binding = ECommonBufferType.Normal.ToString();
-                NormalsBuffer = new XRDataBuffer(binding, EBufferTarget.ArrayBuffer, false);
-                NormalsBuffer.SetDataRaw(normBuffer);
-                Buffers.Add(binding, NormalsBuffer);
-            }
-
-            if (tanBuffer is not null)
-            {
-                binding = ECommonBufferType.Tangent.ToString();
-                TangentsBuffer = new XRDataBuffer(binding, EBufferTarget.ArrayBuffer, false);
-                TangentsBuffer.SetDataRaw(tanBuffer);
-                Buffers.Add(binding, TangentsBuffer);
-            }
-
-            if (colorBuffers is not null)
-            {
-                for (int colorIndex = 0; colorIndex < colorBuffers.Length; ++colorIndex)
-                {
-                    binding = $"{ECommonBufferType.Color}{colorIndex}";
-                    ColorBuffers[colorIndex] = new XRDataBuffer(binding, EBufferTarget.ArrayBuffer, false);
-                    ColorBuffers[colorIndex].SetDataRaw(colorBuffers[colorIndex]);
-                    Buffers.Add(binding, ColorBuffers[colorIndex]);
-                }
-            }
-
-            if (uvBuffers is not null)
-            {
-                for (int texCoordIndex = 0; texCoordIndex < uvBuffers.Length; ++texCoordIndex)
-                {
-                    binding = $"{ECommonBufferType.TexCoord}{texCoordIndex}";
-                    TexCoordBuffers[texCoordIndex] = new XRDataBuffer(binding, EBufferTarget.ArrayBuffer, false);
-                    TexCoordBuffers[texCoordIndex].SetDataRaw(uvBuffers[texCoordIndex]);
-                    Buffers.Add(binding, TexCoordBuffers[texCoordIndex]);
-                }
-            }
-
-#if DEBUG
-            sw.Stop();
-            float sec = sw.ElapsedMilliseconds / 1000.0f;
-            if (sec > 1.0f)
-                Debug.Out($"Mesh creation took {sw.ElapsedMilliseconds / 1000.0f} sec.");
-#endif
-        }
-
         private static void PopulateVertexData(List<Action<int, int, Vertex>> vertexActions, List<Vertex> sourceList, int[] firstAppearanceArray, bool parallel = true)
         {
             if (parallel)
@@ -313,58 +31,81 @@ namespace XREngine.Rendering
                     SetVertexData(i, vertexActions, sourceList, firstAppearanceArray);
         }
 
-        private static void SetVertexData(int i, List<Action<int, int, Vertex>> vertexActions, List<Vertex> sourceList, int[] firstAppearanceArray)
+        private static void PopulateVertexData(List<Action<int, int, Vertex>> vertexActions, List<Vertex> sourceList, int count, bool parallel = true)
         {
-            int x = firstAppearanceArray[i];
+            if (parallel)
+                Parallel.For(0, count, i => SetVertexData(i, vertexActions, sourceList));
+            else
+                for (int i = 0; i < count; ++i)
+                    SetVertexData(i, vertexActions, sourceList);
+        }
+
+        private static void SetVertexData(int i, List<Action<int, int, Vertex>> vertexActions, List<Vertex> sourceList, int[] remapArray)
+        {
+            int x = remapArray[i];
             Vertex vtx = sourceList[x];
             foreach (var action in vertexActions)
                 action.Invoke(i, x, vtx);
         }
 
+        private static void SetVertexData(int i, List<Action<int, int, Vertex>> vertexActions, List<Vertex> sourceList)
+        {
+            Vertex vtx = sourceList[i];
+            foreach (var action in vertexActions)
+                action.Invoke(i, i, vtx);
+        }
+
         private void InitBuffers(
             ref Dictionary<TransformBase, float>[]? weights,
-            out Vector3[] posBuffer,
-            ref Vector3[]? normBuffer,
-            ref Vector3[]? tanBuffer,
-            ref Vector4[][]? colorBuffers,
-            ref Vector2[][]? uvBuffers,
             bool hasSkinning,
             bool hasNormals,
             bool hasTangents,
-            int maxColorCount,
-            int maxTexCoordCount,
-            int firstAppearanceArrayCount)
+            int colorCount,
+            int texCoordCount,
+            int vertexCount)
         {
-            posBuffer = new Vector3[firstAppearanceArrayCount];
+            PositionsBuffer = new XRDataBuffer(ECommonBufferType.Position.ToString(), EBufferTarget.ArrayBuffer, false);
+            PositionsBuffer.Allocate<Vector3>((uint)vertexCount);
+            Buffers.Add(ECommonBufferType.Position.ToString(), PositionsBuffer);
 
             if (hasSkinning)
-                weights = new Dictionary<TransformBase, float>[firstAppearanceArrayCount];
+                weights = new Dictionary<TransformBase, float>[vertexCount];
 
             if (hasNormals)
-                normBuffer = new Vector3[firstAppearanceArrayCount];
+            {
+                NormalsBuffer = new XRDataBuffer(ECommonBufferType.Normal.ToString(), EBufferTarget.ArrayBuffer, false);
+                NormalsBuffer.Allocate<Vector3>((uint)vertexCount);
+                Buffers.Add(ECommonBufferType.Normal.ToString(), NormalsBuffer);
+            }
 
             if (hasTangents)
-                tanBuffer = new Vector3[firstAppearanceArrayCount];
-
-            if (maxColorCount > 0)
             {
-                colorBuffers = new Vector4[maxColorCount][];
-                ColorBuffers = new XRDataBuffer[maxColorCount];
-                for (int colorIndex = 0; colorIndex < maxColorCount; ++colorIndex)
+                TangentsBuffer = new XRDataBuffer(ECommonBufferType.Tangent.ToString(), EBufferTarget.ArrayBuffer, false);
+                TangentsBuffer.Allocate<Vector3>((uint)vertexCount);
+                Buffers.Add(ECommonBufferType.Tangent.ToString(), TangentsBuffer);
+            }
+
+            if (colorCount > 0)
+            {
+                ColorBuffers = new XRDataBuffer[colorCount];
+                for (int colorIndex = 0; colorIndex < colorCount; ++colorIndex)
                 {
-                    if (colorBuffers[colorIndex] is null)
-                        colorBuffers[colorIndex] = new Vector4[firstAppearanceArrayCount];
+                    string binding = $"{ECommonBufferType.Color}{colorIndex}";
+                    ColorBuffers[colorIndex] = new XRDataBuffer(binding, EBufferTarget.ArrayBuffer, false);
+                    ColorBuffers[colorIndex].Allocate<Vector4>((uint)vertexCount);
+                    Buffers.Add(binding, ColorBuffers[colorIndex]);
                 }
             }
 
-            if (maxTexCoordCount > 0)
+            if (texCoordCount > 0)
             {
-                uvBuffers = new Vector2[maxTexCoordCount][];
-                TexCoordBuffers = new XRDataBuffer[maxTexCoordCount];
-                for (int texCoordIndex = 0; texCoordIndex < maxTexCoordCount; ++texCoordIndex)
+                TexCoordBuffers = new XRDataBuffer[texCoordCount];
+                for (int texCoordIndex = 0; texCoordIndex < texCoordCount; ++texCoordIndex)
                 {
-                    if (uvBuffers[texCoordIndex] is null)
-                        uvBuffers[texCoordIndex] = new Vector2[firstAppearanceArrayCount];
+                    string binding = $"{ECommonBufferType.TexCoord}{texCoordIndex}";
+                    TexCoordBuffers[texCoordIndex] = new XRDataBuffer(binding, EBufferTarget.ArrayBuffer, false);
+                    TexCoordBuffers[texCoordIndex].Allocate<Vector2>((uint)vertexCount);
+                    Buffers.Add(binding, TexCoordBuffers[texCoordIndex]);
                 }
             }
         }
@@ -1176,5 +917,459 @@ namespace XREngine.Rendering
 
         protected override void OnDestroying()
             => _buffers?.ForEach(x => x.Value.Dispose());
+
+        public XRMesh()
+        {
+            _utilizedBones = [];
+            _weightsPerVertex = [];
+            _faceIndices = [];
+        }
+
+        /// <summary>
+        /// This constructor converts a simple list of vertices into a mesh optimized for rendering.
+        /// </summary>
+        /// <param name="info"></param>
+        /// <param name="primitives"></param>
+        /// <param name="type"></param>
+        public XRMesh(IEnumerable<VertexPrimitive> primitives)
+        {
+#if DEBUG
+            Stopwatch sw = new();
+            sw.Start();
+#endif
+            //TODO: convert triangles to tristrips and use primitive restart to render them all in one call? is this more efficient?
+
+            //Convert all primitives to simple primitives
+            List<Vertex> points = [];
+            List<Vertex> lines = [];
+            List<Vertex> triangles = [];
+
+            Dictionary<TransformBase, float>[]? weights = null;
+
+            //Create an action for each vertex attribute to set the buffer data
+            //This lets us avoid redundant LINQ code by looping through the vertices only once
+            List<Action<int, int, Vertex>> vertexActions = [];
+
+            bool hasSkinning = false;
+            bool hasNormals = false;
+            bool hasTangents = false;
+            int maxColorCount = 0;
+            int maxTexCoordCount = 0;
+            bool hasBlendshapes = false;
+            AABB? bounds = null;
+
+            //For each vertex, we double check what data it has and add verify that the corresponding add-to-buffer action is added
+            void AddVertex(List<Vertex> vertices, Vertex v)
+            {
+                if (v is null)
+                {
+                    Debug.LogWarning("Null vertex found in mesh.");
+                    return;
+                }
+
+                vertices.Add(v);
+
+                if (bounds is null)
+                    bounds = new AABB(v.Position, v.Position);
+                else
+                    bounds.Value.ExpandToInclude(v.Position);
+
+                if (!hasSkinning && v.Weights is not null && v.Weights.Count > 0)
+                {
+                    hasSkinning = true;
+                    vertexActions.Add((i, x, vtx) =>
+                    {
+                        weights![i] = vtx.Weights ?? [];
+                    });
+                }
+
+                if (!hasNormals && v.Normal is not null)
+                {
+                    hasNormals = true;
+                    vertexActions.Add((i, x, vtx) =>
+                    {
+                        NormalsBuffer!.SetDataRawAtIndex((uint)i, vtx.Normal ?? Vector3.Zero);
+                    });
+                }
+
+                if (!hasTangents && v.Tangent is not null)
+                {
+                    hasTangents = true;
+                    vertexActions.Add((i, x, vtx) =>
+                    {
+                        TangentsBuffer!.SetDataRawAtIndex((uint)i, vtx.Tangent ?? Vector3.Zero);
+                    });
+                }
+
+                maxTexCoordCount = Math.Max(maxTexCoordCount, v.TextureCoordinateSets.Count);
+                if (v.TextureCoordinateSets is not null && v.TextureCoordinateSets.Count > 0)
+                {
+                    vertexActions.Add((i, x, vtx) =>
+                    {
+                        for (int texCoordIndex = 0; texCoordIndex < v.TextureCoordinateSets.Count; ++texCoordIndex)
+                            TexCoordBuffers![texCoordIndex].SetDataRawAtIndex((uint)i, vtx.TextureCoordinateSets != null && texCoordIndex < vtx.TextureCoordinateSets.Count
+                                ? vtx.TextureCoordinateSets[texCoordIndex]
+                                : Vector2.Zero);
+                    });
+                }
+
+                maxColorCount = Math.Max(maxColorCount, v.ColorSets.Count);
+                if (v.ColorSets is not null && v.ColorSets.Count > 0)
+                {
+                    vertexActions.Add((i, x, vtx) =>
+                    {
+                        for (int colorIndex = maxColorCount; colorIndex < v.ColorSets.Count; ++colorIndex)
+                            ColorBuffers![colorIndex].SetDataRawAtIndex((uint)i, vtx.ColorSets != null && colorIndex < vtx.ColorSets.Count
+                                ? vtx.ColorSets[colorIndex]
+                                : Vector4.Zero);
+                    });
+                }
+
+                if (!hasBlendshapes && v.Blendshapes is not null && v.Blendshapes.Count > 0)
+                {
+                    hasBlendshapes = true;
+                    vertexActions.Add((i, x, vtx) =>
+                    {
+                        foreach (var pair in vtx.Blendshapes!)
+                        {
+                            string name = pair.Key;
+                            var data = pair.Value;
+                            Vector3 deltaPos = data.Position - vtx.Position;
+                            Vector3? deltaNorm = data.Normal - vtx.Normal;
+                            Vector3? deltaTan = data.Tangent - vtx.Tangent;
+                            //List<Vector4> colors = data.ColorSets;
+                            //List<Vector2> texCoords = data.TextureCoordinateSets;
+
+                        }
+                    });
+                }
+            }
+
+            //Convert all primitives to simple primitives
+            //While doing this, compile a command list of actions to set buffer data
+            foreach (VertexPrimitive prim in primitives)
+            {
+                switch (prim)
+                {
+                    case Vertex v:
+                        AddVertex(points, v);
+                        break;
+                    case VertexLinePrimitive l:
+                        {
+                            var asLines = l.ToLines();
+                            foreach (VertexLine line in asLines)
+                                foreach (Vertex v in line.Vertices)
+                                    AddVertex(lines, v);
+                        }
+                        break;
+                    case VertexLine line:
+                        foreach (Vertex v in line.Vertices)
+                            AddVertex(lines, v);
+                        break;
+                    case VertexPolygon t:
+                        {
+                            var asTris = t.ToTriangles();
+                            foreach (VertexTriangle tri in asTris)
+                                foreach (Vertex v in tri.Vertices)
+                                    AddVertex(triangles, v);
+                        }
+                        break;
+                }
+            }
+
+            _bounds = bounds ?? new AABB(Vector3.Zero, Vector3.Zero);
+
+            //Remap vertices to unique indices for each type of simple primitive
+            Remapper? triRemap = SetTriangleIndices(triangles);
+            Remapper? lineRemap = SetLineIndices(lines);
+            Remapper? pointRemap = SetPointIndices(points);
+
+            //Determine which type of primitive has the most data and use that as the primary type
+            int count;
+            Remapper? remapper;
+            List<Vertex> sourceList;
+            if (triangles.Count > lines.Count && triangles.Count > points.Count)
+            {
+                _type = EPrimitiveType.Triangles;
+                count = triangles.Count;
+                remapper = triRemap;
+                sourceList = triangles;
+            }
+            else if (lines.Count > triangles.Count && lines.Count > points.Count)
+            {
+                _type = EPrimitiveType.Lines;
+                count = lines.Count;
+                remapper = lineRemap;
+                sourceList = lines;
+            }
+            else
+            {
+                _type = EPrimitiveType.Points;
+                count = points.Count;
+                remapper = pointRemap;
+                sourceList = points;
+            }
+
+            int[] firstAppearanceArray;
+            if (remapper?.ImplementationTable is null)
+            {
+                firstAppearanceArray = new int[count];
+                for (int i = 0; i < count; ++i)
+                    firstAppearanceArray[i] = i;
+            }
+            else
+                firstAppearanceArray = remapper.ImplementationTable!;
+
+            _faceIndices = new VertexIndices[firstAppearanceArray.Length];
+            //for (int i = 0; i < firstAppearanceArray.Length; ++i)
+            //{
+            //    Dictionary<string, uint> bufferBindings = [];
+            //    for (int j = 0; j < Buffers.Count; ++j)
+            //        bufferBindings.Add(Buffers.Keys.ElementAt(j), (uint)j);
+            //    _faceIndices[i] = new VertexIndices()
+            //    {
+            //        BufferBindings = [],
+            //        WeightIndex = weights is null ? -1 : i
+            //    };
+            //}
+
+            InitBuffers(
+                ref weights,
+                hasSkinning,
+                hasNormals,
+                hasTangents,
+                maxColorCount,
+                maxTexCoordCount,
+                firstAppearanceArray.Length);
+
+            vertexActions.Add((i, x, vtx) => PositionsBuffer!.SetDataRawAtIndex((uint)i, vtx.Position));
+
+            //Fill the buffers with the vertex data using the command list
+            //We can do this in parallel since each vertex is independent
+            PopulateVertexData(vertexActions, sourceList, firstAppearanceArray, true);
+
+            if (weights is not null)
+                SetBoneWeights(weights);
+
+#if DEBUG
+            sw.Stop();
+            float sec = sw.ElapsedMilliseconds / 1000.0f;
+            if (sec > 1.0f)
+                Debug.Out($"Mesh creation took {sw.ElapsedMilliseconds / 1000.0f} sec.");
+#endif
+        }
+
+        public unsafe XRMesh(Mesh* mesh, Assimp assimp)
+        {
+#if DEBUG
+            Stopwatch sw = new();
+            sw.Start();
+#endif
+
+            //Convert all primitives to simple primitives
+            List<Vertex> points = [];
+            List<Vertex> lines = [];
+            List<Vertex> triangles = [];
+
+            Dictionary<TransformBase, float>[]? weights = null;
+
+            //Create an action for each vertex attribute to set the buffer data
+            //This lets us avoid redundant LINQ code by looping through the vertices only once
+            List<Action<int, int, Vertex>> vertexActions = [];
+
+            bool hasSkinning = false;
+            bool hasNormals = false;
+            bool hasTangents = false;
+            int maxColorCount = 0;
+            int maxTexCoordCount = 0;
+            bool hasBlendshapes = false;
+            AABB? bounds = null;
+
+            //For each vertex, we double check what data it has and add verify that the corresponding add-to-buffer action is added
+            void AddVertex(List<Vertex> vertices, Vertex v)
+            {
+                if (v is null)
+                {
+                    Debug.LogWarning("Null vertex found in mesh.");
+                    return;
+                }
+
+                vertices.Add(v);
+
+                if (bounds is null)
+                    bounds = new AABB(v.Position, v.Position);
+                else
+                    bounds.Value.ExpandToInclude(v.Position);
+
+                if (!hasSkinning && v.Weights is not null && v.Weights.Count > 0)
+                {
+                    hasSkinning = true;
+                    vertexActions.Add((i, x, vtx) =>
+                    {
+                        weights![i] = vtx.Weights ?? [];
+                    });
+                }
+
+                if (!hasNormals && v.Normal is not null)
+                {
+                    hasNormals = true;
+                    vertexActions.Add((i, x, vtx) =>
+                    {
+                        NormalsBuffer!.SetDataRawAtIndex((uint)i, vtx.Normal ?? Vector3.Zero);
+                    });
+                }
+
+                if (!hasTangents && v.Tangent is not null)
+                {
+                    hasTangents = true;
+                    vertexActions.Add((i, x, vtx) =>
+                    {
+                        TangentsBuffer!.SetDataRawAtIndex((uint)i, vtx.Tangent ?? Vector3.Zero);
+                    });
+                }
+
+                maxTexCoordCount = Math.Max(maxTexCoordCount, v.TextureCoordinateSets.Count);
+                if (v.TextureCoordinateSets is not null && v.TextureCoordinateSets.Count > 0)
+                {
+                    vertexActions.Add((i, x, vtx) =>
+                    {
+                        for (int texCoordIndex = 0; texCoordIndex < v.TextureCoordinateSets.Count; ++texCoordIndex)
+                            TexCoordBuffers![texCoordIndex].SetDataRawAtIndex((uint)i, vtx.TextureCoordinateSets != null && texCoordIndex < vtx.TextureCoordinateSets.Count
+                                ? vtx.TextureCoordinateSets[texCoordIndex]
+                                : Vector2.Zero);
+                    });
+                }
+
+                maxColorCount = Math.Max(maxColorCount, v.ColorSets.Count);
+                if (v.ColorSets is not null && v.ColorSets.Count > 0)
+                {
+                    vertexActions.Add((i, x, vtx) =>
+                    {
+                        for (int colorIndex = maxColorCount; colorIndex < v.ColorSets.Count; ++colorIndex)
+                            ColorBuffers![colorIndex].SetDataRawAtIndex((uint)i, vtx.ColorSets != null && colorIndex < vtx.ColorSets.Count
+                                ? vtx.ColorSets[colorIndex]
+                                : Vector4.Zero);
+                    });
+                }
+
+                if (!hasBlendshapes && v.Blendshapes is not null && v.Blendshapes.Count > 0)
+                {
+                    hasBlendshapes = true;
+                    vertexActions.Add((i, x, vtx) =>
+                    {
+                        foreach (var pair in vtx.Blendshapes!)
+                        {
+                            string name = pair.Key;
+                            var data = pair.Value;
+                            Vector3 deltaPos = data.Position - vtx.Position;
+                            Vector3? deltaNorm = data.Normal - vtx.Normal;
+                            Vector3? deltaTan = data.Tangent - vtx.Tangent;
+                            //List<Vector4> colors = data.ColorSets;
+                            //List<Vector2> texCoords = data.TextureCoordinateSets;
+
+                        }
+                    });
+                }
+            }
+
+            //Convert all primitives to simple primitives
+            //While doing this, compile a command list of actions to set buffer data
+            
+            ConcurrentDictionary<uint, Vertex> vertexCache = new();
+
+            PrimitiveType primType = (PrimitiveType)mesh->MPrimitiveTypes;
+            for (uint i = 0; i < mesh->MNumFaces; i++)
+            {
+                Face face = mesh->MFaces[i];
+                uint numInd = face.MNumIndices;
+                var indices = new uint[numInd];
+                List<Vertex> targetList = numInd switch
+                {
+                    1 => points,
+                    2 => lines,
+                    3 => triangles,
+                    _ => triangles,
+                };
+                if (numInd > 3)
+                {
+                    //Convert ngon to triangles
+                    for (uint j = 0; j < numInd - 2; j++)
+                    {
+                        AddVertex(targetList, vertexCache.GetOrAdd(face.MIndices[0], x => Vertex.FromAssimp(mesh, x)));
+                        AddVertex(targetList, vertexCache.GetOrAdd(face.MIndices[j + 1], x => Vertex.FromAssimp(mesh, x)));
+                        AddVertex(targetList, vertexCache.GetOrAdd(face.MIndices[j + 2], x => Vertex.FromAssimp(mesh, x)));
+                    }
+                }
+                else
+                    for (uint j = 0; j < numInd; j++)
+                        AddVertex(targetList, vertexCache.GetOrAdd(face.MIndices[j], x => Vertex.FromAssimp(mesh, x)));
+            }
+
+            _bounds = bounds ?? new AABB(Vector3.Zero, Vector3.Zero);
+
+            SetTriangleIndices(triangles, false);
+            SetLineIndices(lines, false);
+            SetPointIndices(points, false);
+
+            //Determine which type of primitive has the most data and use that as the primary type
+            int count;
+            List<Vertex> sourceList;
+            if (triangles.Count > lines.Count && triangles.Count > points.Count)
+            {
+                _type = EPrimitiveType.Triangles;
+                count = triangles.Count;
+                sourceList = triangles;
+            }
+            else if (lines.Count > triangles.Count && lines.Count > points.Count)
+            {
+                _type = EPrimitiveType.Lines;
+                count = lines.Count;
+                sourceList = lines;
+            }
+            else
+            {
+                _type = EPrimitiveType.Points;
+                count = points.Count;
+                sourceList = points;
+            }
+
+            _faceIndices = new VertexIndices[count];
+            //for (int i = 0; i < count; ++i)
+            //{
+            //    Dictionary<string, uint> bufferBindings = [];
+            //    for (int j = 0; j < Buffers.Count; ++j)
+            //        bufferBindings.Add(Buffers.Keys.ElementAt(j), (uint)j);
+            //    _faceIndices[i] = new VertexIndices()
+            //    {
+            //        BufferBindings = [],
+            //        WeightIndex = weights is null ? -1 : i
+            //    };
+            //}
+
+            InitBuffers(
+                ref weights,
+                hasSkinning,
+                hasNormals,
+                hasTangents,
+                maxColorCount,
+                maxTexCoordCount,
+                count);
+
+            vertexActions.Add((i, x, vtx) => PositionsBuffer!.SetDataRawAtIndex((uint)i, vtx.Position));
+
+            //Fill the buffers with the vertex data using the command list
+            //We can do this in parallel since each vertex is independent
+            PopulateVertexData(vertexActions, sourceList, count, true);
+
+            if (weights is not null)
+                SetBoneWeights(weights);
+
+#if DEBUG
+            sw.Stop();
+            float sec = sw.ElapsedMilliseconds / 1000.0f;
+            if (sec > 1.0f)
+                Debug.Out($"Mesh creation took {sw.ElapsedMilliseconds / 1000.0f} sec.");
+#endif
+        }
     }
 }
