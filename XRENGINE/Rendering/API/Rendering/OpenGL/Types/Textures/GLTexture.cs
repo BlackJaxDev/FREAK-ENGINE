@@ -24,7 +24,6 @@ namespace XREngine.Rendering.OpenGL
             Data.ClearRequested -= Clear;
             Data.GenerateMipmapsRequested -= GenerateMipmaps;
             Data.PropertyChanged -= DataPropertyChanged;
-            base.UnlinkData();
         }
 
         protected override void LinkData()
@@ -37,7 +36,6 @@ namespace XREngine.Rendering.OpenGL
             Data.ClearRequested += Clear;
             Data.GenerateMipmapsRequested += GenerateMipmaps;
             Data.PropertyChanged += DataPropertyChanged;
-            base.LinkData();
         }
 
         private void DataPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)

@@ -16,10 +16,13 @@ namespace XREngine.Rendering.OpenGL
             public GLObject(OpenGLRenderer renderer, T data) : base(renderer)
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
             {
+                ArgumentNullException.ThrowIfNull(data);
+
                 _data = data;
+                _data.AddWrapper(this);
                 LinkData();
             }
-            
+
             protected override GenericRenderObject Data_Internal => Data;
 
             public override string GetDescribingName()
@@ -34,16 +37,24 @@ namespace XREngine.Rendering.OpenGL
                     if (value == _data)
                         return;
 
-                    UnlinkData();
+                    if (_data is not null)
+                    {
+                        UnlinkData();
+                        _data.RemoveWrapper(this);
+                    }
+
                     _data = value;
-                    LinkData();
+
+                    if (_data is not null)
+                    {
+                        _data.AddWrapper(this);
+                        LinkData();
+                    }
                 }
             }
 
-            protected virtual void UnlinkData()
-                => _data.RemoveWrapper(this);
-            protected virtual void LinkData()
-                => _data.AddWrapper(this);
+            protected abstract void UnlinkData();
+            protected abstract void LinkData();
 
             protected internal override void PostGenerated()
             {

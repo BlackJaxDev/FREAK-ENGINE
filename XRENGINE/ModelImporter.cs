@@ -1,9 +1,15 @@
 ﻿using Silk.NET.Assimp;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Numerics;
+using XREngine.Components.Scene.Mesh;
+using XREngine.Data.Colors;
 using XREngine.Data.Rendering;
 using XREngine.Rendering;
+using XREngine.Rendering.Models;
+using XREngine.Rendering.Models.Materials;
 using XREngine.Scene;
+using XREngine.Scene.Transforms;
 using AScene = Silk.NET.Assimp.Scene;
 
 namespace XREngine
@@ -18,20 +24,28 @@ namespace XREngine
 
         private readonly Assimp _assimp;
         private readonly string _path;
+        private readonly ConcurrentBag<XRMesh> _meshes = [];
+        private readonly ConcurrentBag<XRMaterial> _materials = [];
+        private readonly ConcurrentDictionary<string, TextureInfo> _texturesLoaded = [];
 
-        public List<XRMesh> Meshes { get; protected set; } = [];
-        public string Path => _path;
+        public string SourceFilePath => _path;
 
-        public static ModelImporter Import(string path)
+        public static SceneNode? Import(string path, PostProcessSteps options)
         {
-            var importer = new ModelImporter(path);
-            //importer.Import();
-            return importer;
+            using var importer = new ModelImporter(path);
+            return importer.Import(options);
         }
+        
+        private ConcurrentBag<Action> _meshProcessActions = [];
 
-        private SceneNode Import(XRWorldInstance world, PostProcessSteps postProcess)
+        private SceneNode? Import(PostProcessSteps options)
         {
-            var scene = _assimp.ImportFile(Path, (uint)postProcess);
+#if DEBUG
+            Debug.Out($"Importing model: {SourceFilePath} with options: {options}");
+            Stopwatch sw = new();
+            sw.Start();
+#endif
+            AScene* scene = _assimp.ImportFile(SourceFilePath, (uint)options);
 
             if (scene is null || scene->MFlags == Assimp.SceneFlagsIncomplete || scene->MRootNode is null)
             {
@@ -39,22 +53,11 @@ namespace XREngine
                 throw new Exception(error);
             }
 
-            //SceneNode rootNode = new(world, System.IO.Path.GetFileNameWithoutExtension(Path));
-            //return ProcessNode(scene->MRootNode, scene, Matrix4x4.Identity, rootNode);
-            return null;
-        }
+            SceneNode rootNode = new(Path.GetFileNameWithoutExtension(SourceFilePath));
+            ProcessNode(scene->MRootNode, scene, Matrix4x4.Identity, rootNode);
 
-        private unsafe SceneNode ProcessNode(Node* node, AScene* scene, Matrix4x4 transform, SceneNode parent)
-        {
-            SceneNode sceneNode = new(parent);
-
-            transform = node->MTransformation * transform;
-
-            for (var i = 0; i < node->MNumMeshes; i++)
-                Meshes.Add(ProcessMesh(scene->MMeshes[node->MMeshes[i]], scene, transform));
-
-            for (var i = 0; i < node->MNumChildren; i++)
-                ProcessNode(node->MChildren[i], scene, transform, sceneNode);
+            Task.Run(() => Parallel.ForEach(_meshProcessActions, action => action()));
+            //Task.WaitAll([.. _meshProcessActions]);
 
             for (int i = 0; i < scene->MNumSkeletons; i++)
             {
@@ -75,44 +78,151 @@ namespace XREngine
                     //Meshes[0].AddBone(index, bone->MOffsetMatrix);
                 }
             }
-
-            return sceneNode;
+#if DEBUG
+            sw.Stop();
+            Debug.Out($"Model imported in {sw.ElapsedMilliseconds / 1000.0f} sec.");
+#endif
+            return rootNode;
         }
 
-        private unsafe XRMesh ProcessMesh(Mesh* mesh, AScene* scene, Matrix4x4 transform)
+        private unsafe void ProcessNode(Node* node, AScene* scene, Matrix4x4 parentWorldTransform, SceneNode parentSceneNode)
         {
-            List<Texture> textures = [];
-            // process materials
+            //Debug.Out($"Processing node: {node->MName}");
+
+            Matrix4x4 localTransform = node->MTransformation;
+            Matrix4x4 worldTransform = localTransform * parentWorldTransform;
+
+            Transform tfm = [];
+            tfm.DeriveWorldMatrix(localTransform);
+
+            SceneNode sceneNode = new(parentSceneNode, node->MName, tfm);
+
+            EnqueueProcessMeshes(node, scene, parentWorldTransform, sceneNode);
+
+            for (var i = 0; i < node->MNumChildren; i++)
+                ProcessNode(node->MChildren[i], scene, worldTransform, sceneNode);
+        }
+
+        private void EnqueueProcessMeshes(Node* node, AScene* scene, Matrix4x4 parentWorldTransform, SceneNode sceneNode)
+        {
+            uint count = node->MNumMeshes;
+            if (count == 0)
+                return;
+
+            _meshProcessActions.Add(() => ProcessMeshes(node, scene, parentWorldTransform, sceneNode));
+        }
+
+        private void ProcessMeshes(Node* node, AScene* scene, Matrix4x4 parentWorldTransform, SceneNode sceneNode)
+        {
+            ModelComponent modelComponent = sceneNode.AddComponent<ModelComponent>()!;
+            Model model = new();
+            modelComponent.Name = node->MName;
+            for (var i = 0; i < node->MNumMeshes; i++)
+            {
+                uint meshIndex = node->MMeshes[i];
+                Mesh* mesh = scene->MMeshes[meshIndex];
+
+                (XRMesh xrMesh, XRMaterial xrMaterial) = ProcessSubMesh(mesh, scene, parentWorldTransform);
+
+                _meshes.Add(xrMesh);
+                _materials.Add(xrMaterial);
+
+                model.Meshes.Add(new SubMesh(xrMesh, xrMaterial) { Name = mesh->MName });
+            }
+            modelComponent!.Model = model;
+        }
+
+        private unsafe (XRMesh mesh, XRMaterial material) ProcessSubMesh(Mesh* mesh, AScene* scene, Matrix4x4 transform)
+        {
+            //Debug.Out($"Processing mesh: {mesh->MName}");
+
             Material* material = scene->MMaterials[mesh->MMaterialIndex];
-            // we assume a convention for sampler names in the shaders. Each diffuse texture should be named
-            // as 'texture_diffuseN' where N is a sequential number ranging from 1 to MAX_SAMPLER_NUMBER. 
-            // Same applies to other texture as the following list summarizes:
-            // diffuse: texture_diffuseN
-            // specular: texture_specularN
-            // normal: texture_normalN
 
-            var diffuseMaps = LoadMaterialTextures(material, TextureType.Diffuse);
-            if (diffuseMaps.Count != 0)
-                textures.AddRange(diffuseMaps);
+            List<TextureInfo> textures = [];
+            for (int i = 0; i < 22; ++i)
+            {
+                TextureType type = (TextureType)i;
+                var maps = LoadMaterialTextures(material, type);
+                if (maps.Count > 0)
+                    textures.AddRange(maps);
+            }
 
-            var specularMaps = LoadMaterialTextures(material, TextureType.Specular);
-            if (specularMaps.Count != 0)
-                textures.AddRange(specularMaps);
 
-            var normalMaps = LoadMaterialTextures(material, TextureType.Height);
-            if (normalMaps.Count != 0)
-                textures.AddRange(normalMaps);
+            XRTexture[] xrTextures = new XRTexture[textures.Count];
+            for (int i = 0; i < textures.Count; i++)
+            {
+                TextureInfo info = textures[i];
 
-            var heightMaps = LoadMaterialTextures(material, TextureType.Ambient);
-            if (heightMaps.Count != 0)
-                textures.AddRange(heightMaps);
+                XRTexture2D? texture = Engine.Assets.Load<XRTexture2D>(info.path);
+                if (texture is null)
+                    continue;
 
+                texture.MagFilter = ETexMagFilter.Linear;
+                texture.MinFilter = ETexMinFilter.Linear;
+                texture.UWrap = ETexWrapMode.Repeat;
+                texture.VWrap = ETexWrapMode.Repeat;
+                texture.AlphaAsTransparency = true;
+                texture.AutoGenerateMipmaps = true;
+                texture.Signed = true;
+                xrTextures[i] = texture;
+            }
+
+            XRMaterial xrMaterial = XRMaterial.CreateUnlitColorMaterialForward(new ColorF4(1.0f, 1.0f, 0.0f, 1.0f));
+            xrMaterial.RenderPass = (int)EDefaultRenderPass.OpaqueForward;
+            xrMaterial.Textures.AddRange(xrTextures);
+
+            XRMesh xrMesh = LoadMesh(mesh);
+
+            return (xrMesh, xrMaterial);
+        }
+
+        private unsafe List<TextureInfo> LoadMaterialTextures(Material* mat, TextureType type)
+        {
+            List<TextureInfo> textures = [];
+            var textureCount = _assimp.GetMaterialTextureCount(mat, type);
+            for (uint i = 0; i < textureCount; i++)
+            {
+                AssimpString pathPtr;
+                TextureMapping mapping;
+                uint uvIndex;
+                float blend;
+                TextureOp operation;
+                TextureMapMode mapMode;
+                uint flags;
+
+                var result = _assimp.GetMaterialTexture(mat, type, i, &pathPtr, &mapping, &uvIndex, &blend, &operation, &mapMode, &flags);
+                if (result != Return.Success)
+                    continue;
+
+                string path = pathPtr.AsString;
+                bool skip = false;
+                foreach (var existingTexPath in _texturesLoaded.Keys)
+                {
+                    if (!string.Equals(existingTexPath, path, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    
+                    textures.Add(_texturesLoaded[existingTexPath]);
+                    skip = true;
+                    break;
+                }
+                if (!skip)
+                {
+                    var info = (path, mapping, uvIndex, operation, mapMode, flags);
+                    textures.Add(info);
+                    _texturesLoaded.TryAdd(path, info);
+                }
+            }
+            return textures;
+        }
+
+        private XRMesh LoadMesh(Mesh* mesh)
+        {
             var vertices = CollectVertices(mesh);
             var indices = CollectIndices(mesh);
-            return XRMesh.Create(CreatePrimitivesParallel(vertices, CollectIndices(mesh)));
+            return XRMesh.Create(CreatePrimitivesParallel(vertices, indices));
         }
 
-        private static List<VertexPrimitive> CreatePrimitives(Vertex[] vertices, uint[][] indices)
+        private List<VertexPrimitive> CreatePrimitivesSequential(Vertex[] vertices, uint[][] indices)
         {
             List<Vertex> points = [];
             List<VertexLine> lines = [];
@@ -149,7 +259,7 @@ namespace XREngine
             }
             return [.. points, .. lines, .. triangles];
         }
-        private static List<VertexPrimitive> CreatePrimitivesParallel(Vertex[] vertices, uint[][] indices)
+        private List<VertexPrimitive> CreatePrimitivesParallel(Vertex[] vertices, uint[][] indices)
         {
             ConcurrentBag<Vertex> points = [];
             ConcurrentBag<VertexLine> lines = [];
@@ -191,7 +301,12 @@ namespace XREngine
             return [.. points, .. lines, .. triangles];
         }
 
-        private static unsafe uint[][] CollectIndices(Mesh* mesh)
+        /// <summary>
+        /// Indices are stored in a jagged array, where each sub-array represents a face and contains the indices of the vertices that make up that face.
+        /// </summary>
+        /// <param name="mesh"></param>
+        /// <returns></returns>
+        private unsafe uint[][] CollectIndices(Mesh* mesh)
         {
             uint[][] indices = new uint[mesh->MNumFaces][];
             for (uint i = 0; i < mesh->MNumFaces; i++)
@@ -205,9 +320,11 @@ namespace XREngine
             return indices;
         }
 
-        private static unsafe Vertex[] CollectVertices(Mesh* mesh)
+        private unsafe Vertex[] CollectVertices(Mesh* mesh)
         {
             Vertex[] vertices = new Vertex[mesh->MNumVertices];
+
+            //Assimp can only handle up to 8 texture coordinates and colors per vertex
             bool[] hasTexCoords = new bool[8];
             bool[] hasColors = new bool[8];
 
@@ -221,13 +338,19 @@ namespace XREngine
                 if (mesh->MTangents != null)
                     vertex.Tangent = mesh->MTangents[i];
 
-                //TODO: convert bitangent into normal or tangent depending on if we have only normals or tangents and bitangents
-                //if (mesh->MBitangents != null)
-                //    vertex.Bitangent = mesh->MBitangents[i];
+                //convert bitangent into normal or tangent depending on if we have only normals or tangents and bitangents, using cross
+                if (mesh->MBitangents != null)
+                {
+                    if (mesh->MNormals != null && vertex.Tangent == null)
+                        vertex.Tangent = Vector3.Cross(mesh->MNormals[i], mesh->MBitangents[i]);
+                    else if (mesh->MTangents != null && vertex.Normal == null)
+                        vertex.Normal = Vector3.Cross(mesh->MTangents[i], mesh->MBitangents[i]);
+                }
 
-                for (int x = 0; x < 8; ++i)
+                for (int x = 0; x < 8; ++x)
                 {
                     var coord = mesh->MTextureCoords[x];
+                    uint componentCount = mesh->MNumUVComponents[x]; //Usually just 2
                     if (coord != null)
                     {
                         Vector3 c = coord[i];
@@ -236,7 +359,7 @@ namespace XREngine
                     }
                 }
 
-                for (int x = 0; x < 8; ++i)
+                for (int x = 0; x < 8; ++x)
                 {
                     var color = mesh->MColors[x];
                     if (color != null)
@@ -245,43 +368,29 @@ namespace XREngine
                         hasColors[x] = true;
                     }
                 }
+
+                vertices[i] = vertex;
             }
 
             return vertices;
         }
 
-        private unsafe List<Texture> LoadMaterialTextures(Material* mat, TextureType type)
-        {
-            List<Texture> textures = [];
-            //var textureCount = _assimp.GeXRMaterialTextureCount(mat, type);
-            //for (uint i = 0; i < textureCount; i++)
-            //{
-            //    AssimpString path;
-            //    _assimp.GeXRMaterialTexture(mat, type, i, &path, null, null, null, null, null, null);
-            //    bool skip = false;
-            //    for (int j = 0; j < _texturesLoaded.Count; j++)
-            //    {
-            //        if (_texturesLoaded[j].MFilename == path)
-            //        {
-            //            textures.Add(_texturesLoaded[j]);
-            //            skip = true;
-            //            break;
-            //        }
-            //    }
-            //    if (!skip)
-            //    {
-            //        var texture = new Texture(Path, type);
-            //        texture.Path = path;
-            //        textures.Add(texture);
-            //        _texturesLoaded.Add(texture);
-            //    }
-            //}
-            return textures;
-        }
-
         public void Dispose()
         {
 
+        }
+    }
+
+    internal record struct TextureInfo(string path, TextureMapping mapping, uint uvIndex, TextureOp op, TextureMapMode mapMode, uint flags)
+    {
+        public static implicit operator (string path, TextureMapping mapping, uint uvIndex, TextureOp op, TextureMapMode mapMode, uint flags)(TextureInfo value)
+        {
+            return (value.path, value.mapping, value.uvIndex, value.op, value.mapMode, value.flags);
+        }
+
+        public static implicit operator TextureInfo((string path, TextureMapping mapping, uint uvIndex, TextureOp op, TextureMapMode mapMode, uint flags) value)
+        {
+            return new TextureInfo(value.path, value.mapping, value.uvIndex, value.op, value.mapMode, value.flags);
         }
     }
 }

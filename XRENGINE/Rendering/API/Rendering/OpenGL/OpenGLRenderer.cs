@@ -24,7 +24,7 @@ namespace XREngine.Rendering.OpenGL
 
         private int[] _ignoredMessageIds =
         [
-            //131185, //buffer will use video memory
+            131185, //buffer will use video memory
             //131204, //no base level, no mipmaps, etc
             //131169, //allocated memory for render buffer
             ////131216,

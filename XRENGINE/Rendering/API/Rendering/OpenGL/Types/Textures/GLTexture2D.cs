@@ -16,13 +16,15 @@ namespace XREngine.Rendering.OpenGL
 
         protected override void UnlinkData()
         {
-            Data.Resized -= DataResized;
             base.UnlinkData();
+
+            Data.Resized -= DataResized;
         }
         protected override void LinkData()
         {
-            Data.Resized += DataResized;
             base.LinkData();
+
+            Data.Resized += DataResized;
         }
 
         private void DataResized()

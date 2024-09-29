@@ -6,6 +6,14 @@ namespace XREngine.Rendering.OpenGL
 {
     public class GLTransformFeedback(OpenGLRenderer renderer, XRTransformFeedback data) : GLObject<XRTransformFeedback>(renderer, data)
     {
+        protected override void LinkData()
+        {
+
+        }
+        protected override void UnlinkData()
+        {
+
+        }
         public override GLObjectType Type => GLObjectType.TransformFeedback;
         
         public void Bind()

@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
 using XREngine.Data.Core;
+using YamlDotNet.Serialization;
 
 namespace XREngine.Data
 {
@@ -14,8 +15,16 @@ namespace XREngine.Data
         /// </summary>
         public bool External { get; }
         public uint Length { get; set; }
+        [YamlIgnore]
         public VoidPtr Address { get; set; }
 
+        public DataSource(byte[] data)
+        {
+            External = false;
+            Length = (uint)data.Length;
+            Address = Marshal.AllocHGlobal(data.Length);
+            Marshal.Copy(data, 0, Address, data.Length);
+        }
         public DataSource(VoidPtr address, uint length, bool copyInternal = false)
         {
             if (length < 0)
@@ -25,7 +34,7 @@ namespace XREngine.Data
             if (copyInternal)
             {
                 Address = Marshal.AllocHGlobal((int)Length);
-                Memory.Move(Address, address, (uint)length);
+                Memory.Move(Address, address, length);
                 External = false;
             }
             else

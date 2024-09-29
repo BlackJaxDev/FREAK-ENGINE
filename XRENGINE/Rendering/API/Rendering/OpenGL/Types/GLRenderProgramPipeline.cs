@@ -29,6 +29,15 @@ namespace XREngine.Rendering.OpenGL
                     EProgramStageMask.ComputeShaderBit => UseProgramStageMask.ComputeShaderBit,
                     _ => 0,
                 };
+
+            protected override void LinkData()
+            {
+
+            }
+            protected override void UnlinkData()
+            {
+
+            }
         }
     }
 }

@@ -16,15 +16,29 @@ namespace XREngine.Scene
         //private static SceneNode? _dummy;
         //internal static SceneNode Dummy => _dummy ??= new SceneNode() { IsDummy = true };
         //internal bool IsDummy { get; private set; } = false;
-        public SceneNode(XRScene scene) : this(scene, "New Scene Node") { }
-        public SceneNode(SceneNode parent) : this(parent, "New Scene Node") { }
 
+        public const string DefaultName = "New Scene Node";
+
+        public SceneNode() : this(DefaultName) { }
+        public SceneNode(TransformBase transform) : this(DefaultName, transform) { }
+        public SceneNode(XRScene scene) : this(scene, DefaultName) { }
+        public SceneNode(SceneNode parent) : this(parent, DefaultName) { }
         public SceneNode(SceneNode parent, string name, TransformBase? transform = null)
         {
             if (transform != null)
                 SetTransform(transform, false);
 
-            Transform.Parent = parent.Transform;
+            Transform.Parent = parent?.Transform;
+            Name = name;
+        }
+        public SceneNode(SceneNode parent, TransformBase? transform = null)
+            : this(parent, DefaultName, transform) { }
+        public SceneNode(string name, TransformBase? transform = null)
+        {
+            if (transform != null)
+                SetTransform(transform, false);
+
+            Transform.Parent = null;
             Name = name;
         }
         public SceneNode(XRScene scene, string name, TransformBase? transform = null)
@@ -88,9 +102,6 @@ namespace XREngine.Scene
             {
                 switch (propName)
                 {
-                    case nameof(Transform):
-                        UnlinkTransform();
-                        break;
                     case nameof(World):
                         ClearWorldFromChildNodes();
                         Transform.World = null;
@@ -110,9 +121,6 @@ namespace XREngine.Scene
                         Start();
                     else
                         Stop();
-                    break;
-                case nameof(Transform):
-                    LinkTransform();
                     break;
                 case nameof(World):
                     SetWorldToChildNodes(World);
@@ -179,7 +187,16 @@ namespace XREngine.Scene
         /// The transform of this scene node.
         /// Will never be null, because scene nodes all have transformations in the scene.
         /// </summary>
-        public TransformBase Transform => _transform ??= new Transform() { SceneNode = this };
+        public TransformBase Transform
+        {
+            get
+            {
+                if (_transform is null)
+                    SetTransform<Transform>();
+
+                return _transform!;
+            }
+        }
 
         /// <summary>
         /// Sets the transform of this scene node.
@@ -189,10 +206,13 @@ namespace XREngine.Scene
         /// <param name="retainParent"></param>
         public void SetTransform(TransformBase transform, bool retainParent = true)
         {
-            var currentParent = Transform.Parent;
             if (retainParent)
-                transform.Parent = currentParent;
-            SetField(ref _transform, transform);
+                transform.Parent = _transform?.Parent;
+            if (_transform is not null)
+                UnlinkTransform();
+            _transform = transform;
+            if (_transform is not null)
+                LinkTransform();
         }
 
         /// <summary>
@@ -201,13 +221,10 @@ namespace XREngine.Scene
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="retainParent"></param>
-        public T SetTransform<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(bool retainParent = true) where T : TransformBase, new()
+        public T SetTransform<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>() where T : TransformBase, new()
         {
-            T value = new()
-            {
-                Parent = Transform.Parent
-            };
-            SetTransform(value, retainParent);
+            T value = new();
+            SetTransform(value, true);
             return value;
         }
 
@@ -225,11 +242,14 @@ namespace XREngine.Scene
             foreach (var component in this)
                 component.World = value;
 
-            for (int i = 0; i < Transform.Children.Count; i++)
+            lock (Transform.Children)
             {
-                var child = Transform.Children[i];
-                if (child?.SceneNode is SceneNode node)
-                    node.World = value;
+                for (int i = 0; i < Transform.Children.Count; i++)
+                {
+                    var child = Transform.Children[i];
+                    if (child?.SceneNode is SceneNode node)
+                        node.World = value;
+                }
             }
         }
 
@@ -238,11 +258,14 @@ namespace XREngine.Scene
             foreach (var component in this)
                 component.World = null;
 
-            for (int i = 0; i < Transform.Children.Count; i++)
+            lock (Transform.Children)
             {
-                var child = Transform.Children[i];
-                if (child?.SceneNode is SceneNode node)
-                    node.World = null;
+                for (int i = 0; i < Transform.Children.Count; i++)
+                {
+                    var child = Transform.Children[i];
+                    if (child?.SceneNode is SceneNode node)
+                        node.World = null;
+                }
             }
         }
 

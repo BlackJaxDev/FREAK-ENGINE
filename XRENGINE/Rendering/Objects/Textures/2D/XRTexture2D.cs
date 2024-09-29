@@ -2,7 +2,6 @@
 using ImageMagick.Drawing;
 using XREngine.Data.Rendering;
 using XREngine.Data.Vectors;
-using static XREngine.Rendering.OpenGL.OpenGLRenderer;
 
 namespace XREngine.Rendering
 {

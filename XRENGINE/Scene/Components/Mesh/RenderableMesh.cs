@@ -21,7 +21,18 @@ namespace XREngine.Components.Scene.Mesh
             Component = component;
 
             foreach (var lod in mesh.LODs)
+            {
+                var renderer = new XRMeshRenderer(lod.Mesh, lod.Material);
+                void UpdateReferences(object? s, System.ComponentModel.PropertyChangedEventArgs e)
+                {
+                    if (e.PropertyName == nameof(SubMeshLOD.Mesh))
+                        renderer.Mesh = lod.Mesh;
+                    else if (e.PropertyName == nameof(SubMeshLOD.Material))
+                        renderer.Material = lod.Material;
+                }
+                lod.PropertyChanged += UpdateReferences;
                 LODs.AddLast(new RenderableLOD(lod.NewRenderer(), lod.MaxVisibleDistance));
+            }
 
             RenderInfo = RenderInfo3D.New(component, _rc = new RenderCommandMesh3D(0));
             RenderInfo.CullingVolume = mesh.CullingVolumeOverride ?? mesh.Bounds;

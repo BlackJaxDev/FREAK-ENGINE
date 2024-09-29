@@ -99,7 +99,7 @@ namespace XREngine
             //if (debugOnly)
             //    XDebug.Print(message);
             //else
-                Trace.WriteLine(message);
+            Engine.EnqueueMainThreadTask(() => Trace.WriteLine(message));
 #endif
         }
 

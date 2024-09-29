@@ -49,9 +49,13 @@ namespace XREngine.Rendering.UI
             set
             {
                 _owningUserInterface = value;
-                foreach (var child in Children)
-                    if (child is UITransform uiTransform)
-                        uiTransform.OwningUserInterface = value;
+
+                lock (Children)
+                {
+                    foreach (var child in Children)
+                        if (child is UITransform uiTransform)
+                            uiTransform.OwningUserInterface = value;
+                }
             }
         }
         public override TransformBase? Parent
@@ -248,10 +252,12 @@ namespace XREngine.Rendering.UI
         {
             try
             {
-                //_childLocker.EnterReadLock();
-                foreach (var c in Children)
-                    if (c is UITransform uiTfm)
-                        uiTfm.FitLayout(parentRegion);
+                lock (Children)
+                {
+                    foreach (var c in Children)
+                        if (c is UITransform uiTfm)
+                            uiTfm.FitLayout(parentRegion);
+                }
             }
             catch (Exception ex)
             {

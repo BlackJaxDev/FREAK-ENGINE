@@ -77,7 +77,7 @@
                     }
                     return;
                 }
-                Debug.Out($"Generating OpenGL object {Type}");
+                //Debug.Out($"Generating OpenGL object {Type}");
                 PreGenerated();
                 _bindingId = CreateObject();
                 if (_bindingId is not null && _bindingId != InvalidBindingId)
@@ -133,7 +133,7 @@
             {
                 if (!IsGenerated)
                     return;
-                Debug.Out($"Deleting OpenGL object {Type} {BindingId}");
+                //Debug.Out($"Deleting OpenGL object {Type} {BindingId}");
                 PreDeleted();
                 uint id = _bindingId!.Value;
                 switch (Type)

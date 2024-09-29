@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Drawing.Drawing2D;
 using System.Runtime.CompilerServices;
 using XREngine.Audio;
 using XREngine.Components;
@@ -87,8 +88,8 @@ namespace XREngine.Rendering
             foreach (SceneNode node in RootNodes)
                 if (node.IsActiveSelf)
                     node.Start();
+            Task.Run(RecalcTransforms);
             IsPlaying = true;
-            //Task.Run(RecalcTransforms);
         }
 
         public void EndPlay()
@@ -110,7 +111,6 @@ namespace XREngine.Rendering
 
         private void SwapBuffers()
         {
-            ConsumeTransformChanges();
             VisualScene.SwapBuffers();
         }
 
@@ -128,60 +128,28 @@ namespace XREngine.Rendering
             Time.Timer.SwapBuffers -= SwapBuffers;
         }
 
-        public void ConsumeTransformChanges()
-        {
-            static void TaskRunner(TransformBase t)
-                => t.TryParallelDepthRecalculate();
-
-            foreach (var key in DirtyTransforms.Keys)
-            {
-                var (set, locker) = DirtyTransforms[key];
-                set.ForEach(TaskRunner);
-            }
-        }
-
-        public async Task ConsumeTransformChangesAsync()
-        {
-            static Task TaskRunner(TransformBase t)
-                => Task.Run(t.TryParallelDepthRecalculate);
-
-            foreach (var key in DirtyTransforms.Keys)
-            {
-                var (set, locker) = DirtyTransforms[key];
-                //locker.EnterReadLock();
-                await Task.WhenAll(set.Select(TaskRunner));
-                //locker.ExitReadLock();
-            }
-        }
-        public async Task RecalcTransforms()
+        public void RecalcTransforms()
         {
             while (IsPlaying)
-                await ConsumeTransformChangesAsync();
+            {
+                _dataAvailable.WaitOne();
+                var processed = new HashSet<TransformBase>();
+                foreach (var depth in _depthQueues.Keys.OrderBy(d => d).ToArray())
+                    if (_depthQueues.TryGetValue(depth, out var queue))
+                        while (queue.TryDequeue(out var transform))
+                            if (processed.Add(transform))
+                                transform.TryParallelDepthRecalculate();
+                _dataAvailable.Reset();
+            }
         }
-        /// <summary>
-        /// Dictionary of dirty transforms that need to be recalculated.
-        /// Key is depth of the transform in the hierarchy.
-        /// Value is a queue of transforms that need to be recalculated for that depth.
-        /// </summary>
-        public SortedDictionary<int, (ConcurrentHashSet<TransformBase> set, ReaderWriterLockSlim locker)> DirtyTransforms { get; private set; } = [];
-        //Lock the depth dictionary to prevent concurrent modification.
-        //This shouldn't be a problem since we're only initializing sets for deeper and deeper transforms.
-        private readonly ReaderWriterLockSlim _dictLock = new();
+
+        private readonly ConcurrentDictionary<int, ConcurrentQueue<TransformBase>> _depthQueues = new();
+        private readonly ManualResetEvent _dataAvailable = new(false);
+
         public void AddDirtyTransform(TransformBase transform)
         {
-            _dictLock.EnterReadLock();
-            bool got = DirtyTransforms.TryGetValue(transform.Depth, out (ConcurrentHashSet<TransformBase> set, ReaderWriterLockSlim locker) pair);
-            _dictLock.ExitReadLock();
-            if (!got)
-            {
-                _dictLock.EnterWriteLock();
-                DirtyTransforms.Add(transform.Depth, pair = ([], new ReaderWriterLockSlim()));
-                _dictLock.ExitWriteLock();
-            }
-            //TODO: this locker is probably not necessary because the set is already thread-safe.
-            //pair.locker.EnterWriteLock();
-            pair.set.Add(transform);
-            //pair.locker.ExitWriteLock();
+            _depthQueues.GetOrAdd(transform.Depth, new ConcurrentQueue<TransformBase>()).Enqueue(transform);
+            _dataAvailable.Set();
         }
 
         private XRWorld? _targetWorld;

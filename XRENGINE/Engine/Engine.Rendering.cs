@@ -1,4 +1,5 @@
-﻿using XREngine.Rendering;
+﻿using System.Collections.Concurrent;
+using XREngine.Rendering;
 using XREngine.Scene;
 
 namespace XREngine
@@ -8,22 +9,25 @@ namespace XREngine
         public static partial class Rendering
         {
             //TODO: create objects for only relevant windows that house the viewports that this object is visible in
-            public static List<AbstractRenderAPIObject?> CreateObjectsForAllWindows(GenericRenderObject obj)
-                => Windows.Select(window => window.Renderer.GetOrCreateAPIRenderObject(obj)).ToList();
+            public static IEnumerable<AbstractRenderAPIObject?> CreateObjectsForAllWindows(GenericRenderObject obj)
+                => Windows.Select(window => window.Renderer.GetOrCreateAPIRenderObject(obj));
 
-            public static Dictionary<GenericRenderObject, AbstractRenderAPIObject> CreateObjectsForNewRenderer(AbstractRenderer renderer)
+            public static ConcurrentDictionary<GenericRenderObject, AbstractRenderAPIObject> CreateObjectsForNewRenderer(AbstractRenderer renderer)
             {
-                Dictionary<GenericRenderObject, AbstractRenderAPIObject> roDic = [];
-                foreach (var pair in GenericRenderObject.RenderObjectCache)
-                    foreach (var obj in pair.Value)
-                    {
-                        AbstractRenderAPIObject? apiRO = renderer.GetOrCreateAPIRenderObject(obj);
-                        if (apiRO is null)
-                            continue;
+                ConcurrentDictionary<GenericRenderObject, AbstractRenderAPIObject> roDic = [];
+                lock (GenericRenderObject.RenderObjectCache)
+                {
+                    foreach (var pair in GenericRenderObject.RenderObjectCache)
+                        foreach (var obj in pair.Value)
+                        {
+                            AbstractRenderAPIObject? apiRO = renderer.GetOrCreateAPIRenderObject(obj);
+                            if (apiRO is null)
+                                continue;
 
-                        roDic.Add(obj, apiRO);
-                        obj.AddWrapper(apiRO);
-                    }
+                            roDic.TryAdd(obj, apiRO);
+                            obj.AddWrapper(apiRO);
+                        }
+                }
                 
                 return roDic;
             }

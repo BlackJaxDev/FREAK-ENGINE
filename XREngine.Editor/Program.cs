@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using Silk.NET.Assimp;
+using System.Numerics;
 using XREngine;
 using XREngine.Components;
 using XREngine.Components.Scene.Mesh;
@@ -29,13 +30,16 @@ internal class Program
 
         Engine.Initialize(GetEngineSettings(CreateTestWorld()), GetGameState());
         Engine.Run();
+        Engine.ShutDown();
     }
 
     static void TickRotation(OrbitTransform t) 
-        => t.Angle += Engine.Delta * 10.0f;
+        => t.Angle += Engine.Delta * 5.0f;
 
     static XRWorld CreateTestWorld()
     {
+        string desktopDir = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+
         var world = new XRWorld() { Name = "TestWorld" };
         var scene = new XRScene() { Name = "TestScene" };
         var rootNode = new SceneNode(scene) { Name = "TestRootNode" };
@@ -65,21 +69,22 @@ internal class Program
                 },
                 LineWidth = 5.0f,
             };
-            var mesh = XRMesh.Shapes.SolidBox(-Vector3.One, Vector3.One);
-            modelComp!.Model = new Model([new SubMesh(mesh, mat)]);
+            //var mesh = XRMesh.Shapes.SolidBox(-Vector3.One, Vector3.One);
+            //Engine.Assets.SaveTo(mesh, desktopDir);
+            //modelComp!.Model = new Model([new SubMesh(mesh, mat)]);
         }
 
         //Create the camera
         var cameraNode = new SceneNode(rootNode) { Name = "TestCameraNode" };
         var cameraTransform = cameraNode.SetTransform<Transform>();
-        cameraTransform.Translation = new Vector3(0.0f, 0.0f, 10.0f);
-        //cameraTransform.LookAt(Vector3.Zero);
+        cameraTransform.Translation = new Vector3(10.0f, 0.0f, 10.0f);
+        cameraTransform.LookAt(Vector3.Zero);
         if (cameraNode.TryAddComponent<CameraComponent>(out var cameraComp))
         {
             cameraComp!.Name = "TestCamera";
             cameraComp.LocalPlayerIndex = ELocalPlayerIndex.One;
             cameraComp.Camera.Parameters = new XRPerspectiveCameraParameters(60.0f, null, 0.1f, 1000.0f);
-            cameraComp.CullWithFrustum = true;
+            cameraComp.CullWithFrustum = false;
             cameraComp.RenderPipeline = new TestRenderPipeline();
         }
 
@@ -100,6 +105,19 @@ internal class Program
         //pawnComp!.CurrentCameraComponent = cameraComp;
 
         world.Scenes.Add(scene);
+
+        Task.Run(() =>
+        {
+            var importedModelNode = ModelImporter.Import(Path.Combine(desktopDir, "sponza.obj"), PostProcessSteps.None);
+            if (importedModelNode != null)
+            {
+                lock (modelNode.Transform.Children)
+                {
+                    modelNode.Transform.Children.Add(importedModelNode.Transform);
+                }
+            }
+        });
+
         return world;
     }
 
@@ -115,7 +133,7 @@ internal class Program
     {
         int w = 1920;
         int h = 1080;
-        float fps = 60.0f;
+        float fps = 0.0f;
 
         int primaryX = NativeMethods.GetSystemMetrics(0);
         int primaryY = NativeMethods.GetSystemMetrics(1);

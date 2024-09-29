@@ -1,5 +1,9 @@
 ﻿using Silk.NET.Maths;
 using Silk.NET.Windowing;
+using System.Collections.Concurrent;
+using System.Diagnostics;
+using XREngine.Audio;
+using XREngine.Native;
 using XREngine.Rendering;
 using XREngine.Scene;
 
@@ -24,6 +28,22 @@ namespace XREngine
             Assets = new AssetManager();
         }
 
+        private static readonly ConcurrentQueue<Action> _asyncTaskQueue = new();
+        private static readonly ConcurrentQueue<Action> _mainThreadTaskQueue = new();
+
+        /// <summary>
+        /// These tasks will be executed on a separate dedicated thread.
+        /// </summary>
+        /// <param name="task"></param>
+        public static void EnqueueAsyncTask(Action task)
+            => _asyncTaskQueue.Enqueue(task);
+        /// <summary>
+        /// These tasks will be executed on the main thread, and usually are rendering tasks.
+        /// </summary>
+        /// <param name="task"></param>
+        public static void EnqueueMainThreadTask(Action task)
+            => _mainThreadTaskQueue.Enqueue(task);
+
         /// <summary>
         /// Indicates the engine is currently starting up and might be still initializing objects.
         /// </summary>
@@ -44,6 +64,10 @@ namespace XREngine
         /// All networking-related functions.
         /// </summary>
         public static NetworkingManager Networking { get; }
+        /// <summary>
+        /// Audio manager for playing and streaming sounds and music.
+        /// </summary>
+        public static AudioManager Audio { get; } = new AudioManager();
         /// <summary>
         /// All active world instances. 
         /// These are separate from the windows to allow for multiple windows to display the same world.
@@ -89,7 +113,25 @@ namespace XREngine
 
             //VRState.Initialize();
 
+            Time.Timer.SwapBuffers += DequeueAsyncTasks;
+            Time.Timer.RenderFrame += DequeueMainThreadTasks;
+
             StartingUp = false;
+        }
+        private static bool IsApplicationIdle() => NativeMethods.PeekMessage(out _, IntPtr.Zero, 0, 0, 0) == 0;
+        private static void DequeueAsyncTasks()
+        {
+            while (_asyncTaskQueue.TryDequeue(out var task))
+                task();
+        }
+
+        private static void DequeueMainThreadTasks()
+        {
+            Stopwatch sw = new();
+            sw.Start();
+            while (_mainThreadTaskQueue.TryDequeue(out var task) && sw.ElapsedMilliseconds < 1)
+                task();
+            sw.Stop();
         }
 
         public static void CreateWindows(List<GameWindowStartupSettings> windows)

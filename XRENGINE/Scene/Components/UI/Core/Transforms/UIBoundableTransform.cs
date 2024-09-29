@@ -282,15 +282,17 @@ namespace XREngine.Rendering.UI
         {
             try
             {
-                //_childLocker.EnterReadLock();
-                foreach (var c in Children)
+                lock (Children)
                 {
-                    if (c is not UIBoundableTransform uiComp)
-                        continue;
-                    
-                    UITransform? comp = uiComp.FindDeepestComponent(worldPoint, true);
-                    if (comp != null)
-                        return comp;
+                    foreach (var c in Children)
+                    {
+                        if (c is not UIBoundableTransform uiComp)
+                            continue;
+
+                        UITransform? comp = uiComp.FindDeepestComponent(worldPoint, true);
+                        if (comp != null)
+                            return comp;
+                    }
                 }
             }
             catch
@@ -317,11 +319,12 @@ namespace XREngine.Rendering.UI
         {
             try
             {
-                //_childLocker.EnterReadLock();
-
-                foreach (var c in Children)
-                    if (c is UIBoundableTransform uiTfm)
-                        uiTfm.FindAllIntersecting(worldPoint, true, results);
+                lock (Children)
+                {
+                    foreach (var c in Children)
+                        if (c is UIBoundableTransform uiTfm)
+                            uiTfm.FindAllIntersecting(worldPoint, true, results);
+                }
             }
             catch// (Exception ex)
             {

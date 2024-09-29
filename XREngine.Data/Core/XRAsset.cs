@@ -1,7 +1,10 @@
 ﻿using Extensions;
 using System.Diagnostics.CodeAnalysis;
 using System.IO.MemoryMappedFiles;
+using XREngine.Data;
 using XREngine.Data.Core;
+using YamlDotNet.Core;
+using YamlDotNet.Core.Events;
 using YamlDotNet.Serialization;
 
 namespace XREngine.Core.Files
@@ -72,64 +75,6 @@ namespace XREngine.Core.Files
 
             FileMap?.Dispose();
             FileMap = null;
-        }
-
-        public static event Action<XRAsset>? AssetLoaded;
-        public static event Action<XRAsset>? AssetSaved;
-
-        private static void PostLoad<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] T>(string filePath, T? file) where T : XRAsset
-        {
-            if (file is null)
-                return;
-
-            file.FilePath = filePath;
-            AssetLoaded?.Invoke(file);
-        }
-
-        public static async Task<T?> LoadAsync<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] T>(string filePath) where T : XRAsset
-        {
-            T? file = !File.Exists(filePath)
-                ? await Task.FromResult<T?>(null)
-                : new Deserializer().Deserialize<T>(await File.ReadAllTextAsync(filePath));
-            PostLoad(filePath, file);
-            return file;
-        }
-
-        public static T? Load<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] T>(string filePath) where T : XRAsset
-        {
-            T? file = !File.Exists(filePath)
-                ? null
-                : new Deserializer().Deserialize<T>(File.ReadAllText(filePath));
-            PostLoad(filePath, file);
-            return file;
-        }
-
-        public async Task SaveAsync()
-        {
-            if (FilePath is null)
-                throw new InvalidOperationException("Cannot save an asset without a file path.");
-
-            await File.WriteAllTextAsync(FilePath, new Serializer().Serialize(this));
-        }
-
-        public void Save()
-        {
-            if (FilePath is null)
-                throw new InvalidOperationException("Cannot save an asset without a file path.");
-
-            File.WriteAllText(FilePath, new Serializer().Serialize(this));
-        }
-
-        public void SaveTo(string filePath)
-        {
-            File.WriteAllText(filePath, new Serializer().Serialize(this));
-            FilePath = filePath;
-        }
-
-        public async Task SaveToAsync(string filePath)
-        {
-            await File.WriteAllTextAsync(filePath, new Serializer().Serialize(this));
-            FilePath = filePath;
         }
     }
 }

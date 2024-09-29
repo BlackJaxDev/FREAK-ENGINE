@@ -95,7 +95,7 @@ namespace XREngine.Components
 #pragma warning restore IDE0051 // Remove unused private members
         {
             _sceneNode = node;
-            World = _sceneNode.World;
+            _world = _sceneNode.World;
             _sceneNode.PropertyChanging += SceneNodePropertyChanging;
             _sceneNode.PropertyChanged += SceneNodePropertyChanged;
             Transform.LocalMatrixChanged += OnTransformLocalMatrixChanged;

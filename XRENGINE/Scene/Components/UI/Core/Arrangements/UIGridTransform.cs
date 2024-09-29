@@ -95,9 +95,12 @@ namespace XREngine.Rendering.UI
 
         private void CollectQuadrant(List<UITransform> list, List<int> quadrant)
         {
-            foreach (var index in quadrant)
-                if (Children.TryGet(index, out var value) && value is UITransform uiTfm)
-                    list.Add(uiTfm);
+            lock (Children)
+            {
+                foreach (var index in quadrant)
+                    if (Children.TryGet(index, out var value) && value is UITransform uiTfm)
+                        list.Add(uiTfm);
+            }
         }
 
         public static float GetRowAutoHeight(IEnumerable<UITransform> comps)
@@ -125,9 +128,12 @@ namespace XREngine.Rendering.UI
                 for (int c = 0; c < Columns.Count; ++c)
                     _indices[r, c] = [];
 
-            for (int i = 0; i < Children.Count; ++i)
-                if (Children[i] is UITransform uic && uic.PlacementInfo is UIGridChildPlacementInfo info)
-                    _indices[info.Row, info.Column].Add(i);
+            lock (Children)
+            {
+                for (int i = 0; i < Children.Count; ++i)
+                    if (Children[i] is UITransform uic && uic.PlacementInfo is UIGridChildPlacementInfo info)
+                        _indices[info.Row, info.Column].Add(i);
+            }
         }
 
         protected override void OnResizeChildComponents(BoundingRectangleF parentRegion)
@@ -275,7 +281,11 @@ namespace XREngine.Rendering.UI
                         Indices[r, c] = indices = [];
                     foreach (var index in indices)
                     {
-                        var childTfm = Children[index];
+                        TransformBase? childTfm = null;
+                        lock (Children)
+                        {
+                            childTfm = Children[index];
+                        }
                         if (childTfm is not UITransform uiComp)
                             continue;
 

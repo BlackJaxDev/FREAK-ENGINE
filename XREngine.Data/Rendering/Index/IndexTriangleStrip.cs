@@ -1,7 +1,10 @@
-﻿namespace XREngine.Data.Rendering
+﻿using YamlDotNet.Serialization;
+
+namespace XREngine.Data.Rendering
 {
     public class IndexTriangleStrip : IndexPolygon
     {
+        [YamlIgnore]
         public override FaceType Type { get { return FaceType.TriangleStrip; } }
 
         public IndexTriangleStrip() { }
@@ -12,7 +15,7 @@
         ///  /   \ /   \
         /// 0-----2-----4
         /// </summary>
-        public IndexTriangleStrip(params IndexPoint[] points)
+        public IndexTriangleStrip(params int[] points)
         {
             if (points.Length < 3)
                 throw new Exception("A triangle strip needs 3 or more points.");

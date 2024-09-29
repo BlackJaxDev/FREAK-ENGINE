@@ -10,7 +10,7 @@ namespace XREngine
     /// </summary>
     public abstract class XRWorldObjectBase : XRObjectBase
     {
-        private XRWorldInstance? _world;
+        internal XRWorldInstance? _world;
         public virtual XRWorldInstance? World 
         {
             get => _world;

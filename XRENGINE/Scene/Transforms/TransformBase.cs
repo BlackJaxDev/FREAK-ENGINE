@@ -1,10 +1,10 @@
-﻿using System.Collections;
+﻿using Extensions;
+using System.Collections;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Reflection;
 using XREngine.Data.Core;
-using XREngine.Rendering;
 using XREngine.Rendering.UI;
 
 namespace XREngine.Scene.Transforms
@@ -80,7 +80,11 @@ namespace XREngine.Scene.Transforms
                 switch (propName)
                 {
                     case nameof(Parent):
-                        _parent?.Children.Remove(this);
+                        if (_parent is not null)
+                        {
+                            lock (_parent.Children)
+                                _parent.Children.Remove(this);
+                        }
                         break;
                 }
             }
@@ -95,10 +99,15 @@ namespace XREngine.Scene.Transforms
                     if (_parent is not null)
                     {
                         Depth = _parent.Depth + 1;
-                        _parent.Children.Add(this);
+
+                        lock (_parent.Children)
+                            _parent.Children.Add(this);
                     }
                     else
                         Depth = 0;
+                    //TODO: world is not set here
+                    if (SceneNode is not null)
+                        SceneNode.World = World;
                     MarkWorldModified();
                     break;
                 case nameof(SceneNode):
@@ -127,6 +136,9 @@ namespace XREngine.Scene.Transforms
             VerifyLocalInv();
             VerifyWorld();
             VerifyWorldInv();
+            lock (Children)
+                foreach (TransformBase child in Children)
+                    child.MarkWorldModified();
         }
 
         private readonly EventList<TransformBase> _children;
@@ -346,7 +358,7 @@ namespace XREngine.Scene.Transforms
 
         #region Overridable Methods
         protected virtual Matrix4x4 CreateWorldMatrix()
-            => Parent is null ? LocalMatrix : Parent.WorldMatrix * LocalMatrix;
+            => Parent is null ? LocalMatrix : LocalMatrix * Parent.WorldMatrix;
         protected virtual bool TryCreateInverseLocalMatrix(out Matrix4x4 inverted)
             => Matrix4x4.Invert(LocalMatrix, out inverted);
         protected virtual bool TryCreateInverseWorldMatrix(out Matrix4x4 inverted)
@@ -370,8 +382,9 @@ namespace XREngine.Scene.Transforms
         protected void MarkWorldModified()
         {
             _worldMatrix.NeedsRecalc = true;
-            foreach (TransformBase child in Children)
-                child.MarkWorldModified();
+            //lock (_children)
+            //    foreach (TransformBase child in _children)
+            //        child.MarkWorldModified();
             World?.AddDirtyTransform(this);
         }
 
@@ -409,13 +422,15 @@ namespace XREngine.Scene.Transforms
 
         protected internal virtual void Start()
         {
-            foreach (TransformBase child in Children)
-                child.Start();
+            lock (Children)
+                foreach (TransformBase child in Children)
+                    child.Start();
         }
         protected internal virtual void Stop()
         {
-            foreach (TransformBase child in Children)
-                child.Stop();
+            lock (Children)
+                foreach (TransformBase child in Children)
+                    child.Stop();
             ClearTicks();
         }
 
@@ -456,7 +471,13 @@ namespace XREngine.Scene.Transforms
         /// Used by the physics system to derive a world matrix from a physics body into the components used by this transform.
         /// </summary>
         /// <param name="value"></param>
-        public virtual void DeriveWorldMatrix(Matrix4x4 value) { }
+        public void DeriveWorldMatrix(Matrix4x4 value)
+            => DeriveLocalMatrix(ParentInverseWorldMatrix * value);
+        /// <summary>
+        /// Derives components to create the local matrix from the given matrix.
+        /// </summary>
+        /// <param name="value"></param>
+        public virtual void DeriveLocalMatrix(Matrix4x4 value) { }
 
         [UnconditionalSuppressMessage("Trimming", "IL2026:Members annotated with 'RequiresUnreferencedCodeAttribute' require dynamic access otherwise can break functionality when trimming application code", Justification = "<Pending>")]
         public static Type[] TransformTypes { get; } = GetAllTransformTypes();

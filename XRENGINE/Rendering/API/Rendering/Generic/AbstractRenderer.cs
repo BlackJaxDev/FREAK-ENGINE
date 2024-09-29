@@ -2,6 +2,7 @@
 using Silk.NET.Core.Native;
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
+using System.Collections.Concurrent;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using XREngine.Core;
@@ -119,7 +120,7 @@ namespace XREngine.Rendering
         private bool ShouldBeRendering()
             => Viewports.Count > 0 && TargetWorldInstance is not null;
 
-        private readonly Dictionary<GenericRenderObject, AbstractRenderAPIObject> _renderObjectCache = [];
+        private readonly ConcurrentDictionary<GenericRenderObject, AbstractRenderAPIObject> _renderObjectCache = [];
         public IReadOnlyDictionary<GenericRenderObject, AbstractRenderAPIObject> RenderObjectCache => _renderObjectCache;
 
         private readonly Stack<BoundingRectangle> _renderAreaStack = new();
@@ -276,23 +277,21 @@ namespace XREngine.Rendering
             if (renderObject is null)
                 return null;
 
-            if (RenderObjectCache.TryGetValue(renderObject, out var obj))
-            {
-                if (generateNow && !obj.IsGenerated)
-                    obj.Generate();
-                return obj;
-            }
-
-            var newObject = CreateAPIRenderObject(renderObject);
-            if (generateNow)
-                newObject.Generate();
-
-            _renderObjectCache.Add(renderObject, newObject);
-            return newObject;
+            var obj = _renderObjectCache.GetOrAdd(renderObject, _ => CreateAPIRenderObject(renderObject));
+            if (generateNow && !obj.IsGenerated)
+                obj.Generate();
+            return obj;
         }
 
         public bool TryGetAPIRenderObject(GenericRenderObject renderObject, out AbstractRenderAPIObject? apiObject)
-            => RenderObjectCache.TryGetValue(renderObject, out apiObject);
+        {
+            if (renderObject is null)
+            {
+                apiObject = null;
+                return false;
+            }
+            return _renderObjectCache.TryGetValue(renderObject, out apiObject);
+        }
 
         /// <summary>
         /// Converts a generic render object reference into a reference to the wrapper object for this specific renderer.

@@ -2,6 +2,7 @@
 using System.Runtime.InteropServices;
 using XREngine.Data;
 using XREngine.Data.Rendering;
+using YamlDotNet.Serialization;
 
 namespace XREngine.Rendering
 {
@@ -64,6 +65,7 @@ namespace XREngine.Rendering
         /// If the buffer is mapped, this means any updates to the buffer will be shown by the GPU immediately.
         /// If the buffer is not mapped, any updates will have to be pushed to the GPU using PushData or PushSubData.
         /// </summary>
+        [YamlIgnore]
         public List<AbstractRenderAPIObject> ActivelyMapping { get; } = [];
 
         private bool _mapped = false;
@@ -130,7 +132,7 @@ namespace XREngine.Rendering
             set => SetField(ref _clientSideSource, value);
         }
 
-        public bool _integral = false;
+        private bool _integral = false;
         /// <summary>
         /// Determines if this buffer has integer-type data or otherwise, floating point.
         /// </summary>
@@ -147,29 +149,33 @@ namespace XREngine.Rendering
             set => SetField(ref _bindingName, value);
         }
 
-        public uint _divisor = 0;
+        private uint _instanceDivisor = 0;
         public uint InstanceDivisor
         {
-            get => _divisor;
-            set => SetField(ref _divisor, value);
+            get => _instanceDivisor;
+            set => SetField(ref _instanceDivisor, value);
         }
 
+        [YamlIgnore]
         public VoidPtr Address => _clientSideSource!.Address;
 
         /// <summary>
         /// The total size in bytes of this buffer.
         /// </summary>
+        [YamlIgnore]
         public uint Length => ElementCount * ElementSize;
 
         /// <summary>
         /// The size in bytes of a single element in the buffer.
         /// </summary>
+        [YamlIgnore]
         public uint ElementSize => ComponentCount * ComponentSize;
 
         /// <summary>
         /// The size in memory of a single component.
         /// A single element in the buffer can contain multiple components.
         /// </summary>
+        [YamlIgnore]
         private uint ComponentSize
             => _componentType switch
             {
@@ -338,7 +344,7 @@ namespace XREngine.Rendering
             _normalize = false;
             if (remap)
             {
-                Debug.Out($"Setting remapped buffer data for {BindingName}");
+                //Debug.Out($"Setting remapped buffer data for {BindingName}");
                 Remapper remapper = new();
                 remapper.Remap(list, null);
                 _elementCount = remapper.ImplementationLength;
@@ -348,7 +354,7 @@ namespace XREngine.Rendering
                 {
                     VoidPtr addr = _clientSideSource.Address[i, stride];
                     T value = list[remapper.ImplementationTable![i]];
-                    Debug.Out($"{value} ");
+                    //Debug.Out($"{value} ");
                     Marshal.StructureToPtr(value, addr, true);
                 }
                 //Engine.DebugPrint();
@@ -356,7 +362,7 @@ namespace XREngine.Rendering
             }
             else
             {
-                Debug.Out($"Setting buffer data for {BindingName}");
+                //Debug.Out($"Setting buffer data for {BindingName}");
                 _elementCount = (uint)list.Count;
                 _clientSideSource = DataSource.Allocate(Length);
                 uint stride = ElementSize;
@@ -364,7 +370,7 @@ namespace XREngine.Rendering
                 {
                     VoidPtr addr = _clientSideSource.Address[i, stride];
                     T value = list[(int)i];
-                    Debug.Out($"{value} ");
+                    //Debug.Out($"{value} ");
                     Marshal.StructureToPtr(value, addr, true);
                 }
                 //Engine.DebugPrint("\n");
@@ -382,7 +388,7 @@ namespace XREngine.Rendering
 
             if (remap)
             {
-                Debug.Out($"Setting remapped buffer data for {BindingName}");
+                //Debug.Out($"Setting remapped buffer data for {BindingName}");
                 Remapper remapper = new();
                 remapper.Remap(list, null);
 
@@ -392,21 +398,21 @@ namespace XREngine.Rendering
                 for (uint i = 0; i < remapper.ImplementationLength; ++i)
                 {
                     var item = list[remapper.ImplementationTable![i]];
-                    Debug.Out(item.ToString() ?? "");
+                    //Debug.Out(item.ToString() ?? "");
                     item.Write(_clientSideSource.Address[i, stride]);
                 }
                 return remapper;
             }
             else
             {
-                Debug.Out($"Setting buffer data for {BindingName}");
+                //Debug.Out($"Setting buffer data for {BindingName}");
                 _elementCount = (uint)list.Count;
                 _clientSideSource = DataSource.Allocate(Length);
                 uint stride = ElementSize;
                 for (uint i = 0; i < list.Count; ++i)
                 {
                     var item = list[(int)i];
-                    Debug.Out(item.ToString() ?? "");
+                    //Debug.Out(item.ToString() ?? "");
                     item.Write(_clientSideSource.Address[i, stride]);
                 }
                 return null;

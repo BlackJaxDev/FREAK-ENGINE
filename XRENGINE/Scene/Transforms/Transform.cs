@@ -96,9 +96,7 @@ namespace XREngine.Scene.Transforms
             get => _order;
             set
             {
-                if (!SetField(ref _order, value))
-                    return;
-                
+                SetField(ref _order, value);
                 _localMatrixGen = _order switch
                 {
                     EOrder.RST => RST,
@@ -167,11 +165,16 @@ namespace XREngine.Scene.Transforms
 
         public void LookAt(Vector3 worldSpaceTarget)
         {
-            //Convert the world position to local space
-            Matrix4x4 parentInv = ParentInverseWorldMatrix;
-            Vector3 localSpaceTarget = Vector3.Transform(worldSpaceTarget, parentInv);
-            Vector3 dir = localSpaceTarget - Translation;
-            Rotation = Quaternion.CreateFromRotationMatrix(Matrix4x4.CreateLookTo(Vector3.Zero, dir, Globals.Up));
+            Vector3 localSpaceTarget = Vector3.Transform(worldSpaceTarget, ParentInverseWorldMatrix);
+            Rotation = Quaternion.CreateFromRotationMatrix(Matrix4x4.CreateLookAt(Translation, localSpaceTarget, Globals.Up));
+        }
+
+        public override void DeriveLocalMatrix(Matrix4x4 value)
+        {
+            Translation = value.Translation;
+            Scale = new Vector3(value.M11, value.M22, value.M33);
+            Rotation = Quaternion.CreateFromRotationMatrix(value);
+            Order = EOrder.TRS;
         }
     }
 }

@@ -1,14 +1,19 @@
 ﻿using Extensions;
+using YamlDotNet.Serialization;
 
 namespace XREngine.Data.Rendering
 {
     public class IndexTriangle : IndexPolygon
     {
+        [YamlIgnore]
         public override FaceType Type => FaceType.Triangles;
 
-        public IndexPoint Point0 => _points[0];
-        public IndexPoint Point1 => _points[1];
-        public IndexPoint Point2 => _points[2];
+        [YamlIgnore]
+        public int Point0 => _points[0];
+        [YamlIgnore]
+        public int Point1 => _points[1];
+        [YamlIgnore]
+        public int Point2 => _points[2];
 
         public IndexTriangle() { }
         /// <summary>
@@ -18,7 +23,7 @@ namespace XREngine.Data.Rendering
         ///   /   \
         ///  0-----1
         /// </summary>
-        public IndexTriangle(IndexPoint point0, IndexPoint point1, IndexPoint point2)
+        public IndexTriangle(int point0, int point1, int point2)
         {
             _points.Add(point0);
             _points.Add(point1);
@@ -38,16 +43,19 @@ namespace XREngine.Data.Rendering
             => base.GetHashCode();
 
         public string WriteToString()
-            => $"{Point0.WriteToString()} {Point1.WriteToString()} {Point2.WriteToString()}";
+            => $"{Point0} {Point1} {Point2}";
 
         private static readonly char[] Separator = [' '];
         public void ReadFromString(string str)
         {
             string[] indices = str.Split(Separator, StringSplitOptions.RemoveEmptyEntries);
-            _points = [new(), new(), new()];
-            _points[0].ReadFromString(indices.IndexInRangeArrayT(0) ? indices[0] : string.Empty);
-            _points[1].ReadFromString(indices.IndexInRangeArrayT(1) ? indices[1] : string.Empty);
-            _points[2].ReadFromString(indices.IndexInRangeArrayT(2) ? indices[2] : string.Empty);
+            static int ToInt(string s) => int.TryParse(s, out int value) ? value : 0;
+            _points =
+            [
+                indices.IndexInRangeArrayT(0) ? ToInt(indices[0]) : 0,
+                indices.IndexInRangeArrayT(1) ? ToInt(indices[1]) : 0,
+                indices.IndexInRangeArrayT(2) ? ToInt(indices[2]) : 0
+            ];
         }
     }
 }

@@ -1,6 +1,6 @@
 ﻿namespace XREngine.Data.Rendering
 {
-    public abstract class IndexPolygon(params IndexPoint[] points) : IndexPrimitive(points)
+    public abstract class IndexPolygon(params int[] points) : IndexPrimitive(points)
     {
         public abstract List<IndexTriangle> ToTriangles();
         public bool ContainsEdge(IndexLine edge, out bool polygonIsCCW)

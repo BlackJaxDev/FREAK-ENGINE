@@ -78,7 +78,7 @@
     <PackageReference Include="Silk.NET.Windowing.Sdl" Version="2.21.0" />
     <PackageReference Include="Silk.NET.XInput" Version="2.21.0" />
     <PackageReference Include="SkiaSharp" Version="2.88.8" />
-    <PackageReference Include="YamlDotNet" Version="16.1.2" />
+    <PackageReference Include="YamlDotNet" Version="16.1.3" />
   </ItemGroup>
 
   <ItemGroup>

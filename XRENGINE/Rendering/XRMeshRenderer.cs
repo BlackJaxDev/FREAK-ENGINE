@@ -17,6 +17,9 @@ namespace XREngine.Rendering
     {
         public XRMeshRenderer(XRMesh? mesh, XRMaterial? material)
         {
+            ArgumentNullException.ThrowIfNull(mesh);
+            ArgumentNullException.ThrowIfNull(material);
+
             _mesh = mesh;
             _material = material;
 
@@ -229,7 +232,7 @@ namespace XREngine.Rendering
         {
             if (RenderRequested is null)
             {
-                Debug.LogWarning("No APIs are subscribed to render this mesh.");
+                //Debug.LogWarning("No APIs are subscribed to render this mesh.");
                 return;
             }
             RenderRequested?.Invoke(worldMatrix, materialOverride, instances);

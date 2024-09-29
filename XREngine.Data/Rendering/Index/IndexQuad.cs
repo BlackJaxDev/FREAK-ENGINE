@@ -1,15 +1,26 @@
-﻿namespace XREngine.Data.Rendering
+﻿using YamlDotNet.Serialization;
+
+namespace XREngine.Data.Rendering
 {
     public class IndexQuad : IndexPolygon
     {
         public override FaceType Type => FaceType.Quads;
 
-        private readonly bool _forwardSlash = false;
+        private bool _forwardSlash = false;
+        public bool ForwardSlash
+        {
+            get => _forwardSlash;
+            set => SetField(ref _forwardSlash, value);
+        }
 
-        public IndexPoint Point0 => _points[0];
-        public IndexPoint Point1 => _points[1];
-        public IndexPoint Point2 => _points[2];
-        public IndexPoint Point3 => _points[3];
+        [YamlIgnore]
+        public int Point0 => _points[0];
+        [YamlIgnore]
+        public int Point1 => _points[1];
+        [YamlIgnore]
+        public int Point2 => _points[2];
+        [YamlIgnore]
+        public int Point3 => _points[3];
 
         public IndexQuad() { }
         /// <summary>
@@ -19,7 +30,7 @@
         ///|  |      / |       |/        | \          \|
         ///0--1     0--1       0         0--1          1
         /// </summary>
-        public IndexQuad(IndexPoint point0, IndexPoint point1, IndexPoint point2, IndexPoint point3, bool forwardSlash = false)
+        public IndexQuad(int point0, int point1, int point2, int point3, bool forwardSlash = false)
             : base(point0, point1, point2, point3)
         {
             //IndexLine e01 = point0.LinkTo(point1);

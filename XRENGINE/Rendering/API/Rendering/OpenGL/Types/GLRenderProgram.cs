@@ -9,7 +9,7 @@ namespace XREngine.Rendering.OpenGL
     public unsafe partial class OpenGLRenderer
     {
         public delegate void DelCompile(bool compiledSuccessfully, string? compileInfo);
-        public class GLRenderProgram : GLObject<XRRenderProgram>, IEnumerable<GLShader>
+        public class GLRenderProgram(OpenGLRenderer renderer, XRRenderProgram data) : GLObject<XRRenderProgram>(renderer, data), IEnumerable<GLShader>
         {
             private bool _isValid = true;
             public bool IsLinked
@@ -123,30 +123,52 @@ namespace XREngine.Rendering.OpenGL
                 return true;
             }
 
-            public GLRenderProgram(OpenGLRenderer renderer, XRRenderProgram data)
-                : base(renderer, data)
+            protected override void UnlinkData()
+            {
+                Data.UniformSetVector2Requested -= Uniform;
+                Data.UniformSetVector3Requested -= Uniform;
+                Data.UniformSetVector4Requested -= Uniform;
+                Data.UniformSetQuaternionRequested -= Uniform;
+                Data.UniformSetIntRequested -= Uniform;
+                Data.UniformSetFloatRequested -= Uniform;
+                Data.UniformSetUIntRequested -= Uniform;
+                Data.UniformSetDoubleRequested -= Uniform;
+                Data.UniformSetMatrix4x4Requested -= Uniform;
+
+                Data.UniformSetVector2ArrayRequested -= Uniform;
+                Data.UniformSetVector3ArrayRequested -= Uniform;
+                Data.UniformSetVector4ArrayRequested -= Uniform;
+                Data.UniformSetQuaternionArrayRequested -= Uniform;
+                Data.UniformSetIntArrayRequested -= Uniform;
+                Data.UniformSetFloatArrayRequested -= Uniform;
+                Data.UniformSetUIntArrayRequested -= Uniform;
+                Data.UniformSetDoubleArrayRequested -= Uniform;
+                Data.UniformSetMatrix4x4ArrayRequested -= Uniform;
+            }
+
+            protected override void LinkData()
             {
                 //data.UniformLocationRequested = GetUniformLocation;
 
-                data.UniformSetVector2Requested += Uniform;
-                data.UniformSetVector3Requested += Uniform;
-                data.UniformSetVector4Requested += Uniform;
-                data.UniformSetQuaternionRequested += Uniform;
-                data.UniformSetIntRequested += Uniform;
-                data.UniformSetFloatRequested += Uniform;
-                data.UniformSetUIntRequested += Uniform;
-                data.UniformSetDoubleRequested += Uniform;
-                data.UniformSetMatrix4x4Requested += Uniform;
+                Data.UniformSetVector2Requested += Uniform;
+                Data.UniformSetVector3Requested += Uniform;
+                Data.UniformSetVector4Requested += Uniform;
+                Data.UniformSetQuaternionRequested += Uniform;
+                Data.UniformSetIntRequested += Uniform;
+                Data.UniformSetFloatRequested += Uniform;
+                Data.UniformSetUIntRequested += Uniform;
+                Data.UniformSetDoubleRequested += Uniform;
+                Data.UniformSetMatrix4x4Requested += Uniform;
 
-                data.UniformSetVector2ArrayRequested += Uniform;
-                data.UniformSetVector3ArrayRequested += Uniform;
-                data.UniformSetVector4ArrayRequested += Uniform;
-                data.UniformSetQuaternionArrayRequested += Uniform;
-                data.UniformSetIntArrayRequested += Uniform;
-                data.UniformSetFloatArrayRequested += Uniform;
-                data.UniformSetUIntArrayRequested += Uniform;
-                data.UniformSetDoubleArrayRequested += Uniform;
-                data.UniformSetMatrix4x4ArrayRequested += Uniform;
+                Data.UniformSetVector2ArrayRequested += Uniform;
+                Data.UniformSetVector3ArrayRequested += Uniform;
+                Data.UniformSetVector4ArrayRequested += Uniform;
+                Data.UniformSetQuaternionArrayRequested += Uniform;
+                Data.UniformSetIntArrayRequested += Uniform;
+                Data.UniformSetFloatArrayRequested += Uniform;
+                Data.UniformSetUIntArrayRequested += Uniform;
+                Data.UniformSetDoubleArrayRequested += Uniform;
+                Data.UniformSetMatrix4x4ArrayRequested += Uniform;
             }
 
             private void Reset()

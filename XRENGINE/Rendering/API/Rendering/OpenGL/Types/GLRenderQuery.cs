@@ -63,6 +63,14 @@ namespace XREngine.Rendering.OpenGL
     }
     public class GLSampler(OpenGLRenderer renderer, XRSampler sampler) : GLObject<XRSampler>(renderer, sampler)
     {
+        protected override void LinkData()
+        {
+
+        }
+        protected override void UnlinkData()
+        {
+
+        }
         public override GLObjectType Type => GLObjectType.Sampler;
 
         public void SetParameter(ESamplerParameter parameter, int value)
@@ -168,6 +176,14 @@ namespace XREngine.Rendering.OpenGL
     }
     public class GLRenderQuery(OpenGLRenderer renderer, XRRenderQuery query) : GLObject<XRRenderQuery>(renderer, query)
     {
+        protected override void LinkData()
+        {
+
+        }
+        protected override void UnlinkData()
+        {
+
+        }
         public override GLObjectType Type => GLObjectType.Query;
 
         public static GLEnum ToGLEnum(EQueryTarget target)

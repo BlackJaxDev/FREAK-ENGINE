@@ -1,15 +1,10 @@
 ﻿using Extensions;
-using System.Drawing;
-using XREngine.Audio;
 using XREngine.Input;
 
 namespace XREngine
 {
     public static partial class Engine
     {
-        public static Color InvalidColor { get; } = Color.Magenta;
-        public static AudioManager Audio { get; } = new AudioManager();
-
         public static class State
         {
             public static event Action<LocalPlayerController>? LocalPlayerAdded;

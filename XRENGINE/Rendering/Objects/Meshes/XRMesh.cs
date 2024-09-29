@@ -1,19 +1,22 @@
 ﻿using Extensions;
-using System.Collections;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Numerics;
+using XREngine.Core.Files;
 using XREngine.Data.Core;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
 using XREngine.Scene.Transforms;
+using YamlDotNet.Serialization;
 
 namespace XREngine.Rendering
 {
     /// <summary>
     /// This class contains buffer-organized mesh data that can be rendered using an XRMeshRenderer.
     /// </summary>
-    public partial class XRMesh : XRObjectBase, IEnumerable<XRDataBuffer>
+    public partial class XRMesh : XRAsset
     {
+        [YamlIgnore]
         public XREvent<XRMesh> DataChanged;
 
         public XRMesh()
@@ -31,6 +34,10 @@ namespace XREngine.Rendering
         /// <param name="type"></param>
         public XRMesh(IEnumerable<VertexPrimitive> primitives)
         {
+#if DEBUG
+            Stopwatch sw = new();
+            sw.Start();
+#endif
             //TODO: convert triangles to tristrips and use primitive restart to render them all in one call? is this more efficient?
 
             //Convert all primitives to simple primitives
@@ -60,6 +67,12 @@ namespace XREngine.Rendering
             //For each vertex, we double check what data it has and add verify that the corresponding add-to-buffer action is added
             void AddVertex(List<Vertex> vertices, Vertex v)
             {
+                if (v is null)
+                {
+                    Debug.LogWarning("Null vertex found in mesh.");
+                    return;
+                }
+
                 vertices.Add(v);
 
                 if (bounds is null)
@@ -235,7 +248,7 @@ namespace XREngine.Rendering
 
             //Fill the buffers with the vertex data using the command list
             //We can do this in parallel since each vertex is independent
-            PopulateVertexData(vertexActions, sourceList, firstAppearanceArray);
+            PopulateVertexData(vertexActions, sourceList, firstAppearanceArray, true);
 
             if (weights is not null)
                 SetBoneWeights(weights);
@@ -282,6 +295,13 @@ namespace XREngine.Rendering
                     Buffers.Add(binding, TexCoordBuffers[texCoordIndex]);
                 }
             }
+
+#if DEBUG
+            sw.Stop();
+            float sec = sw.ElapsedMilliseconds / 1000.0f;
+            if (sec > 1.0f)
+                Debug.Out($"Mesh creation took {sw.ElapsedMilliseconds / 1000.0f} sec.");
+#endif
         }
 
         private static void PopulateVertexData(List<Action<int, int, Vertex>> vertexActions, List<Vertex> sourceList, int[] firstAppearanceArray, bool parallel = true)
@@ -471,7 +491,7 @@ namespace XREngine.Rendering
         }
 
         [Browsable(false)]
-        public List<IndexPoint>? Points
+        public List<int>? Points
         {
             get => _points;
             set => SetField(ref _points, value);
@@ -507,7 +527,7 @@ namespace XREngine.Rendering
 
         //Each point, line and triangle has indices that refer to the face indices array.
         //These may contain repeat vertex indices but each primitive is unique.
-        private List<IndexPoint>? _points = null;
+        private List<int>? _points = null;
         private List<IndexLine>? _lines = null;
         private List<IndexTriangle>? _triangles = null;
 
@@ -1142,13 +1162,13 @@ namespace XREngine.Rendering
                 Remapper remapper = new();
                 remapper.Remap(vertices, null);
                 for (int i = 0; i < remapper.RemapTable?.Length;)
-                    _points.Add(new IndexPoint(remapper.RemapTable[i++]));
+                    _points.Add(remapper.RemapTable[i++]);
                 return remapper;
             }
             else
             {
                 for (int i = 0; i < vertices.Count;)
-                    _points.Add(new IndexPoint(i++));
+                    _points.Add(i++);
                 return null;
             }
         }
@@ -1156,8 +1176,5 @@ namespace XREngine.Rendering
 
         protected override void OnDestroying()
             => _buffers?.ForEach(x => x.Value.Dispose());
-
-        public IEnumerator<XRDataBuffer> GetEnumerator() => ((IEnumerable<XRDataBuffer>)_buffers).GetEnumerator();
-        IEnumerator IEnumerable.GetEnumerator() => ((IEnumerable<XRDataBuffer>)_buffers).GetEnumerator();
     }
 }

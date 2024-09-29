@@ -11,7 +11,6 @@ namespace XREngine.Rendering.OpenGL
 
         protected override void LinkData()
         {
-            base.LinkData();
             Data.AllocateRequested += Allocate;
             Data.BindRequested += Bind;
             Data.UnbindRequested += Unbind;
@@ -21,7 +20,6 @@ namespace XREngine.Rendering.OpenGL
 
         protected override void UnlinkData()
         {
-            base.UnlinkData();
             Data.AllocateRequested -= Allocate;
             Data.BindRequested -= Bind;
             Data.UnbindRequested -= Unbind;

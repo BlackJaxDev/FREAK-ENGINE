@@ -22,6 +22,7 @@ namespace XREngine.Rendering.Models.Materials.Textures
         protected override void UnlinkData()
         {
             base.UnlinkData();
+
             Data.AttachFaceToFBORequested -= AttachFaceToFBO;
             Data.DetachFaceFromFBORequested -= DetachFaceFromFBO;
         }
@@ -29,6 +30,7 @@ namespace XREngine.Rendering.Models.Materials.Textures
         protected override void LinkData()
         {
             base.LinkData();
+
             Data.AttachFaceToFBORequested += AttachFaceToFBO;
             Data.DetachFaceFromFBORequested += DetachFaceFromFBO;
         }

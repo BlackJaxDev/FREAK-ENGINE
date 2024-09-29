@@ -6,9 +6,14 @@ namespace XREngine.Rendering.OpenGL
 {
     public unsafe partial class OpenGLRenderer
     {
-        public class GLShader : GLObject<XRShader>
+        public class GLShader(OpenGLRenderer renderer, XRShader data) : GLObject<XRShader>(renderer, data)
         {
-            public GLShader(OpenGLRenderer renderer, XRShader data) : base(renderer, data) 
+            protected override void UnlinkData()
+            {
+                Data.PropertyChanged -= Data_PropertyChanged;
+            }
+
+            protected override void LinkData()
             {
                 Data.PropertyChanged += Data_PropertyChanged;
                 OnSourceChanged();

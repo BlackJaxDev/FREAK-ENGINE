@@ -10,14 +10,12 @@ namespace XREngine.Rendering.OpenGL
         {
             protected override void UnlinkData()
             {
-                base.UnlinkData();
                 Data.PushDataRequested -= PushData;
                 Data.PushSubDataRequested -= PushSubData;
                 Data.SetBlockNameRequested -= SetBlockName;
             }
             protected override void LinkData()
             {
-                base.LinkData();
                 Data.PushDataRequested += PushData;
                 Data.PushSubDataRequested += PushSubData;
                 Data.SetBlockNameRequested += SetBlockName;

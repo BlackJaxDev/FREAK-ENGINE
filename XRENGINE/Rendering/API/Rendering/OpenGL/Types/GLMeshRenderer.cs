@@ -106,28 +106,24 @@ namespace XREngine.Rendering.OpenGL
 
             protected override void LinkData()
             {
-                if (Data.Mesh != null)
-                    Data.Mesh.DataChanged += OnMeshChanged;
-                
-                OnMeshChanged(Data.Mesh);
                 Data.RenderRequested += Render;
                 Data.PropertyChanged += OnDataPropertyChanged;
                 Data.PropertyChanging += OnDataPropertyChanging;
-                base.LinkData();
+
+                if (Data.Mesh != null)
+                    Data.Mesh.DataChanged += OnMeshChanged;
+                OnMeshChanged(Data.Mesh);
+
             }
 
             protected override void UnlinkData()
             {
-                base.UnlinkData();
-
-                if (Data.Mesh != null)
-                    Data.Mesh.DataChanged -= OnMeshChanged;
-
                 Data.RenderRequested -= Render;
                 Data.PropertyChanged -= OnDataPropertyChanged;
                 Data.PropertyChanging -= OnDataPropertyChanging;
 
-                Destroy();
+                if (Data.Mesh != null)
+                    Data.Mesh.DataChanged -= OnMeshChanged;
             }
 
             private void OnDataPropertyChanged(object? sender, PropertyChangedEventArgs e)

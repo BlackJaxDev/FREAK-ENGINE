@@ -115,10 +115,14 @@ namespace XREngine.Rendering.OpenGL
 
             public GLRenderProgram? Program => Renderer.GenericToAPI<GLRenderProgram>(Data.ShaderPipelineProgram);
 
+            protected override void LinkData()
+            {
+                foreach (var tex in Data.Textures)
+                    if (Renderer.TryGetAPIRenderObject(tex, out var apiObj))
+                        apiObj?.Generate();
+            }
             protected override void UnlinkData()
             {
-                base.UnlinkData();
-
                 foreach (var tex in Data.Textures)
                     if (Renderer.TryGetAPIRenderObject(tex, out var apiObj))
                         apiObj?.Destroy();

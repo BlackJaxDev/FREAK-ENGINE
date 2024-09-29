@@ -21,7 +21,6 @@ namespace XREngine.Rendering.OpenGL
             Data.UnbindFromReadRequested -= UnbindFromReading;
             Data.UnbindFromWriteRequested -= UnbindFromWriting;
             Data.UnbindRequested -= Unbind;
-            base.UnlinkData();
         }
 
         protected override void LinkData()
@@ -37,7 +36,6 @@ namespace XREngine.Rendering.OpenGL
             Data.UnbindFromReadRequested += UnbindFromReading;
             Data.UnbindFromWriteRequested += UnbindFromWriting;
             Data.UnbindRequested += Unbind;
-            base.LinkData();
         }
 
         private void Value_PreSetRenderTargets()
