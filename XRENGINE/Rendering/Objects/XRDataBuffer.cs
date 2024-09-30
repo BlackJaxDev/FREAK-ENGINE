@@ -348,6 +348,22 @@ namespace XREngine.Rendering
         {
             Marshal.StructureToPtr(data, _clientSideSource!.Address[index, ElementSize], true);
         }
+        public unsafe void SetDataRawAtIndex(uint index, float data)
+        {
+            ((float*)_clientSideSource!.Address._address)[index] = data;
+        }
+        public unsafe void SetDataRawAtIndex(uint index, Vector2 data)
+        {
+            ((Vector2*)_clientSideSource!.Address._address)[index] = data;
+        }
+        public unsafe void SetDataRawAtIndex(uint index, Vector3 data)
+        {
+            ((Vector3*)_clientSideSource!.Address._address)[index] = data;
+        }
+        public unsafe void SetDataRawAtIndex(uint index, Vector4 data)
+        {
+            ((Vector4*)_clientSideSource!.Address._address)[index] = data;
+        }
 
         public Remapper? SetDataRaw<T>(IList<T> list, bool remap = false) where T : struct
         {

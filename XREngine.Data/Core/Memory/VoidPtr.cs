@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace XREngine.Data
@@ -73,6 +74,27 @@ namespace XREngine.Data
         }
         public readonly float GetFloat() => Float;
         public void SetFloat(float i) => Float = i;
+        public readonly Vector2 Vector2
+        {
+            get => *(Vector2*)_address;
+            set => *(Vector2*)_address = value;
+        }
+        public readonly Vector2 GetVector2() => Vector2;
+        public void SetVector2(Vector2 i) => Vector2 = i;
+        public readonly Vector3 Vector3
+        {
+            get => *(Vector3*)_address;
+            set => *(Vector3*)_address = value;
+        }
+        public readonly Vector3 GetVector3() => Vector3;
+        public void SetVector3(Vector3 i) => Vector3 = i;
+        public readonly Vector4 Vector4
+        {
+            get => *(Vector4*)_address;
+            set => *(Vector4*)_address = value;
+        }
+        public readonly Vector4 GetVector4() => Vector4;
+        public void SetVector4(Vector4 i) => Vector4 = i;
         public readonly double Double
         {
             get => *(bdouble*)_address;
