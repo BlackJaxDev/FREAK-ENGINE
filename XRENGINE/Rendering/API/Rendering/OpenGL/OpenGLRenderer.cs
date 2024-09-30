@@ -324,16 +324,41 @@ namespace XREngine.Rendering.OpenGL
             switch (gro)
             {
                 case XRTexture2DView t2dv:
-                    debug += $"{t2dv.ViewedTexture.Width}x{t2dv.ViewedTexture.Height} | internal:{t2dv.InternalFormat} | {t2dv.ViewedTexture.PixelFormat}/{t2dv.ViewedTexture.PixelType}";
+                    debug += $"{t2dv.ViewedTexture.Width}x{t2dv.ViewedTexture.Height} | Viewing {t2dv.ViewedTexture.Name} | internal:{t2dv.InternalFormat}{FormatMipLevels(t2dv.ViewedTexture)}";
                     break;
                 case XRTexture2D t2d:
-                    debug += $"{t2d.Width}x{t2d.Height} | internal:{t2d.InternalFormat} | {t2d.PixelFormat}/{t2d.PixelType}";
+                    debug += $"{t2d.Width}x{t2d.Height}{FormatMipLevels(t2d)}";
                     break;
                 case XRRenderBuffer rb:
                     debug += $"{rb.Width}x{rb.Height} | {rb.Type}";
                     break;
             }
             return debug;
+        }
+
+        private static string FormatMipLevels(XRTexture2D t2d)
+        {
+            switch (t2d.Mipmaps.Length)
+            {
+                case 0:
+                    return " | No mipmaps";
+                case 1:
+                    return $" | {FormatMipmap(0, t2d.Mipmaps)}";
+                default:
+                    string mipmaps = $" | {t2d.Mipmaps.Length} mipmaps";
+                    for (int i = 0; i < t2d.Mipmaps.Length; i++)
+                        mipmaps += $"{Environment.NewLine}{FormatMipmap(i, t2d.Mipmaps)}";
+                    return mipmaps;
+            }
+        }
+
+        private static string FormatMipmap(int i, Mipmap[] mipmaps)
+        {
+            if (i >= mipmaps.Length)
+                return string.Empty;
+
+            Mipmap m = mipmaps[i];
+            return $"Mip{i} | {m.Width}x{m.Height} | internal:{m.InternalFormat} | {m.PixelFormat}/{m.PixelType}";
         }
 
         public void SetMipmapParameters(uint bindingId, int minLOD, int maxLOD, int largestMipmapLevel, int smallestAllowedMipmapLevel)

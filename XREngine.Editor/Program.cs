@@ -34,7 +34,7 @@ internal class Program
     }
 
     static void TickRotation(OrbitTransform t) 
-        => t.Angle += Engine.DilatedDelta * 5.0f;
+        => t.Angle += Engine.DilatedDelta * 0.5f;
 
     static XRWorld CreateTestWorld()
     {
@@ -83,7 +83,7 @@ internal class Program
         {
             cameraComp!.Name = "TestCamera";
             cameraComp.LocalPlayerIndex = ELocalPlayerIndex.One;
-            cameraComp.Camera.Parameters = new XRPerspectiveCameraParameters(60.0f, null, 0.1f, 1000.0f);
+            cameraComp.Camera.Parameters = new XRPerspectiveCameraParameters(60.0f, null, 0.1f, 100000.0f);
             cameraComp.CullWithFrustum = true;
             cameraComp.RenderPipeline = new TestRenderPipeline();
         }
@@ -108,7 +108,7 @@ internal class Program
 
         Task.Run(() =>
         {
-            var importedModelNode = ModelImporter.Import(Path.Combine(desktopDir, "sponza.obj"), PostProcessSteps.None);
+            var importedModelNode = ModelImporter.Import(Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj"), PostProcessSteps.None);
             if (importedModelNode != null)
             {
                 lock (modelNode.Transform.Children)

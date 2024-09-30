@@ -4,9 +4,13 @@ using XREngine.Rendering.Models.Materials;
 
 namespace XREngine.Rendering
 {
+    [XR3rdPartyExtensions(
+        "glsl",
+        "frag", "vert", "geom", "tesc", "tese", "comp",
+        "fs", "vs", "gs", "tcs", "tes", "cs")]
     public class XRShader : GenericRenderObject
     {
-        private EShaderType _type = EShaderType.Fragment;
+        internal EShaderType _type = EShaderType.Fragment;
         public EShaderType Type
         {
             get => _type;
@@ -54,10 +58,29 @@ namespace XREngine.Rendering
         /// <param name="type"></param>
         /// <returns></returns>
         /// <exception cref="NotImplementedException"></exception>
-        public static XRShader EngineShader(string relativePath, EShaderType type)
+        public static XRShader? EngineShader(string relativePath, EShaderType type)
             => ShaderHelper.LoadShader(relativePath, type);
 
-        public static Task<XRShader> EngineShaderAsync(string relativePath, EShaderType type)
-            => ShaderHelper.LoadShaderAsync(relativePath, type);
+        /// <summary>
+        /// Loads a shader from common engine shaders asynchronously.
+        /// </summary>
+        /// <param name="relativePath"></param>
+        /// <param name="type"></param>
+        /// <returns></returns>
+        public static async Task<XRShader?> EngineShaderAsync(string relativePath, EShaderType type)
+            => await ShaderHelper.LoadShaderAsync(relativePath, type);
+
+        public override void Load3rdParty(string filePath)
+        {
+            TextFile file = new();
+            file.LoadText(filePath);
+            Source = file;
+        }
+        public override async Task Load3rdPartyAsync(string filePath)
+        {
+            TextFile file = new();
+            await file.LoadTextAsync(filePath);
+            Source = file;
+        }
     }
 }

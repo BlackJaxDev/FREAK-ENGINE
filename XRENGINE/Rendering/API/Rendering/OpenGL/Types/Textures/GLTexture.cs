@@ -128,11 +128,11 @@ namespace XREngine.Rendering.OpenGL
 
             SetParameters();
 
-            //if (IsInvalidated)
-            //{
-            //    IsInvalidated = false;
-            //    PushData();
-            //}
+            if (IsInvalidated)
+            {
+                IsInvalidated = false;
+                PushData();
+            }
         }
 
         public void Unbind()

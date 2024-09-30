@@ -91,8 +91,7 @@
             }
 
             protected internal virtual void PreDeleted() { }
-            protected internal virtual void PostDeleted()
-                => _bindingId = null;
+            protected internal virtual void PostDeleted() { }
 
             /// <summary>
             /// The unique id of this object when generated.
@@ -172,6 +171,7 @@
                         Api.DeleteShader(id);
                         break;
                 }
+                _bindingId = null;
                 PostDeleted();
             }
         }

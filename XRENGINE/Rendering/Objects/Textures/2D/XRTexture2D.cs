@@ -2,6 +2,7 @@
 using ImageMagick.Drawing;
 using XREngine.Data.Rendering;
 using XREngine.Data.Vectors;
+using static XREngine.Rendering.OpenGL.OpenGLRenderer;
 
 namespace XREngine.Rendering
 {
@@ -33,6 +34,7 @@ namespace XREngine.Rendering
         protected uint _width = 0;
         protected uint _height = 0;
 
+        private ESizedInternalFormat _sizedInternalFormat = ESizedInternalFormat.Rgba32f;
         private EDepthStencilFmt _depthStencilFormat = EDepthStencilFmt.None;
         private ETexMagFilter _magFilter = ETexMagFilter.Nearest;
         private ETexMinFilter _minFilter = ETexMinFilter.Nearest;
@@ -60,25 +62,36 @@ namespace XREngine.Rendering
         public XRTexture2D() : this(1u, 1u, EPixelInternalFormat.Rgb8, EPixelFormat.Rgb, EPixelType.UnsignedByte) { }
         public XRTexture2D(uint width, uint height, EPixelInternalFormat internalFormat, EPixelFormat format, EPixelType type, int mipmapCount = 1)
         {
-            _mipmaps = new MagickImage[mipmapCount];
+            _mipmaps = new Mipmap[mipmapCount];
             for (uint i = 0, scale = 1; i < mipmapCount; scale = 1u << (int)++i)
-                _mipmaps[i] = NewImage(width / scale, height / scale, format, type);
+            {
+                var img = NewImage(width / scale, height / scale, format, type);
+                Mipmap mipmap = new(img)
+                {
+                    InternalFormat = internalFormat
+                };
+                _mipmaps[i] = mipmap;
+            }
             _width = width;
             _height = height;
-            InternalFormat = internalFormat;
-            PixelFormat = format;
-            PixelType = type;
         }
 
         public XRTexture2D(params string[] mipMapPaths)
         {
-            _mipmaps = new MagickImage?[mipMapPaths.Length];
+            _mipmaps = new Mipmap[mipMapPaths.Length];
             for (int i = 0; i < mipMapPaths.Length; ++i)
             {
                 string path = mipMapPaths[i];
                 if (path.StartsWith("file://"))
                     path = path[7..];
-                _mipmaps[i] = new(path);
+                try
+                {
+                    _mipmaps[i] = new(new(path));
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning($"Failed to load texture from path: {path}{Environment.NewLine}{e.Message}");
+                }
             }
             if (_mipmaps.Length > 0)
             {
@@ -97,23 +110,26 @@ namespace XREngine.Rendering
         }
         public XRTexture2D(uint width, uint height, EPixelInternalFormat internalFormat, EPixelFormat format, EPixelType type)
         {
-            _mipmaps = [null];
+            _mipmaps = [new Mipmap() { InternalFormat = internalFormat, PixelFormat = format, PixelType = type }];
             _width = width;
             _height = height;
-            InternalFormat = internalFormat;
-            PixelFormat = format;
-            PixelType = type;
         }
         public XRTexture2D(uint width, uint height, params MagickImage?[] mipmaps)
         {
-            _mipmaps = new MagickImage?[mipmaps.Length];
+            _mipmaps = new Mipmap[mipmaps.Length];
             for (int i = 0; i < mipmaps.Length; ++i)
-                _mipmaps[i] = mipmaps[i];
+                _mipmaps[i] = new Mipmap(mipmaps[i]);
             Resize(width, height);
         }
+        public XRTexture2D(MagickImage image)
+        {
+            _mipmaps = [image];
+            _width = image.Width;
+            _height = image.Height;
+        }
 
-        public MagickImage?[] _mipmaps = [];
-        public MagickImage?[] Mipmaps
+        public Mipmap[] _mipmaps = [];
+        public Mipmap[] Mipmaps
         {
             get => _mipmaps;
             set => SetField(ref _mipmaps, value);
@@ -147,7 +163,12 @@ namespace XREngine.Rendering
         public float LodBias
         {
             get => _lodBias;
-            set => _lodBias = value;
+            set => SetField(ref _lodBias, value);
+        }
+        public ESizedInternalFormat SizedInternalFormat
+        {
+            get => _sizedInternalFormat;
+            set => SetField(ref _sizedInternalFormat, value);
         }
 
         public uint Width => _width;
@@ -218,14 +239,14 @@ namespace XREngine.Rendering
             if (baseTexture is null)
                 return;
 
-            _mipmaps = new MagickImage[SmallestMipmapLevel];
+            _mipmaps = new Mipmap[SmallestMipmapLevel];
             _mipmaps[0] = baseTexture;
             
             for (int i = 1; i < _mipmaps.Length; ++i)
             {
-                var clone = _mipmaps[i - 1]?.Clone();
-                clone?.Resize(_width >> i, _height >> i);
-                _mipmaps[i] = clone as MagickImage;
+                Mipmap clone = _mipmaps[i - 1].Clone(true);
+                clone.Resize(_width >> i, _height >> i);
+                _mipmaps[i] = clone;
             }
         }
 
@@ -282,6 +303,7 @@ namespace XREngine.Rendering
             };
 
         private XRDataBuffer? _pbo;
+
         public bool ShouldLoadDataFromPBO
         {
             get => _pbo != null;

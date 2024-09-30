@@ -16,26 +16,18 @@ namespace XREngine.Rendering
             => ViewedTexture;
     }
 
-    public abstract class XRTextureViewBase : XRTexture, IFrameBufferAttachement
+    public abstract class XRTextureViewBase(
+        int minLevel,
+        int numLevels,
+        int minLayer,
+        int numLayers,
+        EPixelInternalFormat internalFormat) : XRTexture, IFrameBufferAttachement
     {
-        public int MinLevel { get; set; }
-        public int NumLevels { get; set; }
-        public int MinLayer { get; set; }
-        public int NumLayers { get; set; }
-
-        public XRTextureViewBase(
-            int minLevel,
-            int numLevels,
-            int minLayer,
-            int numLayers,
-            EPixelInternalFormat internalFormat)
-        {
-            MinLevel = minLevel;
-            NumLevels = numLevels;
-            MinLayer = minLayer;
-            NumLayers = numLayers;
-            InternalFormat = internalFormat;
-        }
+        public int MinLevel { get; set; } = minLevel;
+        public int NumLevels { get; set; } = numLevels;
+        public int MinLayer { get; set; } = minLayer;
+        public int NumLayers { get; set; } = numLayers;
+        public EPixelInternalFormat InternalFormat { get; set; } = internalFormat;
 
         public abstract XRTexture GetViewedTexture();
 

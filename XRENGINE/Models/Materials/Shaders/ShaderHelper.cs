@@ -1,23 +1,21 @@
-﻿using XREngine.Core.Files;
-
-namespace XREngine.Rendering.Models.Materials
+﻿namespace XREngine.Rendering.Models.Materials
 {
     public static class ShaderHelper
     {
-        public static XRShader LoadShader(string relativePath, EShaderType type)
+        public static XRShader? LoadShader(string relativePath, EShaderType? type = null)
         {
-            TextFile? source = Engine.Assets.LoadEngine3rdPartyAsset<TextFile>("Shaders", relativePath);
-            return source is null 
-                ? throw new FileNotFoundException($"Shader file not found: {relativePath}") 
-                : new XRShader(type, source);
+            XRShader? source = Engine.Assets.LoadEngineAsset<XRShader>("Shaders", relativePath);
+            if (source is not null)
+                source._type = type ?? XRShader.ResolveType(Path.GetExtension(relativePath));
+            return source;
         }
 
-        public static async Task<XRShader> LoadShaderAsync(string relativePath, EShaderType type)
+        public static async Task<XRShader?> LoadShaderAsync(string relativePath, EShaderType? type = null)
         {
-            TextFile? source = await Engine.Assets.LoadEngine3rdPartyAssetAsync<TextFile>("Shaders", relativePath);
-            return source is null
-                ? throw new FileNotFoundException($"Shader file not found: {relativePath}")
-                : new XRShader(type, source);
+            XRShader? source = await Engine.Assets.LoadEngineAssetAsync<XRShader>("Shaders", relativePath);
+            if (source is not null)
+                source._type = type ?? XRShader.ResolveType(Path.GetExtension(relativePath));
+            return source;
         }
 
         public const string LightFalloff = "pow(clamp(1.0 - pow({1} / {0}, 4), 0.0, 1.0), 2.0) / ({1} * {1} + 1.0);";
@@ -123,16 +121,16 @@ void main()
 ";
             return new XRShader(EShaderType.Fragment, source);
         }
-        public static XRShader TextureFragDeferred()
-            => LoadShader(Path.Combine("Common", "TexturedDeferred.fs"), EShaderType.Fragment);
-        public static XRShader LitColorFragDeferred()
-            => LoadShader(Path.Combine("Common", "ColoredDeferred.fs"), EShaderType.Fragment);
-        public static XRShader UnlitTextureFragForward()
-             => LoadShader(Path.Combine("Common", "UnlitTexturedForward.fs"), EShaderType.Fragment);
-        public static XRShader UnlitAlphaTextureFragForward()
-            => LoadShader(Path.Combine("Common", "UnlitAlphaTexturedForward.fs"), EShaderType.Fragment);
-        public static XRShader UnlitColorFragForward()
-             => LoadShader(Path.Combine("Common", "UnlitColoredForward.fs"), EShaderType.Fragment);
+        public static XRShader? TextureFragDeferred()
+            => LoadShader(Path.Combine("Common", "TexturedDeferred.fs"));
+        public static XRShader? LitColorFragDeferred()
+            => LoadShader(Path.Combine("Common", "ColoredDeferred.fs"));
+        public static XRShader? UnlitTextureFragForward()
+             => LoadShader(Path.Combine("Common", "UnlitTexturedForward.fs"));
+        public static XRShader? UnlitAlphaTextureFragForward()
+            => LoadShader(Path.Combine("Common", "UnlitAlphaTexturedForward.fs"));
+        public static XRShader? UnlitColorFragForward()
+             => LoadShader(Path.Combine("Common", "UnlitColoredForward.fs"));
         public static XRShader LitColorFragForward()
         {
             string source = @"

@@ -1,6 +1,7 @@
 ﻿using Extensions;
 using ImageMagick;
 using Silk.NET.OpenGL;
+using Silk.NET.SDL;
 using XREngine.Data.Rendering;
 using static XREngine.Rendering.OpenGL.OpenGLRenderer;
 
@@ -72,26 +73,31 @@ namespace XREngine.Rendering.OpenGL
 
                 var glTarget = ToGLEnum(TextureTarget);
 
+                Api.PixelStore(PixelStoreParameter.UnpackAlignment, 1);
+
                 bool setStorage = !Data.Resizable && !_storageSet;
                 if (setStorage)
                 {
                     //TODO: convert internal to sized using pixel format, update ToGLEnum
-                    GLEnum sizedInternalFormat = ToGLEnum(ToSizedInternalFormat(Data.InternalFormat));
+                    GLEnum sizedInternalFormat = ToGLEnum(Data.SizedInternalFormat);
                     Api.TexStorage2D(glTarget, Math.Max((uint)Data.Mipmaps.Length, 1u), sizedInternalFormat, Data.Width, Data.Height);
                     _storageSet = true;
                 }
 
-                if (Data.Mipmaps is null || Data.Mipmaps.Length == 0)
-                    PushMipmap(glTarget, 0, null);
-                else
+                if (!_hasPushed)
                 {
-                    for (int i = 0; i < Data.Mipmaps.Length; ++i)
-                        PushMipmap(glTarget, i, Data.Mipmaps[i]);
+                    if (Data.Mipmaps is null || Data.Mipmaps.Length == 0)
+                        PushMipmap(glTarget, 0, null);
+                    else
+                    {
+                        for (int i = 0; i < Data.Mipmaps.Length; ++i)
+                            PushMipmap(glTarget, i, Data.Mipmaps[i]);
 
-                    if (Data.AutoGenerateMipmaps)
-                        GenerateMipmaps();
+                        if (Data.AutoGenerateMipmaps)
+                            GenerateMipmaps();
+                    }
+                    _hasPushed = true;
                 }
-                _hasPushed = true;
 
                 //int max = _mipmaps is null || _mipmaps.Length == 0 ? 0 : _mipmaps.Length - 1;
                 //Api.TexParameter(TextureTarget, ETexParamName.TextureBaseLevel, 0);
@@ -113,37 +119,70 @@ namespace XREngine.Rendering.OpenGL
             }
         }
 
-        private unsafe void PushMipmap(GLEnum glTarget, int i, MagickImage? bmp)
+        private unsafe void PushMipmap(GLEnum glTarget, int i, Mipmap? mip)
         {
-            //Api.PixelStore(PixelStoreParameter.UnpackAlignment, 1);
-
-            GLEnum pixelFormat = ToGLEnum(Data.PixelFormat);
-            GLEnum pixelType = ToGLEnum(Data.PixelType);
-            InternalFormat internalPixelFormat = ToInternalFormat(Data.InternalFormat);
-
-            bool setStorage = !Data.Resizable && !_storageSet;
-
-            if (bmp is null)
+            if (!Data.Resizable && !_storageSet)
             {
-                if (_hasPushed || setStorage)
-                    return;
+                Debug.LogWarning("Texture storage not set on non-resizable texture, can't push mipmaps.");
+                return;
+            }
 
-                Api.TexImage2D(glTarget, i, internalPixelFormat, Data.Width >> i, Data.Height >> i, 0, pixelFormat, pixelType, null);
+            GLEnum pixelFormat;
+            GLEnum pixelType;
+            InternalFormat internalPixelFormat;
+
+            MagickImage? bmp;
+            if (mip is null)
+            {
+                internalPixelFormat = InternalFormat.Rgb;
+                pixelFormat = GLEnum.Rgb;
+                pixelType = GLEnum.UnsignedByte;
+                bmp = null;
             }
             else
             {
-                // If a non-zero named buffer object is bound to the GL_PIXEL_UNPACK_BUFFER target (see glBindBuffer) while a texture image is specified, data is treated as a byte offset into the buffer object's data store. 
-                //GetFormat(bmp, Data.InternalCompression, out GLEnum internalPixelFormat, out GLEnum pixelFormat, out GLEnum pixelType);
-                //Api.PixelStore(PixelStoreParameter.UnpackAlignment, 1);
-                var pBytes = bmp.GetPixelsUnsafe().GetAreaPointer(0, 0, bmp.Width, bmp.Height).ToPointer();
-                if (_hasPushed || setStorage)
-                    Api.TexSubImage2D(glTarget, i, 0, 0, bmp.Width, bmp.Height, pixelFormat, pixelType, pBytes);
-                else
-                    Api.TexImage2D(glTarget, i, internalPixelFormat, bmp.Width, bmp.Height, 0, pixelFormat, pixelType, pBytes);
-                var error = Api.GetError();
-                if (error != GLEnum.NoError)
-                    Debug.LogWarning($"Error pushing texture data: {error}");
+                pixelFormat = ToGLEnum(mip.PixelFormat);
+                pixelType = ToGLEnum(mip.PixelType);
+                internalPixelFormat = ToInternalFormat(mip.InternalFormat);
+                bmp = mip.Image;
             }
+
+            if (bmp is null)
+                Push(glTarget, i, Data.Width >> i, Data.Height >> i, pixelFormat, pixelType, internalPixelFormat);
+            else
+                Push(glTarget, i, mip!.Width, mip.Height, pixelFormat, pixelType, internalPixelFormat, bmp);
+        }
+
+        private unsafe void Push(GLEnum glTarget, int i, uint w, uint h, GLEnum pixelFormat, GLEnum pixelType, InternalFormat internalPixelFormat)
+        {
+            // If a non-zero named buffer object is bound to the GL_PIXEL_UNPACK_BUFFER target (see glBindBuffer) while a texture image is specified,
+            // the data ptr is treated as a byte offset into the buffer object's data store. 
+
+            if (_hasPushed || !Data.Resizable)
+                Api.TexSubImage2D(glTarget, i, 0, 0, w, h, pixelFormat, pixelType, null);
+            else
+                Api.TexImage2D(glTarget, i, internalPixelFormat, w, h, 0, pixelFormat, pixelType, null);
+            
+            var error = Api.GetError();
+            if (error != GLEnum.NoError)
+                Debug.LogWarning($"Error pushing texture data: {error}");
+        }
+        private unsafe void Push(GLEnum glTarget, int i, uint w, uint h, GLEnum pixelFormat, GLEnum pixelType, InternalFormat internalPixelFormat, MagickImage bmp)
+        {
+            // If a non-zero named buffer object is bound to the GL_PIXEL_UNPACK_BUFFER target (see glBindBuffer) while a texture image is specified,
+            // the data ptr is treated as a byte offset into the buffer object's data store. 
+            var pBytes = bmp.GetPixels().ToByteArray(PixelMapping.RGB);
+            fixed (byte* pBytesPtr = pBytes)
+            {
+                if (_hasPushed || !Data.Resizable)
+                    Api.TexSubImage2D(glTarget, i, 0, 0, w, h, pixelFormat, pixelType, pBytesPtr);
+                else
+                    Api.TexImage2D(glTarget, i, internalPixelFormat, w, h, 0, pixelFormat, pixelType, pBytesPtr);
+            }
+
+            var error = Api.GetError();
+            if (error != GLEnum.NoError)
+                Debug.LogWarning($"Error pushing texture data: {error}");
         }
 
         private static InternalFormat ToInternalFormat(EPixelInternalFormat internalFormat)

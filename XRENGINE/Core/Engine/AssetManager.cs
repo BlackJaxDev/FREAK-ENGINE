@@ -1,5 +1,7 @@
 ﻿using Microsoft.DotNet.PlatformAbstractions;
+using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 using XREngine.Core.Files;
 using XREngine.Data;
 using YamlDotNet.Serialization;
@@ -8,6 +10,8 @@ namespace XREngine
 {
     public class AssetManager
     {
+        public const string AssetExtension = "asset";
+
         public AssetManager(string? engineAssetsDirPath = null)
         {
             if (!string.IsNullOrWhiteSpace(engineAssetsDirPath) && Directory.Exists(engineAssetsDirPath))
@@ -82,30 +86,28 @@ namespace XREngine
         {
             Debug.Out($"File '{args.OldFullPath}' was renamed to '{args.FullPath}'.");
 
-            if (!LoadedAssetsByPathInternal.TryGetValue(args.OldFullPath, out var list))
+            if (!LoadedAssetsByPathInternal.TryGetValue(args.OldFullPath, out var asset))
                 return;
-            
-            LoadedAssetsByPathInternal.Remove(args.OldFullPath);
-            LoadedAssetsByPathInternal.Add(args.FullPath, list);
+
+            LoadedAssetsByPathInternal.Remove(args.OldFullPath, out _);
+            LoadedAssetsByPathInternal.TryAdd(args.FullPath, asset);
         }
 
         private void CacheAsset(XRAsset asset)
         {
             string path = asset.FilePath ?? string.Empty;
-            if (LoadedAssetsByPathInternal.TryGetValue(path, out var existingAsset))
+            XRAsset UpdatePathDict(string existingPath, XRAsset existingAsset)
             {
                 if (existingAsset is not null)
                 {
-                    if (existingAsset == asset || existingAsset.EmbeddedAssets.Contains(asset))
-                        return;
-
-                    existingAsset.EmbeddedAssets.Add(asset);
+                    if (existingAsset != asset && !existingAsset.EmbeddedAssets.Contains(asset))
+                        existingAsset.EmbeddedAssets.Add(asset);
+                    return existingAsset;
                 }
                 else
-                    LoadedAssetsByPathInternal[path] = asset;
+                    return asset;
             }
-            else
-                LoadedAssetsByPathInternal.Add(path, asset);
+            LoadedAssetsByPathInternal.AddOrUpdate(path, asset, UpdatePathDict);
 
             if (asset.ID == Guid.Empty)
             {
@@ -113,25 +115,24 @@ namespace XREngine
                 return;
             }
 
-            if (!LoadedAssetsByIDInternal.TryGetValue(asset.ID, out XRAsset? existingAssetByID))
-                LoadedAssetsByIDInternal.Add(asset.ID, asset);
-            else
+            XRAsset UpdateIDDict(Guid existingID, XRAsset existingAsset)
             {
-                if (existingAssetByID == asset)
-                    return;
-                
-                Debug.LogWarning($"An asset with the ID {asset.ID} already exists in the asset manager. The new asset will be added to the list of assets with the same ID.");
-                LoadedAssetsByIDInternal[asset.ID] = asset;
+                Debug.Out($"An asset with the ID {existingID} already exists in the asset manager. The new asset will be added to the list of assets with the same ID.");
+                return existingAsset;
             }
+            LoadedAssetsByIDInternal.AddOrUpdate(asset.ID, asset, UpdateIDDict);
         }
 
         public FileSystemWatcher Watcher { get; } = new FileSystemWatcher();
+        /// <summary>
+        /// This is the path to /Build/CommonAssets/ in the root folder of the engine.
+        /// </summary>
         public string EngineAssetsPath { get; }
         public string GameAssetsPath { get; set; } = Path.Combine(ApplicationEnvironment.ApplicationBasePath, "Assets");
         public string PackagesPath { get; set; } = Path.Combine(ApplicationEnvironment.ApplicationBasePath, "Packages");
-        public EventDictionary<string, XRAsset> LoadedAssetsByPathInternal { get; } = [];
-        public EventDictionary<Guid, XRAsset> LoadedAssetsByIDInternal { get; } = [];
-
+        public ConcurrentDictionary<string, XRAsset> LoadedAssetsByPathInternal { get; } = [];
+        public ConcurrentDictionary<Guid, XRAsset> LoadedAssetsByIDInternal { get; } = [];
+        
         public XRAsset? GetAssetByID(Guid id)
             => LoadedAssetsByIDInternal.TryGetValue(id, out XRAsset? asset) ? asset : null;
 
@@ -144,29 +145,45 @@ namespace XREngine
         public bool TryGetAssetByPath(string path, [NotNullWhen(true)] out XRAsset? asset)
             => LoadedAssetsByPathInternal.TryGetValue(path, out asset);
 
-        public async Task<T?> LoadEngineAssetAsync<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(params string[] relativePathFolders) where T : XRAsset
-            => await LoadAsync<T>(Path.Combine(EngineAssetsPath, Path.Combine(relativePathFolders)));
+        public async Task<T?> LoadEngineAssetAsync<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(params string[] relativePathFolders) where T : XRAsset, new()
+            => await LoadAsync<T>(ResolveEngineAssetPath(relativePathFolders));
 
-        public async Task<T?> LoadGameAssetAsync<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(params string[] relativePathFolders) where T : XRAsset
-            => await LoadAsync<T>(Path.Combine(GameAssetsPath, Path.Combine(relativePathFolders)));
+        public async Task<T?> LoadGameAssetAsync<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(params string[] relativePathFolders) where T : XRAsset, new()
+            => await LoadAsync<T>(ResolveGameAssetPath(relativePathFolders));
 
-        public T? LoadEngineAsset<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(params string[] relativePathFolders) where T : XRAsset
-            => Load<T>(Path.Combine(EngineAssetsPath, Path.Combine(relativePathFolders)));
+        public T? LoadEngineAsset<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(params string[] relativePathFolders) where T : XRAsset, new()
+            => Load<T>(ResolveEngineAssetPath(relativePathFolders));
 
-        public T? LoadGameAsset<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(params string[] relativePathFolders) where T : XRAsset
-            => Load<T>(Path.Combine(GameAssetsPath, Path.Combine(relativePathFolders)));
+        public T? LoadGameAsset<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(params string[] relativePathFolders) where T : XRAsset, new()
+            => Load<T>(ResolveGameAssetPath(relativePathFolders));
 
-        public async Task<T?> LoadEngine3rdPartyAssetAsync<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(params string[] relativePathFolders) where T : XR3rdPartyAsset, new()
-            => await XR3rdPartyAsset.LoadAsync<T>(Path.Combine(EngineAssetsPath, Path.Combine(relativePathFolders)));
+        //public async Task<T?> LoadEngine3rdPartyAssetAsync<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(params string[] relativePathFolders) where T : XR3rdPartyAsset, new()
+        //    => await XR3rdPartyAsset.LoadAsync<T>(Path.Combine(EngineAssetsPath, Path.Combine(relativePathFolders)));
 
-        public async Task<T?> LoadGame3rdPartyAssetAsync<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(params string[] relativePathFolders) where T : XR3rdPartyAsset, new()
-            => await XR3rdPartyAsset.LoadAsync<T>(Path.Combine(GameAssetsPath, Path.Combine(relativePathFolders)));
+        //public async Task<T?> LoadGame3rdPartyAssetAsync<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(params string[] relativePathFolders) where T : XR3rdPartyAsset, new()
+        //    => await XR3rdPartyAsset.LoadAsync<T>(Path.Combine(GameAssetsPath, Path.Combine(relativePathFolders)));
 
-        public T? LoadEngine3rdPartyAsset<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(params string[] relativePathFolders) where T : XR3rdPartyAsset, new()
-            => XR3rdPartyAsset.Load<T>(Path.Combine(EngineAssetsPath, Path.Combine(relativePathFolders)));
+        //public T? LoadEngine3rdPartyAsset<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(params string[] relativePathFolders) where T : XR3rdPartyAsset, new()
+        //    => XR3rdPartyAsset.Load<T>(Path.Combine(EngineAssetsPath, Path.Combine(relativePathFolders)));
 
-        public T? LoadGame3rdPartyAsset<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(params string[] relativePathFolders) where T : XR3rdPartyAsset, new()
-            => XR3rdPartyAsset.Load<T>(Path.Combine(GameAssetsPath, Path.Combine(relativePathFolders)));
+        //public T? LoadGame3rdPartyAsset<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(params string[] relativePathFolders) where T : XR3rdPartyAsset, new()
+        //    => XR3rdPartyAsset.Load<T>(Path.Combine(GameAssetsPath, Path.Combine(relativePathFolders)));
+
+        /// <summary>
+        /// Creates a full path to an asset in the engine's asset directory.
+        /// </summary>
+        /// <param name="relativePathFolders"></param>
+        /// <returns></returns>
+        public string ResolveEngineAssetPath(params string[] relativePathFolders)
+            => Path.Combine(EngineAssetsPath, Path.Combine(relativePathFolders));
+
+        /// <summary>
+        /// Creates a full path to an asset in the game's asset directory.
+        /// </summary>
+        /// <param name="relativePathFolders"></param>
+        /// <returns></returns>
+        public string ResolveGameAssetPath(params string[] relativePathFolders)
+            => Path.Combine(GameAssetsPath, Path.Combine(relativePathFolders));
 
         public void Dispose()
         {
@@ -196,7 +213,7 @@ namespace XREngine
             AssetLoaded?.Invoke(file);
         }
 
-        public async Task<T?> LoadAsync<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] T>(string filePath) where T : XRAsset
+        public async Task<T?> LoadAsync<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] T>(string filePath) where T : XRAsset, new()
         {
             T? file;
 #if !DEBUG
@@ -208,7 +225,7 @@ namespace XREngine
 
             file = !File.Exists(filePath)
                 ? null
-                : Deserializer.Deserialize<T>(await File.ReadAllTextAsync(filePath));
+                : await DeserializeAsync<T>(filePath);
             PostLoaded(filePath, file);
 #if !DEBUG
             }
@@ -220,7 +237,7 @@ namespace XREngine
             return file;
         }
 
-        public T? Load<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] T>(string filePath) where T : XRAsset
+        public T? Load<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] T>(string filePath) where T : XRAsset, new()
         {
             T? file;
 #if !DEBUG
@@ -232,7 +249,7 @@ namespace XREngine
 
             file = !File.Exists(filePath)
                 ? null
-                : Deserializer.Deserialize<T>(File.ReadAllText(filePath));
+                : Deserialize<T>(filePath);
             PostLoaded(filePath, file);
 #if !DEBUG
             }
@@ -250,7 +267,7 @@ namespace XREngine
             {
                 Debug.LogWarning("Cannot save an asset without a file path.");
                 return;
-            }    
+            }
 #if !DEBUG
             try
             {
@@ -294,7 +311,7 @@ namespace XREngine
             try
             {
 #endif
-            string path = Path.Combine(directory, $"{(string.IsNullOrWhiteSpace(asset.Name) ? GetType().Name : asset.Name)}.asset");
+            string path = Path.Combine(directory, $"{(string.IsNullOrWhiteSpace(asset.Name) ? GetType().Name : asset.Name)}.{AssetExtension}");
             File.WriteAllText(path, Serializer.Serialize(this));
             asset.FilePath = path;
             PostSaved(asset, true);
@@ -313,7 +330,7 @@ namespace XREngine
             try
             {
 #endif
-            string path = Path.Combine(directory, $"{(string.IsNullOrWhiteSpace(asset.Name) ? GetType().Name : asset.Name)}.asset");
+            string path = Path.Combine(directory, $"{(string.IsNullOrWhiteSpace(asset.Name) ? GetType().Name : asset.Name)}.{AssetExtension}");
             await File.WriteAllTextAsync(path, Serializer.Serialize(this));
             asset.FilePath = path;
             CacheAsset(asset);
@@ -337,5 +354,62 @@ namespace XREngine
             .WithTypeConverter(new DataSourceYamlTypeConverter())
             .WithTypeConverter(new XRAssetYamlTypeConverter())
             .Build();
+
+        private static T? Deserialize<T>(string filePath) where T : XRAsset, new()
+        {
+            string ext = Path.GetExtension(filePath)[1..].ToLowerInvariant();
+            if (ext == AssetExtension)
+                return Deserializer.Deserialize<T>(File.ReadAllText(filePath));
+            else
+            {
+                var extensions3rdParty = typeof(T).GetCustomAttribute<XR3rdPartyExtensionsAttribute>()?.Extensions;
+                if (extensions3rdParty?.Contains(ext) ?? false)
+                {
+                    var asset = new T();
+                    asset.Load3rdParty(filePath);
+                    return asset;
+                }
+                else
+                {
+                    Debug.LogWarning($"The file extension '{ext}' is not supported by the asset type '{typeof(T).Name}'.");
+                    return null;
+                }
+            }
+        }
+
+        private static async Task<T?> DeserializeAsync<T>(string filePath) where T : XRAsset, new()
+        {
+            string ext = Path.GetExtension(filePath)[1..].ToLowerInvariant();
+            if (ext == AssetExtension)
+                return await Task.Run(async () => Deserializer.Deserialize<T>(await File.ReadAllTextAsync(filePath)));
+            else
+            {
+                var exts = typeof(T).GetCustomAttribute<XR3rdPartyExtensionsAttribute>()?.Extensions;
+                if (exts?.Contains(ext) ?? false)
+                {
+                    var asset = new T();
+                    await asset.Load3rdPartyAsync(filePath);
+                    return asset;
+                }
+                else
+                {
+                    Debug.LogWarning($"The file extension '{ext}' is not supported by the asset type '{typeof(T).Name}'.");
+                    return null;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// These are the extensions that will be recognized by the asset manager as 3rd-party loadable for this asset.
+    /// </summary>
+    /// <param name="extensions"></param>
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
+    public class XR3rdPartyExtensionsAttribute(params string[] extensions) : Attribute
+    {
+        /// <summary>
+        /// These are the 3rd-party file extensions that this asset type can load.
+        /// </summary>
+        public string[] Extensions { get; } = extensions;
     }
 }

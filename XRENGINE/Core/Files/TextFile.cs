@@ -2,7 +2,8 @@
 
 namespace XREngine.Core.Files
 {
-    public class TextFile : XR3rdPartyAsset
+    [XR3rdPartyExtensions("txt")]
+    public class TextFile : XRAsset
     {
         public event Action? TextChanged;
 
@@ -53,25 +54,22 @@ namespace XREngine.Core.Files
         public static implicit operator TextFile(string text)
             => FromText(text);
 
-        public unsafe void LoadTextFileMapped()
+        public unsafe void LoadTextFileMapped(string path)
         {
-            if (FilePath is null)
-                return;
-
-            using FileMap map = FileMap.FromFile(FilePath, FileMapProtect.Read);
+            using FileMap map = FileMap.FromFile(path, FileMapProtect.Read);
             Encoding = GetEncoding(map, out int bomLength);
             _text = Encoding.GetString((byte*)map.Address + bomLength, map.Length - bomLength);
         }
 
-        public async Task LoadTextAsync()
+        public async Task LoadTextAsync(string path)
         {
-            if (!string.IsNullOrWhiteSpace(FilePath) && File.Exists(FilePath))
-                _text = await File.ReadAllTextAsync(FilePath, Encoding = GetEncoding(FilePath));
+            if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
+                _text = await File.ReadAllTextAsync(path, Encoding = GetEncoding(path));
         }
-        public void LoadText()
+        public void LoadText(string path)
         {
-            if (!string.IsNullOrWhiteSpace(FilePath) && File.Exists(FilePath))
-                _text = File.ReadAllText(FilePath, Encoding = GetEncoding(FilePath));
+            if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
+                _text = File.ReadAllText(path, Encoding = GetEncoding(path));
         }
 
         /// <summary>
@@ -130,36 +128,15 @@ namespace XREngine.Core.Files
             return Encoding.Default;
         }
 
-        public override void Load(string filePath)
-        {
-            FilePath = filePath;
-            LoadText();
-            OnAssetLoaded();
-        }
+        public override void Load3rdParty(string filePath)
+            => LoadText(filePath);
+        public override async Task Load3rdPartyAsync(string filePath)
+            => await LoadTextAsync(filePath);
 
-        public override async Task LoadAsync(string filePath)
-        {
-            FilePath = filePath;
-            await LoadTextAsync();
-            OnAssetLoaded();
-        }
+        public void SaveTo(string path)
+            => File.WriteAllText(path, _text ?? string.Empty, Encoding);
 
-        public override void Save()
-        {
-            if (FilePath is null)
-                throw new InvalidOperationException("Cannot save a text file without a file path.");
-
-            File.WriteAllText(FilePath, _text ?? string.Empty, Encoding);
-            OnAssetSaved();
-        }
-
-        public override async Task SaveAsync()
-        {
-            if (FilePath is null)
-                throw new InvalidOperationException("Cannot save a text file without a file path.");
-
-            await File.WriteAllTextAsync(FilePath, _text ?? string.Empty, Encoding);
-            OnAssetSaved();
-        }
+        public async Task SaveToAsync(string path)
+            => await File.WriteAllTextAsync(path, _text ?? string.Empty, Encoding);
     }
 }

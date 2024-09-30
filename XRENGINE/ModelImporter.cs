@@ -1,4 +1,5 @@
-﻿using Silk.NET.Assimp;
+﻿using ImageMagick;
+using Silk.NET.Assimp;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Numerics;
@@ -7,7 +8,6 @@ using XREngine.Data.Colors;
 using XREngine.Data.Rendering;
 using XREngine.Rendering;
 using XREngine.Rendering.Models;
-using XREngine.Rendering.Models.Materials;
 using XREngine.Scene;
 using XREngine.Scene.Transforms;
 using AScene = Silk.NET.Assimp.Scene;
@@ -26,7 +26,8 @@ namespace XREngine
         private readonly string _path;
         private readonly ConcurrentBag<XRMesh> _meshes = [];
         private readonly ConcurrentBag<XRMaterial> _materials = [];
-        private readonly ConcurrentDictionary<string, TextureInfo> _texturesLoaded = [];
+        private readonly ConcurrentDictionary<string, TextureInfo> _textureInfoCache = [];
+        private readonly ConcurrentDictionary<string, MagickImage?> _textureCache = new();
 
         public string SourceFilePath => _path;
 
@@ -36,7 +37,7 @@ namespace XREngine
             return importer.Import(options);
         }
         
-        private ConcurrentBag<Action> _meshProcessActions = [];
+        private readonly ConcurrentBag<Action> _meshProcessActions = [];
 
         private SceneNode? Import(PostProcessSteps options)
         {
@@ -50,7 +51,8 @@ namespace XREngine
             if (scene is null || scene->MFlags == Assimp.SceneFlagsIncomplete || scene->MRootNode is null)
             {
                 var error = _assimp.GetErrorStringS();
-                throw new Exception(error);
+                Debug.Out($"Error loading model: {error}");
+                return null;
             }
 
             SceneNode rootNode = new(Path.GetFileNameWithoutExtension(SourceFilePath));
@@ -152,7 +154,17 @@ namespace XREngine
             {
                 TextureInfo info = textures[i];
 
-                XRTexture2D? texture = Engine.Assets.Load<XRTexture2D>(info.path);
+                string path = info.path.Replace("/", "\\");
+                bool rooted = Path.IsPathRooted(path);
+                if (!rooted)
+                {
+                    string? dir = Path.GetDirectoryName(SourceFilePath);
+                    if (dir is not null)
+                        path = Path.Combine(dir, path);
+                }
+
+                var image = _textureCache.GetOrAdd(path, _ => System.IO.File.Exists(path) ? new(path) : null);
+                XRTexture2D? texture = image is not null ? new(image) : new(1, 1);
                 if (texture is null)
                     continue;
 
@@ -163,16 +175,19 @@ namespace XREngine
                 texture.AlphaAsTransparency = true;
                 texture.AutoGenerateMipmaps = true;
                 texture.Signed = true;
+
                 xrTextures[i] = texture;
             }
 
-            XRMaterial xrMaterial = XRMaterial.CreateUnlitColorMaterialForward(new ColorF4(1.0f, 1.0f, 0.0f, 1.0f));
+            XRMaterial xrMaterial =
+                xrTextures.Length > 0 && xrTextures[0] is XRTexture2D tex ?
+                XRMaterial.CreateUnlitTextureMaterialForward(tex) :
+                XRMaterial.CreateUnlitColorMaterialForward(new ColorF4(1.0f, 1.0f, 0.0f, 1.0f));
+
             xrMaterial.RenderPass = (int)EDefaultRenderPass.OpaqueForward;
             xrMaterial.Textures.AddRange(xrTextures);
 
-            XRMesh xrMesh = LoadMesh(mesh);
-
-            return (xrMesh, xrMaterial);
+            return (new(mesh, _assimp), xrMaterial);
         }
 
         private unsafe List<TextureInfo> LoadMaterialTextures(Material* mat, TextureType type)
@@ -195,12 +210,12 @@ namespace XREngine
 
                 string path = pathPtr.AsString;
                 bool skip = false;
-                foreach (var existingTexPath in _texturesLoaded.Keys)
+                foreach (var existingTexPath in _textureInfoCache.Keys)
                 {
                     if (!string.Equals(existingTexPath, path, StringComparison.OrdinalIgnoreCase))
                         continue;
                     
-                    textures.Add(_texturesLoaded[existingTexPath]);
+                    textures.Add(_textureInfoCache[existingTexPath]);
                     skip = true;
                     break;
                 }
@@ -208,19 +223,10 @@ namespace XREngine
                 {
                     var info = (path, mapping, uvIndex, operation, mapMode, flags);
                     textures.Add(info);
-                    _texturesLoaded.TryAdd(path, info);
+                    _textureInfoCache.TryAdd(path, info);
                 }
             }
             return textures;
-        }
-
-        private XRMesh LoadMesh(Mesh* mesh)
-        {
-            return new XRMesh(mesh, _assimp);
-
-            //var vertices = CollectVertices(mesh);
-            //var indices = CollectIndices(mesh);
-            //return XRMesh.Create(CreatePrimitivesParallel(vertices, indices));
         }
 
         private List<VertexPrimitive> CreatePrimitivesSequential(Vertex[] vertices, uint[][] indices)

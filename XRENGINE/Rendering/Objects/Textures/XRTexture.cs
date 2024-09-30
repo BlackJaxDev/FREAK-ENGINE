@@ -29,42 +29,42 @@ namespace XREngine.Rendering
             return new(data, settings);
         }
 
-        //private unsafe void GetFormat(MagickImage bmp, bool internalCompression, out GLEnum internalPixelFormat, out GLEnum pixelFormat, out GLEnum pixelType)
-        //{
-        //    //Internal format must match pixel format
-        //    //GL_ALPHA, GL_LUMINANCE, GL_LUMINANCE_ALPHA, GL_RGB, GL_RGBA
-        //    //bool hasAlpha = bmp.HasAlpha;
-        //    uint channels = bmp.ChannelCount;
-        //    bool signed = bmp.Settings.ColorSpace == ColorSpace.sRGB;
-        //    uint depth = bmp.Depth; //8 is s/byte, 16 is u/short, 32 is float
-        //    pixelType = depth switch
-        //    {
-        //        8 => signed ? GLEnum.Byte : GLEnum.UnsignedByte,
-        //        16 => signed ? GLEnum.Short : GLEnum.UnsignedShort,
-        //        32 => GLEnum.Float,
-        //        _ => throw new NotSupportedException($"Unsupported pixel depth: {depth}"),
-        //    };
-        //    switch (channels)
-        //    {
-        //        case 1:
-        //            internalPixelFormat = internalCompression ? GLEnum.CompressedRed : GLEnum.Red;
-        //            pixelFormat = GLEnum.Red;
-        //            break;
-        //        case 2:
-        //            internalPixelFormat = internalCompression ? GLEnum.CompressedRG : GLEnum.RG;
-        //            pixelFormat = GLEnum.RG;
-        //            break;
-        //        case 3:
-        //            internalPixelFormat = internalCompression ? GLEnum.CompressedRgb : GLEnum.Rgb8;
-        //            pixelFormat = GLEnum.Rgb;
-        //            break;
-        //        default:
-        //        case 4:
-        //            internalPixelFormat = internalCompression ? GLEnum.CompressedRgba : GLEnum.Rgba;
-        //            pixelFormat = GLEnum.Rgba;
-        //            break;
-        //    }
-        //}
+        public static void GetFormat(MagickImage bmp, bool internalCompression, out EPixelInternalFormat internalPixelFormat, out EPixelFormat pixelFormat, out EPixelType pixelType)
+        {
+            //Internal format must match pixel format
+            //GL_ALPHA, GL_LUMINANCE, GL_LUMINANCE_ALPHA, GL_RGB, GL_RGBA
+            //bool hasAlpha = bmp.HasAlpha;
+            uint channels = bmp.ChannelCount;
+            bool signed = bmp.Settings.ColorSpace == ColorSpace.sRGB;
+            uint depth = bmp.Depth; //8 is s/byte, 16 is u/short, 32 is float
+            pixelType = depth switch
+            {
+                8 => signed ? EPixelType.Byte : EPixelType.UnsignedByte,
+                16 => signed ? EPixelType.Short : EPixelType.UnsignedShort,
+                32 => EPixelType.Float,
+                _ => throw new NotSupportedException($"Unsupported pixel depth: {depth}"),
+            };
+            switch (channels)
+            {
+                case 1:
+                    internalPixelFormat = internalCompression ? EPixelInternalFormat.CompressedRed : EPixelInternalFormat.Red;
+                    pixelFormat = EPixelFormat.Red;
+                    break;
+                case 2:
+                    internalPixelFormat = internalCompression ? EPixelInternalFormat.CompressedRG : EPixelInternalFormat.RG;
+                    pixelFormat = EPixelFormat.Rg;
+                    break;
+                case 3:
+                    internalPixelFormat = internalCompression ? EPixelInternalFormat.CompressedRgb : EPixelInternalFormat.Rgb8;
+                    pixelFormat = EPixelFormat.Rgb;
+                    break;
+                default:
+                case 4:
+                    internalPixelFormat = internalCompression ? EPixelInternalFormat.CompressedRgba : EPixelInternalFormat.Rgba;
+                    pixelFormat = EPixelFormat.Rgba;
+                    break;
+            }
+        }
 
         public static bool IsSigned(EPixelType type)
             => type switch
@@ -208,26 +208,6 @@ namespace XREngine.Rendering
             set => SetField(ref _internalCompression, value);
         }
 
-        private EPixelType _pixelType = EPixelType.Float;
-        public EPixelType PixelType
-        {
-            get => _pixelType;
-            set => SetField(ref _pixelType, value);
-        }
-
-        private EPixelFormat _pixelFormat = EPixelFormat.Rgba;
-        public EPixelFormat PixelFormat
-        {
-            get => _pixelFormat;
-            set => SetField(ref _pixelFormat, value);
-        }
-
-        private EPixelInternalFormat _internalFormat = EPixelInternalFormat.Rgba8;
-        public EPixelInternalFormat InternalFormat
-        {
-            get => _internalFormat;
-            set => SetField(ref _internalFormat, value);
-        }
         public virtual bool IsResizeable { get; } = false;
 
         public void AttachToFBO(XRFrameBuffer target, int mipLevel = 0)

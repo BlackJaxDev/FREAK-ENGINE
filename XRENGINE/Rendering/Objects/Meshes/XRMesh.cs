@@ -948,24 +948,17 @@ namespace XREngine.Rendering
 
             //Create an action for each vertex attribute to set the buffer data
             //This lets us avoid redundant LINQ code by looping through the vertices only once
-            List<Action<int, int, Vertex>> vertexActions = [];
+            ConcurrentDictionary<int, Action<int, int, Vertex>> vertexActions = [];
 
-            bool hasSkinning = false;
-            bool hasNormals = false;
-            bool hasTangents = false;
             int maxColorCount = 0;
             int maxTexCoordCount = 0;
-            bool hasBlendshapes = false;
             AABB? bounds = null;
 
             //For each vertex, we double check what data it has and add verify that the corresponding add-to-buffer action is added
             void AddVertex(List<Vertex> vertices, Vertex v)
             {
                 if (v is null)
-                {
-                    Debug.LogWarning("Null vertex found in mesh.");
                     return;
-                }
 
                 vertices.Add(v);
 
@@ -974,62 +967,46 @@ namespace XREngine.Rendering
                 else
                     bounds.Value.ExpandToInclude(v.Position);
 
-                if (!hasSkinning && v.Weights is not null && v.Weights.Count > 0)
-                {
-                    hasSkinning = true;
-                    vertexActions.Add((i, x, vtx) =>
-                    {
-                        weights![i] = vtx.Weights ?? [];
-                    });
-                }
+                if (v.Weights is not null && v.Weights.Count > 0 && !vertexActions.ContainsKey(0))
+                    vertexActions.TryAdd(0, (i, x, vtx) => weights![i] = vtx?.Weights ?? []);
 
-                if (!hasNormals && v.Normal is not null)
-                {
-                    hasNormals = true;
-                    vertexActions.Add((i, x, vtx) =>
-                    {
-                        NormalsBuffer!.SetDataRawAtIndex((uint)i, vtx.Normal ?? Vector3.Zero);
-                    });
-                }
+                if (v.Normal is not null && !vertexActions.ContainsKey(1))
+                    vertexActions.TryAdd(1, (i, x, vtx) => NormalsBuffer!.SetDataRawAtIndex((uint)i, vtx?.Normal ?? Vector3.Zero));
 
-                if (!hasTangents && v.Tangent is not null)
-                {
-                    hasTangents = true;
-                    vertexActions.Add((i, x, vtx) =>
-                    {
-                        TangentsBuffer!.SetDataRawAtIndex((uint)i, vtx.Tangent ?? Vector3.Zero);
-                    });
-                }
+                if (v.Tangent is not null && !vertexActions.ContainsKey(2))
+                    vertexActions.TryAdd(2, (i, x, vtx) => TangentsBuffer!.SetDataRawAtIndex((uint)i, vtx?.Tangent ?? Vector3.Zero));
 
-                maxTexCoordCount = Math.Max(maxTexCoordCount, v.TextureCoordinateSets.Count);
-                if (v.TextureCoordinateSets is not null && v.TextureCoordinateSets.Count > 0)
+                Interlocked.Exchange(ref maxTexCoordCount, Math.Max(maxTexCoordCount, v.TextureCoordinateSets.Count));
+                if (v.TextureCoordinateSets is not null && v.TextureCoordinateSets.Count > 0 && !vertexActions.ContainsKey(3))
                 {
-                    vertexActions.Add((i, x, vtx) =>
+                    vertexActions.TryAdd(3, (i, x, vtx) =>
                     {
                         for (int texCoordIndex = 0; texCoordIndex < v.TextureCoordinateSets.Count; ++texCoordIndex)
-                            TexCoordBuffers![texCoordIndex].SetDataRawAtIndex((uint)i, vtx.TextureCoordinateSets != null && texCoordIndex < vtx.TextureCoordinateSets.Count
-                                ? vtx.TextureCoordinateSets[texCoordIndex]
+                            TexCoordBuffers![texCoordIndex].SetDataRawAtIndex((uint)i, vtx?.TextureCoordinateSets != null && texCoordIndex < (vtx?.TextureCoordinateSets?.Count ?? 0)
+                                ? vtx!.TextureCoordinateSets[texCoordIndex]
                                 : Vector2.Zero);
                     });
                 }
 
-                maxColorCount = Math.Max(maxColorCount, v.ColorSets.Count);
-                if (v.ColorSets is not null && v.ColorSets.Count > 0)
+                Interlocked.Exchange(ref maxColorCount, Math.Max(maxColorCount, v.ColorSets.Count));
+                if (v.ColorSets is not null && v.ColorSets.Count > 0 && !vertexActions.ContainsKey(4))
                 {
-                    vertexActions.Add((i, x, vtx) =>
+                    vertexActions.TryAdd(4, (i, x, vtx) =>
                     {
                         for (int colorIndex = maxColorCount; colorIndex < v.ColorSets.Count; ++colorIndex)
-                            ColorBuffers![colorIndex].SetDataRawAtIndex((uint)i, vtx.ColorSets != null && colorIndex < vtx.ColorSets.Count
-                                ? vtx.ColorSets[colorIndex]
+                            ColorBuffers![colorIndex].SetDataRawAtIndex((uint)i, vtx?.ColorSets != null && colorIndex < (vtx?.ColorSets?.Count ?? 0)
+                                ? vtx!.ColorSets[colorIndex]
                                 : Vector4.Zero);
                     });
                 }
 
-                if (!hasBlendshapes && v.Blendshapes is not null && v.Blendshapes.Count > 0)
+                if (v.Blendshapes is not null && v.Blendshapes.Count > 0 && !vertexActions.ContainsKey(5))
                 {
-                    hasBlendshapes = true;
-                    vertexActions.Add((i, x, vtx) =>
+                    vertexActions.TryAdd(5, (i, x, vtx) =>
                     {
+                        if (vtx?.Blendshapes is null)
+                            return;
+
                         foreach (var pair in vtx.Blendshapes!)
                         {
                             string name = pair.Key;
@@ -1135,18 +1112,18 @@ namespace XREngine.Rendering
 
             InitBuffers(
                 ref weights,
-                hasSkinning,
-                hasNormals,
-                hasTangents,
+                vertexActions.ContainsKey(0),
+                vertexActions.ContainsKey(1),
+                vertexActions.ContainsKey(2),
                 maxColorCount,
                 maxTexCoordCount,
                 firstAppearanceArray.Length);
 
-            vertexActions.Add((i, x, vtx) => PositionsBuffer!.SetDataRawAtIndex((uint)i, vtx.Position));
+            vertexActions.TryAdd(6, (i, x, vtx) => PositionsBuffer!.SetDataRawAtIndex((uint)i, vtx?.Position ?? Vector3.Zero));
 
             //Fill the buffers with the vertex data using the command list
             //We can do this in parallel since each vertex is independent
-            PopulateVertexData(vertexActions, sourceList, firstAppearanceArray, true);
+            PopulateVertexData(vertexActions.Values, sourceList, firstAppearanceArray, true);
 
             if (weights is not null)
                 SetBoneWeights(weights);
