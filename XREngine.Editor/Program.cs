@@ -108,7 +108,7 @@ internal class Program
 
         Task.Run(() =>
         {
-            var importedModelNode = ModelImporter.Import(Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj"), PostProcessSteps.None);
+            var importedModelNode = ModelImporter.Import(Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj"), PostProcessSteps.None, out _, out _, true, null);
             if (importedModelNode != null)
             {
                 lock (modelNode.Transform.Children)

@@ -4,10 +4,10 @@ layout (location = 0) out vec4 AlbedoOpacity;
 layout (location = 1) out vec3 Normal;
 layout (location = 2) out vec4 RMSI;
 
-layout (location = 1) in vec3 FragNorm;
-layout (location = 2) in vec3 FragBinorm;
-layout (location = 3) in vec3 FragTan;
-layout (location = 6) in vec2 FragUV0;
+in vec3 FragNorm;
+in vec3 FragBinorm;
+in vec3 FragTan;
+in vec2 FragUV0;
 
 uniform sampler2D Texture0;
 uniform sampler2D Texture1;

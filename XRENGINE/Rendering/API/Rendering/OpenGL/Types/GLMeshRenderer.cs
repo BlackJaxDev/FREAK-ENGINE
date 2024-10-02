@@ -1,6 +1,7 @@
 ﻿using Extensions;
 using Silk.NET.OpenGL;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using XREngine.Data;
 using XREngine.Data.Rendering;
@@ -20,7 +21,7 @@ namespace XREngine.Rendering.OpenGL
             public delegate void DelSettingUniforms(GLRenderProgram vertexProgram, GLRenderProgram materialProgram);
 
             //Vertex buffer information
-            private Dictionary<string, GLDataBuffer> _buffers = [];
+            private Dictionary<string, GLDataBuffer> _bufferCache = [];
             private GLRenderProgramPipeline? _pipeline; //Used to connect the material shader(s) to the vertex shader
 
             /// <summary>
@@ -41,7 +42,7 @@ namespace XREngine.Rendering.OpenGL
                     if (_combinedProgram is not null)
                         return _combinedProgram;
                     
-                    if (Material?.Program?.Data.ShaderTypeMask.HasFlag(EProgramStageMask.VertexShaderBit) ?? false)
+                    if (Material?.Program?.Data.GetShaderTypeMask().HasFlag(EProgramStageMask.VertexShaderBit) ?? false)
                         return Material.Program!;
 
                     return _defaultVertexProgram!;
@@ -220,54 +221,94 @@ namespace XREngine.Rendering.OpenGL
                 if (Data is null || !Renderer.Active)
                     return;
 
-                GLMaterial material = GetRenderMaterial(materialOverride);
-                if (material is null)
-                    return;
-
                 if (!IsGenerated)
                     Generate();
 
-                if (Data.SingleBind != null)
-                    modelMatrix *= Data.SingleBind.WorldMatrix;
+                GLMaterial material = GetRenderMaterial(materialOverride);
+                if (GetPrograms(material,
+                    out GLRenderProgram? vertexProgram,
+                    out GLRenderProgram? materialProgram))
+                {
+                    //Api.BindFragDataLocation(materialProgram.BindingId, 0, "OutColor");
 
-                GetPrograms(material,
-                    out GLRenderProgram vertexProgram,
-                    out GLRenderProgram materialProgram);
+                    if (!BuffersBound)
+                        return;
 
-                //Api.BindFragDataLocation(materialProgram.BindingId, 0, "OutColor");
+                    if (Data.SingleBind != null)
+                        modelMatrix *= Data.SingleBind.WorldMatrix;
 
-                Data.PushBoneMatricesToGPU();
-                SetMeshUniforms(modelMatrix, vertexProgram);
-                material.SetUniforms();
-                OnSettingUniforms(vertexProgram, materialProgram);
+                    Data.PushBoneMatricesToGPU();
+                    SetMeshUniforms(modelMatrix, vertexProgram!);
+                    material.SetUniforms();
+                    OnSettingUniforms(vertexProgram!, materialProgram!);
 
-                Renderer.RenderMesh(this, false, instances);
+                    Renderer.RenderMesh(this, false, instances);
+                }
             }
 
-            private void GetPrograms(GLMaterial material, out GLRenderProgram vertexProgram, out GLRenderProgram materialProgram)
+            private bool GetPrograms(GLMaterial material, [MaybeNullWhen(false)] out GLRenderProgram? vertexProgram, [MaybeNullWhen(false)] out GLRenderProgram? materialProgram)
             {
-                if (Engine.Rendering.Settings.AllowShaderPipelines && _pipeline is not null)
+                if (Engine.Rendering.Settings.AllowShaderPipelines)
+                    return GetPipelinePrograms(material, out vertexProgram, out materialProgram);
+                else
+                    return GetCombinedProgram(out vertexProgram, out materialProgram);
+            }
+
+            private bool GetCombinedProgram(out GLRenderProgram? vertexProgram, out GLRenderProgram? materialProgram)
+            {
+                if ((vertexProgram = materialProgram = _combinedProgram) is null)
+                    return false;
+
+                if (!vertexProgram.Link())
                 {
-                    materialProgram = material.Program!;
+                    vertexProgram = null;
+                    return false;
+                }
 
-                    _pipeline.Bind();
-                    _pipeline.Clear(EProgramStageMask.AllShaderBits);
-                    _pipeline.Set(materialProgram.Data.ShaderTypeMask, materialProgram);
+                vertexProgram.Use();
+                return true;
+            }
 
-                    //If the program doesn't override the vertex shader, use the default one for this mesh
-                    if (!materialProgram.Data.ShaderTypeMask.HasFlag(EProgramStageMask.VertexShaderBit))
-                    {
-                        vertexProgram = _defaultVertexProgram!;
-                        _pipeline.Set(EProgramStageMask.VertexShaderBit, vertexProgram);
-                    }
+            private bool GetPipelinePrograms(GLMaterial material, out GLRenderProgram? vertexProgram, out GLRenderProgram? materialProgram)
+            {
+                vertexProgram = null;
+                materialProgram = null;
+
+                if (_pipeline is null)
+                    return false;
+
+                _pipeline.Bind();
+                _pipeline.Clear(EProgramStageMask.AllShaderBits);
+
+                materialProgram = material.Program;
+                
+                var mask = materialProgram?.Data?.GetShaderTypeMask() ?? EProgramStageMask.None;
+                if (!mask.HasFlag(EProgramStageMask.VertexShaderBit))
+                {
+                    //If the material doesn't have a custom vertex shader, generate the default one for this mesh
+                    vertexProgram = _defaultVertexProgram;
+
+                    if (materialProgram?.Link() ?? false)
+                        _pipeline.Set(mask, materialProgram);
                     else
-                        vertexProgram = materialProgram;
+                        return false;
+
+                    if (vertexProgram?.Link() ?? false)
+                        _pipeline.Set(EProgramStageMask.VertexShaderBit, vertexProgram);
+                    else
+                        return false;
                 }
                 else
                 {
-                    vertexProgram = materialProgram = _combinedProgram!;
-                    _combinedProgram!.Use();
+                    vertexProgram = materialProgram;
+
+                    if (materialProgram?.Link() ?? false)
+                        _pipeline.Set(mask, materialProgram);
+                    else
+                        return false;
                 }
+
+                return true;
             }
 
             private static void SetMeshUniforms(Matrix4x4 modelMatrix, GLRenderProgram vertexProgram)
@@ -299,49 +340,90 @@ namespace XREngine.Rendering.OpenGL
 
             protected internal override void PostGenerated()
             {
-                MakeIndexBuffers();
-
-                //Determine how we're combining the material and vertex shader here
-                if (Engine.Rendering.Settings.AllowShaderPipelines)
+                Task.Run(() =>
                 {
-                    string vertexShaderSource = Data.VertexShaderSource!;
+                    MakeIndexBuffers();
 
-                    var pipeline = new XRRenderProgramPipeline();
-                    var shader = new XRShader(EShaderType.Vertex, vertexShaderSource);
-                    var program = new XRRenderProgram(shader);
-
-                    _combinedProgram = null;
-                    _defaultVertexProgram = Renderer.GenericToAPI<GLRenderProgram>(program)!;
-                    _pipeline = Renderer.GenericToAPI<GLRenderProgramPipeline>(pipeline)!;
-
-                    LinkBlocksToProgram(_defaultVertexProgram.Data);
-                }
-                else
-                {
-                    var material = Material;
-                    if (material is null)
+                    //Determine how we're combining the material and vertex shader here
+                    GLRenderProgram vertexProgram;
+                    if (Engine.Rendering.Settings.AllowShaderPipelines)
                     {
-                        Debug.LogWarning("No material found for mesh renderer, using invalid material.");
-                        material = Renderer.GenericToAPI<GLMaterial>(Engine.Rendering.State.CurrentPipeline!.InvalidMaterial); //Don't use GetRenderMaterial here, global and local override materials are for current render only
+                        string vertexShaderSource = Data.VertexShaderSource!;
+
+                        var pipeline = new XRRenderProgramPipeline();
+                        var shader = new XRShader(EShaderType.Vertex, vertexShaderSource);
+                        var program = new XRRenderProgram(false, shader);
+
+                        _combinedProgram = null;
+                        _pipeline = Renderer.GenericToAPI<GLRenderProgramPipeline>(pipeline)!;
+
+                        _defaultVertexProgram = Renderer.GenericToAPI<GLRenderProgram>(program)!;
+                        _defaultVertexProgram.PropertyChanged += SeparatedProgramPropertyChanged;
+
+                        vertexProgram = _defaultVertexProgram;
                     }
-                    IEnumerable<XRShader> shaders = material!.Data.Shaders;
+                    else
+                    {
+                        var material = Material;
+                        if (material is null)
+                        {
+                            Debug.LogWarning("No material found for mesh renderer, using invalid material.");
+                            material = Renderer.GenericToAPI<GLMaterial>(Engine.Rendering.State.CurrentPipeline!.InvalidMaterial); //Don't use GetRenderMaterial here, global and local override materials are for current render only
+                        }
+                        IEnumerable<XRShader> shaders = material!.Data.Shaders;
 
-                    //If the material doesn't have a vertex shader, use the default one
-                    bool useDefaultVertexShader = material.Data.VertexShaders.Count == 0;
-                    if (useDefaultVertexShader)
-                        shaders = shaders.Append(new XRShader(EShaderType.Vertex, Data.VertexShaderSource!));
+                        //If the material doesn't have a vertex shader, use the default one
+                        bool useDefaultVertexShader = material.Data.VertexShaders.Count == 0;
+                        if (useDefaultVertexShader)
+                            shaders = shaders.Append(new XRShader(EShaderType.Vertex, Data.VertexShaderSource!));
 
-                    _defaultVertexProgram = null;
-                    _combinedProgram = Renderer.GenericToAPI<GLRenderProgram>(new XRRenderProgram(shaders))!;
+                        _defaultVertexProgram = null;
 
-                    var vtxProg = _combinedProgram.Data;
-                    if (useDefaultVertexShader)
-                        LinkBlocksToProgram(vtxProg);
+                        _combinedProgram = Renderer.GenericToAPI<GLRenderProgram>(new XRRenderProgram(shaders, false))!;
+                        _combinedProgram.PropertyChanged += CombinedProgramPropertyChanged;
+
+                        vertexProgram = _combinedProgram;
+                    }
+
+                    _bufferCache = [];
+                    if (Data.Mesh != null)
+                        foreach (var pair in Data.Mesh.Buffers)
+                            _bufferCache.Add(pair.Key, Renderer.GenericToAPI<GLDataBuffer>(pair.Value)!);
+
+                    vertexProgram.Data.Link();
+                });
+            }
+
+            private void SeparatedProgramPropertyChanged(object? sender, PropertyChangedEventArgs e)
+            {
+                if (e.PropertyName == nameof(GLRenderProgram.IsLinked) && (_defaultVertexProgram?.IsLinked ?? false))
+                {
+                    //Continue linking the program
+                    _defaultVertexProgram.PropertyChanged -= SeparatedProgramPropertyChanged;
+                    Engine.EnqueueMainThreadTask(LinkSeparatedVertex);
                 }
+            }
 
-                Renderer.BindMesh(this);
+            private void CombinedProgramPropertyChanged(object? s, PropertyChangedEventArgs e)
+            {
+                if (e.PropertyName == nameof(GLRenderProgram.IsLinked) && (_combinedProgram?.IsLinked ?? false))
+                {
+                    //Continue linking the program
+                    _combinedProgram.PropertyChanged -= CombinedProgramPropertyChanged;
+                    Engine.EnqueueMainThreadTask(LinkCombinedVertex);
+                }
+            }
+
+            private void LinkSeparatedVertex()
+            {
+                LinkBlocksToProgram(_defaultVertexProgram!.Data);
                 BindBuffers();
-                Renderer.BindMesh(null);
+            }
+
+            private void LinkCombinedVertex()
+            {
+                LinkBlocksToProgram(_combinedProgram!.Data);
+                BindBuffers();
             }
 
             private void LinkBlocksToProgram(XRRenderProgram vtxProg)
@@ -357,23 +439,22 @@ namespace XREngine.Rendering.OpenGL
                 mesh.BlendshapeTangentDeltasBuffer?.SetBlockName(vtxProg, ECommonBufferType.BlendshapeTangentDeltas.ToString());
             }
 
+            public bool BuffersBound { get; private set; } = false;
+
             /// <summary>
             /// Creates OpenGL API buffers for the mesh's buffers.
             /// </summary>
             public void BindBuffers()
             {
                 var mesh = Data.Mesh;
-                if (mesh is null)
+                if (mesh is null || BuffersBound)
                     return;
 
-                _buffers = [];
-                foreach (var pair in mesh.Buffers)
-                {
-                    GLDataBuffer buffer = Renderer.GenericToAPI<GLDataBuffer>(pair.Value)!;
-                    buffer.Generate();
-                    _buffers.Add(pair.Key, buffer);
-                }
+                Renderer.BindMesh(this);
 
+                foreach (var buffer in _bufferCache.Values)
+                    buffer.Generate();
+                
                 if (TriangleIndicesBuffer is not null)
                     Api.VertexArrayElementBuffer(BindingId, TriangleIndicesBuffer.BindingId);
                 
@@ -382,6 +463,10 @@ namespace XREngine.Rendering.OpenGL
                 
                 if (PointIndicesBuffer is not null)
                     Api.VertexArrayElementBuffer(BindingId, PointIndicesBuffer.BindingId);
+
+                Renderer.BindMesh(null);
+
+                BuffersBound = true;
             }
 
             protected internal override void PostDeleted()
@@ -404,9 +489,9 @@ namespace XREngine.Rendering.OpenGL
                 _combinedProgram?.Destroy();
                 _combinedProgram = null;
 
-                foreach (var buffer in _buffers)
+                foreach (var buffer in _bufferCache)
                     buffer.Value.Destroy();
-                _buffers = [];
+                _bufferCache = [];
             }
         }
 

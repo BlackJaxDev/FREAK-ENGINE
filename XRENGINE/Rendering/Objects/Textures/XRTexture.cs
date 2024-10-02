@@ -8,7 +8,7 @@ namespace XREngine.Rendering
     {
         public static MagickImage NewImage(uint width, uint height, EPixelFormat format, EPixelType type)
         {
-            byte[] data = new byte[width * height * ComponentSize(type) * GetComponentCount(format)];
+            byte[] data = AllocateBytes(width, height, format, type);
             MagickReadSettings settings = new()
             {
                 Width = width,
@@ -28,6 +28,9 @@ namespace XREngine.Rendering
             };
             return new(data, settings);
         }
+
+        public static byte[] AllocateBytes(uint width, uint height, EPixelFormat format, EPixelType type)
+            => new byte[width * height * ComponentSize(type) * GetComponentCount(format)];
 
         public static void GetFormat(MagickImage bmp, bool internalCompression, out EPixelInternalFormat internalPixelFormat, out EPixelFormat pixelFormat, out EPixelType pixelType)
         {

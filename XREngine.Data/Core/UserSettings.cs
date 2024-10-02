@@ -72,6 +72,6 @@ namespace XREngine
             get => _targetFramesPerSecond;
             set => SetField(ref _targetFramesPerSecond, value);
         }
-        public double DebugOutputRecencySeconds { get; set; } = 10.0;
+        public double DebugOutputRecencySeconds { get; set; } = 0.0;
     }
 }

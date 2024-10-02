@@ -8,7 +8,9 @@ namespace XREngine.Data
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public unsafe struct VoidPtr
     {
-        public void* _address;
+        private void* _address;
+
+        public readonly void* Pointer => _address;
 
         #region Primitive Types
         public readonly byte Byte

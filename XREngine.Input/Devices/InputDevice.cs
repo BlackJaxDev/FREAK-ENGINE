@@ -8,13 +8,13 @@
     public abstract class InputDevice
     {
         //TODO: mouse and keyboard should just be their own global devices for ALL input from ANY mice or keyboards
-        public static IReadOnlyDictionary<EInputDeviceType, InputDevice[]> CurrentDevices => _currentDevices;
-        private static readonly Dictionary<EInputDeviceType, InputDevice[]> _currentDevices = new()
-        {
-            { EInputDeviceType.Gamepad,  new InputDevice[4] },
-            { EInputDeviceType.Keyboard, new InputDevice[4] },
-            { EInputDeviceType.Mouse,    new InputDevice[4] },
-        };
+        //public static IReadOnlyDictionary<EInputDeviceType, InputDevice[]> CurrentDevices => _currentDevices;
+        //private static readonly Dictionary<EInputDeviceType, InputDevice[]> _currentDevices = new()
+        //{
+        //    { EInputDeviceType.Gamepad,  new InputDevice[4] },
+        //    { EInputDeviceType.Keyboard, new InputDevice[4] },
+        //    { EInputDeviceType.Mouse,    new InputDevice[4] },
+        //};
 
         protected ButtonManager[] _buttonStates = [];
         protected AxisManager[] _axisStates = [];

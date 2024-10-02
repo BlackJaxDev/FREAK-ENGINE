@@ -6,107 +6,6 @@ namespace XREngine.Rendering.OpenGL
 {
     public unsafe partial class OpenGLRenderer
     {
-        public enum ESizedInternalFormat
-        {
-            //Red
-            R8,
-            R8Snorm,
-            R16,
-            R16Snorm,
-
-            //Red Green
-            Rg8,
-            Rg8Snorm,
-            Rg16,
-            Rg16Snorm,
-
-            //Red Green Blue
-            R3G3B2,
-            Rgb4,
-            Rgb5,
-            Rgb8,
-            Rgb8Snorm,
-            Rgb10,
-            Rgb12,
-            Rgb16Snorm,
-            Rgba2,
-            Rgba4,
-
-            //Red Green Blue Alpha
-            Rgb5A1,
-            Rgba8,
-            Rgba8Snorm,
-            Rgb10A2,
-            Rgba12,
-            Rgba16,
-
-            //Red Green Blue
-            Srgb8,
-
-            //Red Green Blue Alpha
-            Srgb8Alpha8,
-
-            //Red
-            R16f,
-
-            //Red Green
-            Rg16f,
-
-            //Red Green Blue
-            Rgb16f,
-
-            //Red Green Blue Alpha
-            Rgba16f,
-
-            //Red
-            R32f,
-
-            //Red Green
-            Rg32f,
-
-            //Red Green Blue
-            Rgb32f,
-
-            //Red Green Blue Alpha
-            Rgba32f,
-
-            //Red Green Blue
-            R11fG11fB10f,
-            Rgb9E5,
-
-            //Red
-            R8i,
-            R8ui,
-            R16i,
-            R16ui,
-            R32i,
-            R32ui,
-
-            //Red Green
-            Rg8i,
-            Rg8ui,
-            Rg16i,
-            Rg16ui,
-            Rg32i,
-            Rg32ui,
-
-            //Red Green Blue
-            Rgb8i,
-            Rgb8ui,
-            Rgb16i,
-            Rgb16ui,
-            Rgb32i,
-            Rgb32ui,
-
-            //Red Green Blue Alpha
-            Rgba8i,
-            Rgba8ui,
-            Rgba16i,
-            Rgba16ui,
-            Rgba32i,
-            Rgba32ui
-        }
-
         public class GLMaterial(OpenGLRenderer renderer, XRMaterial material) : GLObject<XRMaterial>(renderer, material)
         {
             private float _secondsLive = 0.0f;
@@ -117,15 +16,33 @@ namespace XREngine.Rendering.OpenGL
 
             protected override void LinkData()
             {
-                foreach (var tex in Data.Textures)
-                    if (Renderer.TryGetAPIRenderObject(tex, out var apiObj))
-                        apiObj?.Generate();
+                //foreach (var tex in Data.Textures)
+                //    if (Renderer.TryGetAPIRenderObject(tex, out var apiObj))
+                //        apiObj?.Generate();
+
+                Data.Textures.PostAnythingAdded += TextureAdded;
+                Data.Textures.PostAnythingRemoved += TextureRemoved;
             }
+
             protected override void UnlinkData()
             {
                 foreach (var tex in Data.Textures)
                     if (Renderer.TryGetAPIRenderObject(tex, out var apiObj))
                         apiObj?.Destroy();
+
+                Data.Textures.PostAnythingAdded -= TextureAdded;
+                Data.Textures.PostAnythingRemoved -= TextureRemoved;
+            }
+
+            private void TextureRemoved(XRTexture tex)
+            {
+                if (Renderer.TryGetAPIRenderObject(tex, out var apiObj))
+                    apiObj?.Destroy();
+            }
+            
+            private void TextureAdded(XRTexture tex)
+            {
+
             }
 
             public void SetUniforms()

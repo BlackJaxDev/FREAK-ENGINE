@@ -46,7 +46,7 @@ namespace XREngine.Components.Lights
 
         protected virtual void InitializeForCapture()
         {
-            _viewport = new XRViewport(ColorResolution, ColorResolution);
+            _viewport = new XRViewport(null, ColorResolution, ColorResolution);
 
             _envTex = new XRTextureCube(ColorResolution, EPixelInternalFormat.Rgb8, EPixelFormat.Rgb, EPixelType.UnsignedByte)
             {

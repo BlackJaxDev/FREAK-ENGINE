@@ -56,29 +56,29 @@ namespace XREngine.Rendering.OpenGL
             protected abstract void UnlinkData();
             protected abstract void LinkData();
 
-            protected internal override void PostGenerated()
+            protected override uint CreateObject()
             {
-                base.PostGenerated();
-
-                if (TryGetBindingId(out var bindingId) && bindingId > 0)
+                uint id = base.CreateObject();
+                if (id > 0)
                 {
-                    if (Cache.ContainsKey(bindingId))
+                    if (Cache.ContainsKey(id))
                     {
-                        Debug.LogWarning($"OpenGL {Type} object with binding id {bindingId} already exists in cache.");
-                        Cache[bindingId] = this;
+                        Debug.LogWarning($"OpenGL {Type} object with binding id {id} already exists in cache.");
+                        Cache[id] = this;
                     }
                     else
-                        Cache.Add(bindingId, this);
+                        Cache.Add(id, this);
                 }
                 else
                     Debug.LogWarning($"Failed to generate OpenGL {Type} object.");
+                return id;
             }
-            protected internal override void PostDeleted()
+            protected override void DeleteObject()
             {
                 if (TryGetBindingId(out var bindingId))
                     Cache.Remove(bindingId);
 
-                base.PostDeleted();
+                base.DeleteObject();
             }
 
             public static EventDictionary<uint, GLObject<T>> Cache { get; } = [];

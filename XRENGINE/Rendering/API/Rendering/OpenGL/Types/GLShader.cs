@@ -8,6 +8,8 @@ namespace XREngine.Rendering.OpenGL
     {
         public class GLShader(OpenGLRenderer renderer, XRShader data) : GLObject<XRShader>(renderer, data)
         {
+            private bool _isCompiled = false;
+
             protected override void UnlinkData()
             {
                 Data.PropertyChanged -= Data_PropertyChanged;
@@ -35,7 +37,6 @@ namespace XREngine.Rendering.OpenGL
 
             public override GLObjectType Type => GLObjectType.Shader;
             
-            public event Action? Compiled;
             public event Action? SourceChanged;
 
             public string? SourceText => Data.Source;
@@ -43,7 +44,12 @@ namespace XREngine.Rendering.OpenGL
 
             public string? LocalIncludeDirectoryPath { get; set; } = null;
 
-            public bool IsCompiled { get; private set; } = false;
+            public bool IsCompiled
+            {
+                get => _isCompiled;
+                set => SetField(ref _isCompiled, value);
+            }
+
             public EventList<GLRenderProgram> ActivePrograms { get; } = [];
 
             private static ShaderType ToGLEnum(EShaderType mode)
@@ -77,12 +83,14 @@ namespace XREngine.Rendering.OpenGL
             {
                 if (string.IsNullOrWhiteSpace(SourceText))
                     return;
+
                 string? trueScript = ResolveFullSource();
                 if (trueScript is null)
                 {
                     Debug.LogWarning("Shader source is null after resolving includes.");
                     return;
                 }
+
                 Api.ShaderSource(BindingId, trueScript);
                 if (compile && !Compile(out _))
                     Debug.LogWarning(GetFullSource(true));
@@ -126,10 +134,9 @@ namespace XREngine.Rendering.OpenGL
                     else if (!IsCompiled)
                         Debug.LogWarning("Unable to compile shader, but no error was returned.");
                 }
-                if (IsCompiled)
-                    Compiled?.Invoke();
                 return IsCompiled;
             }
+
             /// <summary>
             /// Compiles the shader.
             /// </summary>
@@ -139,8 +146,6 @@ namespace XREngine.Rendering.OpenGL
                 Api.CompileShader(BindingId);
                 Api.GetShader(BindingId, GLEnum.CompileStatus, out int status);
                 IsCompiled = status != 0;
-                if (IsCompiled)
-                    Compiled?.Invoke();
                 return IsCompiled;
             }
 

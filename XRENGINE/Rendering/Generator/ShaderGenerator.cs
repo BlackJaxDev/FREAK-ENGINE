@@ -42,10 +42,8 @@ namespace XREngine.Rendering.Shaders.Generator
 
         public void WriteOutVar(int layoutLocation, EShaderVarType type, string name)
             => Line($"layout (location = {layoutLocation}) out {type.ToString()[1..]} {name};");
-
         public void WriteOutVar(EShaderVarType type, string name)
             => Line($"out {type.ToString()[1..]} {name};");
-
         public void WriteUniform(int layoutLocation, EShaderVarType type, string name)
             => Line($"layout (location = {layoutLocation}) uniform {type.ToString()[1..]} {name};");
 

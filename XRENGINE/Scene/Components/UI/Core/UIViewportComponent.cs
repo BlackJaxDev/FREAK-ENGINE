@@ -39,7 +39,7 @@ namespace XREngine.Rendering.UI
 
         //public bool PreRenderEnabled => IsVisible && ViewportCamera?.OwningComponent?.OwningScene != null;
 
-        public XRViewport Viewport { get; private set; } = new XRViewport(1, 1);
+        public XRViewport Viewport { get; private set; } = new XRViewport(null, 1, 1);
         public bool PreRenderEnabled { get; }
 
         //protected override void OnResizeLayout(BoundingRectangleF parentRegion)

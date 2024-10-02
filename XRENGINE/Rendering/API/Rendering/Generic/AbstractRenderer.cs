@@ -325,7 +325,7 @@ namespace XREngine.Rendering
 
         private XRViewport AddViewportForPlayer(LocalPlayerController? controller, bool autoSizeAllViewports)
         {
-            XRViewport newViewport = XRViewport.ForTotalViewportCount(Viewports.Count);
+            XRViewport newViewport = XRViewport.ForTotalViewportCount(XRWindow, Viewports.Count);
             newViewport.AssociatedPlayer = controller;
             Viewports.Add(newViewport);
 
@@ -386,12 +386,16 @@ namespace XREngine.Rendering
         public abstract void AllowDepthWrite(bool v);
         public abstract void DepthFunc(EComparison always);
     }
-    public abstract unsafe partial class AbstractRenderer<TAPI> : AbstractRenderer where TAPI : NativeAPI
+    public abstract unsafe partial class AbstractRenderer<TAPI>(XRWindow window) : AbstractRenderer(window) where TAPI : NativeAPI
     {
-        public AbstractRenderer(XRWindow window) : base(window) => Api = GetAPI();
-        ~AbstractRenderer() => Api.Dispose();
+        ~AbstractRenderer() => _api?.Dispose();
 
-        protected TAPI Api { get; private set; }
+        private TAPI? _api;
+        protected TAPI Api 
+        {
+            get => _api ??= GetAPI();
+            private set => _api = value;
+        }
         protected abstract TAPI GetAPI();
 
         //protected void VerifyExt<T>(string name, ref T? output) where T : NativeExtension<TAPI>

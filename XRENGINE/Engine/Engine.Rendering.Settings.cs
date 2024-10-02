@@ -29,6 +29,7 @@ public static partial class Rendering
                 public static uint LightProbeDefaultColorResolution { get; set; } = 512u;
                 public static bool ShouldLightProbesCaptureDepth { get; set; } = false;
                 public static uint LightProbeDefaultDepthResolution { get; set; } = 256u;
+                public static bool AllowBinaryProgramCaching { get; set; } = true;
             }
         }
     }

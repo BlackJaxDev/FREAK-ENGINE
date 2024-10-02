@@ -19,6 +19,8 @@ namespace XREngine.Rendering
     /// </summary>
     public sealed class XRViewport : XRBase
     {
+        public XRWindow? Window { get; set; }
+
         private XRCamera? _camera = null;
         private readonly RayTraceClosest _closestPick = new(Vector3.Zero, Vector3.Zero, 0, 0xFFFF);
 
@@ -87,22 +89,25 @@ namespace XREngine.Rendering
 
         }
 
-        public XRViewport()
+        public XRViewport(XRWindow? window)
         {
+            Window = window;
             Index = 0;
             SetFullScreen();
         }
 
-        public XRViewport(int x, int y, uint width, uint height, int index = 0)
+        public XRViewport(XRWindow? window, int x, int y, uint width, uint height, int index = 0)
         {
+            Window = window;
             X = x;
             Y = y;
             Index = index;
             Resize(width, height);
         }
 
-        public XRViewport(uint width, uint height)
+        public XRViewport(XRWindow? window, uint width, uint height)
         {
+            Window = window;
             Index = 0;
             SetFullScreen();
             Resize(width, height);
@@ -127,10 +132,10 @@ namespace XREngine.Rendering
             _renderPipeline.MeshRenderCommands.SwapBuffers();
         }
 
-        public static XRViewport ForTotalViewportCount(int totalViewportCount)
+        public static XRViewport ForTotalViewportCount(XRWindow window, int totalViewportCount)
         {
             int index = totalViewportCount;
-            XRViewport viewport = new();
+            XRViewport viewport = new(window);
             if (index == 0)
             {
                 viewport.Index = index;

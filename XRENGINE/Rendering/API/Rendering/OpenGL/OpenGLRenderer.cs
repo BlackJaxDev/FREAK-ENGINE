@@ -1,7 +1,6 @@
 ﻿using Extensions;
 using Silk.NET.OpenGL;
 using System.Numerics;
-using Silk.NET.Core.Attributes;
 using XREngine.Data.Colors;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
@@ -25,7 +24,7 @@ namespace XREngine.Rendering.OpenGL
         private int[] _ignoredMessageIds =
         [
             131185, //buffer will use video memory
-            //131204, //no base level, no mipmaps, etc
+            131204, //no base level, no mipmaps, etc
             //131169, //allocated memory for render buffer
             ////131216,
             //131218,
@@ -352,12 +351,12 @@ namespace XREngine.Rendering.OpenGL
             }
         }
 
-        private static string FormatMipmap(int i, Mipmap[] mipmaps)
+        private static string FormatMipmap(int i, Mipmap2D[] mipmaps)
         {
             if (i >= mipmaps.Length)
                 return string.Empty;
 
-            Mipmap m = mipmaps[i];
+            Mipmap2D m = mipmaps[i];
             return $"Mip{i} | {m.Width}x{m.Height} | internal:{m.InternalFormat} | {m.PixelFormat}/{m.PixelType}";
         }
 

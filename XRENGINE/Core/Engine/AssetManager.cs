@@ -5,6 +5,9 @@ using System.Reflection;
 using XREngine.Core.Files;
 using XREngine.Data;
 using YamlDotNet.Serialization;
+using YamlDotNet.Serialization.NodeDeserializers;
+using YamlDotNet.Serialization.ObjectFactories;
+using YamlDotNet.Serialization.TypeResolvers;
 
 namespace XREngine
 {
@@ -28,7 +31,7 @@ namespace XREngine
                 EngineAssetsPath = Path.Combine(buildDirectory, "CommonAssets");
             }
 
-            VerifyPathExists(GameAssetsPath);
+            VerifyDirectoryExists(GameAssetsPath);
 
             Watcher.Path = GameAssetsPath;
             Watcher.Filter = "*.*";
@@ -42,17 +45,29 @@ namespace XREngine
             Watcher.Renamed += FileRenamed;
         }
 
-        private bool VerifyPathExists(string? directoryPath)
+        private static bool VerifyDirectoryExists(string? directoryPath)
         {
+            //If the path is null or empty, return false
             if (string.IsNullOrWhiteSpace(directoryPath))
                 return false;
 
+            //If the path is a file, get the directory
+            if (Path.HasExtension(directoryPath))
+            {
+                directoryPath = Path.GetDirectoryName(directoryPath);
+
+                //If the directory is null or empty, return false
+                if (string.IsNullOrWhiteSpace(directoryPath))
+                    return false;
+            }
+
+            //If the current directory exists, return true
             if (Directory.Exists(directoryPath))
                 return true;
 
+            //Recursively create the parent directories
             string? parent = Path.GetDirectoryName(directoryPath);
-
-            if (VerifyPathExists(parent))
+            if (VerifyDirectoryExists(parent))
                 Directory.CreateDirectory(directoryPath);
 
             return true;
@@ -272,7 +287,7 @@ namespace XREngine
             try
             {
 #endif
-            await File.WriteAllTextAsync(asset.FilePath, Serializer.Serialize(this));
+            await File.WriteAllTextAsync(asset.FilePath, Serializer.Serialize(asset));
             PostSaved(asset, false);
 #if !DEBUG
             }
@@ -294,7 +309,7 @@ namespace XREngine
             try
             {
 #endif
-            File.WriteAllText(asset.FilePath, Serializer.Serialize(this));
+            File.WriteAllText(asset.FilePath, Serializer.Serialize(asset));
             PostSaved(asset, false);
 #if !DEBUG
             }
@@ -305,14 +320,25 @@ namespace XREngine
 #endif
         }
 
+        private string VerifyAssetPath(XRAsset asset, string directory)
+        {
+            VerifyDirectoryExists(directory);
+            string name = string.IsNullOrWhiteSpace(asset.Name) ? GetType().Name : asset.Name;
+            string fileName = $"{name}.{AssetExtension}";
+            string path = Path.Combine(directory, fileName);
+            return path;
+        }
+
+        public void SaveTo(XRAsset asset, Environment.SpecialFolder folder, params string[] folderNames)
+            => SaveTo(asset, Path.Combine([Environment.GetFolderPath(folder), ..folderNames]));
         public void SaveTo(XRAsset asset, string directory)
         {
 #if !DEBUG
             try
             {
 #endif
-            string path = Path.Combine(directory, $"{(string.IsNullOrWhiteSpace(asset.Name) ? GetType().Name : asset.Name)}.{AssetExtension}");
-            File.WriteAllText(path, Serializer.Serialize(this));
+            string path = VerifyAssetPath(asset, directory);
+            File.WriteAllText(path, Serializer.Serialize(asset));
             asset.FilePath = path;
             PostSaved(asset, true);
 #if !DEBUG
@@ -324,14 +350,16 @@ namespace XREngine
 #endif
         }
 
+        public Task SaveToAsync(XRAsset asset, Environment.SpecialFolder folder, params string[] folderNames)
+            => SaveToAsync(asset, Path.Combine([Environment.GetFolderPath(folder), .. folderNames]));
         public async Task SaveToAsync(XRAsset asset, string directory)
         {
 #if !DEBUG
             try
             {
 #endif
-            string path = Path.Combine(directory, $"{(string.IsNullOrWhiteSpace(asset.Name) ? GetType().Name : asset.Name)}.{AssetExtension}");
-            await File.WriteAllTextAsync(path, Serializer.Serialize(this));
+            string path = VerifyAssetPath(asset, directory);
+            await File.WriteAllTextAsync(path, Serializer.Serialize(asset));
             asset.FilePath = path;
             CacheAsset(asset);
             PostSaved(asset, true);
@@ -343,16 +371,18 @@ namespace XREngine
             }
 #endif
         }
-
-        private static readonly ISerializer Serializer =
-            new SerializerBuilder()
+        
+        private static readonly ISerializer Serializer = new SerializerBuilder()
+            .WithEventEmitter(nextEmitter => new DepthTrackingEventEmitter(nextEmitter))
+            .WithTypeConverter(new XRAssetYamlConverter())
             .WithTypeConverter(new DataSourceYamlTypeConverter())
-            .WithTypeConverter(new XRAssetYamlTypeConverter())
             .Build();
-        private static readonly IDeserializer Deserializer =
-            new DeserializerBuilder()
-            .WithTypeConverter(new DataSourceYamlTypeConverter())
-            .WithTypeConverter(new XRAssetYamlTypeConverter())
+
+        private static readonly IDeserializer Deserializer = new DeserializerBuilder()
+            .WithNodeDeserializer(
+                inner => new DepthTrackingNodeDeserializer(inner),
+                s => s.InsteadOf<ObjectNodeDeserializer>())
+            .WithNodeDeserializer(new XRAssetDeserializer(), w => w.OnTop())
             .Build();
 
         private static T? Deserialize<T>(string filePath) where T : XRAsset, new()

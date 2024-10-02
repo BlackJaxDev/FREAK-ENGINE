@@ -350,19 +350,19 @@ namespace XREngine.Rendering
         }
         public unsafe void SetDataRawAtIndex(uint index, float data)
         {
-            ((float*)_clientSideSource!.Address._address)[index] = data;
+            ((float*)_clientSideSource!.Address.Pointer)[index] = data;
         }
         public unsafe void SetDataRawAtIndex(uint index, Vector2 data)
         {
-            ((Vector2*)_clientSideSource!.Address._address)[index] = data;
+            ((Vector2*)_clientSideSource!.Address.Pointer)[index] = data;
         }
         public unsafe void SetDataRawAtIndex(uint index, Vector3 data)
         {
-            ((Vector3*)_clientSideSource!.Address._address)[index] = data;
+            ((Vector3*)_clientSideSource!.Address.Pointer)[index] = data;
         }
         public unsafe void SetDataRawAtIndex(uint index, Vector4 data)
         {
-            ((Vector4*)_clientSideSource!.Address._address)[index] = data;
+            ((Vector4*)_clientSideSource!.Address.Pointer)[index] = data;
         }
 
         public Remapper? SetDataRaw<T>(IList<T> list, bool remap = false) where T : struct

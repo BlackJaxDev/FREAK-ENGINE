@@ -2,22 +2,23 @@
 using System.Numerics;
 using XREngine.Data.Rendering;
 using XREngine.Data.Vectors;
-using XREngine.Scene.Transforms;
 
 namespace XREngine.Rendering
 {
     public class XRRenderProgram : GenericRenderObject, IEnumerable<XRShader>
     {
-        public TransformBase? LightProbeTransform { get; set; }
-
         /// <summary>
         /// The shaders that make up the program.
         /// </summary>
         public EventList<XRShader> Shaders { get; } = [];
+
+        public bool LinkReady { get; private set; } = false;
+
         /// <summary>
-        /// Set by the renderer to indicate if the program is valid and compiled.
+        /// Call this once all shaders have been added to the Shaders list to finalize the program.
         /// </summary>
-        public bool IsValid { get; set; } = true;
+        public void Link()
+            => LinkReady = true;
 
         public event Action<string, Matrix4x4>? UniformSetMatrix4x4Requested = null;
         public event Action<string, Quaternion>? UniformSetQuaternionRequested = null;
@@ -80,43 +81,45 @@ namespace XREngine.Rendering
         /// <summary>
         /// Mask of the shader types included in the program.
         /// </summary>
-        public EProgramStageMask ShaderTypeMask
+        public EProgramStageMask GetShaderTypeMask()
         {
-            get
+            EProgramStageMask mask = EProgramStageMask.None;
+            foreach (var shader in Shaders)
             {
-                EProgramStageMask mask = EProgramStageMask.None;
-                foreach (var shader in Shaders)
+                switch (shader.Type)
                 {
-                    switch (shader.Type)
-                    {
-                        case EShaderType.Vertex:
-                            mask |= EProgramStageMask.VertexShaderBit;
-                            break;
-                        case EShaderType.TessControl:
-                            mask |= EProgramStageMask.TessControlShaderBit;
-                            break;
-                        case EShaderType.TessEvaluation:
-                            mask |= EProgramStageMask.TessEvaluationShaderBit;
-                            break;
-                        case EShaderType.Geometry:
-                            mask |= EProgramStageMask.GeometryShaderBit;
-                            break;
-                        case EShaderType.Fragment:
-                            mask |= EProgramStageMask.FragmentShaderBit;
-                            break;
-                        case EShaderType.Compute:
-                            mask |= EProgramStageMask.ComputeShaderBit;
-                            break;
-                    }
+                    case EShaderType.Vertex:
+                        mask |= EProgramStageMask.VertexShaderBit;
+                        break;
+                    case EShaderType.TessControl:
+                        mask |= EProgramStageMask.TessControlShaderBit;
+                        break;
+                    case EShaderType.TessEvaluation:
+                        mask |= EProgramStageMask.TessEvaluationShaderBit;
+                        break;
+                    case EShaderType.Geometry:
+                        mask |= EProgramStageMask.GeometryShaderBit;
+                        break;
+                    case EShaderType.Fragment:
+                        mask |= EProgramStageMask.FragmentShaderBit;
+                        break;
+                    case EShaderType.Compute:
+                        mask |= EProgramStageMask.ComputeShaderBit;
+                        break;
                 }
-                return mask;
             }
+            return mask;
         }
 
-        public XRRenderProgram(params XRShader[] shaders)
-            => Shaders = [.. shaders];
-        public XRRenderProgram(IEnumerable<XRShader> shaders)
-            => Shaders = new EventList<XRShader>(shaders);
+        public XRRenderProgram(bool linkNow, params XRShader[] shaders)
+            : this(shaders, linkNow) { }
+
+        public XRRenderProgram(IEnumerable<XRShader> shaders, bool linkNow = true)
+        {
+            Shaders.AddRange(shaders);
+            if (linkNow)
+                Link();
+        }
 
         public IEnumerator<XRShader> GetEnumerator()
             => ((IEnumerable<XRShader>)Shaders).GetEnumerator();

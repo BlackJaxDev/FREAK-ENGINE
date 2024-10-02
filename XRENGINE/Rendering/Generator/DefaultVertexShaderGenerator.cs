@@ -1,4 +1,5 @@
-﻿using XREngine.Data.Rendering;
+﻿using Extensions;
+using XREngine.Data.Rendering;
 using XREngine.Rendering.Models.Materials;
 
 namespace XREngine.Rendering.Shaders.Generator
@@ -208,25 +209,24 @@ namespace XREngine.Rendering.Shaders.Generator
         /// </summary>
         private void WriteOutData()
         {
-            int location = 0;
-            WriteOutVar(location++, EShaderVarType._vec3, FragPosName);
+            WriteOutVar(0, EShaderVarType._vec3, FragPosName);
 
             if (Mesh.NormalsBuffer is not null)
-                WriteOutVar(location++, EShaderVarType._vec3, FragNormName);
+                WriteOutVar(1, EShaderVarType._vec3, FragNormName);
 
             if (Mesh.TangentsBuffer is not null)
             {
-                WriteOutVar(location++, EShaderVarType._vec3, FragTanName);
-                WriteOutVar(location++, EShaderVarType._vec3, FragBinormName);
+                WriteOutVar(2, EShaderVarType._vec3, FragTanName);
+                WriteOutVar(3, EShaderVarType._vec3, FragBinormName);
             }
 
-            if (Mesh.ColorBuffers is not null)
-                for (int i = 0; i < Mesh.ColorBuffers.Length; ++i)
-                    WriteOutVar(location++, EShaderVarType._vec4, string.Format(FragColorName, i));
-
             if (Mesh.TexCoordBuffers is not null)
-                for (int i = 0; i < Mesh.TexCoordBuffers.Length; ++i)
-                    WriteOutVar(location++, EShaderVarType._vec2, string.Format(FragUVName, i));
+                for (int i = 0; i < Mesh.TexCoordBuffers.Length.ClampMax(8); ++i)
+                    WriteOutVar(4 + i, EShaderVarType._vec2, string.Format(FragUVName, i));
+
+            if (Mesh.ColorBuffers is not null)
+                for (int i = 0; i < Mesh.ColorBuffers.Length.ClampMax(8); ++i)
+                    WriteOutVar(12 + i, EShaderVarType._vec4, string.Format(FragColorName, i));
         }
 
         /// <summary>

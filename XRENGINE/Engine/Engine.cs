@@ -129,8 +129,12 @@ namespace XREngine
         {
             Stopwatch sw = new();
             sw.Start();
-            while (_mainThreadTaskQueue.TryDequeue(out var task) && sw.ElapsedMilliseconds < 1)
+            while (_mainThreadTaskQueue.TryDequeue(out var task))
+            {
                 task();
+                if (sw.ElapsedMilliseconds > 1)
+                    break;
+            }
             sw.Stop();
         }
 

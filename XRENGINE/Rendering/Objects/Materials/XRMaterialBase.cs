@@ -7,6 +7,12 @@ namespace XREngine.Rendering
     public abstract class XRMaterialBase : GenericRenderObject
     {
         private int _renderPass = 0;
+        /// <summary>
+        /// This is the render pass bucket that any meshes using this material will be put in.
+        /// Render passes are used to separate different types of rendering, such as opaque, transparent, etc.
+        /// The number of passes and what each pass does is determined by the camera's render pipeline object!
+        /// Use EDefaultRenderPass for this value and DefaultRenderPipeline as the render pipeline to use the default rendering setup.
+        /// </summary>
         public int RenderPass
         {
             get => _renderPass;

@@ -3,40 +3,62 @@ using Silk.NET.Assimp;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Numerics;
+using System.Text;
 using XREngine.Components.Scene.Mesh;
+using XREngine.Data;
 using XREngine.Data.Colors;
 using XREngine.Data.Rendering;
 using XREngine.Rendering;
 using XREngine.Rendering.Models;
+using XREngine.Rendering.Models.Materials;
 using XREngine.Scene;
 using XREngine.Scene.Transforms;
 using AScene = Silk.NET.Assimp.Scene;
 
 namespace XREngine
 {
+    /// <summary>
+    /// This class is used to import models from various formats using the Assimp library.
+    /// Returns a SceneNode hierarchy populated with ModelComponents, and outputs generated materials and meshes.
+    /// </summary>
     public unsafe class ModelImporter : IDisposable
     {
-        protected ModelImporter(string path)
+        protected ModelImporter(string path, bool async, Action? onCompleted)
         {
             _assimp = Assimp.GetApi();
             _path = path;
+            _async = async;
+            _onCompleted = onCompleted;
         }
-
-        private readonly Assimp _assimp;
-        private readonly string _path;
-        private readonly ConcurrentBag<XRMesh> _meshes = [];
-        private readonly ConcurrentBag<XRMaterial> _materials = [];
-        private readonly ConcurrentDictionary<string, TextureInfo> _textureInfoCache = [];
-        private readonly ConcurrentDictionary<string, MagickImage?> _textureCache = new();
 
         public string SourceFilePath => _path;
 
-        public static SceneNode? Import(string path, PostProcessSteps options)
+        private readonly Assimp _assimp;
+        private readonly string _path;
+        private readonly bool _async;
+        private readonly Action? _onCompleted;
+
+        private readonly ConcurrentDictionary<string, TextureInfo> _textureInfoCache = [];
+        private readonly ConcurrentDictionary<string, MagickImage?> _textureCache = new();
+
+        private readonly ConcurrentBag<XRMesh> _meshes = [];
+        private readonly ConcurrentBag<XRMaterial> _materials = [];
+
+        public static SceneNode? Import(
+            string path,
+            PostProcessSteps options,
+            out IReadOnlyCollection<XRMaterial> materials,
+            out IReadOnlyCollection<XRMesh> meshes,
+            bool async,
+            Action? onCompleted)
         {
-            using var importer = new ModelImporter(path);
-            return importer.Import(options);
+            using var importer = new ModelImporter(path, async, onCompleted);
+            var node = importer.Import(options);
+            materials = importer._materials;
+            meshes = importer._meshes;
+            return node;
         }
-        
+
         private readonly ConcurrentBag<Action> _meshProcessActions = [];
 
         private SceneNode? Import(PostProcessSteps options)
@@ -58,32 +80,43 @@ namespace XREngine
             SceneNode rootNode = new(Path.GetFileNameWithoutExtension(SourceFilePath));
             ProcessNode(scene->MRootNode, scene, Matrix4x4.Identity, rootNode);
 
-            Task.Run(() => Parallel.ForEach(_meshProcessActions, action => action()));
-
-            for (int i = 0; i < scene->MNumSkeletons; i++)
-            {
-                var skel = scene->MSkeletons[i];
-                for (int j = 0; j < skel->MNumBones; j++)
-                {
-                    var bone = skel->MBones[j];
-                    var index = 0;
-                    for (int k = 0; k < skel->MNumBones; k++)
-                    {
-                        //if (skel->MBones[k]->MName == name)
-                        //{
-                        //    index = k;
-                        //    break;
-                        //}
-                    }
-
-                    //Meshes[0].AddBone(index, bone->MOffsetMatrix);
-                }
-            }
 #if DEBUG
-            sw.Stop();
-            Debug.Out($"Model imported in {sw.ElapsedMilliseconds / 1000.0f} sec.");
+            Debug.Out($"Model hierarchy processed in {sw.ElapsedMilliseconds / 1000.0f} sec.");
 #endif
+
+            if (_async)
+            {
+                void Complete(Task<ParallelLoopResult> x)
+                {
+#if DEBUG
+                    sw.Stop();
+                    Debug.Out($"Model imported asynchronously in {sw.ElapsedMilliseconds / 1000.0f} sec.");
+#endif
+                    _onCompleted?.Invoke();
+                }
+                Task.Run(ProcessMeshesParallel).ContinueWith(Complete);
+            }
+            else
+            {
+                ProcessMeshesParallel();
+#if DEBUG
+                sw.Stop();
+                Debug.Out($"Model imported synchronously in {sw.ElapsedMilliseconds / 1000.0f} sec.");
+#endif
+                _onCompleted?.Invoke();
+            }
+
             return rootNode;
+        }
+
+        //TODO: more extreme idea: allocate all initial meshes, and sequentially populate every mesh's buffers in parallel
+        private ParallelLoopResult ProcessMeshesParallel()
+            => Parallel.ForEach(_meshProcessActions, action => action());
+
+        private void ProcessMeshesSequential()
+        {
+            foreach (var action in _meshProcessActions)
+                action();
         }
 
         private unsafe void ProcessNode(Node* node, AScene* scene, Matrix4x4 parentWorldTransform, SceneNode parentSceneNode)
@@ -148,8 +181,97 @@ namespace XREngine
                     textures.AddRange(maps);
             }
 
+            XRMaterial mat =
+                textures.Count > 0 ?
+                new XRMaterial(new XRTexture[textures.Count], ShaderHelper.UnlitTextureFragForward()!) :
+                XRMaterial.CreateUnlitColorMaterialForward(new ColorF4(1.0f, 1.0f, 0.0f, 1.0f));
+            mat.RenderPass = (int)EDefaultRenderPass.OpaqueForward;
 
-            XRTexture[] xrTextures = new XRTexture[textures.Count];
+            //Loop properties
+            Dictionary<string, List<object>> dic = [];
+            void GetOrAdd(string key, object value)
+            {
+                if (!dic.TryGetValue(key, out List<object>? v))
+                    dic.Add(key, v = []);
+                v.Add(value);
+            }
+            for (uint i = 0; i < material->MNumProperties; ++i)
+            {
+                var prop = material->MProperties[i];
+                string key = prop->MKey.AsString;
+                uint index = prop->MIndex;
+                uint dataLength = prop->MDataLength;
+                uint semantic = prop->MSemantic;
+                byte* data = prop->MData;
+                switch (prop->MType)
+                {
+                    case PropertyTypeInfo.Float:
+                        GetOrAdd(key, *(float*)data);
+                        break;
+                    case PropertyTypeInfo.Double:
+                        GetOrAdd(key, *(double*)data);
+                        break;
+                    case PropertyTypeInfo.String:
+                        int length = *(int*)data;
+                        string str = Encoding.UTF8.GetString(data + 4, length);
+                        GetOrAdd(key, str);
+                        break;
+                    case PropertyTypeInfo.Integer:
+                        GetOrAdd(key, *(int*)data);
+                        break;
+                    case PropertyTypeInfo.Buffer:
+                        GetOrAdd(key, new DataSource(data, dataLength, true));
+                        break;
+                }
+            }
+
+            mat.Name = dic.TryGetValue(AI_MATKEY_NAME, out List<object>? name)
+                ? name[0]?.ToString() ?? AI_DEFAULT_MATERIAL_NAME
+                : AI_DEFAULT_MATERIAL_NAME;
+
+            TextureFlags texFlags = dic.TryGetValue(_AI_MATKEY_TEXFLAGS_BASE, out List<object>? flags) && flags[0] is int f ? (TextureFlags)f : 0;
+            ShadingMode shadingModel = dic.TryGetValue(AI_MATKEY_SHADING_MODEL, out List<object>? sm) && sm[0] is int mode ? (ShadingMode)mode : ShadingMode.Flat;
+            //TODO: switch default material based on shading model
+
+            LoadTexturesAsynchronous(textures, mat);
+
+            return (new(mesh, _assimp), mat);
+        }
+
+        const string AI_DEFAULT_MATERIAL_NAME = "DefaultMaterial";
+
+        const string AI_MATKEY_BLEND_FUNC = "$mat.blend";
+        const string AI_MATKEY_BUMPSCALING = "$mat.bumpscaling";
+        const string AI_MATKEY_COLOR_AMBIENT = "$clr.ambient";
+        const string AI_MATKEY_COLOR_DIFFUSE = "$clr.diffuse";
+        const string AI_MATKEY_COLOR_EMISSIVE = "$clr.emissive";
+        const string AI_MATKEY_COLOR_REFLECTIVE = "$clr.reflective";
+        const string AI_MATKEY_COLOR_SPECULAR = "$clr.specular";
+        const string AI_MATKEY_COLOR_TRANSPARENT = "$clr.transparent";
+        const string AI_MATKEY_ENABLE_WIREFRAME = "$mat.wireframe";
+        const string AI_MATKEY_GLOBAL_BACKGROUND_IMAGE = "?bg.global";
+        const string AI_MATKEY_NAME = "?mat.name";
+        const string AI_MATKEY_OPACITY = "$mat.opacity";
+        const string AI_MATKEY_REFLECTIVITY = "$mat.reflectivity";
+        const string AI_MATKEY_REFRACTI = "$mat.refracti";
+        const string AI_MATKEY_SHADING_MODEL = "$mat.shadingm";
+        const string AI_MATKEY_SHININESS = "$mat.shininess";
+        const string AI_MATKEY_SHININESS_STRENGTH = "$mat.shinpercent";
+        const string AI_MATKEY_TWOSIDED = "$mat.twosided";
+
+        const string _AI_MATKEY_TEXTURE_BASE = "$tex.file";
+        const string _AI_MATKEY_UVWSRC_BASE = "$tex.uvwsrc";
+        const string _AI_MATKEY_TEXOP_BASE = "$tex.op";
+        const string _AI_MATKEY_MAPPING_BASE = "$tex.mapping";
+        const string _AI_MATKEY_TEXBLEND_BASE = "$tex.blend";
+        const string _AI_MATKEY_MAPPINGMODE_U_BASE = "$tex.mapmodeu";
+        const string _AI_MATKEY_MAPPINGMODE_V_BASE = "$tex.mapmodev";
+        const string _AI_MATKEY_TEXMAP_AXIS_BASE = "$tex.mapaxis";
+        const string _AI_MATKEY_UVTRANSFORM_BASE = "$tex.uvtrafo";
+        const string _AI_MATKEY_TEXFLAGS_BASE = "$tex.flags";
+
+        private void LoadTexturesSynchronous(List<TextureInfo> textures, XRMaterial mat)
+        {
             for (int i = 0; i < textures.Count; i++)
             {
                 TextureInfo info = textures[i];
@@ -176,18 +298,43 @@ namespace XREngine
                 texture.AutoGenerateMipmaps = true;
                 texture.Signed = true;
 
-                xrTextures[i] = texture;
+                mat.Textures[i] = texture;
             }
+        }
+        private void LoadTexturesAsynchronous(List<TextureInfo> textures, XRMaterial mat)
+        {
+            Parallel.For(0, textures.Count, i =>
+            {
+                TextureInfo info = textures[i];
 
-            XRMaterial xrMaterial =
-                xrTextures.Length > 0 && xrTextures[0] is XRTexture2D tex ?
-                XRMaterial.CreateUnlitTextureMaterialForward(tex) :
-                XRMaterial.CreateUnlitColorMaterialForward(new ColorF4(1.0f, 1.0f, 0.0f, 1.0f));
+                string path = info.path.Replace("/", "\\");
+                bool rooted = Path.IsPathRooted(path);
+                if (!rooted)
+                {
+                    string? dir = Path.GetDirectoryName(SourceFilePath);
+                    if (dir is not null)
+                        path = Path.Combine(dir, path);
+                }
 
-            xrMaterial.RenderPass = (int)EDefaultRenderPass.OpaqueForward;
-            xrMaterial.Textures.AddRange(xrTextures);
+                MagickImage? NewTexture(string _)
+                    => System.IO.File.Exists(path) ? new(path) : null;
 
-            return (new(mesh, _assimp), xrMaterial);
+                var image = _textureCache.GetOrAdd(path, NewTexture);
+                XRTexture2D texture = image is not null ? new(image) : new(1, 1);
+                texture.Name = Path.GetFileNameWithoutExtension(path);
+                texture.MagFilter = ETexMagFilter.Linear;
+                texture.MinFilter = ETexMinFilter.Linear;
+                texture.UWrap = ETexWrapMode.Repeat;
+                texture.VWrap = ETexWrapMode.Repeat;
+                texture.AlphaAsTransparency = true;
+                texture.AutoGenerateMipmaps = false;
+                texture.Signed = true;
+                texture.Resizable = false;
+                texture.SizedInternalFormat = ESizedInternalFormat.Rgba8;
+                mat.Textures[i] = texture;
+
+                //Engine.Assets.SaveTo(texture, Environment.SpecialFolder.DesktopDirectory, mat.Name ?? AI_DEFAULT_MATERIAL_NAME);
+            });
         }
 
         private unsafe List<TextureInfo> LoadMaterialTextures(Material* mat, TextureType type)
@@ -214,7 +361,7 @@ namespace XREngine
                 {
                     if (!string.Equals(existingTexPath, path, StringComparison.OrdinalIgnoreCase))
                         continue;
-                    
+
                     textures.Add(_textureInfoCache[existingTexPath]);
                     skip = true;
                     break;
@@ -384,7 +531,10 @@ namespace XREngine
 
         public void Dispose()
         {
-
+            foreach (var tex in _textureCache.Values)
+                tex?.Dispose();
+            _textureCache.Clear();
+            _textureInfoCache.Clear();
         }
     }
 

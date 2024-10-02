@@ -2,6 +2,77 @@
 
 namespace XREngine.Data.Rendering
 {
+    public enum ESizedInternalFormat
+    {
+        //Red
+        R8,
+        R8Snorm,
+        R16,
+        R16Snorm,
+        R16f,
+        R32f,
+        R8i,
+        R8ui,
+        R16i,
+        R16ui,
+        R32i,
+        R32ui,
+
+        //Red Green
+        Rg8,
+        Rg8Snorm,
+        Rg16,
+        Rg16Snorm,
+        Rg16f,
+        Rg32f,
+        Rg8i,
+        Rg8ui,
+        Rg16i,
+        Rg16ui,
+        Rg32i,
+        Rg32ui,
+
+        //Red Green Blue
+        R3G3B2,
+        Rgb4,
+        Rgb5,
+        Rgb8,
+        Rgb8Snorm,
+        Rgb10,
+        Rgb12,
+        Rgb16Snorm,
+        Rgba2,
+        Rgba4,
+        Srgb8,
+        Rgb16f,
+        Rgb32f,
+        R11fG11fB10f,
+        Rgb9E5,
+        Rgb8i,
+        Rgb8ui,
+        Rgb16i,
+        Rgb16ui,
+        Rgb32i,
+        Rgb32ui,
+
+        //Red Green Blue Alpha
+        Rgb5A1,
+        Rgba8,
+        Rgba8Snorm,
+        Rgb10A2,
+        Rgba12,
+        Rgba16,
+        Srgb8Alpha8,
+        Rgba16f,
+        Rgba32f,
+        Rgba8i,
+        Rgba8ui,
+        Rgba16i,
+        Rgba16ui,
+        Rgba32i,
+        Rgba32ui
+    }
+
     public enum EPixelInternalFormat
     {
         StencilIndex = 6401,

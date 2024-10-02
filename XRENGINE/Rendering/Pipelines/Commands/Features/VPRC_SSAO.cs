@@ -206,12 +206,20 @@ namespace XREngine.Rendering.Pipelines.Commands
                 MagFilter = ETexMagFilter.Nearest,
                 UWrap = ETexWrapMode.Repeat,
                 VWrap = ETexWrapMode.Repeat,
-                Resizable = true,
+                Resizable = false,
+                SizedInternalFormat = ESizedInternalFormat.Rg16f,
+                Mipmaps =
+                [
+                    new()
+                    {
+                        Data = DataSource.FromArray(Noise!.SelectMany(v => new float[] { v.X, v.Y }).ToArray()),
+                        PixelFormat = EPixelFormat.Rg,
+                        PixelType = EPixelType.Float,
+                        InternalFormat = EPixelInternalFormat.RG
+                    }
+                ]
             };
 
-            var tex = XRTexture.NewImage((uint)NoiseWidth, (uint)NoiseHeight, EPixelFormat.Rgb, EPixelType.Float);
-            tex.GetPixels().SetPixels(Noise!.SelectMany(v => new float[] { v.X, v.Y, 0.0f }).ToArray());
-            noiseTex.Mipmaps[0] = tex;
             Pipeline.SetTexture(noiseTex);
             noiseTex.PushData();
             return NoiseTexture = noiseTex;

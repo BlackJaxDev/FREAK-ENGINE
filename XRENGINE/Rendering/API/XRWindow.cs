@@ -1,4 +1,5 @@
 ﻿using Extensions;
+using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
 using XREngine.Data.Core;
@@ -22,6 +23,8 @@ namespace XREngine.Rendering
         /// </summary>
         public AbstractRenderer Renderer { get; }
 
+        //public IInputContext Input { get; }
+
         public XRWindow(WindowOptions options)
         {
             Window = Silk.NET.Windowing.Window.Create(options);
@@ -32,6 +35,7 @@ namespace XREngine.Rendering
                 ContextAPI.Vulkan => new VulkanRenderer(this),
                 _ => throw new Exception($"Unsupported API: {Window.API.API}"),
             };
+            //Input = InputWindowExtensions.CreateInput(Window);
             Window.Closing += Window_Closing;
         }
 

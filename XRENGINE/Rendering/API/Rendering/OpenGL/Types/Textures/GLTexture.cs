@@ -1,4 +1,5 @@
 ﻿using Silk.NET.OpenGL;
+using System.ComponentModel;
 using XREngine.Data.Colors;
 using XREngine.Data.Core;
 using XREngine.Data.Rendering;
@@ -24,6 +25,7 @@ namespace XREngine.Rendering.OpenGL
             Data.ClearRequested -= Clear;
             Data.GenerateMipmapsRequested -= GenerateMipmaps;
             Data.PropertyChanged -= DataPropertyChanged;
+            Data.PropertyChanging -= DataPropertyChanging;
         }
 
         protected override void LinkData()
@@ -36,9 +38,15 @@ namespace XREngine.Rendering.OpenGL
             Data.ClearRequested += Clear;
             Data.GenerateMipmapsRequested += GenerateMipmaps;
             Data.PropertyChanged += DataPropertyChanged;
+            Data.PropertyChanging += DataPropertyChanging;
         }
 
-        private void DataPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        protected virtual void DataPropertyChanging(object? sender, PropertyChangingEventArgs e)
+        {
+
+        }
+
+        protected virtual void DataPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
             switch (e.PropertyName)
             {

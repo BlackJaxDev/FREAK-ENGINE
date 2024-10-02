@@ -12,10 +12,10 @@ namespace XREngine.Rendering.OpenGL
             public void Bind()
                 => Api.BindProgramPipeline(BindingId);
             public void Set(EProgramStageMask mask, GLRenderProgram program)
-                => Api.UseProgramStages(BindingId, ToUseProgramStageMask(mask), program?.BindingId ?? 0);
+                => Api.UseProgramStages(BindingId, ToUseProgramStageMask(mask), program.BindingId);
             public void Clear(EProgramStageMask mask)
                 => Api.UseProgramStages(BindingId, ToUseProgramStageMask(mask), 0);
-            public void SetActive(GLRenderProgram program)
+            public void SetActive(GLRenderProgram? program)
                 => Api.ActiveShaderProgram(BindingId, program?.BindingId ?? 0);
 
             public static UseProgramStageMask ToUseProgramStageMask(EProgramStageMask mask)

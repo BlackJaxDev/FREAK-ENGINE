@@ -62,11 +62,10 @@ namespace XREngine.Rendering
         public XRTexture2D() : this(1u, 1u, EPixelInternalFormat.Rgb8, EPixelFormat.Rgb, EPixelType.UnsignedByte) { }
         public XRTexture2D(uint width, uint height, EPixelInternalFormat internalFormat, EPixelFormat format, EPixelType type, int mipmapCount = 1)
         {
-            _mipmaps = new Mipmap[mipmapCount];
             for (uint i = 0, scale = 1; i < mipmapCount; scale = 1u << (int)++i)
             {
                 var img = NewImage(width / scale, height / scale, format, type);
-                Mipmap mipmap = new(img)
+                Mipmap2D mipmap = new(img)
                 {
                     InternalFormat = internalFormat
                 };
@@ -74,11 +73,11 @@ namespace XREngine.Rendering
             }
             _width = width;
             _height = height;
+            Mipmaps = new Mipmap2D[mipmapCount];
         }
 
         public XRTexture2D(params string[] mipMapPaths)
         {
-            _mipmaps = new Mipmap[mipMapPaths.Length];
             for (int i = 0; i < mipMapPaths.Length; ++i)
             {
                 string path = mipMapPaths[i];
@@ -86,7 +85,7 @@ namespace XREngine.Rendering
                     path = path[7..];
                 try
                 {
-                    _mipmaps[i] = new(new(path));
+                    _mipmaps[i] = new Mipmap2D(new MagickImage(path));
                 }
                 catch (Exception e)
                 {
@@ -107,29 +106,36 @@ namespace XREngine.Rendering
                     _height = mip.Height;
                 }
             }
+            Mipmaps = new Mipmap2D[mipMapPaths.Length];
         }
         public XRTexture2D(uint width, uint height, EPixelInternalFormat internalFormat, EPixelFormat format, EPixelType type)
         {
-            _mipmaps = [new Mipmap() { InternalFormat = internalFormat, PixelFormat = format, PixelType = type }];
             _width = width;
             _height = height;
+            Mipmaps = [new Mipmap2D() { InternalFormat = internalFormat, PixelFormat = format, PixelType = type }];
         }
         public XRTexture2D(uint width, uint height, params MagickImage?[] mipmaps)
         {
-            _mipmaps = new Mipmap[mipmaps.Length];
+            _width = width;
+            _height = height;
+            Mipmap2D[] mips = new Mipmap2D[mipmaps.Length];
             for (int i = 0; i < mipmaps.Length; ++i)
-                _mipmaps[i] = new Mipmap(mipmaps[i]);
-            Resize(width, height);
+            {
+                var image = mipmaps[i];
+                image?.Resize(width >> i, height >> i);
+                mips[i] = new Mipmap2D(image);
+            }
+            Mipmaps = mips;
         }
         public XRTexture2D(MagickImage image)
         {
-            _mipmaps = [image];
             _width = image.Width;
             _height = image.Height;
+            Mipmaps = [new Mipmap2D(image)];
         }
 
-        public Mipmap[] _mipmaps = [];
-        public Mipmap[] Mipmaps
+        public Mipmap2D[] _mipmaps = [];
+        public Mipmap2D[] Mipmaps
         {
             get => _mipmaps;
             set => SetField(ref _mipmaps, value);
@@ -239,15 +245,17 @@ namespace XREngine.Rendering
             if (baseTexture is null)
                 return;
 
-            _mipmaps = new Mipmap[SmallestMipmapLevel];
-            _mipmaps[0] = baseTexture;
+            Mipmap2D[] mips = new Mipmap2D[SmallestMipmapLevel];
+            mips[0] = baseTexture;
             
             for (int i = 1; i < _mipmaps.Length; ++i)
             {
-                Mipmap clone = _mipmaps[i - 1].Clone(true);
+                Mipmap2D clone = _mipmaps[i - 1].Clone(true);
                 clone.Resize(_width >> i, _height >> i);
-                _mipmaps[i] = clone;
+                mips[i] = clone;
             }
+
+            Mipmaps = mips;
         }
 
         /// <summary>
@@ -333,13 +341,12 @@ namespace XREngine.Rendering
             if (_pbo is null)
                 return;
 
-            MagickImage? mipmap = Mipmaps[mipIndex];
+            var mipmap = Mipmaps[mipIndex].Data;
             if (mipmap is null)
                 return;
 
             _pbo.MapBufferData();
-            var dataPtr = mipmap.GetPixelsUnsafe().GetAreaPointer(0, 0, mipmap.Width, mipmap.Height).ToPointer();
-            _pbo.SetDataPointer(dataPtr);
+            _pbo.SetDataPointer(mipmap.Address);
             _pbo.UnmapBufferData();
         }
 

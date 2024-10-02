@@ -8,8 +8,6 @@ namespace XREngine.Data
     //Stores a reference to unmanaged data
     public class DataSource : XRBase, IDisposable
     {
-        public event Action<DataSource>? Modified;
-
         /// <summary>
         /// If true, this data source references memory that was allocated somewhere else.
         /// </summary>
@@ -18,6 +16,13 @@ namespace XREngine.Data
         [YamlIgnore]
         public VoidPtr Address { get; set; }
 
+        public static unsafe DataSource FromArray<T>(T[] data) where T : unmanaged
+        {
+            DataSource source = new((uint)(data.Length * sizeof(T)));
+            fixed (void* ptr = data)
+                Memory.Move(source.Address, ptr, source.Length);
+            return source;
+        }
         public DataSource(byte[] data)
         {
             External = false;
@@ -27,9 +32,6 @@ namespace XREngine.Data
         }
         public DataSource(VoidPtr address, uint length, bool copyInternal = false)
         {
-            if (length < 0)
-                throw new Exception("Cannot have a source with a negative size.");
-
             Length = length;
             if (copyInternal)
             {
@@ -46,9 +48,6 @@ namespace XREngine.Data
 
         public DataSource(uint length, bool zeroMemory = false)
         {
-            if (length < 0)
-                throw new Exception("Cannot allocate a negative size.");
-
             Length = length;
             Address = Marshal.AllocHGlobal((int)Length);
             if (zeroMemory)
@@ -61,9 +60,6 @@ namespace XREngine.Data
 
         public unsafe UnmanagedMemoryStream AsStream()
             => new((byte*)Address, Length);
-
-        public void NotifyModified()
-            => Modified?.Invoke(this);
 
         #region IDisposable Support
         private bool _disposedValue = false;
@@ -101,6 +97,24 @@ namespace XREngine.Data
             Dispose(true);
             GC.SuppressFinalize(this);
         }
+
+        public byte[] GetBytes()
+        {
+            byte[] bytes = new byte[Length];
+            Marshal.Copy(Address, bytes, 0, (int)Length);
+            return bytes;
+        }
+
+        public DataSource Clone()
+        {
+            if (External)
+                return new DataSource(Address, Length, false);
+
+            DataSource clone = new(Length);
+            Memory.Move(clone.Address, Address, Length);
+            return clone;
+        }
+
         #endregion
     }
 }

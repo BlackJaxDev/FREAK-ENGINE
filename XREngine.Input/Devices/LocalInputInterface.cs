@@ -1,4 +1,6 @@
-﻿namespace XREngine.Input.Devices
+﻿using Silk.NET.Input;
+
+namespace XREngine.Input.Devices
 {
     public class LocalInputInterface : InputInterface
     {
@@ -21,7 +23,7 @@
             set
             {
                 _playerIndex = value;
-                UpdateDevices();
+                //UpdateDevices();
             }
         }
         private int _playerIndex;
@@ -29,13 +31,6 @@
         public LocalInputInterface(int localPlayerIndex) : base(localPlayerIndex)
         {
             LocalPlayerIndex = localPlayerIndex;
-        }
-
-        internal void UpdateDevices()
-        {
-            TryUnregisterInput();
-            GetDevices();
-            TryRegisterInput();
         }
 
         public override void TryRegisterInput()
@@ -167,45 +162,50 @@
         public override float GetAxisValue(EGamePadAxis axis)
             => Gamepad?.GetAxisValue(axis) ?? 0.0f;
 
-        private void GetDevices()
+
+        public void UpdateDevices(IInputContext? input)
         {
-            AttachInterfaceToDevices(true);
-
-            InputDevice[] gamepads =
-                InputDevice.CurrentDevices[EInputDeviceType.Gamepad];
-            InputDevice[] keyboards =
-                InputDevice.CurrentDevices[EInputDeviceType.Keyboard];
-            InputDevice[] mice =
-                InputDevice.CurrentDevices[EInputDeviceType.Mouse];
-
-            if (_playerIndex >= 0 && _playerIndex < gamepads.Length)
-                Gamepad = gamepads[_playerIndex] as BaseGamePad;
-
-            //Keyboard and mouse are reserved for the first player only
-            //TODO: support multiple mice and keyboard? Could get difficult with laptops and trackpads and whatnot. Probably no-go.
-            //TODO: support input from ALL keyboards and mice for first player. Not just the first found keyboard and mouse.
-
-            if (keyboards.Length > 0 && _playerIndex == 0)
-                Keyboard = keyboards[0] as BaseKeyboard;
-
-            if (mice.Length > 0 && _playerIndex == 0)
-                Mouse = mice[0] as BaseMouse;
-
+            TryUnregisterInput();
+            GetDevices(input);
+            TryRegisterInput();
+        }
+        private void GetDevices(IInputContext? context)
+        {
             AttachInterfaceToDevices(false);
+
+            if (context is null)
+                return;
+
+            //context.ConnectionChanged += ConnectionChanged;
+
+            //InputDevice[] gamepads = InputDevice.CurrentDevices[EInputDeviceType.Gamepad];
+            //InputDevice[] keyboards = InputDevice.CurrentDevices[EInputDeviceType.Keyboard];
+            //InputDevice[] mice = InputDevice.CurrentDevices[EInputDeviceType.Mouse];
+
+            //if (_playerIndex >= 0 && _playerIndex < gamepads.Length)
+            //    Gamepad = gamepads[_playerIndex] as BaseGamePad;
+
+            ////Keyboard and mouse are reserved for the first player only
+            ////TODO: support multiple mice and keyboard? Could get difficult with laptops and trackpads and whatnot. Probably no-go.
+            ////TODO: support input from ALL keyboards and mice for first player. Not just the first found keyboard and mouse.
+
+            //if (keyboards.Length > 0 && _playerIndex == 0)
+            //    Keyboard = keyboards[0] as BaseKeyboard;
+
+            //if (mice.Length > 0 && _playerIndex == 0)
+            //    Mouse = mice[0] as BaseMouse;
+
+            AttachInterfaceToDevices(true);
         }
 
-        private void AttachInterfaceToDevices(bool detach)
+        private void ConnectionChanged(IInputDevice device, bool connected)
         {
-            if (detach)
-            {
-                if (Gamepad != null)
-                    Gamepad.InputInterface = null;
-                if (Keyboard != null)
-                    Keyboard.InputInterface = null;
-                if (Mouse != null)
-                    Mouse.InputInterface = null;
-            }
-            else
+
+        }
+
+        private void AttachInterfaceToDevices(bool attach)
+        {
+            if (attach)
             {
                 if (Gamepad != null)
                     Gamepad.InputInterface = this;
@@ -214,7 +214,15 @@
                 if (Mouse != null)
                     Mouse.InputInterface = this;
             }
+            else
+            {
+                if (Gamepad != null)
+                    Gamepad.InputInterface = null;
+                if (Keyboard != null)
+                    Keyboard.InputInterface = null;
+                if (Mouse != null)
+                    Mouse.InputInterface = null;
+            }
         }
-
     }
 }

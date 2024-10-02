@@ -3,6 +3,8 @@ using Silk.NET.OpenGL;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Numerics;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace XREngine.Rendering.OpenGL
 {
@@ -27,21 +29,19 @@ namespace XREngine.Rendering.OpenGL
             private readonly ConcurrentBag<string> _failedAttributes = [];
             private readonly ConcurrentBag<string> _failedUniforms = [];
 
-            private GLShader[] _shaderCache = [];
-            protected GLShader[] ShaderObjects
-            {
-                get => _shaderCache;
-                set => SetField(ref _shaderCache, value ?? []);
-            }
-
             protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
             {
                 base.OnPropertyChanged(propName, prev, field);
                 switch (propName)
                 {
                     case nameof(Data.Shaders):
-                        //Force a recompilation - programs cannot be relinked.
-                        Destroy();
+                        if (IsLinked)
+                        {
+                            //Force a recompilation? Programs cannot be relinked.
+                            Destroy();
+                            Generate();
+                            Link();
+                        }
                         break;
                 }
             }
@@ -55,6 +55,9 @@ namespace XREngine.Rendering.OpenGL
             /// <returns></returns>
             public int GetUniformLocation(string name)
             {
+                if (!IsLinked)
+                    return -1;
+
                 if (_uniformCache.TryGetValue(name, out int value))
                     return value;
 
@@ -78,7 +81,7 @@ namespace XREngine.Rendering.OpenGL
                     if (!failed)
                     {
                         _failedUniforms.Add(name);
-                        Debug.LogWarning($"Uniform {name} not found in OpenGL program.");
+                        //Debug.LogWarning($"Uniform {name} not found in OpenGL program.");
                     }
                     return false;
                 }
@@ -93,6 +96,9 @@ namespace XREngine.Rendering.OpenGL
             /// <returns></returns>
             public int GetAttributeLocation(string name)
             {
+                if (!IsLinked)
+                    return -1;
+
                 if (_attribCache.TryGetValue(name, out int value))
                     return value;
 
@@ -116,34 +122,34 @@ namespace XREngine.Rendering.OpenGL
                     if (!failed)
                     {
                         _failedAttributes.Add(name);
-                        Debug.LogWarning($"Attribute {name} not found in OpenGL program.");
+                        //Debug.LogWarning($"Attribute {name} not found in OpenGL program.");
                     }
                     return false;
                 }
                 return true;
             }
 
-            protected override void UnlinkData()
-            {
-                Data.UniformSetVector2Requested -= Uniform;
-                Data.UniformSetVector3Requested -= Uniform;
-                Data.UniformSetVector4Requested -= Uniform;
-                Data.UniformSetQuaternionRequested -= Uniform;
-                Data.UniformSetIntRequested -= Uniform;
-                Data.UniformSetFloatRequested -= Uniform;
-                Data.UniformSetUIntRequested -= Uniform;
-                Data.UniformSetDoubleRequested -= Uniform;
-                Data.UniformSetMatrix4x4Requested -= Uniform;
+            private readonly ConcurrentDictionary<XRShader, GLShader> _shaderCache = [];
 
-                Data.UniformSetVector2ArrayRequested -= Uniform;
-                Data.UniformSetVector3ArrayRequested -= Uniform;
-                Data.UniformSetVector4ArrayRequested -= Uniform;
-                Data.UniformSetQuaternionArrayRequested -= Uniform;
-                Data.UniformSetIntArrayRequested -= Uniform;
-                Data.UniformSetFloatArrayRequested -= Uniform;
-                Data.UniformSetUIntArrayRequested -= Uniform;
-                Data.UniformSetDoubleArrayRequested -= Uniform;
-                Data.UniformSetMatrix4x4ArrayRequested -= Uniform;
+            private void ShaderRemoved(XRShader item)
+            {
+                if (!_shaderCache.TryRemove(item, out var shader) || shader is null)
+                    return;
+                
+                shader.Destroy();
+                shader.ActivePrograms.Remove(this);
+            }
+
+            private void ShaderAdded(XRShader item)
+            {
+                _shaderCache.TryAdd(item, GetAndGenerate(item));
+            }
+            private GLShader GetAndGenerate(XRShader data)
+            {
+                GLShader shader = Renderer.GenericToAPI<GLShader>(data)!;
+                Engine.EnqueueMainThreadTask(() => shader.Generate());
+                shader.ActivePrograms.Add(this);
+                return shader;
             }
 
             protected override void LinkData()
@@ -169,7 +175,42 @@ namespace XREngine.Rendering.OpenGL
                 Data.UniformSetUIntArrayRequested += Uniform;
                 Data.UniformSetDoubleArrayRequested += Uniform;
                 Data.UniformSetMatrix4x4ArrayRequested += Uniform;
+
+                foreach (XRShader shader in Data.Shaders)
+                    ShaderAdded(shader);
+                Data.Shaders.PostAnythingAdded += ShaderAdded;
+                Data.Shaders.PostAnythingRemoved += ShaderRemoved;
             }
+
+            protected override void UnlinkData()
+            {
+                Data.UniformSetVector2Requested -= Uniform;
+                Data.UniformSetVector3Requested -= Uniform;
+                Data.UniformSetVector4Requested -= Uniform;
+                Data.UniformSetQuaternionRequested -= Uniform;
+                Data.UniformSetIntRequested -= Uniform;
+                Data.UniformSetFloatRequested -= Uniform;
+                Data.UniformSetUIntRequested -= Uniform;
+                Data.UniformSetDoubleRequested -= Uniform;
+                Data.UniformSetMatrix4x4Requested -= Uniform;
+
+                Data.UniformSetVector2ArrayRequested -= Uniform;
+                Data.UniformSetVector3ArrayRequested -= Uniform;
+                Data.UniformSetVector4ArrayRequested -= Uniform;
+                Data.UniformSetQuaternionArrayRequested -= Uniform;
+                Data.UniformSetIntArrayRequested -= Uniform;
+                Data.UniformSetFloatArrayRequested -= Uniform;
+                Data.UniformSetUIntArrayRequested -= Uniform;
+                Data.UniformSetDoubleArrayRequested -= Uniform;
+                Data.UniformSetMatrix4x4ArrayRequested -= Uniform;
+
+                Data.Shaders.PostAnythingAdded -= ShaderAdded;
+                Data.Shaders.PostAnythingRemoved -= ShaderRemoved;
+                foreach (XRShader shader in Data.Shaders)
+                    ShaderRemoved(shader);
+            }
+
+            public bool LinkReady => Data.LinkReady;
 
             private void Reset()
             {
@@ -186,12 +227,6 @@ namespace XREngine.Rendering.OpenGL
                 Reset();
             }
 
-            private GLShader CreateAndGenerate(XRShader data)
-            {
-                GLShader shader = Renderer.GenericToAPI<GLShader>(data)!;
-                shader.Generate();
-                return shader;
-            }
             //TODO: serialize this cache and load on startup
             private readonly ConcurrentDictionary<ulong, BinaryProgram> _binaryCache = new();
             public ulong Hash { get; private set; }
@@ -200,32 +235,6 @@ namespace XREngine.Rendering.OpenGL
             {
                 Reset();
 
-                if (Data.Shaders.Count == 0)
-                {
-                    Debug.LogWarning("No shaders were provided to the program.");
-                    return InvalidBindingId;
-                }
-
-                Hash = CalcHash(Data.Shaders.Select(x => x.Source.Text ?? string.Empty));
-                bool isCached = _binaryCache.TryGetValue(Hash, out var binProg);
-
-                if (isCached)
-                    _cachedProgram = binProg;
-                else
-                {
-                    _cachedProgram = null;
-
-                    //Try compiling the shaders
-                    _shaderCache = Data.Shaders.Select(CreateAndGenerate).ToArray();
-                    if (_shaderCache.Any(x => !x.IsCompiled))
-                    {
-                        Debug.LogWarning("One or more shaders failed to compile.");
-                        _shaderCache.ForEach(x => x.Destroy());
-                        _shaderCache = [];
-                        return InvalidBindingId;
-                    }
-                }
-
                 uint handle = Api.CreateProgram();
                 bool separable = Engine.Rendering.Settings.AllowShaderPipelines;
                 Api.ProgramParameter(handle, GLEnum.ProgramSeparable, separable ? 1 : 0);
@@ -233,51 +242,91 @@ namespace XREngine.Rendering.OpenGL
                 return handle;
             }
 
-            private void LinkShader(GLShader shader)
+            public bool Link()
             {
-                shader.ActivePrograms.Add(this);
-                Api.AttachShader(BindingId, shader.BindingId);
-            }
-            private void UnlinkShader(GLShader shader)
-            {
-                Api.DetachShader(BindingId, shader.BindingId);
-                shader.ActivePrograms.Remove(this);
-                shader.Destroy();
-            }
-
-            protected internal override void PostGenerated()
-            {
-                if (!TryGetBindingId(out uint bindingId))
-                    return;
-
-                if (_cachedProgram is null)
-                    LinkNewProgram(bindingId);
-                else
-                    LoadCachedProgram(bindingId);
-                
-                base.PostGenerated();
-            }
-
-            private void LoadCachedProgram(uint bindingId)
-            {
-                fixed (byte* ptr = _cachedProgram!.Value.Binary)
-                    Api.ProgramBinary(bindingId, _cachedProgram.Value.Format, ptr, _cachedProgram.Value.Length);
-            }
-
-            private void LinkNewProgram(uint bindingId)
-            {
-                _shaderCache.ForEach(LinkShader);
-
-                Api.LinkProgram(bindingId);
-                Api.GetProgram(bindingId, GLEnum.LinkStatus, out int status);
-                IsLinked = status != 0;
                 if (IsLinked)
-                    CacheBinary(bindingId);
-                else
-                    PrintLinkDebug(bindingId);
+                {
+                    Api.GetProgram(BindingId, GLEnum.LinkStatus, out int s);
+                    return s != 0;
+                }
 
-                _shaderCache.ForEach(UnlinkShader);
-                _shaderCache = [];
+                if (!LinkReady)
+                    return false;
+
+                //if (!IsGenerated)
+                //{
+                //    Generate();
+                //    return false;
+                //}
+
+                if (IsLinked)
+                    return true;
+
+                if (_shaderCache.IsEmpty || _shaderCache.Values.Any(x => !x.IsCompiled))
+                    return false;
+
+                bool isCached = false;
+                uint bindingId = BindingId;
+                if (Engine.Rendering.Settings.AllowBinaryProgramCaching && 
+                    (isCached = _binaryCache.TryGetValue(Hash = CalcHash(Data.Shaders.Select(x => x.Source.Text ?? string.Empty)), out BinaryProgram binProg)))
+                {
+                    Debug.Out($"Using cached program binary with hash {Hash}.");
+                    _cachedProgram = binProg;
+                    fixed (byte* ptr = _cachedProgram!.Value.Binary)
+                        Api.ProgramBinary(bindingId, _cachedProgram.Value.Format, ptr, _cachedProgram.Value.Length);
+                    IsLinked = true;
+                    return true;
+                }
+                else
+                {
+                    //Debug.Out($"Compiling program with hash {Hash}.");
+                    _cachedProgram = null;
+
+                    var shaderCache = _shaderCache.Values;
+                    GLShader?[] attached = new GLShader?[shaderCache.Count];
+                    int i = 0;
+                    bool noErrors = true;
+                    foreach (GLShader shader in shaderCache)
+                    {
+                        if (shader.IsCompiled)
+                        {
+                            Api.AttachShader(bindingId, shader.BindingId);
+                            attached[i++] = shader;
+                        }
+                        else
+                        {
+                            if (noErrors)
+                            {
+                                noErrors = false;
+                                Debug.LogWarning("One or more shaders failed to compile, can't link program.");
+                            }
+
+                            string? text = shader.Data.Source.Text;
+                            if (text is not null)
+                                Debug.Out(text);
+                        }
+                    }
+                    if (noErrors)
+                    {
+                        Api.LinkProgram(bindingId);
+                        Api.GetProgram(bindingId, GLEnum.LinkStatus, out int status);
+                        bool linked = status != 0;
+                        if (linked)
+                            CacheBinary(bindingId);
+                        else
+                            PrintLinkDebug(bindingId);
+                        IsLinked = linked;
+                    }
+                    foreach (GLShader? shader in attached)
+                    {
+                        if (shader is null)
+                            continue;
+
+                        Api.DetachShader(BindingId, shader.BindingId);
+                    }
+                    _shaderCache.ForEach(x => x.Value.Destroy());
+                    return IsLinked;
+                }
             }
 
             private void PrintLinkDebug(uint bindingId)
@@ -309,6 +358,9 @@ namespace XREngine.Rendering.OpenGL
 
             private void CacheBinary(uint bindingId)
             {
+                if (!Engine.Rendering.Settings.AllowBinaryProgramCaching)
+                    return;
+
                 Api.GetProgram(bindingId, GLEnum.ProgramBinaryLength, out int len);
                 if (len <= 0)
                     return;
@@ -327,9 +379,29 @@ namespace XREngine.Rendering.OpenGL
             {
                 ulong hash = 17ul;
                 foreach (string item in enumerable)
-                    hash = hash * 31ul + (ulong)(item?.GetHashCode() ?? 0);
+                    hash = hash * 31ul + GetDeterministicHashCode(item);
                 return hash;
             }
+
+            static ulong GetDeterministicHashCode(string str)
+            {
+                unchecked
+                {
+                    ulong hash1 = (5381 << 16) + 5381;
+                    ulong hash2 = hash1;
+
+                    for (int i = 0; i < str.Length; i += 2)
+                    {
+                        hash1 = ((hash1 << 5) + hash1) ^ str[i];
+                        if (i == str.Length - 1)
+                            break;
+                        hash2 = ((hash2 << 5) + hash2) ^ str[i + 1];
+                    }
+
+                    return hash1 + (hash2 * 1566083941ul);
+                }
+            }
+
 
             public void Use()
                 => Api.UseProgram(BindingId);
