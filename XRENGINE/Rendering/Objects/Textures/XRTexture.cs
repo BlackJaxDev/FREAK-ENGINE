@@ -190,13 +190,6 @@ namespace XREngine.Rendering
             set => SetField(ref _autoGenerateMipmaps, value);
         }
 
-        private bool _signed = false;
-        public bool Signed
-        {
-            get => _signed;
-            set => SetField(ref _signed, value);
-        }
-
         private bool _alphaAsTransparency = false;
         public bool AlphaAsTransparency
         {

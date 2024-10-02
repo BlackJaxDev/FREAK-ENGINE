@@ -88,7 +88,7 @@ namespace XREngine.Rendering
             foreach (SceneNode node in RootNodes)
                 if (node.IsActiveSelf)
                     node.Start();
-            Task.Run(RecalcTransforms);
+            //Task.Run(RecalcTransforms);
             IsPlaying = true;
         }
 
@@ -132,24 +132,29 @@ namespace XREngine.Rendering
         {
             while (IsPlaying)
             {
-                _dataAvailable.WaitOne();
-                var processed = new HashSet<TransformBase>();
-                foreach (var depth in _depthQueues.Keys.OrderBy(d => d).ToArray())
-                    if (_depthQueues.TryGetValue(depth, out var queue))
-                        while (queue.TryDequeue(out var transform))
-                            if (processed.Add(transform))
-                                transform.TryParallelDepthRecalculate();
-                _dataAvailable.Reset();
+                ProcessTransformQueue();
             }
         }
 
+        private void ProcessTransformQueue()
+        {
+            //_dataAvailable.WaitOne();
+            var processed = new HashSet<TransformBase>();
+            foreach (var depth in _depthQueues.Keys.OrderBy(d => d).ToArray())
+                if (_depthQueues.TryGetValue(depth, out var queue))
+                    while (queue.TryDequeue(out var transform))
+                        if (processed.Add(transform))
+                            transform.TryParallelDepthRecalculate();
+            //_dataAvailable.Reset();
+        }
+
         private readonly ConcurrentDictionary<int, ConcurrentQueue<TransformBase>> _depthQueues = new();
-        private readonly ManualResetEvent _dataAvailable = new(false);
+        //private readonly ManualResetEvent _dataAvailable = new(false);
 
         public void AddDirtyTransform(TransformBase transform)
         {
             _depthQueues.GetOrAdd(transform.Depth, new ConcurrentQueue<TransformBase>()).Enqueue(transform);
-            _dataAvailable.Set();
+            //_dataAvailable.Set();
         }
 
         private XRWorld? _targetWorld;
@@ -298,6 +303,7 @@ namespace XREngine.Rendering
 #if DEBUG
             ClearMarkers();
 #endif
+            ProcessTransformQueue();
             TickGroup(ETickGroup.Normal);
             TickGroup(ETickGroup.Late);
 #if DEBUG

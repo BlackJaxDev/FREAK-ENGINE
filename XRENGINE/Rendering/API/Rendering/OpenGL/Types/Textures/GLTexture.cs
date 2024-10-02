@@ -15,6 +15,13 @@ namespace XREngine.Rendering.OpenGL
         public XREvent<PrePushDataCallback> PrePushData;
         public XREvent<GLTexture<T>> PostPushData;
 
+        private bool _isPushing = false;
+        public bool IsPushing
+        {
+            get => _isPushing;
+            protected set => SetField(ref _isPushing, value);
+        }
+
         protected override void UnlinkData()
         {
             Data.AttachToFBORequested -= AttachToFBO;
@@ -94,6 +101,9 @@ namespace XREngine.Rendering.OpenGL
 
         protected bool OnPreBind()
         {
+            if (Renderer.BoundTexture == this)
+                return false;
+
             PreBindCallback callback = new();
             PreBind.Invoke(callback);
             return callback.ShouldBind;
@@ -125,18 +135,19 @@ namespace XREngine.Rendering.OpenGL
 
         public virtual void Bind()
         {
+            uint id = BindingId;
+            if (id == InvalidBindingId)
+                return;
+
             if (!OnPreBind())
                 return;
 
-            uint id = BindingId;
-            if (id == 0u)
-                return;
-
             Api.BindTexture(ToGLEnum(TextureTarget), id);
+            Renderer.BoundTexture = this;
 
             SetParameters();
 
-            if (IsInvalidated)
+            if (IsInvalidated && !IsPushing)
             {
                 IsInvalidated = false;
                 PushData();
@@ -144,7 +155,13 @@ namespace XREngine.Rendering.OpenGL
         }
 
         public void Unbind()
-            => Api.BindTexture(ToGLEnum(TextureTarget), 0);
+        {
+            if (Renderer.BoundTexture != this)
+                return;
+            
+            Renderer.BoundTexture = null;
+            Api.BindTexture(ToGLEnum(TextureTarget), 0);
+        }
 
         public void Clear(ColorF4 color, int level = 0)
         {

@@ -29,13 +29,13 @@ namespace XREngine.Rendering
         {
             Window = Silk.NET.Windowing.Window.Create(options);
             Window.Initialize();
+            //Input = Window.CreateInput();
             Renderer = Window.API.API switch
             {
                 ContextAPI.OpenGL => new OpenGLRenderer(this),
                 ContextAPI.Vulkan => new VulkanRenderer(this),
                 _ => throw new Exception($"Unsupported API: {Window.API.API}"),
             };
-            //Input = InputWindowExtensions.CreateInput(Window);
             Window.Closing += Window_Closing;
         }
 

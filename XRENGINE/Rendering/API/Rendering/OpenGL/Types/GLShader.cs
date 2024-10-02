@@ -133,6 +133,8 @@ namespace XREngine.Rendering.OpenGL
                         Debug.LogWarning(info);
                     else if (!IsCompiled)
                         Debug.LogWarning("Unable to compile shader, but no error was returned.");
+                    else
+                        Debug.Out("Shader compiled successfully.");
                 }
                 return IsCompiled;
             }

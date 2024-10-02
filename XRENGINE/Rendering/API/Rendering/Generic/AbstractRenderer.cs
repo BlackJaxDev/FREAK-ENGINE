@@ -20,7 +20,7 @@ namespace XREngine.Rendering
     /// <summary>
     /// An abstract window renderer handles rendering to a specific window using a specific graphics API.
     /// </summary>
-    public abstract unsafe class AbstractRenderer : XRBase
+    public abstract unsafe class AbstractRenderer : XRBase//, IDisposable
     {
         /// <summary>
         /// If true, this renderer is currently being used to render a window.
@@ -385,6 +385,18 @@ namespace XREngine.Rendering
         public abstract void ClearDepth(float v);
         public abstract void AllowDepthWrite(bool v);
         public abstract void DepthFunc(EComparison always);
+
+        public void Dispose()
+        {
+            //UnlinkWindow();
+            //_viewports.Clear();
+            //_currentCamera = null;
+            //_worldInstance = null;
+            //foreach (var obj in _renderObjectCache.Values)
+            //    obj.Destroy();
+            //_renderObjectCache.Clear();
+            //GC.SuppressFinalize(this);
+        }
     }
     public abstract unsafe partial class AbstractRenderer<TAPI>(XRWindow window) : AbstractRenderer(window) where TAPI : NativeAPI
     {

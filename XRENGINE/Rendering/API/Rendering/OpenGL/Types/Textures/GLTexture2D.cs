@@ -1,5 +1,4 @@
 ﻿using Extensions;
-using Silk.NET.DXGI;
 using Silk.NET.OpenGL;
 using System.ComponentModel;
 using XREngine.Data;
@@ -12,7 +11,6 @@ namespace XREngine.Rendering.OpenGL
     public class GLTexture2D(OpenGLRenderer renderer, XRTexture2D data) : GLTexture<XRTexture2D>(renderer, data)
     {
         private bool _storageSet = false;
-        private bool _isPushing = false;
 
         public class MipmapInfo : XRBase
         {
@@ -115,17 +113,17 @@ namespace XREngine.Rendering.OpenGL
         //TODO: use PBO per texture for quick data updates
         public override unsafe void PushData()
         {
-            if (_isPushing)
+            if (IsPushing)
                 return;
             try
             {
-                _isPushing = true;
+                IsPushing = true;
                 OnPrePushData(out bool shouldPush, out bool allowPostPushCallback);
                 if (!shouldPush)
                 {
                     if (allowPostPushCallback)
                         OnPostPushData();
-                    _isPushing = false;
+                    IsPushing = false;
                     return;
                 }
 
@@ -169,10 +167,81 @@ namespace XREngine.Rendering.OpenGL
             }
             finally
             {
-                _isPushing = false;
+                IsPushing = false;
                 Unbind();
             }
         }
+
+        private unsafe void PushMipmap(GLEnum glTarget, int i, MipmapInfo? info, EPixelInternalFormat? internalFormatForce)
+        {
+            if (!Data.Resizable && !_storageSet)
+            {
+                Debug.LogWarning("Texture storage not set on non-resizable texture, can't push mipmaps.");
+                return;
+            }
+
+            GLEnum pixelFormat;
+            GLEnum pixelType;
+            InternalFormat internalPixelFormat;
+
+            DataSource? data;
+            bool hasPushed;
+            Mipmap2D? mip = info?.Mipmap;
+            if (mip is null)
+            {
+                internalPixelFormat = ToInternalFormat(internalFormatForce ?? EPixelInternalFormat.Rgb);
+                pixelFormat = GLEnum.Rgb;
+                pixelType = GLEnum.UnsignedByte;
+                data = null;
+                hasPushed = false;
+            }
+            else
+            {
+                pixelFormat = ToGLEnum(mip.PixelFormat);
+                pixelType = ToGLEnum(mip.PixelType);
+                internalPixelFormat = ToInternalFormat(internalFormatForce ?? mip.InternalFormat);
+                data = mip.Data;
+                hasPushed = info!.HasPushed;
+            }
+
+            if (data is null || data.Length == 0)
+                Push(glTarget, i, Data.Width >> i, Data.Height >> i, pixelFormat, pixelType, internalPixelFormat, hasPushed);
+            else
+            {
+                Push(glTarget, i, mip!.Width, mip.Height, pixelFormat, pixelType, internalPixelFormat, data, hasPushed);
+                data.Dispose();
+            }
+
+            if (info != null)
+                info.HasPushed = true;
+        }
+
+        private unsafe void Push(GLEnum glTarget, int i, uint w, uint h, GLEnum pixelFormat, GLEnum pixelType, InternalFormat internalPixelFormat, bool hasPushed)
+        {
+            if (!hasPushed && Data.Resizable)
+                Api.TexImage2D(glTarget, i, internalPixelFormat, w, h, 0, pixelFormat, pixelType, null);
+
+            var error = Api.GetError();
+            if (error != GLEnum.NoError)
+                Debug.LogWarning($"Error pushing null texture data: {error}");
+        }
+        private unsafe void Push(GLEnum glTarget, int i, uint w, uint h, GLEnum pixelFormat, GLEnum pixelType, InternalFormat internalPixelFormat, DataSource bmp, bool hasPushed)
+        {
+            // If a non-zero named buffer object is bound to the GL_PIXEL_UNPACK_BUFFER target (see glBindBuffer) while a texture image is specified,
+            // the data ptr is treated as a byte offset into the buffer object's data store.
+            void* ptr = bmp.Address.Pointer;
+            if (hasPushed || _storageSet)
+                Api.TexSubImage2D(glTarget, i, 0, 0, w, h, pixelFormat, pixelType, ptr);
+            else
+                Api.TexImage2D(glTarget, i, internalPixelFormat, w, h, 0, pixelFormat, pixelType, ptr);
+            
+            var error = Api.GetError();
+            if (error != GLEnum.NoError)
+                Debug.LogWarning($"Error pushing texture data: {error}");
+        }
+
+        private static InternalFormat ToInternalFormat(EPixelInternalFormat internalFormat)
+            => (InternalFormat)internalFormat.ConvertByName(typeof(InternalFormat));
 
         private static EPixelInternalFormat ToBaseInternalFormat(ESizedInternalFormat sizedInternalFormat)
             => sizedInternalFormat switch
@@ -244,114 +313,43 @@ namespace XREngine.Rendering.OpenGL
                 _ => throw new NotImplementedException()
             };
 
-        private unsafe void PushMipmap(GLEnum glTarget, int i, MipmapInfo? info, EPixelInternalFormat? internalFormatForce)
-        {
-            if (!Data.Resizable && !_storageSet)
-            {
-                Debug.LogWarning("Texture storage not set on non-resizable texture, can't push mipmaps.");
-                return;
-            }
-
-            GLEnum pixelFormat;
-            GLEnum pixelType;
-            InternalFormat internalPixelFormat;
-
-            DataSource? data;
-            bool hasPushed;
-            Mipmap2D? mip = info?.Mipmap;
-            if (mip is null)
-            {
-                internalPixelFormat = ToInternalFormat(internalFormatForce ?? EPixelInternalFormat.Rgb);
-                pixelFormat = GLEnum.Rgb;
-                pixelType = GLEnum.UnsignedByte;
-                data = null;
-                hasPushed = false;
-            }
-            else
-            {
-                pixelFormat = ToGLEnum(mip.PixelFormat);
-                pixelType = ToGLEnum(mip.PixelType);
-                internalPixelFormat = ToInternalFormat(internalFormatForce ?? mip.InternalFormat);
-                data = mip.Data;
-                hasPushed = info!.HasPushed;
-            }
-
-            if (data is null || data.Length == 0)
-                Push(glTarget, i, Data.Width >> i, Data.Height >> i, pixelFormat, pixelType, internalPixelFormat, hasPushed);
-            else
-            {
-                Push(glTarget, i, mip!.Width, mip.Height, pixelFormat, pixelType, internalPixelFormat, data, hasPushed);
-                data.Dispose();
-            }
-
-            if (info != null)
-                info.HasPushed = true;
-        }
-
-        private unsafe void Push(GLEnum glTarget, int i, uint w, uint h, GLEnum pixelFormat, GLEnum pixelType, InternalFormat internalPixelFormat, bool hasPushed)
-        {
-            if (!hasPushed && Data.Resizable)
-                Api.TexImage2D(glTarget, i, internalPixelFormat, w, h, 0, pixelFormat, pixelType, null);
-
-            var error = Api.GetError();
-            if (error != GLEnum.NoError)
-                Debug.LogWarning($"Error pushing null texture data: {error}");
-        }
-        private unsafe void Push(GLEnum glTarget, int i, uint w, uint h, GLEnum pixelFormat, GLEnum pixelType, InternalFormat internalPixelFormat, DataSource bmp, bool hasPushed)
-        {
-            // If a non-zero named buffer object is bound to the GL_PIXEL_UNPACK_BUFFER target (see glBindBuffer) while a texture image is specified,
-            // the data ptr is treated as a byte offset into the buffer object's data store.
-            void* ptr = bmp.Address.Pointer;
-            if (hasPushed || !Data.Resizable)
-                Api.TexSubImage2D(glTarget, i, 0, 0, w, h, pixelFormat, pixelType, ptr);
-            else
-                Api.TexImage2D(glTarget, i, internalPixelFormat, w, h, 0, pixelFormat, pixelType, ptr);
-            
-            var error = Api.GetError();
-            if (error != GLEnum.NoError)
-                Debug.LogWarning($"Error pushing texture data: {error}");
-        }
-
-        private static InternalFormat ToInternalFormat(EPixelInternalFormat internalFormat)
-            => (InternalFormat)internalFormat.ConvertByName(typeof(InternalFormat));
-
-        private static ESizedInternalFormat ToSizedInternalFormat(EPixelInternalFormat internalFormat)
-            => internalFormat switch
-            {
-                EPixelInternalFormat.Rgb8 => ESizedInternalFormat.Rgb8,
-                EPixelInternalFormat.Rgba8 => ESizedInternalFormat.Rgba8,
-                EPixelInternalFormat.Rgba16 => ESizedInternalFormat.Rgba16,
-                EPixelInternalFormat.R8 => ESizedInternalFormat.R8,
-                EPixelInternalFormat.R16 => ESizedInternalFormat.R16,
-                EPixelInternalFormat.RG8 => ESizedInternalFormat.Rg8,
-                EPixelInternalFormat.RG16 => ESizedInternalFormat.Rg16,
-                EPixelInternalFormat.R16f => ESizedInternalFormat.R16f,
-                EPixelInternalFormat.R32f => ESizedInternalFormat.R32f,
-                EPixelInternalFormat.RG16f => ESizedInternalFormat.Rg16f,
-                EPixelInternalFormat.RG32f => ESizedInternalFormat.Rg32f,
-                EPixelInternalFormat.R8i => ESizedInternalFormat.R8i,
-                EPixelInternalFormat.R8ui => ESizedInternalFormat.R8ui,
-                EPixelInternalFormat.R16i => ESizedInternalFormat.R16i,
-                EPixelInternalFormat.R16ui => ESizedInternalFormat.R16ui,
-                EPixelInternalFormat.R32i => ESizedInternalFormat.R32i,
-                EPixelInternalFormat.R32ui => ESizedInternalFormat.R32ui,
-                EPixelInternalFormat.RG8i => ESizedInternalFormat.Rg8i,
-                EPixelInternalFormat.RG8ui => ESizedInternalFormat.Rg8ui,
-                EPixelInternalFormat.RG16i => ESizedInternalFormat.Rg16i,
-                EPixelInternalFormat.RG16ui => ESizedInternalFormat.Rg16ui,
-                EPixelInternalFormat.RG32i => ESizedInternalFormat.Rg32i,
-                EPixelInternalFormat.RG32ui => ESizedInternalFormat.Rg32ui,
-                EPixelInternalFormat.Rgb16f => ESizedInternalFormat.Rgb16f,
-                EPixelInternalFormat.Rgb32f => ESizedInternalFormat.Rgb32f,
-                EPixelInternalFormat.Rgba32f => ESizedInternalFormat.Rgba32f,
-                EPixelInternalFormat.Rgba16f => ESizedInternalFormat.Rgba16f,
-                EPixelInternalFormat.Rgba32ui => ESizedInternalFormat.Rgba32ui,
-                EPixelInternalFormat.Rgba16ui => ESizedInternalFormat.Rgba16ui,
-                EPixelInternalFormat.Rgba8ui => ESizedInternalFormat.Rgba8ui,
-                EPixelInternalFormat.Rgba32i => ESizedInternalFormat.Rgba32i,
-                EPixelInternalFormat.Rgba16i => ESizedInternalFormat.Rgba16i,
-                EPixelInternalFormat.Rgba8i => ESizedInternalFormat.Rgba8i,
-                _ => throw new ArgumentOutOfRangeException(nameof(internalFormat), internalFormat, null),
-            };
+        //private static ESizedInternalFormat ToSizedInternalFormat(EPixelInternalFormat internalFormat)
+        //    => internalFormat switch
+        //    {
+        //        EPixelInternalFormat.Rgb8 => ESizedInternalFormat.Rgb8,
+        //        EPixelInternalFormat.Rgba8 => ESizedInternalFormat.Rgba8,
+        //        EPixelInternalFormat.Rgba16 => ESizedInternalFormat.Rgba16,
+        //        EPixelInternalFormat.R8 => ESizedInternalFormat.R8,
+        //        EPixelInternalFormat.R16 => ESizedInternalFormat.R16,
+        //        EPixelInternalFormat.RG8 => ESizedInternalFormat.Rg8,
+        //        EPixelInternalFormat.RG16 => ESizedInternalFormat.Rg16,
+        //        EPixelInternalFormat.R16f => ESizedInternalFormat.R16f,
+        //        EPixelInternalFormat.R32f => ESizedInternalFormat.R32f,
+        //        EPixelInternalFormat.RG16f => ESizedInternalFormat.Rg16f,
+        //        EPixelInternalFormat.RG32f => ESizedInternalFormat.Rg32f,
+        //        EPixelInternalFormat.R8i => ESizedInternalFormat.R8i,
+        //        EPixelInternalFormat.R8ui => ESizedInternalFormat.R8ui,
+        //        EPixelInternalFormat.R16i => ESizedInternalFormat.R16i,
+        //        EPixelInternalFormat.R16ui => ESizedInternalFormat.R16ui,
+        //        EPixelInternalFormat.R32i => ESizedInternalFormat.R32i,
+        //        EPixelInternalFormat.R32ui => ESizedInternalFormat.R32ui,
+        //        EPixelInternalFormat.RG8i => ESizedInternalFormat.Rg8i,
+        //        EPixelInternalFormat.RG8ui => ESizedInternalFormat.Rg8ui,
+        //        EPixelInternalFormat.RG16i => ESizedInternalFormat.Rg16i,
+        //        EPixelInternalFormat.RG16ui => ESizedInternalFormat.Rg16ui,
+        //        EPixelInternalFormat.RG32i => ESizedInternalFormat.Rg32i,
+        //        EPixelInternalFormat.RG32ui => ESizedInternalFormat.Rg32ui,
+        //        EPixelInternalFormat.Rgb16f => ESizedInternalFormat.Rgb16f,
+        //        EPixelInternalFormat.Rgb32f => ESizedInternalFormat.Rgb32f,
+        //        EPixelInternalFormat.Rgba32f => ESizedInternalFormat.Rgba32f,
+        //        EPixelInternalFormat.Rgba16f => ESizedInternalFormat.Rgba16f,
+        //        EPixelInternalFormat.Rgba32ui => ESizedInternalFormat.Rgba32ui,
+        //        EPixelInternalFormat.Rgba16ui => ESizedInternalFormat.Rgba16ui,
+        //        EPixelInternalFormat.Rgba8ui => ESizedInternalFormat.Rgba8ui,
+        //        EPixelInternalFormat.Rgba32i => ESizedInternalFormat.Rgba32i,
+        //        EPixelInternalFormat.Rgba16i => ESizedInternalFormat.Rgba16i,
+        //        EPixelInternalFormat.Rgba8i => ESizedInternalFormat.Rgba8i,
+        //        _ => throw new ArgumentOutOfRangeException(nameof(internalFormat), internalFormat, null),
+        //    };
     }
 }

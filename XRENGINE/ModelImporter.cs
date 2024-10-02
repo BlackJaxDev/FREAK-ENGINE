@@ -273,68 +273,42 @@ namespace XREngine
         private void LoadTexturesSynchronous(List<TextureInfo> textures, XRMaterial mat)
         {
             for (int i = 0; i < textures.Count; i++)
-            {
-                TextureInfo info = textures[i];
-
-                string path = info.path.Replace("/", "\\");
-                bool rooted = Path.IsPathRooted(path);
-                if (!rooted)
-                {
-                    string? dir = Path.GetDirectoryName(SourceFilePath);
-                    if (dir is not null)
-                        path = Path.Combine(dir, path);
-                }
-
-                var image = _textureCache.GetOrAdd(path, _ => System.IO.File.Exists(path) ? new(path) : null);
-                XRTexture2D? texture = image is not null ? new(image) : new(1, 1);
-                if (texture is null)
-                    continue;
-
-                texture.MagFilter = ETexMagFilter.Linear;
-                texture.MinFilter = ETexMinFilter.Linear;
-                texture.UWrap = ETexWrapMode.Repeat;
-                texture.VWrap = ETexWrapMode.Repeat;
-                texture.AlphaAsTransparency = true;
-                texture.AutoGenerateMipmaps = true;
-                texture.Signed = true;
-
-                mat.Textures[i] = texture;
-            }
+                LoadTexture(textures, mat, i);
         }
+
         private void LoadTexturesAsynchronous(List<TextureInfo> textures, XRMaterial mat)
+            => Parallel.For(0, textures.Count, i => LoadTexture(textures, mat, i));
+
+        private void LoadTexture(List<TextureInfo> textures, XRMaterial mat, int i)
         {
-            Parallel.For(0, textures.Count, i =>
+            TextureInfo info = textures[i];
+
+            string path = info.path.Replace("/", "\\");
+            bool rooted = Path.IsPathRooted(path);
+            if (!rooted)
             {
-                TextureInfo info = textures[i];
+                string? dir = Path.GetDirectoryName(SourceFilePath);
+                if (dir is not null)
+                    path = Path.Combine(dir, path);
+            }
 
-                string path = info.path.Replace("/", "\\");
-                bool rooted = Path.IsPathRooted(path);
-                if (!rooted)
-                {
-                    string? dir = Path.GetDirectoryName(SourceFilePath);
-                    if (dir is not null)
-                        path = Path.Combine(dir, path);
-                }
+            MagickImage? NewTexture(string _)
+                => System.IO.File.Exists(path) ? new(path) : null;
 
-                MagickImage? NewTexture(string _)
-                    => System.IO.File.Exists(path) ? new(path) : null;
+            var image = _textureCache.GetOrAdd(path, NewTexture);
+            XRTexture2D texture = image is not null ? new(image) : new(1, 1);
+            texture.Name = Path.GetFileNameWithoutExtension(path);
+            texture.MagFilter = ETexMagFilter.Linear;
+            texture.MinFilter = ETexMinFilter.Linear;
+            texture.UWrap = ETexWrapMode.Repeat;
+            texture.VWrap = ETexWrapMode.Repeat;
+            texture.AlphaAsTransparency = true;
+            texture.AutoGenerateMipmaps = false;
+            texture.Resizable = false;
+            texture.SizedInternalFormat = ESizedInternalFormat.Srgb8Alpha8;
+            mat.Textures[i] = texture;
 
-                var image = _textureCache.GetOrAdd(path, NewTexture);
-                XRTexture2D texture = image is not null ? new(image) : new(1, 1);
-                texture.Name = Path.GetFileNameWithoutExtension(path);
-                texture.MagFilter = ETexMagFilter.Linear;
-                texture.MinFilter = ETexMinFilter.Linear;
-                texture.UWrap = ETexWrapMode.Repeat;
-                texture.VWrap = ETexWrapMode.Repeat;
-                texture.AlphaAsTransparency = true;
-                texture.AutoGenerateMipmaps = false;
-                texture.Signed = true;
-                texture.Resizable = false;
-                texture.SizedInternalFormat = ESizedInternalFormat.Rgba8;
-                mat.Textures[i] = texture;
-
-                //Engine.Assets.SaveTo(texture, Environment.SpecialFolder.DesktopDirectory, mat.Name ?? AI_DEFAULT_MATERIAL_NAME);
-            });
+            //Engine.Assets.SaveTo(texture, Environment.SpecialFolder.DesktopDirectory, mat.Name ?? AI_DEFAULT_MATERIAL_NAME);
         }
 
         private unsafe List<TextureInfo> LoadMaterialTextures(Material* mat, TextureType type)

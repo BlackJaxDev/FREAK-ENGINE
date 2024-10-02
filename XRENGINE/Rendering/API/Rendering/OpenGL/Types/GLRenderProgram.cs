@@ -147,7 +147,7 @@ namespace XREngine.Rendering.OpenGL
             private GLShader GetAndGenerate(XRShader data)
             {
                 GLShader shader = Renderer.GenericToAPI<GLShader>(data)!;
-                Engine.EnqueueMainThreadTask(() => shader.Generate());
+                //Engine.EnqueueMainThreadTask(shader.Generate);
                 shader.ActivePrograms.Add(this);
                 return shader;
             }
@@ -227,8 +227,55 @@ namespace XREngine.Rendering.OpenGL
                 Reset();
             }
 
+            static GLRenderProgram()
+            {
+                ReadBins();
+            }
+
             //TODO: serialize this cache and load on startup
-            private readonly ConcurrentDictionary<ulong, BinaryProgram> _binaryCache = new();
+            private static readonly ConcurrentDictionary<ulong, BinaryProgram> _binaryCache = new();
+
+            private void WriteBin(BinaryProgram binary)
+            {
+                string dir = Environment.CurrentDirectory;
+                string path = Path.Combine(dir, "ProgramBinaries");
+                if (!Directory.Exists(path))
+                    Directory.CreateDirectory(path);
+                path = Path.Combine(path, $"{Hash}-{binary.Format}.bin");
+                File.WriteAllBytes(path, binary.Binary);
+            }
+            private static void ReadBins()
+            {
+                string dir = Environment.CurrentDirectory;
+                string path = Path.Combine(dir, "ProgramBinaries");
+                if (!Directory.Exists(path))
+                    return;
+
+                foreach (string file in Directory.EnumerateFiles(path, "*.bin"))
+                {
+                    string name = Path.GetFileNameWithoutExtension(file);
+                    string[] parts = name.Split('-');
+                    if (parts.Length != 2)
+                        continue;
+
+                    try
+                    {
+                        if (ulong.TryParse(parts[0], out ulong hash))
+                        {
+                            byte[] binary = File.ReadAllBytes(file);
+                            GLEnum format = (GLEnum)Enum.Parse(typeof(GLEnum), parts[1]);
+                            BinaryProgram binaryProgram = (binary, format, (uint)binary.Length);
+                            _binaryCache.TryAdd(hash, binaryProgram);
+                        }
+                    }
+                    catch
+                    {
+
+                    }
+                }
+            }
+
+
             public ulong Hash { get; private set; }
             private BinaryProgram? _cachedProgram = null;
             protected override uint CreateObject()
@@ -242,6 +289,7 @@ namespace XREngine.Rendering.OpenGL
                 return handle;
             }
 
+            private static object HashLock = new();
             public bool Link()
             {
                 if (IsLinked)
@@ -262,71 +310,87 @@ namespace XREngine.Rendering.OpenGL
                 if (IsLinked)
                     return true;
 
-                if (_shaderCache.IsEmpty || _shaderCache.Values.Any(x => !x.IsCompiled))
+                if (_shaderCache.IsEmpty/* || _shaderCache.Values.Any(x => !x.IsCompiled)*/)
                     return false;
 
                 bool isCached = false;
                 uint bindingId = BindingId;
-                if (Engine.Rendering.Settings.AllowBinaryProgramCaching && 
-                    (isCached = _binaryCache.TryGetValue(Hash = CalcHash(Data.Shaders.Select(x => x.Source.Text ?? string.Empty)), out BinaryProgram binProg)))
-                {
-                    Debug.Out($"Using cached program binary with hash {Hash}.");
-                    _cachedProgram = binProg;
-                    fixed (byte* ptr = _cachedProgram!.Value.Binary)
-                        Api.ProgramBinary(bindingId, _cachedProgram.Value.Format, ptr, _cachedProgram.Value.Length);
-                    IsLinked = true;
-                    return true;
-                }
-                else
-                {
-                    //Debug.Out($"Compiling program with hash {Hash}.");
-                    _cachedProgram = null;
+                BinaryProgram binProg = default;
 
-                    var shaderCache = _shaderCache.Values;
-                    GLShader?[] attached = new GLShader?[shaderCache.Count];
-                    int i = 0;
-                    bool noErrors = true;
-                    foreach (GLShader shader in shaderCache)
+                //lock (HashLock)
+                //{
+                    if (Engine.Rendering.Settings.AllowBinaryProgramCaching)
                     {
-                        if (shader.IsCompiled)
+                        Hash = GetDeterministicHashCode(string.Join(' ', Data.Shaders.Select(x => x.Source.Text ?? string.Empty)));
+                        isCached = _binaryCache.TryGetValue(Hash, out binProg);
+                    }
+
+                    if (isCached)
+                    {
+                        //Debug.Out($"Using cached program binary with hash {Hash}.");
+                        _cachedProgram = binProg;
+                        fixed (byte* ptr = _cachedProgram!.Value.Binary)
+                            Api.ProgramBinary(bindingId, _cachedProgram.Value.Format, ptr, _cachedProgram.Value.Length);
+                        IsLinked = true;
+                        return true;
+                    }
+                    else
+                    {
+                        Debug.Out($"Compiling program with hash {Hash}.");
+                        _cachedProgram = null;
+
+                        foreach (GLShader shader in _shaderCache.Values)
+                            Engine.EnqueueMainThreadTask(shader.Generate);
+
+                        if (_shaderCache.Values.Any(x => !x.IsCompiled))
+                            return false;
+
+                        var shaderCache = _shaderCache.Values;
+                        GLShader?[] attached = new GLShader?[shaderCache.Count];
+                        int i = 0;
+                        bool noErrors = true;
+                        foreach (GLShader shader in shaderCache)
                         {
-                            Api.AttachShader(bindingId, shader.BindingId);
-                            attached[i++] = shader;
-                        }
-                        else
-                        {
-                            if (noErrors)
+                            if (shader.IsCompiled)
                             {
-                                noErrors = false;
-                                Debug.LogWarning("One or more shaders failed to compile, can't link program.");
+                                Api.AttachShader(bindingId, shader.BindingId);
+                                attached[i++] = shader;
                             }
+                            else
+                            {
+                                if (noErrors)
+                                {
+                                    noErrors = false;
+                                    Debug.LogWarning("One or more shaders failed to compile, can't link program.");
+                                }
 
-                            string? text = shader.Data.Source.Text;
-                            if (text is not null)
-                                Debug.Out(text);
+                                string? text = shader.Data.Source.Text;
+                                if (text is not null)
+                                    Debug.Out(text);
+                            }
                         }
-                    }
-                    if (noErrors)
-                    {
-                        Api.LinkProgram(bindingId);
-                        Api.GetProgram(bindingId, GLEnum.LinkStatus, out int status);
-                        bool linked = status != 0;
-                        if (linked)
-                            CacheBinary(bindingId);
-                        else
-                            PrintLinkDebug(bindingId);
-                        IsLinked = linked;
-                    }
-                    foreach (GLShader? shader in attached)
-                    {
-                        if (shader is null)
-                            continue;
+                        if (noErrors)
+                        {
+                            Api.LinkProgram(bindingId);
+                            Api.GetProgram(bindingId, GLEnum.LinkStatus, out int status);
+                            bool linked = status != 0;
+                            if (linked)
+                                CacheBinary(bindingId);
+                            else
+                                PrintLinkDebug(bindingId);
+                            IsLinked = linked;
+                        }
+                        foreach (GLShader? shader in attached)
+                        {
+                            if (shader is null)
+                                continue;
 
-                        Api.DetachShader(BindingId, shader.BindingId);
+                            Api.DetachShader(BindingId, shader.BindingId);
+                        }
+                        _shaderCache.ForEach(x => x.Value.Destroy());
+                        return IsLinked;
                     }
-                    _shaderCache.ForEach(x => x.Value.Destroy());
-                    return IsLinked;
-                }
+                //}
             }
 
             private void PrintLinkDebug(uint bindingId)
@@ -364,7 +428,7 @@ namespace XREngine.Rendering.OpenGL
                 Api.GetProgram(bindingId, GLEnum.ProgramBinaryLength, out int len);
                 if (len <= 0)
                     return;
-                
+
                 byte[] binary = new byte[len];
                 GLEnum format;
                 uint binaryLength;
@@ -372,7 +436,9 @@ namespace XREngine.Rendering.OpenGL
                 {
                     Api.GetProgramBinary(bindingId, (uint)len, &binaryLength, &format, ptr);
                 }
-                _binaryCache.TryAdd(Hash, (binary, format, binaryLength));
+                BinaryProgram bin = (binary, format, binaryLength);
+                _binaryCache.TryAdd(Hash, bin);
+                WriteBin(bin);
             }
 
             private static ulong CalcHash(IEnumerable<string> enumerable)
@@ -398,10 +464,11 @@ namespace XREngine.Rendering.OpenGL
                         hash2 = ((hash2 << 5) + hash2) ^ str[i + 1];
                     }
 
-                    return hash1 + (hash2 * 1566083941ul);
+                    ulong value = hash1 + (hash2 * 1566083941ul);
+                    //Debug.Out(value.ToString());
+                    return value;
                 }
             }
-
 
             public void Use()
                 => Api.UseProgram(BindingId);
@@ -578,9 +645,10 @@ namespace XREngine.Rendering.OpenGL
             /// </summary>
             public void Sampler(string name, IGLTexture texture, int textureUnit)
             {
-                Renderer.SetActiveTexture(textureUnit);
-                Uniform(name, textureUnit);
-                texture.Bind();
+                if (!GetUniform(name, out int location))
+                    return;
+                
+                Sampler(location, texture, textureUnit);
             }
 
             /// <summary>
@@ -588,6 +656,9 @@ namespace XREngine.Rendering.OpenGL
             /// </summary>
             public void Sampler(int location, IGLTexture texture, int textureUnit)
             {
+                if (location < 0)
+                    return;
+
                 Renderer.SetActiveTexture(textureUnit);
                 Uniform(location, textureUnit);
                 texture.Bind();

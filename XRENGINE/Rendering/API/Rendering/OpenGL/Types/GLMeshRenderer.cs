@@ -542,6 +542,7 @@ namespace XREngine.Rendering.OpenGL
         /// For example, for shadow mapping
         /// </summary>
         public GLMaterial? GlobalMaterialOverride { get; set; }
+        public IGLTexture? BoundTexture { get; set; }
 
         /// <summary>
         /// Modifies the rendering API's state to adhere to the given material's settings.
