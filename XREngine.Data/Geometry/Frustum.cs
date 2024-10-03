@@ -193,22 +193,40 @@ namespace XREngine.Data.Geometry
 
         public Frustum(float width, float height, float nearPlane, float farPlane) : this()
         {
-            float halfWidth = width / 2.0f;
-            float halfHeight = height / 2.0f;
+            float 
+                w = width / 2.0f, 
+                h = height / 2.0f;
 
-            Vector3 nearTopLeft = new(-halfWidth, halfHeight, nearPlane);
-            Vector3 nearTopRight = new(halfWidth, halfHeight, nearPlane);
-            Vector3 nearBottomLeft = new(-halfWidth, -halfHeight, nearPlane);
-            Vector3 nearBottomRight = new(halfWidth, -halfHeight, nearPlane);
+            AABB.GetCorners(
+                new Vector3(-w, -h, -farPlane),
+                new Vector3(w, h, -nearPlane),
+                out Vector3 ftl,
+                out Vector3 ftr,
+                out Vector3 ntl,
+                out Vector3 ntr,
+                out Vector3 fbl,
+                out Vector3 fbr,
+                out Vector3 nbl,
+                out Vector3 nbr);
 
-            Vector3 farTopLeft = new(-halfWidth, halfHeight, farPlane);
-            Vector3 farTopRight = new(halfWidth, halfHeight, farPlane);
-            Vector3 farBottomLeft = new(-halfWidth, -halfHeight, farPlane);
-            Vector3 farBottomRight = new(halfWidth, -halfHeight, farPlane);
+            UpdatePoints(fbl, fbr, ftl, ftr, nbl, nbr, ntl, ntr);
 
-            UpdatePoints(
-                farBottomLeft, farBottomRight, farTopLeft, farTopRight,
-                nearBottomLeft, nearBottomRight, nearTopLeft, nearTopRight);
+            //float halfWidth = width / 2.0f;
+            //float halfHeight = height / 2.0f;
+
+            //Vector3 nearTopLeft = new(-halfWidth, halfHeight, nearPlane);
+            //Vector3 nearTopRight = new(halfWidth, halfHeight, nearPlane);
+            //Vector3 nearBottomLeft = new(-halfWidth, -halfHeight, nearPlane);
+            //Vector3 nearBottomRight = new(halfWidth, -halfHeight, nearPlane);
+
+            //Vector3 farTopLeft = new(-halfWidth, halfHeight, farPlane);
+            //Vector3 farTopRight = new(halfWidth, halfHeight, farPlane);
+            //Vector3 farBottomLeft = new(-halfWidth, -halfHeight, farPlane);
+            //Vector3 farBottomRight = new(halfWidth, -halfHeight, farPlane);
+
+            //UpdatePoints(
+            //    farBottomLeft, farBottomRight, farTopLeft, farTopRight,
+            //    nearBottomLeft, nearBottomRight, nearTopLeft, nearTopRight);
         }
 
         public Frustum(

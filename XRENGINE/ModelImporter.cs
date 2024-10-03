@@ -170,13 +170,13 @@ namespace XREngine
         {
             //Debug.Out($"Processing mesh: {mesh->MName}");
 
-            Material* material = scene->MMaterials[mesh->MMaterialIndex];
+            Material* matInfo = scene->MMaterials[mesh->MMaterialIndex];
 
             List<TextureInfo> textures = [];
             for (int i = 0; i < 22; ++i)
             {
                 TextureType type = (TextureType)i;
-                var maps = LoadMaterialTextures(material, type);
+                var maps = LoadMaterialTextures(matInfo, type);
                 if (maps.Count > 0)
                     textures.AddRange(maps);
             }
@@ -186,6 +186,16 @@ namespace XREngine
                 new XRMaterial(new XRTexture[textures.Count], ShaderHelper.UnlitTextureFragForward()!) :
                 XRMaterial.CreateUnlitColorMaterialForward(new ColorF4(1.0f, 1.0f, 0.0f, 1.0f));
             mat.RenderPass = (int)EDefaultRenderPass.OpaqueForward;
+
+            ReadProperties(matInfo, mat);
+
+            Task.Run(() => LoadTexturesAsynchronous(textures, mat));
+
+            return (new(mesh, _assimp), mat);
+        }
+
+        private static void ReadProperties(Material* material, XRMaterial mat)
+        {
 
             //Loop properties
             Dictionary<string, List<object>> dic = [];
@@ -232,10 +242,6 @@ namespace XREngine
             TextureFlags texFlags = dic.TryGetValue(_AI_MATKEY_TEXFLAGS_BASE, out List<object>? flags) && flags[0] is int f ? (TextureFlags)f : 0;
             ShadingMode shadingModel = dic.TryGetValue(AI_MATKEY_SHADING_MODEL, out List<object>? sm) && sm[0] is int mode ? (ShadingMode)mode : ShadingMode.Flat;
             //TODO: switch default material based on shading model
-
-            LoadTexturesAsynchronous(textures, mat);
-
-            return (new(mesh, _assimp), mat);
         }
 
         const string AI_DEFAULT_MATERIAL_NAME = "DefaultMaterial";
@@ -348,159 +354,6 @@ namespace XREngine
                 }
             }
             return textures;
-        }
-
-        private List<VertexPrimitive> CreatePrimitivesSequential(Vertex[] vertices, uint[][] indices)
-        {
-            List<Vertex> points = [];
-            List<VertexLine> lines = [];
-            List<VertexTriangle> triangles = [];
-            for (uint i = 0; i < indices.Length; i++)
-            {
-                uint[] face = indices[i];
-                switch (face.Length)
-                {
-                    case 0:
-                        break;
-                    case 1:
-                        points.Add(vertices[face[0]]);
-                        break;
-                    case 2:
-                        lines.Add(new VertexLine(vertices[face[0]], vertices[face[1]]));
-                        break;
-                    case 3:
-                        triangles.Add(new VertexTriangle(vertices[face[0]], vertices[face[1]], vertices[face[2]]));
-                        break;
-                    case 4:
-                        {
-                            var quad = new VertexQuad(vertices[face[0]], vertices[face[1]], vertices[face[2]], vertices[face[3]]);
-                            triangles.AddRange(quad.ToTriangles());
-                            break;
-                        }
-                    default:
-                        {
-                            VertexPolygon polygon = new(face.Select(x => vertices[x]));
-                            triangles.AddRange(polygon.ToTriangles());
-                            break;
-                        }
-                }
-            }
-            return [.. points, .. lines, .. triangles];
-        }
-        private List<VertexPrimitive> CreatePrimitivesParallel(Vertex[] vertices, uint[][] indices)
-        {
-            ConcurrentBag<Vertex> points = [];
-            ConcurrentBag<VertexLine> lines = [];
-            ConcurrentBag<VertexTriangle> triangles = [];
-
-            Parallel.For(0, indices.Length, i =>
-            {
-                uint[] face = indices[i];
-                switch (face.Length)
-                {
-                    case 1:
-                        points.Add(vertices[face[0]]);
-                        break;
-                    case 2:
-                        lines.Add(new VertexLine(vertices[face[0]], vertices[face[1]]));
-                        break;
-                    case 3:
-                        triangles.Add(new VertexTriangle(vertices[face[0]], vertices[face[1]], vertices[face[2]]));
-                        break;
-                    case 4:
-                        {
-                            VertexQuad quad = new(vertices[face[0]], vertices[face[1]], vertices[face[2]], vertices[face[3]]);
-                            var tris = quad.ToTriangles();
-                            foreach (var tri in tris)
-                                triangles.Add(tri);
-                        }
-                        break;
-                    default:
-                        {
-                            VertexPolygon polygon = new(face.Select(x => vertices[x]).ToList());
-                            var tris = polygon.ToTriangles();
-                            foreach (var tri in tris)
-                                triangles.Add(tri);
-                        }
-                        break;
-                }
-            });
-
-            return [.. points, .. lines, .. triangles];
-        }
-
-        /// <summary>
-        /// Indices are stored in a jagged array, where each sub-array represents a face and contains the indices of the vertices that make up that face.
-        /// </summary>
-        /// <param name="mesh"></param>
-        /// <returns></returns>
-        private unsafe uint[][] CollectIndices(Mesh* mesh)
-        {
-            uint[][] indices = new uint[mesh->MNumFaces][];
-            for (uint i = 0; i < mesh->MNumFaces; i++)
-            {
-                Face face = mesh->MFaces[i];
-                uint count = face.MNumIndices;
-                indices[i] = new uint[count];
-                for (uint j = 0; j < count; j++)
-                    indices[i][j] = face.MIndices[j];
-            }
-            return indices;
-        }
-
-        private unsafe Vertex[] CollectVertices(Mesh* mesh)
-        {
-            Vertex[] vertices = new Vertex[mesh->MNumVertices];
-
-            //Assimp can only handle up to 8 texture coordinates and colors per vertex
-            bool[] hasTexCoords = new bool[8];
-            bool[] hasColors = new bool[8];
-
-            for (uint i = 0; i < mesh->MNumVertices; i++)
-            {
-                Vertex vertex = new(mesh->MVertices[i]);
-
-                if (mesh->MNormals != null)
-                    vertex.Normal = mesh->MNormals[i];
-
-                if (mesh->MTangents != null)
-                    vertex.Tangent = mesh->MTangents[i];
-
-                //convert bitangent into normal or tangent depending on if we have only normals or tangents and bitangents, using cross
-                if (mesh->MBitangents != null)
-                {
-                    if (mesh->MNormals != null && vertex.Tangent == null)
-                        vertex.Tangent = Vector3.Cross(mesh->MNormals[i], mesh->MBitangents[i]);
-                    else if (mesh->MTangents != null && vertex.Normal == null)
-                        vertex.Normal = Vector3.Cross(mesh->MTangents[i], mesh->MBitangents[i]);
-                }
-
-                for (int x = 0; x < 8; ++x)
-                {
-                    var coord = mesh->MTextureCoords[x];
-                    uint componentCount = mesh->MNumUVComponents[x]; //Usually just 2
-                    if (coord != null)
-                    {
-                        Vector3 c = coord[i];
-                        vertex.TextureCoordinateSets.Add(new Vector2(c.X, c.Y));
-                        hasTexCoords[x] = true;
-                    }
-                }
-
-                for (int x = 0; x < 8; ++x)
-                {
-                    var color = mesh->MColors[x];
-                    if (color != null)
-                    {
-                        vertex.ColorSets.Add(color[i]);
-                        hasColors[x] = true;
-                    }
-                }
-
-                vertices[i] = vertex;
-            }
-
-            return vertices;
         }
 
         public void Dispose()

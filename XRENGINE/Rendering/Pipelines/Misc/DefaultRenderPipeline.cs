@@ -232,41 +232,6 @@ public class DefaultRenderPipeline : RenderPipeline
         return uiFBO;
     }
 
-    private static uint InternalWidth => (uint)RenderStatus.Viewport!.InternalWidth;
-    private static uint InternalHeight => (uint)RenderStatus.Viewport!.InternalHeight;
-    private static uint FullWidth => (uint)RenderStatus.Viewport!.Width;
-    private static uint FullHeight => (uint)RenderStatus.Viewport!.Height;
-
-    private static bool NeedsRecreateTextureInternalSize(XRTexture t)
-        => t is XRTexture2D t2d && (t2d.Width != InternalWidth || t2d.Height != InternalHeight);
-    private static bool NeedsRecreateTextureFullSize(XRTexture t)
-        => t is XRTexture2D t2d && (t2d.Width != FullWidth || t2d.Height != FullHeight);
-
-    private static void ResizeTextureInternalSize(XRTexture t)
-    {
-        switch (t)
-        {
-            case XRTexture2D t2d:
-                t2d.Resize(InternalWidth, InternalHeight);
-                t2d.PushData();
-                break;
-        }
-    }
-    private static void ResizeTextureFullSize(XRTexture t)
-    {
-        switch (t)
-        {
-            case XRTexture2D t2d:
-                t2d.Resize(FullWidth, FullHeight);
-                t2d.PushData();
-                break;
-        }
-    }
-
-    private (uint x, uint y) GetDesiredFBOSizeInternal() => (InternalWidth, InternalHeight);
-
-    private (uint x, uint y) GetDesiredFBOSizeFull() => ((uint)RenderStatus.Viewport!.Width, (uint)RenderStatus.Viewport!.Height);
-
     XRTexture CreateBRDFTexture()
         => PrecomputeBRDF(128, 128);
 
@@ -496,6 +461,14 @@ public class DefaultRenderPipeline : RenderPipeline
         PostProcessFBO.SettingUniforms += PostProcess_SettingUniforms;
         return PostProcessFBO;
     }
+    private void PostProcess_SettingUniforms(XRRenderProgram program)
+    {
+        if (RenderingCamera is null)
+            return;
+
+        RenderingCamera.SetUniforms(program);
+        RenderingCamera.SetPostProcessUniforms(program);
+    }
 
     private XRFrameBuffer CreateForwardPassFBO()
     {
@@ -602,14 +575,4 @@ public class DefaultRenderPipeline : RenderPipeline
     //    if (postMat != null)
     //        RenderPostProcessPass(viewport, postMat);
     //}
-
-    private void PostProcess_SettingUniforms(XRRenderProgram program)
-    {
-        if (RenderingCamera is null)
-            return;
-
-        RenderingCamera.SetUniforms(program);
-        RenderingCamera.SetPostProcessUniforms(program);
-    }
-
 }

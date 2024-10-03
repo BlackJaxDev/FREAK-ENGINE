@@ -5,6 +5,9 @@
         public required int RenderPass { get; set; }
 
         protected override void Execute()
-            => Pipeline.MeshRenderCommands.Render(RenderPass);
+        {
+            using (Engine.Rendering.State.PushRenderingCamera(Pipeline.RenderStatus.Camera))
+                Pipeline.MeshRenderCommands.Render(RenderPass);
+        }
     }
 }

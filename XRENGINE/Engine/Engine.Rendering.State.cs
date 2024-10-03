@@ -19,10 +19,12 @@ namespace XREngine
             /// </summary>
             public static partial class State
             {
+                //TODO: move all this state information into the renderer class
+
                 public static XRCamera? RenderingCamera
                     => RenderingCameras.TryPeek(out var c) ? c : null;
-                public static Stack<XRCamera> RenderingCameras { get; } = new();
-                public static StateObject PushRenderingCamera(XRCamera camera)
+                public static Stack<XRCamera?> RenderingCameras { get; } = new();
+                public static StateObject PushRenderingCamera(XRCamera? camera)
                 {
                     RenderingCameras.Push(camera);
                     return new StateObject(() => RenderingCameras.Pop());
@@ -34,7 +36,12 @@ namespace XREngine
                 public static StateObject PushRenderArea(BoundingRectangle area)
                 {
                     RenderAreas.Push(area);
-                    return new StateObject(() => RenderAreas.Pop());
+                    AbstractRenderer.Current?.PushRenderArea(area);
+                    return new StateObject(() =>
+                    {
+                        RenderAreas.Pop();
+                        AbstractRenderer.Current?.PopRenderArea();
+                    });
                 }
 
                 public static XRWorldInstance? RenderingWorld

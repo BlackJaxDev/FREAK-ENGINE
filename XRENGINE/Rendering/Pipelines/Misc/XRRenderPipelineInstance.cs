@@ -75,8 +75,8 @@ public sealed partial class XRRenderPipelineInstance : XRBase
         RenderStatus.Set(viewport, visualScene, camera, targetFBO, shadowPass);
 
         //_timeQuery.BeginQuery(EQueryTarget.TimeElapsed);
-        using (PushRenderingCamera(camera))
-        {
+        //using (PushRenderingCamera(camera))
+        //{
             //try
             //{
                 Pipeline.CommandChain.Execute();
@@ -85,7 +85,7 @@ public sealed partial class XRRenderPipelineInstance : XRBase
             //{
             //    Debug.Out(EOutputVerbosity.Verbose, true, true, true, true, 3, 10, e.Message);
             //}
-        }
+        //}
         //_renderFPS = 1.0f / (_timeQuery.EndAndGetQueryInt() * 1e-9f);
         //Engine.PrintLine(_renderMS.ToString() + " ms");
 

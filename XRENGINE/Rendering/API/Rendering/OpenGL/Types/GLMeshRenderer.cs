@@ -324,7 +324,7 @@ namespace XREngine.Rendering.OpenGL
                 }
                 else
                 {
-                    //No camera? Everything will be rendered in world space instead of camera space.
+                    //No camera? Everything will be rendered in NDC space instead of world space.
                     //This is used by point lights to render depth cubemaps, for example.
                     inverseViewMatrix = Matrix4x4.Identity;
                     projMatrix = Matrix4x4.Identity;

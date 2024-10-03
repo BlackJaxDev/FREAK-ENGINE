@@ -14,11 +14,6 @@ namespace XREngine.Rendering
         /// </summary>
         public event DelSetUniforms? SettingUniforms;
 
-        /// <summary>
-        /// 2D camera for capturing the screen rendered to the framebuffer.
-        /// </summary>
-        private readonly XRCamera _quadCamera;
-
         public XRMeshRenderer FullScreenMesh { get; }
 
         private static XRMesh Mesh(bool useTriangle)
@@ -35,14 +30,14 @@ namespace XREngine.Rendering
             else
             {
                 VertexTriangle triangle1 = new(
-                    new Vector3(0.0f, 0.0f, 0.0f),
-                    new Vector3(1.0f, 0.0f, 0.0f),
-                    new Vector3(0.0f, 1.0f, 0.0f));
+                    new Vector3(-1, -1, 0),
+                    new Vector3(-1,  1, 0),
+                    new Vector3( 1,  1, 0));
 
                 VertexTriangle triangle2 = new(
-                    new Vector3(0.0f, 1.0f, 0.0f),
-                    new Vector3(1.0f, 0.0f, 0.0f),
-                    new Vector3(1.0f, 1.0f, 0.0f));
+                    new Vector3(-1, -1, 0),
+                    new Vector3( 1,  1, 0),
+                    new Vector3( 1, -1, 0));
 
                 return XRMesh.Create(triangle1, triangle2);
             }
@@ -57,7 +52,7 @@ namespace XREngine.Rendering
             FullScreenMesh = new XRMeshRenderer(Mesh(useTriangle), Material);
             FullScreenMesh.SettingUniforms += SetUniforms;
 
-            _quadCamera = new XRCamera(new Transform(), new XROrthographicCameraParameters(1.0f, 1.0f, -0.5f, 0.5f));
+            //_quadCamera = new XRCamera(new Transform(), new XROrthographicCameraParameters(1.0f, 1.0f, -0.5f, 0.5f));
         }
 
         public XRQuadFrameBuffer(
@@ -75,9 +70,20 @@ namespace XREngine.Rendering
         public void Render(XRFrameBuffer? target = null)
         {
             target?.BindForWriting();
-            using (Engine.Rendering.State.PushRenderingCamera(_quadCamera))
+            using (Engine.Rendering.State.PushRenderingCamera(null))
                 FullScreenMesh.Render();
             target?.UnbindFromWriting();
         }
+
+        //public override void Resize(uint width, uint height)
+        //{
+        //    base.Resize(width, height);
+
+        //    if (_quadCamera?.Parameters is not XROrthographicCameraParameters param)
+        //        return;
+
+        //    param.Width = width;
+        //    param.Height = height;
+        //}
     }
 }

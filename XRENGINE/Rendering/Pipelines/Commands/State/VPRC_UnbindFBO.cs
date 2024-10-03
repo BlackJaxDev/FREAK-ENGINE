@@ -9,7 +9,7 @@
 
         protected override void Execute()
         {
-            FrameBuffer?.Unbind();
+            FrameBuffer?.UnbindFromWriting();
             FrameBuffer = null;
         }
     }

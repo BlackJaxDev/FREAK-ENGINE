@@ -34,7 +34,7 @@
             if (Pipeline.TryGetTexture(Name, out var texture) && (texture is null || !(NeedsRecreate?.Invoke(texture) ?? false)))
                 return;
 
-            if (texture is not null && texture.IsResizeable && Resize is not null)
+            if (texture is not null && Resize is not null)
                 Resize.Invoke(texture);
             else
             {

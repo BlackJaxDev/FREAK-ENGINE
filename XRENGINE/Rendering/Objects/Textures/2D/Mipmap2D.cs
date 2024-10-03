@@ -44,12 +44,12 @@ namespace XREngine.Rendering
         public uint Width
         {
             get => _width;
-            private set => SetField(ref _width, value);
+            set => SetField(ref _width, value);
         }
         public uint Height 
         {
             get => _height;
-            private set => SetField(ref _height, value);
+            set => SetField(ref _height, value);
         }
 
         protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
@@ -124,21 +124,45 @@ namespace XREngine.Rendering
 
         public void Resize(uint width, uint height)
         {
-            using var img = GetImage();
-            img.Resize(width, height);
-            SetFromImage(img);
+            if (Data is not null && Data.Length != 0 && Width != 0u && Height != 0u)
+            {
+                using var img = GetImage();
+                img.Resize(width, height);
+                SetFromImage(img);
+            }
+            else
+            {
+                Width = width;
+                Height = height;
+            }
         }
         public void InterpolativeResize(uint width, uint height, PixelInterpolateMethod method)
         {
-            using var img = GetImage();
-            img.InterpolativeResize(width, height, method);
-            SetFromImage(img);
+            if (Data is not null && Data.Length != 0 && Width != 0u && Height != 0u)
+            {
+                using var img = GetImage();
+                img.InterpolativeResize(width, height, method);
+                SetFromImage(img);
+            }
+            else
+            {
+                Width = width;
+                Height = height;
+            }
         }
         public void AdaptiveResize(uint width, uint height)
         {
-            using var img = GetImage();
-            img.AdaptiveResize(width, height);
-            SetFromImage(img);
+            if (Data is not null && Data.Length != 0 && Width != 0u && Height != 0u)
+            {
+                using var img = GetImage();
+                img.AdaptiveResize(width, height);
+                SetFromImage(img);
+            }
+            else
+            {
+                Width = width;
+                Height = height;
+            }
         }
         public async Task ResizeAsync(uint width, uint height)
         {

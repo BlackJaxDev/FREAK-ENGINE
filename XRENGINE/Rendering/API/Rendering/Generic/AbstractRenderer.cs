@@ -141,7 +141,8 @@ namespace XREngine.Rendering
             Viewports.ForEach(x =>
             {
                 x.Resize((uint)obj.X, (uint)obj.Y, false);
-                x.SetInternalResolution(1920, 1080, true);
+                x.SetInternalResolutionPercentage(0.4f, 0.4f);
+                //x.SetInternalResolution(1920, 1080, true);
             });
         }
 

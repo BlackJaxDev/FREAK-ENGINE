@@ -385,9 +385,9 @@ namespace XREngine.Scene.Transforms
         protected void MarkWorldModified()
         {
             _worldMatrix.NeedsRecalc = true;
-            //lock (_children)
-            //    foreach (TransformBase child in _children)
-            //        child.MarkWorldModified();
+            lock (_children)
+                foreach (TransformBase child in _children)
+                    child.MarkWorldModified();
             World?.AddDirtyTransform(this);
         }
 

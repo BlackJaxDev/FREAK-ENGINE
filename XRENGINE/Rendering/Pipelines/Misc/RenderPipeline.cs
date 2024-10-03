@@ -59,6 +59,44 @@ public abstract class RenderPipeline : XRBase
     public static void SetFBO(XRFrameBuffer fbo)
         => CurrentPipeline!.SetFBO(fbo);
 
+    protected static uint InternalWidth
+        => (uint)RenderStatus.Viewport!.InternalWidth;
+    protected static uint InternalHeight
+        => (uint)RenderStatus.Viewport!.InternalHeight;
+    protected static uint FullWidth
+        => (uint)RenderStatus.Viewport!.Width;
+    protected static uint FullHeight
+        => (uint)RenderStatus.Viewport!.Height;
+
+    protected static bool NeedsRecreateTextureInternalSize(XRTexture t)
+        => t is XRTexture2D t2d && (t2d.Width != InternalWidth || t2d.Height != InternalHeight);
+    protected static bool NeedsRecreateTextureFullSize(XRTexture t)
+        => t is XRTexture2D t2d && (t2d.Width != FullWidth || t2d.Height != FullHeight);
+
+    protected static void ResizeTextureInternalSize(XRTexture t)
+    {
+        switch (t)
+        {
+            case XRTexture2D t2d:
+                t2d.Resize(InternalWidth, InternalHeight);
+                break;
+        }
+    }
+    protected static void ResizeTextureFullSize(XRTexture t)
+    {
+        switch (t)
+        {
+            case XRTexture2D t2d:
+                t2d.Resize(FullWidth, FullHeight);
+                break;
+        }
+    }
+
+    protected static (uint x, uint y) GetDesiredFBOSizeInternal()
+        => (InternalWidth, InternalHeight);
+    protected static (uint x, uint y) GetDesiredFBOSizeFull()
+        => ((uint)RenderStatus.Viewport!.Width, (uint)RenderStatus.Viewport!.Height);
+
     /// <summary>
     /// Creates a texture used by PBR shading to light an opaque surface.
     /// Input is an incoming light direction and an outgoing direction (calculated using the normal)

@@ -1,5 +1,6 @@
 ﻿using ImageMagick;
 using ImageMagick.Drawing;
+using XREngine.Data;
 using XREngine.Data.Rendering;
 using XREngine.Data.Vectors;
 using static XREngine.Rendering.OpenGL.OpenGLRenderer;
@@ -41,7 +42,7 @@ namespace XREngine.Rendering
         private ETexWrapMode _uWrap = ETexWrapMode.Repeat;
         private ETexWrapMode _vWrap = ETexWrapMode.Repeat;
         private float _lodBias = 0.0f;
-        private bool _resizable = true;
+        private bool _resizable = false;
         private bool _exclusiveSharing = true;
 
         public override bool IsResizeable => Resizable;
@@ -60,24 +61,33 @@ namespace XREngine.Rendering
         public override uint MaxDimension => Math.Max(Width, Height);
 
         public XRTexture2D() : this(1u, 1u, EPixelInternalFormat.Rgb8, EPixelFormat.Rgb, EPixelType.UnsignedByte) { }
-        public XRTexture2D(uint width, uint height, EPixelInternalFormat internalFormat, EPixelFormat format, EPixelType type, int mipmapCount = 1)
+        public XRTexture2D(uint width, uint height, EPixelInternalFormat internalFormat, EPixelFormat format, EPixelType type, int mipmapCount)
         {
-            for (uint i = 0, scale = 1; i < mipmapCount; scale = 1u << (int)++i)
-            {
-                var img = NewImage(width / scale, height / scale, format, type);
-                Mipmap2D mipmap = new(img)
-                {
-                    InternalFormat = internalFormat
-                };
-                _mipmaps[i] = mipmap;
-            }
             _width = width;
             _height = height;
-            Mipmaps = new Mipmap2D[mipmapCount];
+            Mipmap2D[] mips = new Mipmap2D[mipmapCount];
+            for (uint i = 0; i < mipmapCount; ++i)
+            {
+                byte[] data = AllocateBytes(width, height, format, type);
+                Mipmap2D mipmap = new()
+                {
+                    InternalFormat = internalFormat,
+                    PixelFormat = format,
+                    PixelType = type,
+                    Width = width,
+                    Height = height,
+                    Data = new DataSource(data)
+                };
+                width >>= 1;
+                height >>= 1;
+                mips[i] = mipmap;
+            }
+            Mipmaps = mips;
         }
 
         public XRTexture2D(params string[] mipMapPaths)
         {
+            Mipmap2D[] mips = new Mipmap2D[mipMapPaths.Length];
             for (int i = 0; i < mipMapPaths.Length; ++i)
             {
                 string path = mipMapPaths[i];
@@ -85,16 +95,16 @@ namespace XREngine.Rendering
                     path = path[7..];
                 try
                 {
-                    _mipmaps[i] = new Mipmap2D(new MagickImage(path));
+                    mips[i] = new Mipmap2D(new MagickImage(path));
                 }
                 catch (Exception e)
                 {
                     Debug.LogWarning($"Failed to load texture from path: {path}{Environment.NewLine}{e.Message}");
                 }
             }
-            if (_mipmaps.Length > 0)
+            if (mips.Length > 0)
             {
-                var mip = _mipmaps[0];
+                var mip = mips[0];
                 if (mip is null)
                 {
                     _width = 0;
@@ -106,13 +116,21 @@ namespace XREngine.Rendering
                     _height = mip.Height;
                 }
             }
-            Mipmaps = new Mipmap2D[mipMapPaths.Length];
+            Mipmaps = mips;
         }
         public XRTexture2D(uint width, uint height, EPixelInternalFormat internalFormat, EPixelFormat format, EPixelType type)
         {
             _width = width;
             _height = height;
-            Mipmaps = [new Mipmap2D() { InternalFormat = internalFormat, PixelFormat = format, PixelType = type }];
+            Mipmaps = [new Mipmap2D() 
+            {
+                InternalFormat = internalFormat,
+                PixelFormat = format,
+                PixelType = type,
+                Width = width,
+                Height = height,
+                Data = null
+            }];
         }
         public XRTexture2D(uint width, uint height, params MagickImage?[] mipmaps)
         {
@@ -204,12 +222,6 @@ namespace XREngine.Rendering
             if (_width == width && 
                 _height == height)
                 return;
-
-            if (!Resizable)
-            {
-                Debug.Out("Tried to resize texture that is immutable (storage size is non-resizable).");
-                return;
-            }
 
             _width = width;
             _height = height;

@@ -1187,7 +1187,7 @@ namespace XREngine.Rendering
                     {
                         for (int texCoordIndex = 0; texCoordIndex < v.TextureCoordinateSets.Count; ++texCoordIndex)
                             TexCoordBuffers![texCoordIndex].SetDataRawAtIndex((uint)i, vtx?.TextureCoordinateSets != null && texCoordIndex < (vtx?.TextureCoordinateSets?.Count ?? 0)
-                                ? vtx!.TextureCoordinateSets[texCoordIndex]
+                                ? FlipYCoord(vtx!.TextureCoordinateSets[texCoordIndex])
                                 : Vector2.Zero);
                     });
                 }
@@ -1326,6 +1326,17 @@ namespace XREngine.Rendering
             if (sec > 1.0f)
                 Debug.Out($"Mesh creation took {sw.ElapsedMilliseconds / 1000.0f} sec.");
 #endif
+        }
+
+        /// <summary>
+        /// OpenGL has an inverted Y axis for UV coordinates.
+        /// </summary>
+        /// <param name="uv"></param>
+        /// <returns></returns>
+        private static Vector2 FlipYCoord(Vector2 uv)
+        {
+            uv.Y = 1.0f - uv.Y;
+            return uv;
         }
     }
 }

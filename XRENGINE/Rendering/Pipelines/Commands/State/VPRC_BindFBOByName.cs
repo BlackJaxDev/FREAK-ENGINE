@@ -10,7 +10,7 @@
             if (fbo is null)
                 return;
             
-            fbo.Bind();
+            fbo.BindForWriting();
             PopCommand.FrameBuffer = fbo;
         }
     }

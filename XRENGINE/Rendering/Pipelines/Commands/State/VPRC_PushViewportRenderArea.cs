@@ -18,7 +18,7 @@
                 return;
             }
 
-            Engine.Rendering.State.RenderAreas.Push(
+            Engine.Rendering.State.PushRenderArea(
                 UseInternalResolution
                     ? vp.InternalResolutionRegion
                     : vp.Region);

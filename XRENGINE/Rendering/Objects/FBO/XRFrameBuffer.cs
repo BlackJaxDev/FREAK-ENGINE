@@ -41,7 +41,7 @@ namespace XREngine.Rendering
         /// </summary>
         /// <param name="width"></param>
         /// <param name="height"></param>
-        public void Resize(uint width, uint height)
+        public virtual void Resize(uint width, uint height)
         {
             Width = width;
             Height = height;

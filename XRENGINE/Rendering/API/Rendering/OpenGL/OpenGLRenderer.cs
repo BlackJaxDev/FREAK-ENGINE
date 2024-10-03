@@ -24,10 +24,10 @@ namespace XREngine.Rendering.OpenGL
         private int[] _ignoredMessageIds =
         [
             131185, //buffer will use video memory
-            //131204, //no base level, no mipmaps, etc
+            131204, //no base level, no mipmaps, etc
             //131169, //allocated memory for render buffer
             ////131216,
-            //131218,
+            131218,
             //131076,
             //1282,
             //0,
@@ -289,9 +289,9 @@ namespace XREngine.Rendering.OpenGL
             string debug = GetFBODebugInfo(fbo, Environment.NewLine);
             string name = fbo.GetDescribingName();
             if (result != GLEnum.FramebufferComplete)
-                Debug.LogWarning($"{name} is not complete. Status: {result}{debug}", 0, 20);
+                Debug.LogWarning($"FBO {name} is not complete. Status: {result}{debug}", 0, 20);
             else
-                Debug.Out($"{name} updated successfully.{debug}");
+                Debug.Out($"FBO {name} is complete.{debug}");
         }
 
         private static string GetFBODebugInfo(GLFrameBuffer fbo, string splitter)

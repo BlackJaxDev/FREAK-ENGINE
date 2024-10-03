@@ -320,6 +320,9 @@ namespace XREngine.Rendering
             _renderPipeline.InternalResolutionResized(InternalWidth, InternalHeight);
         }
 
+        public void SetInternalResolutionPercentage(float widthPercent, float heightPercent)
+            => SetInternalResolution((int)(widthPercent * _region.Width), (int)(heightPercent * _region.Height), false);
+
         #region Coordinate conversion
         public Vector3 ScreenToWorld(Vector2 viewportPoint, float depth)
         {
