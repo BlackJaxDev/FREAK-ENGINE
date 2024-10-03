@@ -6,7 +6,7 @@ using XREngine.Data.Vectors;
 
 namespace XREngine.Rendering
 {
-    public class XRTexture2D : XRTexture
+    public class XRTexture2D : XRTexture, IFrameBufferAttachement
     {
         private static MagickImage? _fillerImage = null;
         public static MagickImage FillerImage => _fillerImage ??= GetFillerBitmap();
@@ -288,6 +288,7 @@ namespace XREngine.Rendering
                 MagFilter = ETexMagFilter.Nearest,
                 UWrap = ETexWrapMode.ClampToEdge,
                 VWrap = ETexWrapMode.ClampToEdge,
+                AutoGenerateMipmaps = false,
                 FrameBufferAttachment = bufAttach,
             };
 
@@ -319,6 +320,7 @@ namespace XREngine.Rendering
                 MagFilter = ETexMagFilter.Nearest,
                 UWrap = ETexWrapMode.ClampToEdge,
                 VWrap = ETexWrapMode.ClampToEdge,
+                AutoGenerateMipmaps = false,
             };
 
         private XRDataBuffer? _pbo;

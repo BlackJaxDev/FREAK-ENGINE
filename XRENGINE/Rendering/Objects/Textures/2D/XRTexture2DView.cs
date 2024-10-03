@@ -10,7 +10,7 @@ namespace XREngine.Rendering
         int numLayers,
         EPixelInternalFormat internalFormat,
         bool array,
-        bool multisample) : XRTextureView<XRTexture2D>(viewedTexture, minLevel, numLevels, minLayer, numLayers, internalFormat)
+        bool multisample) : XRTextureView<XRTexture2D>(viewedTexture, minLevel, numLevels, minLayer, numLayers, internalFormat), IFrameBufferAttachement
     {
         public override uint MaxDimension { get; } = 2;
 
@@ -33,5 +33,8 @@ namespace XREngine.Rendering
             get => _depthStencilFormat;
             set => SetField(ref _depthStencilFormat, value);
         }
+
+        public uint Width => ViewedTexture.Width;
+        public uint Height => ViewedTexture.Height;
     }
 }

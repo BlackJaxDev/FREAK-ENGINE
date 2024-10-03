@@ -183,7 +183,7 @@ namespace XREngine
 
             XRMaterial mat =
                 textures.Count > 0 ?
-                new XRMaterial(new XRTexture[textures.Count], ShaderHelper.UnlitTextureFragForward()!) :
+                new XRMaterial(new XRTexture[textures.Count], ShaderHelper.UnlitAlphaTextureFragForward()!) :
                 XRMaterial.CreateUnlitColorMaterialForward(new ColorF4(1.0f, 1.0f, 0.0f, 1.0f));
             mat.RenderPass = (int)EDefaultRenderPass.OpaqueForward;
 

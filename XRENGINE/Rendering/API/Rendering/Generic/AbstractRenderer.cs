@@ -138,10 +138,11 @@ namespace XREngine.Rendering
         private void FramebufferResizeCallback(Vector2D<int> obj)
         {
             _frameBufferInvalidated = true;
-            Viewports.ForEach(x =>
+            Viewports.ForEach(vp =>
             {
-                x.Resize((uint)obj.X, (uint)obj.Y, false);
-                x.SetInternalResolutionPercentage(0.4f, 0.4f);
+                vp.Resize((uint)obj.X, (uint)obj.Y, false);
+                //vp.SetInternalResolution((int)(obj.X * 0.5f), (int)(obj.X * 0.5f), false);
+                //vp.SetInternalResolutionPercentage(0.5f, 0.5f);
                 //x.SetInternalResolution(1920, 1080, true);
             });
         }

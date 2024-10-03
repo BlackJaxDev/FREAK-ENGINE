@@ -3,7 +3,7 @@ using XREngine.Rendering.Models.Materials.Textures;
 
 namespace XREngine.Rendering
 {
-    public class XRTextureCube : XRTexture
+    public class XRTextureCube : XRTexture, IFrameBufferAttachement
     {
         public delegate void DelAttachFaceToFBO(XRFrameBuffer target, EFrameBufferAttachment attachment, ECubemapFace face, int mipLevel);
         public delegate void DelDetachFaceFromFBO(XRFrameBuffer target, EFrameBufferAttachment attachment, ECubemapFace face, int mipLevel);
@@ -51,6 +51,8 @@ namespace XREngine.Rendering
         public uint Dimension => Mipmaps is null ? _dimension : (Mipmaps.Length > 0 ? Mipmaps[0].Sides[0].Width : _dimension);
 
         public override uint MaxDimension => Dimension;
+        public uint Width { get; } = 0;
+        public uint Height { get; } = 0;
 
         private uint _cubeExtent;
         
@@ -125,22 +127,5 @@ namespace XREngine.Rendering
             => AttachFaceToFBORequested?.Invoke(fbo, attachment, face, mipLevel);
         public void DetachFaceFromFBO(XRFrameBuffer fbo, EFrameBufferAttachment attachment, ECubemapFace face, int mipLevel = 0)
             => DetachFaceFromFBORequested?.Invoke(fbo, attachment, face, mipLevel);
-
-        ///// <summary>
-        ///// Call if you want to load all mipmap texture files, in a background thread for example.
-        ///// </summary>
-        //public void LoadMipmaps()
-        //{
-        //    _isLoading = true;
-        //    if (Mipmaps != null && Mipmaps.Length > 0)
-        //    {
-        //        _texture.Mipmaps = new TextureCubeMipmap[Mipmaps.Length];
-        //        //Task.Run(() => Parallel.For(0, Mipmaps.Length, i =>
-        //        for (int i = 0; i < Mipmaps.Length; ++i)
-        //            _texture.Mipmaps[i] = Mipmaps[i].AsRenderMipmap(i);
-        //    }
-
-        //    _isLoading = false;
-        //}
     }
 }

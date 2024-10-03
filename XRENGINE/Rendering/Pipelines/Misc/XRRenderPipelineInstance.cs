@@ -73,8 +73,8 @@ public sealed partial class XRRenderPipelineInstance : XRBase
         }
 
         CurrentPipeline = this;
-        if (window is not null)
-            State.PushRenderArea(window.Window.Size.X, window.Window.Size.Y);
+        //if (window is not null)
+        //    State.PushRenderArea(window.Window.Size.X, window.Window.Size.Y);
         State.Set(viewport, visualScene, camera, targetFBO, shadowPass);
         Pipeline.CommandChain.Execute();
         //hud may sample scene colors, render it after scene
@@ -85,8 +85,8 @@ public sealed partial class XRRenderPipelineInstance : XRBase
                 userInterface?.RenderScreenSpace(viewport, fbo);
         }
         State.Clear();
-        if (window is not null)
-            State.PopRenderArea();
+        //if (window is not null)
+        //    State.PopRenderArea();
         CurrentPipeline = null;
     }
 
@@ -176,10 +176,5 @@ public sealed partial class XRRenderPipelineInstance : XRBase
             _frameBuffers[name]?.Destroy();
             _frameBuffers[name] = fbo;
         }
-    }
-
-    internal T GetFBO<T>(object userInterfaceFBOName)
-    {
-        throw new NotImplementedException();
     }
 }

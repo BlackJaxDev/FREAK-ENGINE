@@ -27,8 +27,8 @@ namespace XREngine.Rendering
             }
         }
 
-        public uint Width { get; private set; }
-        public uint Height { get; private set; }
+        public uint Width => Targets?.FirstOrDefault().Target?.Width ?? 0u;
+        public uint Height => Targets?.FirstOrDefault().Target?.Height ?? 0u;
 
         public EFrameBufferTextureTypeFlags TextureTypes
         {
@@ -55,9 +55,6 @@ namespace XREngine.Rendering
         /// <param name="height"></param>
         public virtual void Resize(uint width, uint height)
         {
-            Width = width;
-            Height = height;
-
             if (Targets is null)
                 return;
 

@@ -4,7 +4,7 @@ using XREngine.Data.Rendering;
 
 namespace XREngine.Rendering
 {
-    public abstract class XRTexture : GenericRenderObject, IFrameBufferAttachement
+    public abstract class XRTexture : GenericRenderObject
     {
         public static MagickImage NewImage(uint width, uint height, EPixelFormat format, EPixelType type)
         {

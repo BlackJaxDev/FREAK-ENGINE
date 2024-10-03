@@ -149,13 +149,8 @@ void main()
             EPixelFormat.Bgra,
             EPixelType.UnsignedByte,
             EFrameBufferAttachment.ColorAttachment0);
-        tex.MinFilter = ETexMinFilter.Nearest;
-        tex.MagFilter = ETexMagFilter.Nearest;
-        tex.UWrap = ETexWrapMode.ClampToEdge;
-        tex.VWrap = ETexWrapMode.ClampToEdge;
-        tex.AutoGenerateMipmaps = false;
-        tex.SamplerName = HDRSceneTextureName;
         tex.Name = HDRSceneTextureName;
+        tex.SamplerName = HDRSceneTextureName;
         tex.Resizable = true;
         tex.SizedInternalFormat = ESizedInternalFormat.Rgba8;
         return tex;
@@ -174,9 +169,6 @@ void main()
             EPixelType.UnsignedInt248,
             EFrameBufferAttachment.DepthStencilAttachment);
         tex.Name = DepthStencilTextureName;
-        tex.MinFilter = ETexMinFilter.Nearest;
-        tex.MagFilter = ETexMagFilter.Nearest;
-        tex.AutoGenerateMipmaps = false;
         tex.Resizable = true;
         tex.SizedInternalFormat = ESizedInternalFormat.Depth24Stencil8;
         return tex;

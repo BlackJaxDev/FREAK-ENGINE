@@ -274,9 +274,7 @@ namespace XREngine.Rendering
         }
 
         private void ResizeRenderPipeline()
-        {
-            _renderPipeline.ViewportResized(Width, Height);
-        }
+            => _renderPipeline.ViewportResized(Width, Height);
 
         private void SetAspectRatioToCamera()
         {
@@ -287,9 +285,7 @@ namespace XREngine.Rendering
         }
 
         private void ResizeCameraComponentUI()
-        {
-            CameraComponent?.UserInterface?.Resize(_region.Extents);
-        }
+            => CameraComponent?.UserInterface?.Resize(_region.Extents);
 
         /// <summary>
         /// This is texture dimensions that the camera will render at, which will be scaled up to the actual resolution of the viewport.
@@ -313,7 +309,7 @@ namespace XREngine.Rendering
         }
 
         public void SetInternalResolutionPercentage(float widthPercent, float heightPercent)
-            => SetInternalResolution((int)(widthPercent * _region.Width), (int)(heightPercent * _region.Height), false);
+            => SetInternalResolution((int)(widthPercent * _region.Width), (int)(heightPercent * _region.Height), true);
 
         #region Coordinate conversion
         public Vector3 ScreenToWorld(Vector2 viewportPoint, float depth)

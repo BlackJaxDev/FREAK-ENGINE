@@ -50,8 +50,9 @@ namespace XREngine.Rendering
         {
             void SetSize(XRViewport vp)
             {
-                vp.Resize((uint)obj.X, (uint)obj.Y, false);
-                vp.SetInternalResolution(1920, 1080, true);
+                vp.Resize((uint)obj.X, (uint)obj.Y, true);
+                //vp.SetInternalResolution((int)(obj.X * 0.5f), (int)(obj.X * 0.5f), false);
+                //vp.SetInternalResolutionPercentage(0.5f, 0.5f);
             }
             Renderer.Viewports.ForEach(SetSize);
         }

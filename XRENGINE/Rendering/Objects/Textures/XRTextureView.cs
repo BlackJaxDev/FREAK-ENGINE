@@ -21,7 +21,7 @@ namespace XREngine.Rendering
         int numLevels,
         int minLayer,
         int numLayers,
-        EPixelInternalFormat internalFormat) : XRTexture, IFrameBufferAttachement
+        EPixelInternalFormat internalFormat) : XRTexture
     {
         public int MinLevel { get; set; } = minLevel;
         public int NumLevels { get; set; } = numLevels;
