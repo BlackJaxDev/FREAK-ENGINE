@@ -4,6 +4,7 @@ using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
 using XREngine.Rendering;
 using XREngine.Rendering.Models.Materials;
+using XREngine.Scene;
 
 namespace XREngine
 {
@@ -19,66 +20,23 @@ namespace XREngine
             /// </summary>
             public static partial class State
             {
-                //TODO: move all this state information into the renderer class
+                public static BoundingRectangle RenderArea => PipelineState?.CurrentRenderRegion ?? BoundingRectangle.Empty;
+                public static XRWorldInstance? RenderingWorld => RenderingViewport?.World;
+                public static XRViewport? RenderingViewport => PipelineState?.WindowViewport;
+                public static VisualScene? RenderingScene => PipelineState?.MainScene;
+                public static XRCamera? RenderingCamera => PipelineState?.RenderingCamera;
+                public static XRFrameBuffer? TargetOutputFBO => PipelineState?.OutputFBO;
+                public static XRMaterial? OverrideMaterial => PipelineState?.OverrideMaterial;
 
-                public static XRCamera? RenderingCamera
-                    => RenderingCameras.TryPeek(out var c) ? c : null;
-                public static Stack<XRCamera?> RenderingCameras { get; } = new();
-                public static StateObject PushRenderingCamera(XRCamera? camera)
-                {
-                    RenderingCameras.Push(camera);
-                    return new StateObject(() => RenderingCameras.Pop());
-                }
+                internal static XRRenderPipelineInstance? CurrentPipeline { get; set; }
+                public static XRRenderPipelineInstance.RenderingState? PipelineState => CurrentPipeline?.State;
 
-                public static BoundingRectangle RenderArea
-                    => RenderAreas.TryPeek(out var area) ? area : BoundingRectangle.Empty;
-                public static Stack<BoundingRectangle> RenderAreas { get; } = new();
-                public static StateObject PushRenderArea(BoundingRectangle area)
-                {
-                    RenderAreas.Push(area);
-                    AbstractRenderer.Current?.PushRenderArea(area);
-                    return new StateObject(() =>
-                    {
-                        RenderAreas.Pop();
-                        AbstractRenderer.Current?.PopRenderArea();
-                    });
-                }
-
-                public static XRWorldInstance? RenderingWorld
-                    => RenderingWorlds.TryPeek(out var w) ? w : null;
-                public static Stack<XRWorldInstance> RenderingWorlds { get; } = new();
-                public static StateObject PushRenderingWorld(XRWorldInstance camera)
-                {
-                    RenderingWorlds.Push(camera);
-                    return new StateObject(() => RenderingWorlds.Pop());
-                }
-
-                public static XRMaterial? OverrideMaterial
-                    => OverrideMaterials.TryPeek(out var m) ? m : null;
-                /// <summary>
-                /// This material will be used to render all objects in the scene if set.
-                /// </summary>
-                public static Stack<XRMaterial> OverrideMaterials { get; } = new();
-                public static StateObject PushOverrideMaterial(XRMaterial material)
-                {
-                    OverrideMaterials.Push(material);
-                    return new StateObject(() => OverrideMaterials.Pop());
-                }
-
-                public static XRViewport? RenderingViewport
-                    => RenderingViewports.TryPeek(out var vp) ? vp : null;
-                public static Stack<XRViewport> RenderingViewports { get; } = new();
-
-                public static XRRenderPipelineInstance? CurrentPipeline { get; set; }
-
-                public static StateObject PushRenderingViewport(XRViewport vp)
-                {
-                    RenderingViewports.Push(vp);
-                    return new StateObject(() => RenderingViewports.Pop());
-                }
-
-                public static void Clear(ColorF4 color)
+                public static void ClearColor(ColorF4 color)
                     => AbstractRenderer.Current?.ClearColor(color);
+                public static void ClearStencil(int v)
+                    => AbstractRenderer.Current?.ClearStencil(v);
+                public static void ClearDepth(float v)
+                    => AbstractRenderer.Current?.ClearDepth(v);
 
                 public static void Clear(bool color, bool depth, bool stencil)
                     => AbstractRenderer.Current?.Clear(color, depth, stencil);
@@ -100,12 +58,6 @@ namespace XREngine
 
                 public static void StencilMask(uint mask)
                     => AbstractRenderer.Current?.StencilMask(mask);
-
-                public static void ClearStencil(int v)
-                    => AbstractRenderer.Current?.ClearStencil(v);
-
-                public static void ClearDepth(float v)
-                    => AbstractRenderer.Current?.ClearDepth(v);
 
                 public static void AllowDepthWrite(bool v)
                     => AbstractRenderer.Current?.AllowDepthWrite(v);

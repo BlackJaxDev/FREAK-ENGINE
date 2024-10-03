@@ -129,14 +129,14 @@ namespace XREngine.Rendering.OpenGL
 
                 Bind();
 
-                var glTarget = ToGLEnum(TextureTarget);
+                var glTarget = OpenGLRenderer.ToGLEnum(TextureTarget);
 
                 Api.PixelStore(PixelStoreParameter.UnpackAlignment, 1);
 
                 EPixelInternalFormat? internalFormatForce = null;
                 if (!Data.Resizable && !_storageSet)
                 {
-                    Api.TexStorage2D(glTarget, Math.Max((uint)Data.Mipmaps.Length, 1u), ToGLEnum(Data.SizedInternalFormat), Data.Width, Data.Height);
+                    Api.TexStorage2D(glTarget, Math.Max((uint)Data.Mipmaps.Length, 1u), OpenGLRenderer.ToGLEnum(Data.SizedInternalFormat), Data.Width, Data.Height);
                     internalFormatForce = ToBaseInternalFormat(Data.SizedInternalFormat);
                     _storageSet = true;
                 }
@@ -197,8 +197,8 @@ namespace XREngine.Rendering.OpenGL
             }
             else
             {
-                pixelFormat = ToGLEnum(mip.PixelFormat);
-                pixelType = ToGLEnum(mip.PixelType);
+                pixelFormat = OpenGLRenderer.ToGLEnum(mip.PixelFormat);
+                pixelType = OpenGLRenderer.ToGLEnum(mip.PixelType);
                 internalPixelFormat = ToInternalFormat(internalFormatForce ?? mip.InternalFormat);
                 data = mip.Data;
                 hasPushed = info!.HasPushed;
@@ -219,8 +219,8 @@ namespace XREngine.Rendering.OpenGL
         private unsafe void Push(GLEnum glTarget, int i, uint w, uint h, GLEnum pixelFormat, GLEnum pixelType, InternalFormat internalPixelFormat, bool hasPushed)
         {
             if (!hasPushed && Data.Resizable)
-                Api.TexImage2D(glTarget, i, internalPixelFormat, w, h, 0, pixelFormat, pixelType, null);
-
+                Api.TexImage2D(glTarget, i, internalPixelFormat, w, h, 0, pixelFormat, pixelType, IntPtr.Zero.ToPointer());
+            
             var error = Api.GetError();
             if (error != GLEnum.NoError)
                 Debug.LogWarning($"Error pushing null texture data: {error}");
@@ -239,6 +239,58 @@ namespace XREngine.Rendering.OpenGL
             if (error != GLEnum.NoError)
                 Debug.LogWarning($"Error pushing texture data: {error}");
         }
+
+        protected override void SetParameters()
+        {
+            Api.TextureParameter(BindingId, GLEnum.TextureLodBias, Data.LodBias);
+
+            int dsmode = Data.DepthStencilFormat == EDepthStencilFmt.Stencil ? (int)GLEnum.StencilIndex : (int)GLEnum.DepthComponent;
+            Api.TextureParameterI(BindingId, GLEnum.DepthStencilTextureMode, in dsmode);
+
+            int magFilter = (int)ToGLEnum(Data.MagFilter);
+            Api.TextureParameterI(BindingId, GLEnum.TextureMagFilter, in magFilter);
+
+            int minFilter = (int)ToGLEnum(Data.MinFilter);
+            Api.TextureParameterI(BindingId, GLEnum.TextureMinFilter, in minFilter);
+
+            int uWrap = (int)ToGLEnum(Data.UWrap);
+            Api.TextureParameterI(BindingId, GLEnum.TextureWrapS, in uWrap);
+
+            int vWrap = (int)ToGLEnum(Data.VWrap);
+            Api.TextureParameterI(BindingId, GLEnum.TextureWrapT, in vWrap);
+
+            base.SetParameters();
+        }
+
+        private static GLEnum ToGLEnum(ETexWrapMode wrap)
+            => wrap switch
+            {
+                ETexWrapMode.ClampToEdge => GLEnum.ClampToEdge,
+                ETexWrapMode.ClampToBorder => GLEnum.ClampToBorder,
+                ETexWrapMode.MirroredRepeat => GLEnum.MirroredRepeat,
+                ETexWrapMode.Repeat => GLEnum.Repeat,
+                _ => throw new ArgumentOutOfRangeException(nameof(wrap), wrap, null),
+            };
+
+        private static GLEnum ToGLEnum(ETexMinFilter minFilter)
+            => minFilter switch
+            {
+                ETexMinFilter.Nearest => GLEnum.Nearest,
+                ETexMinFilter.Linear => GLEnum.Linear,
+                ETexMinFilter.NearestMipmapNearest => GLEnum.NearestMipmapNearest,
+                ETexMinFilter.LinearMipmapNearest => GLEnum.LinearMipmapNearest,
+                ETexMinFilter.NearestMipmapLinear => GLEnum.NearestMipmapLinear,
+                ETexMinFilter.LinearMipmapLinear => GLEnum.LinearMipmapLinear,
+                _ => throw new ArgumentOutOfRangeException(nameof(minFilter), minFilter, null),
+            };
+
+        private static GLEnum ToGLEnum(ETexMagFilter magFilter)
+            => magFilter switch
+            {
+                ETexMagFilter.Nearest => GLEnum.Nearest,
+                ETexMagFilter.Linear => GLEnum.Linear,
+                _ => throw new ArgumentOutOfRangeException(nameof(magFilter), magFilter, null),
+            };
 
         private static InternalFormat ToInternalFormat(EPixelInternalFormat internalFormat)
             => (InternalFormat)internalFormat.ConvertByName(typeof(InternalFormat));
@@ -310,7 +362,16 @@ namespace XREngine.Rendering.OpenGL
                 ESizedInternalFormat.Rgba32i or
                 ESizedInternalFormat.Rgba32ui => EPixelInternalFormat.Rgba,
 
-                _ => throw new NotImplementedException()
+                ESizedInternalFormat.DepthComponent16 or
+                ESizedInternalFormat.DepthComponent24 or
+                ESizedInternalFormat.DepthComponent32f => EPixelInternalFormat.DepthComponent,
+
+                ESizedInternalFormat.Depth24Stencil8 or
+                ESizedInternalFormat.Depth32fStencil8 => EPixelInternalFormat.DepthStencil,
+
+                ESizedInternalFormat.StencilIndex8 => EPixelInternalFormat.StencilIndex,
+
+                _ => throw new ArgumentOutOfRangeException(nameof(sizedInternalFormat), sizedInternalFormat, null),
             };
 
         //private static ESizedInternalFormat ToSizedInternalFormat(EPixelInternalFormat internalFormat)

@@ -1,4 +1,5 @@
-﻿using XREngine.Data.Core;
+﻿using XREngine.Components;
+using XREngine.Data.Core;
 using XREngine.Rendering.Commands;
 using XREngine.Scene;
 using static XREngine.Engine.Rendering.State;
@@ -46,7 +47,7 @@ public sealed partial class XRRenderPipelineInstance : XRBase
         }
     }
 
-    public RenderingStatus RenderStatus { get; } = new();
+    public RenderingState State { get; } = new();
     public XRMaterial? InvalidMaterial { get; set; }
 
     /// <summary>
@@ -57,7 +58,7 @@ public sealed partial class XRRenderPipelineInstance : XRBase
     /// <param name="viewport"></param>
     /// <param name="targetFBO"></param>
     /// <param name="shadowPass"></param>
-    public void Render(VisualScene visualScene, XRCamera camera, XRViewport? viewport, XRFrameBuffer? targetFBO, bool shadowPass)
+    public void Render(XRWindow? window, VisualScene visualScene, XRCamera camera, XRViewport? viewport, XRFrameBuffer? targetFBO, bool shadowPass, UICanvasComponent? userInterface)
     {
         if (Pipeline is null)
         {
@@ -72,24 +73,20 @@ public sealed partial class XRRenderPipelineInstance : XRBase
         }
 
         CurrentPipeline = this;
-        RenderStatus.Set(viewport, visualScene, camera, targetFBO, shadowPass);
-
-        //_timeQuery.BeginQuery(EQueryTarget.TimeElapsed);
-        //using (PushRenderingCamera(camera))
-        //{
-            //try
-            //{
-                Pipeline.CommandChain.Execute();
-            //}
-            //catch (Exception e)
-            //{
-            //    Debug.Out(EOutputVerbosity.Verbose, true, true, true, true, 3, 10, e.Message);
-            //}
-        //}
-        //_renderFPS = 1.0f / (_timeQuery.EndAndGetQueryInt() * 1e-9f);
-        //Engine.PrintLine(_renderMS.ToString() + " ms");
-
-        RenderStatus.Clear();
+        if (window is not null)
+            State.PushRenderArea(window.Window.Size.X, window.Window.Size.Y);
+        State.Set(viewport, visualScene, camera, targetFBO, shadowPass);
+        Pipeline.CommandChain.Execute();
+        //hud may sample scene colors, render it after scene
+        if (userInterface is not null && viewport is not null && userInterface.DrawSpace == ECanvasDrawSpace.Screen)
+        {
+            var fbo = GetFBO<XRQuadFrameBuffer>(Pipeline.GetUserInterfaceFBOName());
+            if (fbo is not null)
+                userInterface?.RenderScreenSpace(viewport, fbo);
+        }
+        State.Clear();
+        if (window is not null)
+            State.PopRenderArea();
         CurrentPipeline = null;
     }
 
@@ -104,7 +101,6 @@ public sealed partial class XRRenderPipelineInstance : XRBase
         _textures.Clear();
     }
 
-    //TODO: actually resize fbos and textures instead of recreating them
     public void ViewportResized(int width, int height)
     {
         //DestroyCache();

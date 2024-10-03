@@ -64,7 +64,7 @@ namespace XREngine.Rendering.Pipelines.Commands
             program.Uniform("NoiseScale", NoiseScale);
             program.Uniform("Samples", Kernel!);
 
-            var rc = Pipeline.RenderStatus.Camera;
+            var rc = Pipeline.State.SceneCamera;
             if (rc != null)
             {
                 rc.SetUniforms(program);

@@ -38,8 +38,8 @@ public abstract class RenderPipeline : XRBase
     protected abstract ViewportRenderCommandContainer GenerateCommandChain();
     protected abstract Dictionary<int, IComparer<RenderCommand>?> GetPassIndicesAndSorters();
 
-    public static RenderingStatus RenderStatus 
-        => CurrentPipeline!.RenderStatus;
+    public static RenderingState State 
+        => CurrentPipeline!.State;
 
     public static T? GetTexture<T>(string name) where T : XRTexture
         => CurrentPipeline!.GetTexture<T>(name);
@@ -60,13 +60,13 @@ public abstract class RenderPipeline : XRBase
         => CurrentPipeline!.SetFBO(fbo);
 
     protected static uint InternalWidth
-        => (uint)RenderStatus.Viewport!.InternalWidth;
+        => (uint)State.WindowViewport!.InternalWidth;
     protected static uint InternalHeight
-        => (uint)RenderStatus.Viewport!.InternalHeight;
+        => (uint)State.WindowViewport!.InternalHeight;
     protected static uint FullWidth
-        => (uint)RenderStatus.Viewport!.Width;
+        => (uint)State.WindowViewport!.Width;
     protected static uint FullHeight
-        => (uint)RenderStatus.Viewport!.Height;
+        => (uint)State.WindowViewport!.Height;
 
     protected static bool NeedsRecreateTextureInternalSize(XRTexture t)
         => t is XRTexture2D t2d && (t2d.Width != InternalWidth || t2d.Height != InternalHeight);
@@ -95,7 +95,7 @@ public abstract class RenderPipeline : XRBase
     protected static (uint x, uint y) GetDesiredFBOSizeInternal()
         => (InternalWidth, InternalHeight);
     protected static (uint x, uint y) GetDesiredFBOSizeFull()
-        => ((uint)RenderStatus.Viewport!.Width, (uint)RenderStatus.Viewport!.Height);
+        => ((uint)State.WindowViewport!.Width, (uint)State.WindowViewport!.Height);
 
     /// <summary>
     /// Creates a texture used by PBR shading to light an opaque surface.
@@ -156,7 +156,7 @@ public abstract class RenderPipeline : XRBase
         //Now render the texture to the FBO using the quad
         using (fbo.BindForWriting())
         {
-            using (PushRenderArea(region))
+            using (State.PushRenderArea(region))
             {
                 Clear(true, false, false);
                 quad.Render();

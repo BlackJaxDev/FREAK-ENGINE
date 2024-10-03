@@ -12,8 +12,20 @@ namespace XREngine.Rendering
         private EDrawBuffersAttachment[]? _drawBuffers;
         private EFrameBufferTextureTypeFlags _textureTypes = EFrameBufferTextureTypeFlags.None;
         private (IFrameBufferAttachement Target, EFrameBufferAttachment Attachment, int MipLevel, int LayerIndex)[]? _targets;
+        private static XRFrameBuffer? _currentlyBound;
 
-        public static XRFrameBuffer? CurrentlyBound { get; set; }
+        public static XRFrameBuffer? CurrentlyBound
+        {
+            get => _currentlyBound;
+            set
+            {
+                //if (_currentlyBound == value)
+                //    return;
+
+                _currentlyBound = value;
+                //Debug.Out($"Framebuffer bound: {value?.GetDescribingName() ?? "<none>"}");
+            }
+        }
 
         public uint Width { get; private set; }
         public uint Height { get; private set; }

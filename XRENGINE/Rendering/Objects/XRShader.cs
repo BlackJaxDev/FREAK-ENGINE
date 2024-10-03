@@ -58,8 +58,8 @@ namespace XREngine.Rendering
         /// <param name="type"></param>
         /// <returns></returns>
         /// <exception cref="NotImplementedException"></exception>
-        public static XRShader? EngineShader(string relativePath, EShaderType type)
-            => ShaderHelper.LoadShader(relativePath, type);
+        public static XRShader EngineShader(string relativePath, EShaderType type)
+            => ShaderHelper.LoadEngineShader(relativePath, type);
 
         /// <summary>
         /// Loads a shader from common engine shaders asynchronously.
@@ -68,7 +68,7 @@ namespace XREngine.Rendering
         /// <param name="type"></param>
         /// <returns></returns>
         public static async Task<XRShader?> EngineShaderAsync(string relativePath, EShaderType type)
-            => await ShaderHelper.LoadShaderAsync(relativePath, type);
+            => await ShaderHelper.LoadEngineShaderAsync(relativePath, type);
 
         public override void Load3rdParty(string filePath)
         {

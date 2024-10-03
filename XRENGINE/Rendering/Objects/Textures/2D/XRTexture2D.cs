@@ -3,7 +3,6 @@ using ImageMagick.Drawing;
 using XREngine.Data;
 using XREngine.Data.Rendering;
 using XREngine.Data.Vectors;
-using static XREngine.Rendering.OpenGL.OpenGLRenderer;
 
 namespace XREngine.Rendering
 {
@@ -361,6 +360,5 @@ namespace XREngine.Rendering
             _pbo.SetDataPointer(mipmap.Address);
             _pbo.UnmapBufferData();
         }
-
     }
 }

@@ -194,9 +194,9 @@ namespace XREngine.Components.Lights
             if (ShadowMap?.Material is null || ShadowCamera is null)
                 return;
 
-            using var overrideMat = Engine.Rendering.State.PushOverrideMaterial(ShadowMap.Material);
-            using var overrideRegion = Engine.Rendering.State.PushRenderArea(_shadowMapRenderRegion);
-            _shadowRenderPipeline.Render(scene, ShadowCamera, null, ShadowMap, true);
+            //using var overrideMat = Engine.Rendering.State.PushOverrideMaterial(ShadowMap.Material);
+            //using var overrideRegion = Engine.Rendering.State.PushRenderArea(_shadowMapRenderRegion);
+            _shadowRenderPipeline.Render(null, scene, ShadowCamera, null, ShadowMap, true, null);
         }
 
         public static EPixelInternalFormat GetShadowDepthMapFormat(EDepthPrecision precision)

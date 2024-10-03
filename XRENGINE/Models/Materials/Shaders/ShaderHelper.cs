@@ -2,19 +2,17 @@
 {
     public static class ShaderHelper
     {
-        public static XRShader? LoadShader(string relativePath, EShaderType? type = null)
+        public static XRShader LoadEngineShader(string relativePath, EShaderType? type = null)
         {
-            XRShader? source = Engine.Assets.LoadEngineAsset<XRShader>("Shaders", relativePath);
-            if (source is not null)
-                source._type = type ?? XRShader.ResolveType(Path.GetExtension(relativePath));
+            XRShader source = Engine.Assets.LoadEngineAsset<XRShader>("Shaders", relativePath);
+            source._type = type ?? XRShader.ResolveType(Path.GetExtension(relativePath));
             return source;
         }
 
-        public static async Task<XRShader?> LoadShaderAsync(string relativePath, EShaderType? type = null)
+        public static async Task<XRShader> LoadEngineShaderAsync(string relativePath, EShaderType? type = null)
         {
-            XRShader? source = await Engine.Assets.LoadEngineAssetAsync<XRShader>("Shaders", relativePath);
-            if (source is not null)
-                source._type = type ?? XRShader.ResolveType(Path.GetExtension(relativePath));
+            XRShader source = await Engine.Assets.LoadEngineAssetAsync<XRShader>("Shaders", relativePath);
+            source._type = type ?? XRShader.ResolveType(Path.GetExtension(relativePath));
             return source;
         }
 
@@ -122,15 +120,15 @@ void main()
             return new XRShader(EShaderType.Fragment, source);
         }
         public static XRShader? TextureFragDeferred()
-            => LoadShader(Path.Combine("Common", "TexturedDeferred.fs"));
+            => LoadEngineShader(Path.Combine("Common", "TexturedDeferred.fs"));
         public static XRShader? LitColorFragDeferred()
-            => LoadShader(Path.Combine("Common", "ColoredDeferred.fs"));
+            => LoadEngineShader(Path.Combine("Common", "ColoredDeferred.fs"));
         public static XRShader? UnlitTextureFragForward()
-             => LoadShader(Path.Combine("Common", "UnlitTexturedForward.fs"));
+             => LoadEngineShader(Path.Combine("Common", "UnlitTexturedForward.fs"));
         public static XRShader? UnlitAlphaTextureFragForward()
-            => LoadShader(Path.Combine("Common", "UnlitAlphaTexturedForward.fs"));
+            => LoadEngineShader(Path.Combine("Common", "UnlitAlphaTexturedForward.fs"));
         public static XRShader? UnlitColorFragForward()
-             => LoadShader(Path.Combine("Common", "UnlitColoredForward.fs"));
+             => LoadEngineShader(Path.Combine("Common", "UnlitColoredForward.fs"));
         public static XRShader LitColorFragForward()
         {
             string source = @"

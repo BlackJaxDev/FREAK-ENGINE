@@ -6,14 +6,14 @@ namespace XREngine.Rendering.Pipelines.Commands
     {
         protected override void Execute()
         {
-            var fbo = Pipeline.RenderStatus.OutputFBO;
+            var fbo = Pipeline.State.OutputFBO;
             if (fbo is null)
             {
                 PopCommand.ShouldExecute = false;
                 return;
             }
 
-            Engine.Rendering.State.RenderAreas.Push(new BoundingRectangle(0, 0, (int)fbo.Width, (int)fbo.Height));
+            Pipeline.State.PushRenderArea((int)fbo.Width, (int)fbo.Height);
         }
     }
 }

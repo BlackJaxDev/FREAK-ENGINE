@@ -277,7 +277,7 @@ namespace XREngine.Rendering.OpenGL
                 _ => throw new ArgumentOutOfRangeException(nameof(target), target, null),
             };
 
-        protected override void SetRenderArea(BoundingRectangle region)
+        public override void SetRenderArea(BoundingRectangle region)
             => Api.Viewport(region.X, region.Y, (uint)region.Width, (uint)region.Height);
 
         public override void CropRenderArea(BoundingRectangle region)
@@ -701,37 +701,88 @@ namespace XREngine.Rendering.OpenGL
         public static GLEnum ToGLEnum(ESizedInternalFormat sizedInternalFormat)
             => sizedInternalFormat switch
             {
-                ESizedInternalFormat.Rgba8 => GLEnum.Rgba8,
-                ESizedInternalFormat.Rgba16 => GLEnum.Rgba16,
+                //Red
                 ESizedInternalFormat.R8 => GLEnum.R8,
+                ESizedInternalFormat.R8Snorm => GLEnum.R8SNorm,
                 ESizedInternalFormat.R16 => GLEnum.R16,
-                ESizedInternalFormat.Rg8 => GLEnum.RG8,
-                ESizedInternalFormat.Rg16 => GLEnum.RG16,
+                ESizedInternalFormat.R16Snorm => GLEnum.R16SNorm,
                 ESizedInternalFormat.R16f => GLEnum.R16f,
                 ESizedInternalFormat.R32f => GLEnum.R32f,
-                ESizedInternalFormat.Rg16f => GLEnum.RG16f,
-                ESizedInternalFormat.Rg32f => GLEnum.RG32f,
                 ESizedInternalFormat.R8i => GLEnum.R8i,
                 ESizedInternalFormat.R8ui => GLEnum.R8ui,
                 ESizedInternalFormat.R16i => GLEnum.R16i,
                 ESizedInternalFormat.R16ui => GLEnum.R16ui,
                 ESizedInternalFormat.R32i => GLEnum.R32i,
                 ESizedInternalFormat.R32ui => GLEnum.R32ui,
+
+                //Red Green
+                ESizedInternalFormat.Rg8 => GLEnum.RG8,
+                ESizedInternalFormat.Rg8Snorm => GLEnum.RG8SNorm,
+                ESizedInternalFormat.Rg16 => GLEnum.RG16,
+                ESizedInternalFormat.Rg16Snorm => GLEnum.RG16SNorm,
+                ESizedInternalFormat.Rg16f => GLEnum.RG16f,
+                ESizedInternalFormat.Rg32f => GLEnum.RG32f,
                 ESizedInternalFormat.Rg8i => GLEnum.RG8i,
                 ESizedInternalFormat.Rg8ui => GLEnum.RG8ui,
                 ESizedInternalFormat.Rg16i => GLEnum.RG16i,
                 ESizedInternalFormat.Rg16ui => GLEnum.RG16ui,
                 ESizedInternalFormat.Rg32i => GLEnum.RG32i,
                 ESizedInternalFormat.Rg32ui => GLEnum.RG32ui,
-                ESizedInternalFormat.Rgba32f => GLEnum.Rgba32f,
+
+                //Red Green Blue
+                ESizedInternalFormat.R3G3B2 => GLEnum.R3G3B2,
+                ESizedInternalFormat.Rgb4 => GLEnum.Rgb4,
+                ESizedInternalFormat.Rgb5 => GLEnum.Rgb5,
+                ESizedInternalFormat.Rgb8 => GLEnum.Rgb8,
+                ESizedInternalFormat.Rgb8Snorm => GLEnum.Rgb8SNorm,
+                ESizedInternalFormat.Rgb10 => GLEnum.Rgb10,
+                ESizedInternalFormat.Rgb12 => GLEnum.Rgb12,
+                ESizedInternalFormat.Rgb16Snorm => GLEnum.Rgb16SNorm,
+                //ESizedInternalFormat.Rgb16 => GLEnum.Rgb16,
+                ESizedInternalFormat.Rgba2 => GLEnum.Rgba2,
+                ESizedInternalFormat.Rgba4 => GLEnum.Rgba4,
+                ESizedInternalFormat.Srgb8 => GLEnum.Srgb8,
+                ESizedInternalFormat.Rgb16f => GLEnum.Rgb16f,
+                ESizedInternalFormat.Rgb32f => GLEnum.Rgb32f,
+                ESizedInternalFormat.R11fG11fB10f => GLEnum.R11fG11fB10f,
+                ESizedInternalFormat.Rgb9E5 => GLEnum.Rgb9E5,
+                ESizedInternalFormat.Rgb8i => GLEnum.Rgb8i,
+                ESizedInternalFormat.Rgb8ui => GLEnum.Rgb8ui,
+                ESizedInternalFormat.Rgb16i => GLEnum.Rgb16i,
+                ESizedInternalFormat.Rgb16ui => GLEnum.Rgb16ui,
+                ESizedInternalFormat.Rgb32i => GLEnum.Rgb32i,
+                ESizedInternalFormat.Rgb32ui => GLEnum.Rgb32ui,
+
+                //Red Green Blue Alpha
+                ESizedInternalFormat.Rgb5A1 => GLEnum.Rgb5A1,
+                ESizedInternalFormat.Rgba8 => GLEnum.Rgba8,
+                ESizedInternalFormat.Rgba8Snorm => GLEnum.Rgba8SNorm,
+                ESizedInternalFormat.Rgb10A2 => GLEnum.Rgb10A2,
+                ESizedInternalFormat.Rgba12 => GLEnum.Rgba12,
+                ESizedInternalFormat.Rgba16 => GLEnum.Rgba16,
+                ESizedInternalFormat.Srgb8Alpha8 => GLEnum.Srgb8Alpha8,
                 ESizedInternalFormat.Rgba16f => GLEnum.Rgba16f,
-                ESizedInternalFormat.Rgba32ui => GLEnum.Rgba32ui,
-                ESizedInternalFormat.Rgba16ui => GLEnum.Rgba16ui,
-                ESizedInternalFormat.Rgba8ui => GLEnum.Rgba8ui,
-                ESizedInternalFormat.Rgba32i => GLEnum.Rgba32i,
-                ESizedInternalFormat.Rgba16i => GLEnum.Rgba16i,
+                ESizedInternalFormat.Rgba32f => GLEnum.Rgba32f,
                 ESizedInternalFormat.Rgba8i => GLEnum.Rgba8i,
-                _ => GLEnum.Rgba8,
+                ESizedInternalFormat.Rgba8ui => GLEnum.Rgba8ui,
+                ESizedInternalFormat.Rgba16i => GLEnum.Rgba16i,
+                ESizedInternalFormat.Rgba16ui => GLEnum.Rgba16ui,
+                ESizedInternalFormat.Rgba32i => GLEnum.Rgba32i,
+                ESizedInternalFormat.Rgba32ui => GLEnum.Rgba32ui,
+
+                //Depth
+                ESizedInternalFormat.DepthComponent16 => GLEnum.DepthComponent16,
+                ESizedInternalFormat.DepthComponent24 => GLEnum.DepthComponent24,
+                ESizedInternalFormat.DepthComponent32f => GLEnum.DepthComponent32f,
+
+                //Depth Stencil
+                ESizedInternalFormat.Depth24Stencil8 => GLEnum.Depth24Stencil8,
+                ESizedInternalFormat.Depth32fStencil8 => GLEnum.Depth32fStencil8,
+
+                //Stencil
+                ESizedInternalFormat.StencilIndex8 => GLEnum.StencilIndex8,
+
+                _ => throw new ArgumentOutOfRangeException(nameof(sizedInternalFormat), sizedInternalFormat, null),
             };
 
         public static GLEnum ToGLEnum(ETextureTarget textureTarget)

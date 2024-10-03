@@ -66,7 +66,7 @@ public class DefaultRenderPipeline : RenderPipeline
     {
         ViewportRenderCommandContainer c = [];
         var ifElse = c.Add<VPRC_IfElse>();
-        ifElse.ConditionEvaluator = () => RenderStatus.Viewport is not null;
+        ifElse.ConditionEvaluator = () => State.WindowViewport is not null;
         ifElse.TrueCommands = CreateViewportTargetCommands();
         ifElse.FalseCommands = CreateFBOTargetCommands();
         return c;
@@ -421,8 +421,8 @@ public class DefaultRenderPipeline : RenderPipeline
     private XRTexture CreateHUDTexture()
     {
         var hudTexture = XRTexture2D.CreateFrameBufferTexture(
-            (uint)RenderStatus.Viewport!.Width,
-            (uint)RenderStatus.Viewport!.Height,
+            (uint)State.WindowViewport!.Width,
+            (uint)State.WindowViewport!.Height,
             EPixelInternalFormat.Rgba16f,
             EPixelFormat.Rgba,
             EPixelType.Float);

@@ -97,10 +97,10 @@ namespace XREngine.Scene
         /// </summary>
         public void CaptureLightProbes()
         {
-            CaptureLightProbes(
+            Engine.EnqueueMainThreadTask(() => CaptureLightProbes(
                 Engine.Rendering.Settings.LightProbeDefaultColorResolution, 
                 Engine.Rendering.Settings.ShouldLightProbesCaptureDepth,
-                Engine.Rendering.Settings.LightProbeDefaultDepthResolution);
+                Engine.Rendering.Settings.LightProbeDefaultDepthResolution));
         }
 
         /// <summary>
@@ -115,9 +115,8 @@ namespace XREngine.Scene
             if (_capturing || (!force && IBLCaptured))
                 return;
 
-            Debug.Out(EOutputVerbosity.Verbose, true, true, true, true, 0, 10, "Capturing scene IBL...");
-
             IBLCaptured = true;
+            Debug.Out(EOutputVerbosity.Verbose, true, true, true, true, 0, 10, "Capturing scene IBL...");
             _capturing = true;
 
             try

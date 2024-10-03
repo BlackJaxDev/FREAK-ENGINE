@@ -32,7 +32,7 @@ namespace XREngine.Rendering.Pipelines.Commands
 
         protected override void Execute()
         {
-            if (Pipeline.RenderStatus.Scene is not VisualScene3D scene)
+            if (Pipeline.State.MainScene is not VisualScene3D scene)
                 return;
 
             var albOpacTex = Pipeline.GetTexture<XRTexture2D>(AlbedoOpacityTexture);
@@ -86,7 +86,7 @@ namespace XREngine.Rendering.Pipelines.Commands
             if (_currentLightComponent is null)
                 return;
 
-            Pipeline.RenderStatus.Camera?.PostProcessing?.Shadows.SetUniforms(materialProgram);
+            Pipeline.State.SceneCamera?.PostProcessing?.Shadows.SetUniforms(materialProgram);
             _currentLightComponent.SetShadowUniforms(materialProgram);
             _currentLightComponent.SetUniforms(materialProgram);
         }

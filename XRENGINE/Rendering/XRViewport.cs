@@ -175,14 +175,14 @@ namespace XREngine.Rendering
         /// </summary>
         /// <param name="vp"></param>
         /// <param name="targetFbo"></param>
-        public void Render(XRFrameBuffer? targetFbo = null, VisualScene? sceneOverride = null)
+        public void Render(XRWindow? window = null, XRFrameBuffer? targetFbo = null, VisualScene? sceneOverride = null)
         {
             XRCamera? camera = ActiveCamera;
             if (camera is null)
                 return;
 
             var scene = sceneOverride ?? World?.VisualScene;
-            if (scene is null || State.RenderingViewport == this)
+            if (scene is null || (State.PipelineState?.ViewportStack.Contains(this) ?? false))
                 return;
 
             if (sceneOverride is not null)
@@ -192,15 +192,7 @@ namespace XREngine.Rendering
                 SwapBuffers();
             }
 
-            using (State.PushRenderingViewport(this))
-            {
-                _renderPipeline.Render(scene, camera, this, targetFbo, false);
-
-                //hud may sample scene colors, render it after scene
-                var fbo = _renderPipeline.GetFBO<XRQuadFrameBuffer>(_renderPipeline.Pipeline!.GetUserInterfaceFBOName());
-                if (fbo is not null)
-                    CameraComponent?.UserInterface?.RenderScreenSpace(this, fbo);
-            }
+            _renderPipeline.Render(window, scene, camera, this, targetFbo, false, CameraComponent?.UserInterface);
         }
 
         private readonly XRRenderPipelineInstance _renderPipeline = new();

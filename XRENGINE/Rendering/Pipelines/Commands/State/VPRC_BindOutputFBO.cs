@@ -7,12 +7,18 @@
     /// <param name="pipeline"></param>
     public class VPRC_BindOutputFBO(ViewportRenderCommandContainer pipeline) : ViewportStateRenderCommand<VPRC_UnbindFBO>(pipeline)
     {
+        public bool Write { get; set; } = true;
+
         protected override void Execute()
         {
-            var fbo = Pipeline.RenderStatus.OutputFBO;
+            var fbo = Pipeline.State.OutputFBO;
             if (fbo != null)
             {
-                fbo.Bind();
+                if (Write)
+                    fbo.BindForWriting();
+                else
+                    fbo.BindForReading();
+
                 PopCommand.FrameBuffer = fbo;
             }
         }

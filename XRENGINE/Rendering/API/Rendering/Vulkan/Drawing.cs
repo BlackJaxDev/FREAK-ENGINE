@@ -23,7 +23,7 @@ namespace XREngine.Rendering.Vulkan
         {
             throw new NotImplementedException();
         }
-        protected override void SetRenderArea(BoundingRectangle region)
+        public override void SetRenderArea(BoundingRectangle region)
         {
             throw new NotImplementedException();
         }

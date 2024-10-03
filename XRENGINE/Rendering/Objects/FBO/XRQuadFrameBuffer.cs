@@ -1,6 +1,5 @@
 ﻿using System.Numerics;
 using XREngine.Data.Rendering;
-using XREngine.Scene.Transforms;
 
 namespace XREngine.Rendering
 {
@@ -21,23 +20,31 @@ namespace XREngine.Rendering
             if (useTriangle)
             {
                 VertexTriangle triangle = new(
-                    new Vector3(0.0f, 0.0f, 0.0f),
-                    new Vector3(2.0f, 0.0f, 0.0f),
-                    new Vector3(0.0f, 2.0f, 0.0f));
+                    new Vector3(-1, -1, 0),
+                    new Vector3( 3, -1, 0),
+                    new Vector3(-1,  3, 0));
 
                 return XRMesh.Create(triangle);
             }
             else
             {
+                //     .3
+                //    /|
+                //   / |
+                // 1.__.2
                 VertexTriangle triangle1 = new(
                     new Vector3(-1, -1, 0),
                     new Vector3(-1,  1, 0),
                     new Vector3( 1,  1, 0));
 
+                // 3.__.2
+                //  | /
+                //  |/
+                // 1.
                 VertexTriangle triangle2 = new(
                     new Vector3(-1, -1, 0),
                     new Vector3( 1,  1, 0),
-                    new Vector3( 1, -1, 0));
+                    new Vector3(-1,  1, 0));
 
                 return XRMesh.Create(triangle1, triangle2);
             }
@@ -47,12 +54,11 @@ namespace XREngine.Rendering
         /// Renders a material to the screen using a fullscreen orthographic quad.
         /// </summary>
         /// <param name="mat">The material containing textures to render to this fullscreen quad.</param>
-        public XRQuadFrameBuffer(XRMaterial mat, bool useTriangle = false) : base(mat)
+        public XRQuadFrameBuffer(XRMaterial mat, bool useTriangle = true) : base(mat)
         {
             FullScreenMesh = new XRMeshRenderer(Mesh(useTriangle), Material);
+            FullScreenMesh.Generate();
             FullScreenMesh.SettingUniforms += SetUniforms;
-
-            //_quadCamera = new XRCamera(new Transform(), new XROrthographicCameraParameters(1.0f, 1.0f, -0.5f, 0.5f));
         }
 
         public XRQuadFrameBuffer(
@@ -70,20 +76,15 @@ namespace XREngine.Rendering
         public void Render(XRFrameBuffer? target = null)
         {
             target?.BindForWriting();
-            using (Engine.Rendering.State.PushRenderingCamera(null))
+            var state = Engine.Rendering.State.PipelineState;
+            if (state != null)
+            {
+                using (state.PushRenderingCamera(null))
+                    FullScreenMesh.Render();
+            }
+            else
                 FullScreenMesh.Render();
             target?.UnbindFromWriting();
         }
-
-        //public override void Resize(uint width, uint height)
-        //{
-        //    base.Resize(width, height);
-
-        //    if (_quadCamera?.Parameters is not XROrthographicCameraParameters param)
-        //        return;
-
-        //    param.Width = width;
-        //    param.Height = height;
-        //}
     }
 }

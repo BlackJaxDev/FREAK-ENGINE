@@ -160,17 +160,28 @@ namespace XREngine
         public bool TryGetAssetByPath(string path, [NotNullWhen(true)] out XRAsset? asset)
             => LoadedAssetsByPathInternal.TryGetValue(path, out asset);
 
+        public T LoadEngineAsset<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(params string[] relativePathFolders) where T : XRAsset, new()
+        {
+            string path = ResolveEngineAssetPath(relativePathFolders);
+            return Load<T>(path) ?? throw new FileNotFoundException($"Unable to find engine file at {path}");
+        }
         public async Task<T?> LoadEngineAssetAsync<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(params string[] relativePathFolders) where T : XRAsset, new()
-            => await LoadAsync<T>(ResolveEngineAssetPath(relativePathFolders));
-
-        public async Task<T?> LoadGameAssetAsync<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(params string[] relativePathFolders) where T : XRAsset, new()
-            => await LoadAsync<T>(ResolveGameAssetPath(relativePathFolders));
-
-        public T? LoadEngineAsset<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(params string[] relativePathFolders) where T : XRAsset, new()
-            => Load<T>(ResolveEngineAssetPath(relativePathFolders));
+        {
+            string path = ResolveEngineAssetPath(relativePathFolders);
+            return await LoadAsync<T>(path) ?? throw new FileNotFoundException($"Unable to find engine file at {path}");
+        }
 
         public T? LoadGameAsset<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(params string[] relativePathFolders) where T : XRAsset, new()
-            => Load<T>(ResolveGameAssetPath(relativePathFolders));
+        {
+            string path = ResolveGameAssetPath(relativePathFolders);
+            return Load<T>(path);
+        }
+
+        public async Task<T?> LoadGameAssetAsync<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(params string[] relativePathFolders) where T : XRAsset, new()
+        {
+            string path = ResolveGameAssetPath(relativePathFolders);
+            return await LoadAsync<T>(path);
+        }
 
         //public async Task<T?> LoadEngine3rdPartyAssetAsync<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(params string[] relativePathFolders) where T : XR3rdPartyAsset, new()
         //    => await XR3rdPartyAsset.LoadAsync<T>(Path.Combine(EngineAssetsPath, Path.Combine(relativePathFolders)));

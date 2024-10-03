@@ -311,7 +311,7 @@ namespace XREngine
             texture.AlphaAsTransparency = true;
             texture.AutoGenerateMipmaps = false;
             texture.Resizable = false;
-            texture.SizedInternalFormat = ESizedInternalFormat.Srgb8Alpha8;
+            texture.SizedInternalFormat = ESizedInternalFormat.Rgba8;
             mat.Textures[i] = texture;
 
             //Engine.Assets.SaveTo(texture, Environment.SpecialFolder.DesktopDirectory, mat.Name ?? AI_DEFAULT_MATERIAL_NAME);

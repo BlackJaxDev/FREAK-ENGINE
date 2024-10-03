@@ -84,7 +84,7 @@ namespace XREngine.Rendering.OpenGL
             }
         }
 
-        protected void SetParameters()
+        protected virtual void SetParameters()
         {
             int param = Data.MinLOD;
             Api.TextureParameterI(BindingId, TextureParameterName.TextureMinLod, ref param);
@@ -117,8 +117,10 @@ namespace XREngine.Rendering.OpenGL
             allowPostPushCallback = callback.AllowPostPushCallback;
         }
 
-        protected void OnPostPushData()
-            => PostPushData.Invoke(this);
+        protected virtual void OnPostPushData()
+        {
+            PostPushData.Invoke(this);
+        }
 
         public abstract ETextureTarget TextureTarget { get; }
 

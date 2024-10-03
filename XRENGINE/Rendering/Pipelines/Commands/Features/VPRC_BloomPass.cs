@@ -179,7 +179,7 @@ namespace XREngine.Rendering.Pipelines.Commands
         {
             using (fbo.BindForWriting())
             {
-                using (Engine.Rendering.State.PushRenderArea(rect))
+                using (Pipeline.State.PushRenderArea(rect))
                 {
                     BloomBlur(fbo, mipmap, 0.0f);
                     BloomBlur(fbo, mipmap, 1.0f);

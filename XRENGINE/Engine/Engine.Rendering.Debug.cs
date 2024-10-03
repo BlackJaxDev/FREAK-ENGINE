@@ -107,17 +107,11 @@ namespace XREngine
                     bool depthTestEnabled = true,
                     float lineWidth = DefaultLineSize)
                 {
-                    if (State.CurrentPipeline is null)
-                        return;
-
-                    using (State.PushRenderingCamera(State.CurrentPipeline.RenderStatus.Camera))
-                    {
-                        XRMeshRenderer renderer = GetDebugPrimitive(solid ? EDebugPrimitiveType.SolidSphere : EDebugPrimitiveType.WireSphere);
-                        SetOptions(depthTestEnabled, lineWidth, null, renderer);
-                        renderer.SetParameter(0, color);
-                        //radius doesn't need to be multiplied by 2.0f; the sphere is already 2.0f in diameter
-                        renderer.Render(Matrix4x4.CreateTranslation(center) * Matrix4x4.CreateScale(radius));
-                    }
+                    XRMeshRenderer renderer = GetDebugPrimitive(solid ? EDebugPrimitiveType.SolidSphere : EDebugPrimitiveType.WireSphere);
+                    SetOptions(depthTestEnabled, lineWidth, null, renderer);
+                    renderer.SetParameter(0, color);
+                    //radius doesn't need to be multiplied by 2.0f; the sphere is already 2.0f in diameter
+                    renderer.Render(Matrix4x4.CreateTranslation(center) * Matrix4x4.CreateScale(radius));
                 }
 
                 public static void RenderAABB(

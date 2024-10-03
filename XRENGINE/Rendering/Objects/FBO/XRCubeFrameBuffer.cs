@@ -64,7 +64,15 @@ namespace XREngine.Rendering
         /// </summary>
         public void RenderFullscreen(ECubemapFace face)
         {
-            using (Engine.Rendering.State.PushRenderingCamera(_cameras[(int)face]))
+            var state = Engine.Rendering.State.PipelineState;
+            if (state != null)
+            {
+                using (state.PushRenderingCamera(_cameras[(int)face]))
+                {
+                    _cube.Render(Matrix4x4.Identity);
+                }
+            }
+            else
             {
                 _cube.Render(Matrix4x4.Identity);
             }

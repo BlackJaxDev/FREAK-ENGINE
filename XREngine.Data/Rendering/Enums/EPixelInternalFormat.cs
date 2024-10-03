@@ -70,7 +70,19 @@ namespace XREngine.Data.Rendering
         Rgba16i,
         Rgba16ui,
         Rgba32i,
-        Rgba32ui
+        Rgba32ui,
+
+        //Depth
+        DepthComponent16,
+        DepthComponent24,
+        DepthComponent32f,
+
+        //Depth Stencil
+        Depth24Stencil8,
+        Depth32fStencil8,
+
+        //Stencil
+        StencilIndex8,
     }
 
     public enum EPixelInternalFormat

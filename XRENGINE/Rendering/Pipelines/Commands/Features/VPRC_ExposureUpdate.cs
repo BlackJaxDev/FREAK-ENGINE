@@ -16,7 +16,7 @@ namespace XREngine.Rendering.Pipelines.Commands
 
         protected override void Execute()
         {
-            ColorGradingSettings? cgs = Pipeline.RenderStatus.Camera?.PostProcessing?.ColorGrading;
+            ColorGradingSettings? cgs = Pipeline.State.SceneCamera?.PostProcessing?.ColorGrading;
             if (cgs != null && cgs.AutoExposure)
                 cgs.Exposure = Engine.Rendering.State.CalculateDotLuminance(Pipeline.GetTexture<XRTexture2D>(HDRSceneTextureName)!, GenerateMipmapsHere);
         }

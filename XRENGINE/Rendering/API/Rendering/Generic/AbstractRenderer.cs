@@ -209,13 +209,8 @@ namespace XREngine.Rendering
             {
                 Active = true;
                 Current = this;
-
-                PushRenderArea(0, 0, Window.Size.X, Window.Size.Y);
-                {
-                    foreach (var viewport in Viewports)
-                        viewport.Render();
-                }
-                PopRenderArea();
+                foreach (var viewport in Viewports)
+                    viewport.Render(XRWindow);
             }
             finally
             {
@@ -248,27 +243,7 @@ namespace XREngine.Rendering
         public const float DefaultLineSize = 1.0f;
 
         public abstract void CropRenderArea(BoundingRectangle region);
-        protected abstract void SetRenderArea(BoundingRectangle region);
-
-        public void PushRenderArea(int width, int height)
-            => PushRenderArea(0, 0, width, height);
-        public void PushRenderArea(int x, int y, int width, int height)
-            => PushRenderArea(new BoundingRectangle(x, y, width, height));
-        public virtual void PushRenderArea(BoundingRectangle region)
-        {
-            _renderAreaStack.Push(region);
-            SetRenderArea(region);
-        }
-
-        public virtual void PopRenderArea()
-        {
-            if (_renderAreaStack.Count <= 0)
-                return;
-            
-            _renderAreaStack.Pop();
-            if (_renderAreaStack.Count > 0)
-                SetRenderArea(_renderAreaStack.Peek());
-        }
+        public abstract void SetRenderArea(BoundingRectangle region);
 
         /// <summary>
         /// Gets or creates a new API-specific render object linked to this window renderer from a generic render object.
