@@ -11,6 +11,8 @@ namespace XREngine.Rendering
     /// </summary>
     public class Mipmap2D : XRBase
     {
+        private static object _lock = new();
+
         public Mipmap2D() { }
         public Mipmap2D(MagickImage? image)
         {
@@ -19,21 +21,27 @@ namespace XREngine.Rendering
         }
         public Mipmap2D(Mipmap2D mipmap)
         {
-            InternalFormat = mipmap.InternalFormat;
-            PixelFormat = mipmap.PixelFormat;
-            PixelType = mipmap.PixelType;
-            Data = mipmap.Data;
-            Width = mipmap.Width;
-            Height = mipmap.Height;
+            lock (_lock)
+            {
+                InternalFormat = mipmap.InternalFormat;
+                PixelFormat = mipmap.PixelFormat;
+                PixelType = mipmap.PixelType;
+                Data = mipmap.Data;
+                Width = mipmap.Width;
+                Height = mipmap.Height;
+            }
         }
         public Mipmap2D(uint width, uint height, EPixelInternalFormat internalFormat, EPixelFormat pixelFormat, EPixelType pixelType)
         {
-            Width = width;
-            Height = height;
-            InternalFormat = internalFormat;
-            PixelFormat = pixelFormat;
-            PixelType = pixelType;
-            Data = new DataSource(XRTexture.AllocateBytes(width, height, pixelFormat, pixelType));
+            lock (_lock)
+            {
+                Width = width;
+                Height = height;
+                InternalFormat = internalFormat;
+                PixelFormat = pixelFormat;
+                PixelType = pixelType;
+                Data = new DataSource(XRTexture.AllocateBytes(width, height, pixelFormat, pixelType));
+            }
         }
 
         public DataSource? Data
@@ -76,25 +84,31 @@ namespace XREngine.Rendering
 
         public void SetFromImage(MagickImage image)
         {
-            XRTexture.GetFormat(image, false, out EPixelInternalFormat internalFormat, out EPixelFormat format, out EPixelType type);
-            InternalFormat = internalFormat;
-            PixelFormat = format;
-            PixelType = type;
+            lock (_lock)
+            {
+                XRTexture.GetFormat(image, false, out EPixelInternalFormat internalFormat, out EPixelFormat format, out EPixelType type);
+                InternalFormat = internalFormat;
+                PixelFormat = format;
+                PixelType = type;
 
-            byte[]? bytes = image.GetPixelsUnsafe().ToByteArray(PixelMapping.RGB);
-            Data = bytes is null ? null : new DataSource(bytes);
+                byte[]? bytes = image.GetPixelsUnsafe().ToByteArray(image.HasAlpha ? PixelMapping.RGBA : PixelMapping.RGB);
+                Data = bytes is null ? null : new DataSource(bytes);
 
-            Width = image.Width;
-            Height = image.Height;
+                Width = image.Width;
+                Height = image.Height;
+            }
         }
 
         public MagickImage GetImage()
         {
-            MagickImage image = XRTexture.NewImage(Width, Height, PixelFormat, PixelType);
-            byte[]? bytes = Data?.GetBytes();
-            if (bytes != null)
-                image.Read(bytes);
-            return image;
+            lock (_lock)
+            {
+                MagickImage image = XRTexture.NewImage(Width, Height, PixelFormat, PixelType);
+                byte[]? bytes = Data?.GetBytes();
+                if (bytes != null)
+                    image.Read(bytes);
+                return image;
+            }
         }
 
         private EPixelType _pixelType = EPixelType.UnsignedByte;
@@ -126,9 +140,18 @@ namespace XREngine.Rendering
         {
             if (Data is not null && Data.Length != 0 && Width != 0u && Height != 0u)
             {
-                using var img = GetImage();
-                img.Resize(width, height);
-                SetFromImage(img);
+                try
+                {
+                    using var img = GetImage();
+                    img.Resize(width, height);
+                    SetFromImage(img);
+                }
+                catch (MagickException)
+                {
+                    Width = width;
+                    Height = height;
+                    Data = new DataSource(XRTexture.AllocateBytes(width, height, PixelFormat, PixelType));
+                }
             }
             else
             {

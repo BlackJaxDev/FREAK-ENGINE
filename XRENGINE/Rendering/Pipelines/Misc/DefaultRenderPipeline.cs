@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using XREngine.Components.Lights;
+using XREngine.Data.Colors;
 using XREngine.Data.Rendering;
 using XREngine.Rendering.Commands;
 using XREngine.Rendering.Models.Materials;
@@ -204,7 +205,17 @@ public class DefaultRenderPipeline : RenderPipeline
         {
             using (c.AddUsing<VPRC_BindOutputFBO>())
             {
-                c.Add<VPRC_RenderQuadFBO>().FrameBufferName = PostProcessFBOName;
+                c.Add<VPRC_Manual>().ManualAction = () =>
+                {
+                    StencilMask(~0u);
+                    ClearStencil(0);
+                    ClearColor(new ColorF4(0.0f, 0.0f, 0.0f, 1.0f));
+                    Clear(true, true, true);
+                    DepthFunc(EComparison.Less);
+                    ClearDepth(1.0f);
+                    AllowDepthWrite(true);
+                };
+                c.Add<VPRC_RenderQuadFBO>().FrameBufferName = SSAOFBOName;
             }
         }
         return c;

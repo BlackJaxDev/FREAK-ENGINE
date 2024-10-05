@@ -216,7 +216,10 @@ namespace XREngine.Data.Rendering
                         data.ColorSets.Add(color);
                     }
 
-                    v.Blendshapes.Add(blendshape->MName.ToString(), data);
+                    string shapeName = blendshape->MName.ToString();
+                    if (v.Blendshapes.ContainsKey(shapeName))
+                        shapeName += $"_{i}";
+                    v.Blendshapes.Add(shapeName, data);
                 }
             }
 

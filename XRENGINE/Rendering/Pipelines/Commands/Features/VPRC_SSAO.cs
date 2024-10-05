@@ -18,15 +18,15 @@ namespace XREngine.Rendering.Pipelines.Commands
         public string GBufferFBOFBOName { get; set; } = "GBufferFBO";
 
         const int DefaultSamples = 64;
-        const int DefaultNoiseWidth = 4, DefaultNoiseHeight = 4;
+        const uint DefaultNoiseWidth = 4u, DefaultNoiseHeight = 4u;
         const float DefaultMinSampleDist = 0.1f, DefaultMaxSampleDist = 1.0f;
 
         public Vector2[]? Noise { get; private set; }
         public Vector3[]? Kernel { get; private set; }
 
         public int Samples { get; private set; } = DefaultSamples;
-        public int NoiseWidth { get; private set; } = DefaultNoiseWidth;
-        public int NoiseHeight { get; private set; } = DefaultNoiseHeight;
+        public uint NoiseWidth { get; private set; } = DefaultNoiseWidth;
+        public uint NoiseHeight { get; private set; } = DefaultNoiseHeight;
         public float MinSampleDist { get; private set; } = DefaultMinSampleDist;
         public float MaxSampleDist { get; private set; } = DefaultMaxSampleDist;
 
@@ -81,7 +81,7 @@ namespace XREngine.Rendering.Pipelines.Commands
         public string RMSITextureName { get; set; } = "RMSI";
         public string DepthStencilTextureName { get; set; } = "DepthStencil";
 
-        public void SetOptions(int samples, int noiseWidth, int noiseHeight, float minSampleDist, float maxSampleDist)
+        public void SetOptions(int samples, uint noiseWidth, uint noiseHeight, float minSampleDist, float maxSampleDist)
         {
             Samples = samples;
             NoiseWidth = noiseWidth;
@@ -175,7 +175,7 @@ namespace XREngine.Rendering.Pipelines.Commands
             var shader = XRShader.EngineShader(Path.Combine(SceneShaderPath, "SSAOGen.fs"), EShaderType.Fragment);
             var ssaoFbo = new XRQuadFrameBuffer(
                 new([normalTex, GetOrCreateNoiseTexture(), depthViewTex], shader) { RenderOptions = renderParams },
-                false,
+                true,
                 (albedoTex, EFrameBufferAttachment.ColorAttachment0, 0, -1),
                 (normalTex, EFrameBufferAttachment.ColorAttachment1, 0, -1),
                 (rmsiTex, EFrameBufferAttachment.ColorAttachment2, 0, -1),
@@ -185,7 +185,15 @@ namespace XREngine.Rendering.Pipelines.Commands
             ssaoFbo.SettingUniforms += SSAO_SetUniforms;
 
             Pipeline.SetFBO(ssaoFbo);
-            Pipeline.SetFBO(new XRQuadFrameBuffer(new([ssaoTex], XRShader.EngineShader(Path.Combine(SceneShaderPath, "SSAOBlur.fs"), EShaderType.Fragment)) { RenderOptions = renderParams }) { Name = SSAOBlurFBOName });
+            Pipeline.SetFBO(new XRQuadFrameBuffer(
+                new([ssaoTex],
+                XRShader.EngineShader(Path.Combine(SceneShaderPath, "SSAOBlur.fs"), EShaderType.Fragment))
+                {
+                    RenderOptions = renderParams 
+                })
+            {
+                Name = SSAOBlurFBOName 
+            });
             Pipeline.SetFBO(new XRFrameBuffer((ssaoTex, EFrameBufferAttachment.ColorAttachment0, 0, -1)) { Name = GBufferFBOFBOName });
         }
 
@@ -194,12 +202,7 @@ namespace XREngine.Rendering.Pipelines.Commands
             if (NoiseTexture != null)
                 return NoiseTexture;
 
-            XRTexture2D noiseTex = new(
-                (uint)NoiseWidth,
-                (uint)NoiseHeight,
-                EPixelInternalFormat.Rgb,
-                EPixelFormat.Rgb,
-                EPixelType.Float)
+            XRTexture2D noiseTex = new()
             {
                 Name = SSAONoiseTextureName,
                 MinFilter = ETexMinFilter.Nearest,
@@ -215,7 +218,9 @@ namespace XREngine.Rendering.Pipelines.Commands
                         Data = DataSource.FromArray(Noise!.SelectMany(v => new float[] { v.X, v.Y }).ToArray()),
                         PixelFormat = EPixelFormat.Rg,
                         PixelType = EPixelType.Float,
-                        InternalFormat = EPixelInternalFormat.RG
+                        InternalFormat = EPixelInternalFormat.RG,
+                        Width = NoiseWidth,
+                        Height = NoiseHeight
                     }
                 ]
             };

@@ -234,7 +234,9 @@ namespace XREngine
             if (file is null)
                 return;
 
+            file.Name = Path.GetFileNameWithoutExtension(filePath);
             file.FilePath = filePath;
+
             CacheAsset(file);
             AssetLoaded?.Invoke(file);
         }

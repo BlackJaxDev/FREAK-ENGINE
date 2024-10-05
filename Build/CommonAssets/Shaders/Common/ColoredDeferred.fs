@@ -4,7 +4,7 @@ layout (location = 0) out vec4 AlbedoOpacity;
 layout (location = 1) out vec3 Normal;
 layout (location = 2) out vec4 RMSI;
 
-in vec3 FragNorm;
+layout (location = 1) in vec3 FragNorm;
 
 uniform vec3 BaseColor;
 uniform float Opacity = 1.0f;

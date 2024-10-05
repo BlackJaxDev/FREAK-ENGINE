@@ -1,4 +1,5 @@
-﻿using ImageMagick;
+﻿using Google.Cloud.TextToSpeech.V1;
+using ImageMagick;
 using Silk.NET.Assimp;
 using System.Collections.Concurrent;
 using System.Diagnostics;
@@ -21,14 +22,15 @@ namespace XREngine
     /// This class is used to import models from various formats using the Assimp library.
     /// Returns a SceneNode hierarchy populated with ModelComponents, and outputs generated materials and meshes.
     /// </summary>
-    public unsafe class ModelImporter : IDisposable
+    public class ModelImporter : IDisposable
     {
-        protected ModelImporter(string path, bool async, Action? onCompleted)
+        protected ModelImporter(string path, bool async, Action? onCompleted, DelMaterialFactory materialFactory)
         {
             _assimp = Assimp.GetApi();
             _path = path;
             _async = async;
             _onCompleted = onCompleted;
+            _materialFactory = materialFactory;
         }
 
         public string SourceFilePath => _path;
@@ -37,6 +39,10 @@ namespace XREngine
         private readonly string _path;
         private readonly bool _async;
         private readonly Action? _onCompleted;
+        
+        public delegate XRMaterial DelMaterialFactory(string modelFilePath, string name, List<TextureInfo> textures, TextureFlags flags, ShadingMode mode, Dictionary<string, List<object>> properties);
+
+        private readonly DelMaterialFactory _materialFactory;
 
         private readonly ConcurrentDictionary<string, TextureInfo> _textureInfoCache = [];
         private readonly ConcurrentDictionary<string, MagickImage?> _textureCache = new();
@@ -50,18 +56,40 @@ namespace XREngine
             out IReadOnlyCollection<XRMaterial> materials,
             out IReadOnlyCollection<XRMesh> meshes,
             bool async,
-            Action? onCompleted)
+            Action? onCompleted,
+            DelMaterialFactory materialFactory,
+            SceneNode? parent)
         {
-            using var importer = new ModelImporter(path, async, onCompleted);
+            using var importer = new ModelImporter(path, async, onCompleted, materialFactory);
             var node = importer.Import(options);
             materials = importer._materials;
             meshes = importer._meshes;
+            if (parent != null && node != null)
+            {
+                lock (parent.Transform.Children)
+                {
+                    parent.Transform.Children.Add(node.Transform);
+                }
+            }
             return node;
+        }
+        public static async Task<(SceneNode? rootNode, IReadOnlyCollection<XRMaterial> materials, IReadOnlyCollection<XRMesh> meshes)> ImportAsync(
+            string path,
+            PostProcessSteps options,
+            DelMaterialFactory materialFactory,
+            SceneNode? parent)
+        {
+            var result = await Task.Run(() =>
+            {
+                SceneNode? node = Import(path, options, out var materials, out var meshes, true, null, materialFactory, parent);
+                return (node, materials, meshes);
+            });
+            return result;
         }
 
         private readonly ConcurrentBag<Action> _meshProcessActions = [];
 
-        private SceneNode? Import(PostProcessSteps options)
+        private unsafe SceneNode? Import(PostProcessSteps options)
         {
 #if DEBUG
             Debug.Out($"Importing model: {SourceFilePath} with options: {options}");
@@ -137,7 +165,7 @@ namespace XREngine
                 ProcessNode(node->MChildren[i], scene, worldTransform, sceneNode);
         }
 
-        private void EnqueueProcessMeshes(Node* node, AScene* scene, Matrix4x4 parentWorldTransform, SceneNode sceneNode)
+        private unsafe void EnqueueProcessMeshes(Node* node, AScene* scene, Matrix4x4 parentWorldTransform, SceneNode sceneNode)
         {
             uint count = node->MNumMeshes;
             if (count == 0)
@@ -146,7 +174,7 @@ namespace XREngine
             _meshProcessActions.Add(() => ProcessMeshes(node, scene, parentWorldTransform, sceneNode));
         }
 
-        private void ProcessMeshes(Node* node, AScene* scene, Matrix4x4 parentWorldTransform, SceneNode sceneNode)
+        private unsafe void ProcessMeshes(Node* node, AScene* scene, Matrix4x4 parentWorldTransform, SceneNode sceneNode)
         {
             ModelComponent modelComponent = sceneNode.AddComponent<ModelComponent>()!;
             Model model = new();
@@ -166,7 +194,10 @@ namespace XREngine
             modelComponent!.Model = model;
         }
 
-        private unsafe (XRMesh mesh, XRMaterial material) ProcessSubMesh(Mesh* mesh, AScene* scene, Matrix4x4 transform)
+        private unsafe (XRMesh mesh, XRMaterial material) ProcessSubMesh(
+            Mesh* mesh,
+            AScene* scene,
+            Matrix4x4 transform)
         {
             //Debug.Out($"Processing mesh: {mesh->MName}");
 
@@ -181,23 +212,15 @@ namespace XREngine
                     textures.AddRange(maps);
             }
 
-            XRMaterial mat =
-                textures.Count > 0 ?
-                new XRMaterial(new XRTexture[textures.Count], ShaderHelper.UnlitAlphaTextureFragForward()!) :
-                XRMaterial.CreateUnlitColorMaterialForward(new ColorF4(1.0f, 1.0f, 0.0f, 1.0f));
-            mat.RenderPass = (int)EDefaultRenderPass.OpaqueForward;
+            ReadProperties(matInfo, out string name, out TextureFlags flags, out ShadingMode mode, out var propDic);
 
-            ReadProperties(matInfo, mat);
-
-            Task.Run(() => LoadTexturesAsynchronous(textures, mat));
+            XRMaterial mat = _materialFactory(SourceFilePath, name, textures, flags, mode, propDic);
 
             return (new(mesh, _assimp), mat);
         }
 
-        private static void ReadProperties(Material* material, XRMaterial mat)
+        private static unsafe void ReadProperties(Material* material, out string name, out TextureFlags flags, out ShadingMode shadingMode, out Dictionary<string, List<object>> properties)
         {
-
-            //Loop properties
             Dictionary<string, List<object>> dic = [];
             void GetOrAdd(string key, object value)
             {
@@ -235,13 +258,13 @@ namespace XREngine
                 }
             }
 
-            mat.Name = dic.TryGetValue(AI_MATKEY_NAME, out List<object>? name)
-                ? name[0]?.ToString() ?? AI_DEFAULT_MATERIAL_NAME
+            name = dic.TryGetValue(AI_MATKEY_NAME, out List<object>? nameList)
+                ? nameList[0]?.ToString() ?? AI_DEFAULT_MATERIAL_NAME
                 : AI_DEFAULT_MATERIAL_NAME;
 
-            TextureFlags texFlags = dic.TryGetValue(_AI_MATKEY_TEXFLAGS_BASE, out List<object>? flags) && flags[0] is int f ? (TextureFlags)f : 0;
-            ShadingMode shadingModel = dic.TryGetValue(AI_MATKEY_SHADING_MODEL, out List<object>? sm) && sm[0] is int mode ? (ShadingMode)mode : ShadingMode.Flat;
-            //TODO: switch default material based on shading model
+            flags = dic.TryGetValue(_AI_MATKEY_TEXFLAGS_BASE, out List<object>? flag) && flag[0] is int f ? (TextureFlags)f : 0;
+            shadingMode = dic.TryGetValue(AI_MATKEY_SHADING_MODEL, out List<object>? sm) && sm[0] is int mode ? (ShadingMode)mode : ShadingMode.Flat;
+            properties = dic;
         }
 
         const string AI_DEFAULT_MATERIAL_NAME = "DefaultMaterial";
@@ -275,47 +298,6 @@ namespace XREngine
         const string _AI_MATKEY_TEXMAP_AXIS_BASE = "$tex.mapaxis";
         const string _AI_MATKEY_UVTRANSFORM_BASE = "$tex.uvtrafo";
         const string _AI_MATKEY_TEXFLAGS_BASE = "$tex.flags";
-
-        private void LoadTexturesSynchronous(List<TextureInfo> textures, XRMaterial mat)
-        {
-            for (int i = 0; i < textures.Count; i++)
-                LoadTexture(textures, mat, i);
-        }
-
-        private void LoadTexturesAsynchronous(List<TextureInfo> textures, XRMaterial mat)
-            => Parallel.For(0, textures.Count, i => LoadTexture(textures, mat, i));
-
-        private void LoadTexture(List<TextureInfo> textures, XRMaterial mat, int i)
-        {
-            TextureInfo info = textures[i];
-
-            string path = info.path.Replace("/", "\\");
-            bool rooted = Path.IsPathRooted(path);
-            if (!rooted)
-            {
-                string? dir = Path.GetDirectoryName(SourceFilePath);
-                if (dir is not null)
-                    path = Path.Combine(dir, path);
-            }
-
-            MagickImage? NewTexture(string _)
-                => System.IO.File.Exists(path) ? new(path) : null;
-
-            var image = _textureCache.GetOrAdd(path, NewTexture);
-            XRTexture2D texture = image is not null ? new(image) : new(1, 1);
-            texture.Name = Path.GetFileNameWithoutExtension(path);
-            texture.MagFilter = ETexMagFilter.Linear;
-            texture.MinFilter = ETexMinFilter.Linear;
-            texture.UWrap = ETexWrapMode.Repeat;
-            texture.VWrap = ETexWrapMode.Repeat;
-            texture.AlphaAsTransparency = true;
-            texture.AutoGenerateMipmaps = false;
-            texture.Resizable = false;
-            texture.SizedInternalFormat = ESizedInternalFormat.Rgba8;
-            mat.Textures[i] = texture;
-
-            //Engine.Assets.SaveTo(texture, Environment.SpecialFolder.DesktopDirectory, mat.Name ?? AI_DEFAULT_MATERIAL_NAME);
-        }
 
         private unsafe List<TextureInfo> LoadMaterialTextures(Material* mat, TextureType type)
         {
@@ -365,7 +347,7 @@ namespace XREngine
         }
     }
 
-    internal record struct TextureInfo(string path, TextureMapping mapping, uint uvIndex, TextureOp op, TextureMapMode mapMode, uint flags)
+    public record struct TextureInfo(string path, TextureMapping mapping, uint uvIndex, TextureOp op, TextureMapMode mapMode, uint flags)
     {
         public static implicit operator (string path, TextureMapping mapping, uint uvIndex, TextureOp op, TextureMapMode mapMode, uint flags)(TextureInfo value)
         {

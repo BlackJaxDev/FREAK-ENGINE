@@ -10,7 +10,7 @@ namespace XREngine.Rendering.OpenGL
         bool IsInvalidated { get; }
         void Bind();
         void Clear(ColorF4 color, int level = 0);
-        bool Invalidate();
+        void Invalidate();
         void PushData();
         string ResolveSamplerName(int textureIndex, string? samplerNameOverride);
     }

@@ -44,19 +44,19 @@ namespace XREngine.Rendering
             _shaders.PostModified += ShadersChanged;
             ShadersChanged();
         }
-        public XRMaterial(XRTexture[] textures, params XRShader[] shaders) : base(textures)
+        public XRMaterial(XRTexture?[] textures, params XRShader[] shaders) : base(textures)
         {
             _shaders = new EventList<XRShader>(shaders);
             _shaders.PostModified += ShadersChanged;
             ShadersChanged();
         }
-        public XRMaterial(ShaderVar[] parameters, XRTexture[] textures, params XRShader[] shaders) : base(parameters, textures)
+        public XRMaterial(ShaderVar[] parameters, XRTexture?[] textures, params XRShader[] shaders) : base(parameters, textures)
         {
             _shaders = new EventList<XRShader>(shaders);
             _shaders.PostModified += ShadersChanged;
             ShadersChanged();
         }
-        public XRMaterial(XRTexture[] textures, ShaderVar[] parameters, params XRShader[] shaders) : base(parameters, textures)
+        public XRMaterial(XRTexture?[] textures, ShaderVar[] parameters, params XRShader[] shaders) : base(parameters, textures)
         {
             _shaders = new EventList<XRShader>(shaders);
             _shaders.PostModified += ShadersChanged;

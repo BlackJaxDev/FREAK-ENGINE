@@ -95,5 +95,13 @@ namespace XREngine.Rendering
 
         protected override Frustum CalculateUntransformedFrustum()
             => new(Width, Height, NearPlane, FarPlane);
+
+        public override void SetUniforms(XRRenderProgram program)
+        {
+            base.SetUniforms(program);
+            program.Uniform(EEngineUniform.ScreenWidth.ToString(), Width);
+            program.Uniform(EEngineUniform.ScreenHeight.ToString(), Height);
+            program.Uniform(EEngineUniform.ScreenOrigin.ToString(), Origin);
+        }
     }
 }

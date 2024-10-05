@@ -16,22 +16,27 @@ uniform float Weight[3] = float[](0.2270270270f, 0.3162162162f, 0.0702702703f);
 
 void main()
 {
-     vec2 uv = FragPos.xy;
-     float weight;
-     float offset;
-     vec2 uvOffset;
-     vec2 scale = vec2(Ping, 1.0f - Ping);
-     vec2 texelSize = 1.0f / textureSize(Texture0, LOD) * scale;
-     float lodf = float(LOD);
-     vec3 result = textureLod(Texture0, uv, lodf).rgb * Weight[0];
-     for (int i = 1; i <= 2; ++i)
-     {
-        weight = Weight[i];
-        offset = Offset[i];
-        uvOffset = texelSize * offset;
+      vec2 uv = FragPos.xy;
+      if (uv.x > 1.0f || uv.y > 1.0f)
+         discard;
+      //Normalize uv from [-1, 1] to [0, 1]
+      uv = uv * 0.5f + 0.5f;
 
-        result += textureLod(Texture0, uv + uvOffset, lodf).rgb * weight;
-        result += textureLod(Texture0, uv - uvOffset, lodf).rgb * weight;
-     }
-     BloomColor = result;
+      float weight;
+      float offset;
+      vec2 uvOffset;
+      vec2 scale = vec2(Ping, 1.0f - Ping);
+      vec2 texelSize = 1.0f / textureSize(Texture0, LOD) * scale;
+      float lodf = float(LOD);
+      vec3 result = textureLod(Texture0, uv, lodf).rgb * Weight[0];
+      for (int i = 1; i <= 2; ++i)
+      {
+         weight = Weight[i];
+         offset = Offset[i];
+         uvOffset = texelSize * offset;
+
+         result += textureLod(Texture0, uv + uvOffset, lodf).rgb * weight;
+         result += textureLod(Texture0, uv - uvOffset, lodf).rgb * weight;
+      }
+      BloomColor = result;
 }

@@ -367,9 +367,12 @@ namespace XREngine.Rendering
             set => SetField(ref _postProcessMaterial, value);
         }
 
-        public void SetUniforms(XRRenderProgram program)
+        public virtual void SetUniforms(XRRenderProgram program)
         {
-
+            program.Uniform(EEngineUniform.InverseViewMatrix.ToString(), Transform.WorldMatrix);
+            program.Uniform(EEngineUniform.ProjMatrix.ToString(), ProjectionMatrix);
+            program.Uniform(EEngineUniform.CameraPosition.ToString(), Transform.WorldTranslation);
+            Parameters.SetUniforms(program);
         }
     }
 }

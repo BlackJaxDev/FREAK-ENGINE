@@ -238,7 +238,7 @@ namespace XREngine.Rendering.OpenGL
             private void WriteBin(BinaryProgram binary)
             {
                 string dir = Environment.CurrentDirectory;
-                string path = Path.Combine(dir, "ProgramBinaries");
+                string path = Path.Combine(dir, "ShaderCache");
                 if (!Directory.Exists(path))
                     Directory.CreateDirectory(path);
                 path = Path.Combine(path, $"{Hash}-{binary.Format}.bin");
@@ -247,7 +247,7 @@ namespace XREngine.Rendering.OpenGL
             private static void ReadBins()
             {
                 string dir = Environment.CurrentDirectory;
-                string path = Path.Combine(dir, "ProgramBinaries");
+                string path = Path.Combine(dir, "ShaderCache");
                 if (!Directory.Exists(path))
                     return;
 

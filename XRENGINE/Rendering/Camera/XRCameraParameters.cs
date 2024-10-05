@@ -86,5 +86,11 @@ namespace XREngine.Rendering
             return _untransformedFrustum!.Value;
         }
         protected abstract Frustum CalculateUntransformedFrustum();
+
+        public virtual void SetUniforms(XRRenderProgram program)
+        {
+            program.Uniform(EEngineUniform.CameraNearZ.ToString(), NearPlane);
+            program.Uniform(EEngineUniform.CameraFarZ.ToString(), FarPlane);
+        }
     }
 }

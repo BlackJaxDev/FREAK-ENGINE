@@ -1,10 +1,8 @@
-﻿using System.Numerics;
-using XREngine.Data.Colors;
+﻿using XREngine.Data.Colors;
 using XREngine.Data.Rendering;
 using XREngine.Rendering.Commands;
 using XREngine.Rendering.Models.Materials;
 using XREngine.Rendering.Pipelines.Commands;
-using static System.Net.Mime.MediaTypeNames;
 using static XREngine.Engine.Rendering.State;
 
 namespace XREngine.Rendering;

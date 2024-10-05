@@ -26,14 +26,14 @@ namespace XREngine.Rendering
         {
             Parameters = [.. parameters]; //Make copy
         }
-        protected XRMaterialBase(XRTexture[] textures)
+        protected XRMaterialBase(XRTexture?[] textures)
         {
-            Textures = new EventList<XRTexture>(textures);
+            Textures = new EventList<XRTexture?>(textures);
         }
-        protected XRMaterialBase(ShaderVar[] parameters, XRTexture[] textures)
+        protected XRMaterialBase(ShaderVar[] parameters, XRTexture?[] textures)
         {
             Parameters = [.. parameters]; //Make copy
-            Textures = new EventList<XRTexture>(textures);
+            Textures = new EventList<XRTexture?>(textures);
         }
 
         protected XRRenderProgram? _shaderPipelineProgram;
@@ -65,11 +65,11 @@ namespace XREngine.Rendering
             set => SetField(ref _parameters, value ?? []);
         }
 
-        protected EventList<XRTexture> _textures = [];
+        protected EventList<XRTexture?> _textures = [];
         /// <summary>
         /// These are the texture samplers that each shader in the program has requested.
         /// </summary>
-        public EventList<XRTexture> Textures
+        public EventList<XRTexture?> Textures
         {
             get => _textures;
             set => SetField(ref _textures, value ?? []);

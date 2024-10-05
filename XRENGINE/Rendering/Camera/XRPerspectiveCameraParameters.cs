@@ -59,5 +59,13 @@ namespace XREngine.Rendering
 
         protected override Frustum CalculateUntransformedFrustum()
             => new(VerticalFieldOfView, AspectRatio, NearPlane, FarPlane, Globals.Forward, Globals.Up, Vector3.Zero);
+
+        public override void SetUniforms(XRRenderProgram program)
+        {
+            base.SetUniforms(program);
+            program.Uniform(EEngineUniform.CameraFovY.ToString(), VerticalFieldOfView);
+            program.Uniform(EEngineUniform.CameraFovX.ToString(), HorizontalFieldOfView);
+            program.Uniform(EEngineUniform.CameraAspect.ToString(), AspectRatio);
+        }
     }
 }

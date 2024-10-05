@@ -4,7 +4,6 @@ using System.ComponentModel;
 using XREngine.Data;
 using XREngine.Data.Core;
 using XREngine.Data.Rendering;
-using static XREngine.Rendering.OpenGL.OpenGLRenderer;
 
 namespace XREngine.Rendering.OpenGL
 {
@@ -14,13 +13,16 @@ namespace XREngine.Rendering.OpenGL
 
         public class MipmapInfo : XRBase
         {
-            private bool _hasPushed = false;
+            private bool _hasPushedResizedData = false;
+            private bool _hasPushedUpdateData = false;
             private readonly Mipmap2D _mipmap;
+            private readonly GLTexture2D _texture;
 
             public Mipmap2D Mipmap => _mipmap;
 
-            public MipmapInfo(Mipmap2D mipmap)
+            public MipmapInfo(GLTexture2D texture, Mipmap2D mipmap)
             {
+                _texture = texture;
                 _mipmap = mipmap;
                 _mipmap.PropertyChanged += MipmapPropertyChanged;
             }
@@ -34,21 +36,31 @@ namespace XREngine.Rendering.OpenGL
                 switch (e.PropertyName)
                 {
                     case nameof(Mipmap.Data):
+                        //HasPushedUpdateData = false;
+                        _texture.Invalidate();
+                        break;
                     case nameof(Mipmap.Width):
                     case nameof(Mipmap.Height):
                     case nameof(Mipmap.InternalFormat):
                     case nameof(Mipmap.PixelFormat):
                     case nameof(Mipmap.PixelType):
-                        HasPushed = false;
+                        HasPushedResizedData = false;
+                        //HasPushedUpdateData = false;
+                        _texture.Invalidate();
                         break;
                 }
             }
 
-            public bool HasPushed
+            public bool HasPushedResizedData
             {
-                get => _hasPushed;
-                set => SetField(ref _hasPushed, value);
+                get => _hasPushedResizedData;
+                set => SetField(ref _hasPushedResizedData, value);
             }
+            //public bool HasPushedUpdateData
+            //{
+            //    get => _hasPushedUpdateData;
+            //    set => SetField(ref _hasPushedUpdateData, value);
+            //}
         }
 
         public MipmapInfo[] Mipmaps { get; private set; } = [];
@@ -70,7 +82,7 @@ namespace XREngine.Rendering.OpenGL
         {
             Mipmaps = new MipmapInfo[Data.Mipmaps.Length];
             for (int i = 0; i < Data.Mipmaps.Length; ++i)
-                Mipmaps[i] = new MipmapInfo(Data.Mipmaps[i]);
+                Mipmaps[i] = new MipmapInfo(this, Data.Mipmaps[i]);
             Invalidate();
         }
 
@@ -94,13 +106,21 @@ namespace XREngine.Rendering.OpenGL
         private void DataResized()
         {
             _storageSet = false;
-            Mipmaps.ForEach(m => m.HasPushed = false);
+            Mipmaps.ForEach(m =>
+            {
+                m.HasPushedResizedData = false;
+                //m.HasPushedUpdateData = false;
+            });
             Invalidate();
         }
 
         protected internal override void PostGenerated()
         {
-            Mipmaps.ForEach(m => m.HasPushed = false);
+            Mipmaps.ForEach(m =>
+            {
+                m.HasPushedResizedData = false;
+                //m.HasPushedUpdateData = false;
+            });
             _storageSet = false;
             base.PostGenerated();
         }
@@ -118,6 +138,7 @@ namespace XREngine.Rendering.OpenGL
             try
             {
                 IsPushing = true;
+                Debug.Out($"Pushing texture: {GetDescribingName()}");
                 OnPrePushData(out bool shouldPush, out bool allowPostPushCallback);
                 if (!shouldPush)
                 {
@@ -185,7 +206,7 @@ namespace XREngine.Rendering.OpenGL
             InternalFormat internalPixelFormat;
 
             DataSource? data;
-            bool hasPushed;
+            bool hasPushedResized;
             Mipmap2D? mip = info?.Mipmap;
             if (mip is null)
             {
@@ -193,7 +214,7 @@ namespace XREngine.Rendering.OpenGL
                 pixelFormat = GLEnum.Rgb;
                 pixelType = GLEnum.UnsignedByte;
                 data = null;
-                hasPushed = false;
+                hasPushedResized = false;
             }
             else
             {
@@ -201,43 +222,44 @@ namespace XREngine.Rendering.OpenGL
                 pixelType = OpenGLRenderer.ToGLEnum(mip.PixelType);
                 internalPixelFormat = ToInternalFormat(internalFormatForce ?? mip.InternalFormat);
                 data = mip.Data;
-                hasPushed = info!.HasPushed;
+                hasPushedResized = info!.HasPushedResizedData;
             }
 
             if (data is null || data.Length == 0)
-                Push(glTarget, i, Data.Width >> i, Data.Height >> i, pixelFormat, pixelType, internalPixelFormat, hasPushed);
+                Push(glTarget, i, Data.Width >> i, Data.Height >> i, pixelFormat, pixelType, internalPixelFormat, hasPushedResized);
             else
             {
-                Push(glTarget, i, mip!.Width, mip.Height, pixelFormat, pixelType, internalPixelFormat, data, hasPushed);
-                data.Dispose();
+                Push(glTarget, i, mip!.Width, mip.Height, pixelFormat, pixelType, internalPixelFormat, data, hasPushedResized);
+                //data?.Dispose();
             }
 
             if (info != null)
-                info.HasPushed = true;
+            {
+                info.HasPushedResizedData = true;
+                //info.HasPushedUpdateData = true;
+            }
         }
 
-        private unsafe void Push(GLEnum glTarget, int i, uint w, uint h, GLEnum pixelFormat, GLEnum pixelType, InternalFormat internalPixelFormat, bool hasPushed)
+        private unsafe void Push(GLEnum glTarget, int i, uint w, uint h, GLEnum pixelFormat, GLEnum pixelType, InternalFormat internalPixelFormat, bool hasPushedResized)
         {
-            if (!hasPushed && Data.Resizable)
+            if (!hasPushedResized && Data.Resizable)
                 Api.TexImage2D(glTarget, i, internalPixelFormat, w, h, 0, pixelFormat, pixelType, IntPtr.Zero.ToPointer());
-            
-            var error = Api.GetError();
-            if (error != GLEnum.NoError)
-                Debug.LogWarning($"Error pushing null texture data: {error}");
         }
-        private unsafe void Push(GLEnum glTarget, int i, uint w, uint h, GLEnum pixelFormat, GLEnum pixelType, InternalFormat internalPixelFormat, DataSource bmp, bool hasPushed)
+        private unsafe void Push(GLEnum glTarget, int i, uint w, uint h, GLEnum pixelFormat, GLEnum pixelType, InternalFormat internalPixelFormat, DataSource bmp, bool hasPushedResized)
         {
             // If a non-zero named buffer object is bound to the GL_PIXEL_UNPACK_BUFFER target (see glBindBuffer) while a texture image is specified,
             // the data ptr is treated as a byte offset into the buffer object's data store.
             void* ptr = bmp.Address.Pointer;
-            if (hasPushed || _storageSet)
+            if (ptr is null)
+            {
+                Debug.LogWarning("Texture data source is null.");
+                return;
+            }
+
+            if (hasPushedResized || _storageSet)
                 Api.TexSubImage2D(glTarget, i, 0, 0, w, h, pixelFormat, pixelType, ptr);
             else
                 Api.TexImage2D(glTarget, i, internalPixelFormat, w, h, 0, pixelFormat, pixelType, ptr);
-            
-            var error = Api.GetError();
-            if (error != GLEnum.NoError)
-                Debug.LogWarning($"Error pushing texture data: {error}");
         }
 
         protected override void SetParameters()

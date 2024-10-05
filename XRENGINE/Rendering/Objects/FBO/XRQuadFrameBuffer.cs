@@ -34,7 +34,7 @@ namespace XREngine.Rendering
                 // 1.__.2
                 VertexTriangle triangle1 = new(
                     new Vector3(-1, -1, 0),
-                    new Vector3(-1,  1, 0),
+                    new Vector3( 1, -1, 0),
                     new Vector3( 1,  1, 0));
 
                 // 3.__.2

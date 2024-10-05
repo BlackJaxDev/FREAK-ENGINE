@@ -6,8 +6,35 @@ using XREngine.Data.Vectors;
 
 namespace XREngine.Rendering
 {
+    [XR3rdPartyExtensions("png", "jpg", "jpeg", "tif", "tiff", "tga", "exr", "hdr")]
     public class XRTexture2D : XRTexture, IFrameBufferAttachement
     {
+        public override void Load3rdParty(string filePath)
+        {
+            Mipmap2D[] mips = [new Mipmap2D(1, 1, EPixelInternalFormat.Red, EPixelFormat.Red, EPixelType.UnsignedByte)];
+            //mips = GetMipmapsFromImage(image);
+            Mipmaps = mips;
+            AutoGenerateMipmaps = true;
+
+            //TODO: load async and ensure the texture is pushed after the black default texture
+            Task.Run(() => mips[0].SetFromImage(new MagickImage(filePath)));
+        }
+
+        public static Mipmap2D[] GetMipmapsFromImage(MagickImage image)
+        {
+            Mipmap2D[] mips = new Mipmap2D[GetSmallestMipmapLevel(image.Width, image.Height)];
+            mips[0] = new Mipmap2D(image);
+            uint w = image.Width;
+            uint h = image.Height;
+            for (int i = 1; i < mips.Length; ++i)
+            {
+                var clone = image.Clone();
+                clone.Resize(w >> i, h >> i);
+                mips[i] = new Mipmap2D(clone as MagickImage);
+            }
+            return mips;
+        }
+
         private static MagickImage? _fillerImage = null;
         public static MagickImage FillerImage => _fillerImage ??= GetFillerBitmap();
 
@@ -31,9 +58,6 @@ namespace XREngine.Rendering
             }
         }
 
-        protected uint _width = 0;
-        protected uint _height = 0;
-
         private ESizedInternalFormat _sizedInternalFormat = ESizedInternalFormat.Rgba32f;
         private EDepthStencilFmt _depthStencilFormat = EDepthStencilFmt.None;
         private ETexMagFilter _magFilter = ETexMagFilter.Nearest;
@@ -41,7 +65,7 @@ namespace XREngine.Rendering
         private ETexWrapMode _uWrap = ETexWrapMode.Repeat;
         private ETexWrapMode _vWrap = ETexWrapMode.Repeat;
         private float _lodBias = 0.0f;
-        private bool _resizable = false;
+        private bool _resizable = true;
         private bool _exclusiveSharing = true;
 
         public override bool IsResizeable => Resizable;
@@ -59,11 +83,9 @@ namespace XREngine.Rendering
 
         public override uint MaxDimension => Math.Max(Width, Height);
 
-        public XRTexture2D() : this(1u, 1u, EPixelInternalFormat.Rgb8, EPixelFormat.Rgb, EPixelType.UnsignedByte) { }
+        public XRTexture2D() : this(1u, 1u, EPixelInternalFormat.Rgb8, EPixelFormat.Rgb, EPixelType.UnsignedByte, true) { }
         public XRTexture2D(uint width, uint height, EPixelInternalFormat internalFormat, EPixelFormat format, EPixelType type, int mipmapCount)
         {
-            _width = width;
-            _height = height;
             Mipmap2D[] mips = new Mipmap2D[mipmapCount];
             for (uint i = 0; i < mipmapCount; ++i)
             {
@@ -101,26 +123,10 @@ namespace XREngine.Rendering
                     Debug.LogWarning($"Failed to load texture from path: {path}{Environment.NewLine}{e.Message}");
                 }
             }
-            if (mips.Length > 0)
-            {
-                var mip = mips[0];
-                if (mip is null)
-                {
-                    _width = 0;
-                    _height = 0;
-                }
-                else
-                {
-                    _width = mip.Width;
-                    _height = mip.Height;
-                }
-            }
             Mipmaps = mips;
         }
-        public XRTexture2D(uint width, uint height, EPixelInternalFormat internalFormat, EPixelFormat format, EPixelType type)
+        public XRTexture2D(uint width, uint height, EPixelInternalFormat internalFormat, EPixelFormat format, EPixelType type, bool allocateData = false)
         {
-            _width = width;
-            _height = height;
             Mipmaps = [new Mipmap2D() 
             {
                 InternalFormat = internalFormat,
@@ -128,13 +134,11 @@ namespace XREngine.Rendering
                 PixelType = type,
                 Width = width,
                 Height = height,
-                Data = null
+                Data = allocateData ? new DataSource(AllocateBytes(width, height, format, type)) : null
             }];
         }
         public XRTexture2D(uint width, uint height, params MagickImage?[] mipmaps)
         {
-            _width = width;
-            _height = height;
             Mipmap2D[] mips = new Mipmap2D[mipmaps.Length];
             for (int i = 0; i < mipmaps.Length; ++i)
             {
@@ -144,10 +148,8 @@ namespace XREngine.Rendering
             }
             Mipmaps = mips;
         }
-        public XRTexture2D(MagickImage image)
+        public XRTexture2D(MagickImage? image)
         {
-            _width = image.Width;
-            _height = image.Height;
             Mipmaps = [new Mipmap2D(image)];
         }
 
@@ -194,8 +196,8 @@ namespace XREngine.Rendering
             set => SetField(ref _sizedInternalFormat, value);
         }
 
-        public uint Width => _width;
-        public uint Height => _height;
+        public uint Width => Mipmaps.Length > 0 ? Mipmaps[0].Width : 0;
+        public uint Height => Mipmaps.Length > 0 ? Mipmaps[0].Height : 0;
 
         /// <summary>
         /// Set on construction
@@ -218,12 +220,9 @@ namespace XREngine.Rendering
         /// </summary>
         public void Resize(uint width, uint height)
         {
-            if (_width == width && 
-                _height == height)
+            if (Width == width && 
+                Height == height)
                 return;
-
-            _width = width;
-            _height = height;
 
             if (_mipmaps is null || _mipmaps.Length <= 0)
                 return;
@@ -258,11 +257,13 @@ namespace XREngine.Rendering
 
             Mipmap2D[] mips = new Mipmap2D[SmallestMipmapLevel];
             mips[0] = baseTexture;
-            
+
+            uint w = Width;
+            uint h = Height;
             for (int i = 1; i < _mipmaps.Length; ++i)
             {
                 Mipmap2D clone = _mipmaps[i - 1].Clone(true);
-                clone.Resize(_width >> i, _height >> i);
+                clone.Resize(w >> i, h >> i);
                 mips[i] = clone;
             }
 
@@ -282,7 +283,7 @@ namespace XREngine.Rendering
         /// <returns>A new 2D texture reference.</returns>
         public static XRTexture2D CreateFrameBufferTexture(uint width, uint height,
             EPixelInternalFormat internalFmt, EPixelFormat format, EPixelType type, EFrameBufferAttachment bufAttach)
-            => new(width, height, internalFmt, format, type)
+            => new(width, height, internalFmt, format, type, false)
             {
                 MinFilter = ETexMinFilter.Nearest,
                 MagFilter = ETexMagFilter.Nearest,
@@ -314,7 +315,7 @@ namespace XREngine.Rendering
         /// <param name="pixelType">How pixels are stored.</param>
         /// <returns>A new 2D texture reference.</returns>
         public static XRTexture2D CreateFrameBufferTexture(uint width, uint height, EPixelInternalFormat internalFormat, EPixelFormat format, EPixelType type)
-            => new(width, height, internalFormat, format, type)
+            => new(width, height, internalFormat, format, type, false)
             {
                 MinFilter = ETexMinFilter.Nearest,
                 MagFilter = ETexMagFilter.Nearest,

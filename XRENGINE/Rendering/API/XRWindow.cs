@@ -23,13 +23,13 @@ namespace XREngine.Rendering
         /// </summary>
         public AbstractRenderer Renderer { get; }
 
-        //public IInputContext Input { get; }
+        //public IInputContext? Input { get; private set; }
 
         public XRWindow(WindowOptions options)
         {
             Window = Silk.NET.Windowing.Window.Create(options);
+            Window.Load += Window_Load;
             Window.Initialize();
-            //Input = Window.CreateInput();
             Renderer = Window.API.API switch
             {
                 ContextAPI.OpenGL => new OpenGLRenderer(this),
@@ -37,6 +37,11 @@ namespace XREngine.Rendering
                 _ => throw new Exception($"Unsupported API: {Window.API.API}"),
             };
             Window.Closing += Window_Closing;
+        }
+
+        private void Window_Load()
+        {
+            //Input = Window.CreateInput();
         }
 
         private void Window_Closing()

@@ -1,5 +1,4 @@
-﻿using Extensions;
-using System.Collections;
+﻿using System.Collections;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
@@ -145,6 +144,8 @@ namespace XREngine.Scene.Transforms
         }
 
         private readonly EventList<TransformBase> _children;
+
+        //TODO: thread-safe event list class
         public EventList<TransformBase> Children => _children;
 
         /// <summary>

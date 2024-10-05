@@ -63,7 +63,7 @@ namespace XREngine
                 => new VisualScene3D();
 
             public static RenderPipeline NewRenderPipeline()
-                => new TestRenderPipeline();
+                => new DefaultRenderPipeline();
         }
     }
 }

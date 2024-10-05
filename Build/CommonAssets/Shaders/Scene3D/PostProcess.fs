@@ -81,10 +81,12 @@ float GetStencilHighlightIntensity(vec2 uv)
 }
 void main()
 {
-	vec2 uv = FragPos.xy;
-	if (uv.x > 1.0f || uv.y > 1.0f)
-		discard;
-
+  vec2 uv = FragPos.xy;
+  if (uv.x > 1.0f || uv.y > 1.0f)
+      discard;
+  //Normalize uv from [-1, 1] to [0, 1]
+  uv = uv * 0.5f + 0.5f;
+  
 	vec3 hdrSceneColor = texture(HDRSceneTex, uv).rgb;
 
   //Add each blurred bloom mipmap

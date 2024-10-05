@@ -133,7 +133,7 @@ namespace XREngine.Rendering.OpenGL
         /// Informs the renderer that this texture's data has been updated and needs to be pushed to the GPU.
         /// </summary>
         /// <returns></returns>
-        public bool Invalidate() => IsInvalidated = true;
+        public void Invalidate() => IsInvalidated = true;
 
         public virtual void Bind()
         {

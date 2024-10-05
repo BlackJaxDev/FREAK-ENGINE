@@ -1,7 +1,11 @@
-﻿using Silk.NET.Assimp;
+﻿using Extensions;
+using Silk.NET.Assimp;
+using System.Collections.Concurrent;
+using System.IO;
 using System.Numerics;
 using XREngine;
 using XREngine.Components;
+using XREngine.Components.Lights;
 using XREngine.Components.Scene.Mesh;
 using XREngine.Data.Colors;
 using XREngine.Data.Rendering;
@@ -69,7 +73,7 @@ internal class Program
                 },
                 LineWidth = 5.0f,
             };
-            var mesh = XRMesh.Shapes.SolidBox(-Vector3.One, Vector3.One);
+            var mesh = XRMesh.Shapes.WireframeBox(-Vector3.One, Vector3.One);
             //Engine.Assets.SaveTo(mesh, desktopDir);
             modelComp!.Model = new Model([new SubMesh(mesh, mat)]);
         }
@@ -77,27 +81,27 @@ internal class Program
         //Create the camera
         var cameraNode = new SceneNode(rootNode) { Name = "TestCameraNode" };
         var cameraTransform = cameraNode.SetTransform<Transform>();
-        cameraTransform.Translation = new Vector3(0.0f, 0.0f, 20.0f);
+        cameraTransform.Translation = new Vector3(0.0f, 0.0f, 5.0f);
         cameraTransform.LookAt(Vector3.Zero);
         if (cameraNode.TryAddComponent<CameraComponent>(out var cameraComp))
         {
             cameraComp!.Name = "TestCamera";
             cameraComp.LocalPlayerIndex = ELocalPlayerIndex.One;
-            cameraComp.Camera.Parameters = new XRPerspectiveCameraParameters(60.0f, null, 0.1f, 100000.0f);
+            cameraComp.Camera.Parameters = new XRPerspectiveCameraParameters(45.0f, null, 0.1f, 100000.0f);
             cameraComp.CullWithFrustum = true;
-            cameraComp.RenderPipeline = new TestRenderPipeline();
+            cameraComp.RenderPipeline = new DefaultRenderPipeline();
         }
 
-        //var dirLight = new SceneNode(rootNode) { Name = "TestDirectionalLightNode" };
-        //var dirLightTransform = dirLight.SetTransform<Transform>();
-        //dirLightTransform.Translation = new Vector3(20.0f, 10.0f, 20.0f);
-        //dirLightTransform.LookAt(Vector3.Zero);
-        //if (dirLight.TryAddComponent<DirectionalLightComponent>(out var dirLightComp))
-        //{
-        //    dirLightComp!.Name = "TestDirectionalLight";
-        //    dirLightComp.Color = new Vector3(1.0f, 1.0f, 1.0f);
-        //    dirLightComp.Intensity = 1.0f;
-        //}
+        var dirLight = new SceneNode(rootNode) { Name = "TestDirectionalLightNode" };
+        var dirLightTransform = dirLight.SetTransform<Transform>();
+        dirLightTransform.Translation = new Vector3(20.0f, 10.0f, 20.0f);
+        dirLightTransform.LookAt(Vector3.Zero);
+        if (dirLight.TryAddComponent<DirectionalLightComponent>(out var dirLightComp))
+        {
+            dirLightComp!.Name = "TestDirectionalLight";
+            dirLightComp.Color = new Vector3(1.0f, 1.0f, 1.0f);
+            dirLightComp.Intensity = 1.0f;
+        }
 
         //Pawn
         //cameraNode.TryAddComponent<PawnComponent>(out var pawnComp);
@@ -106,19 +110,101 @@ internal class Program
 
         world.Scenes.Add(scene);
 
-        Task.Run(() =>
-        {
-            var importedModelNode = ModelImporter.Import(Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj"), PostProcessSteps.None, out _, out _, true, null);
-            if (importedModelNode != null)
-            {
-                lock (modelNode.Transform.Children)
-                {
-                    modelNode.Transform.Children.Add(importedModelNode.Transform);
-                }
-            }
-        });
+        string fbxPathDesktop = Path.Combine(desktopDir, "test.fbx");
+        _ = ModelImporter.ImportAsync(fbxPathDesktop, PostProcessSteps.None, MaterialFactory, modelNode);
+
+        string sponzaPath = Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj");
+        _ = ModelImporter.ImportAsync(sponzaPath, PostProcessSteps.None, MaterialFactory, modelNode);
 
         return world;
+    }
+
+    private static readonly ConcurrentDictionary<string, XRTexture2D> _textureCache = new();
+
+    public static XRMaterial MaterialFactory(string modelFilePath, string name, List<TextureInfo> textures, TextureFlags flags, ShadingMode mode, Dictionary<string, List<object>> properties)
+    {
+        XRMaterial mat = textures.Count > 0 ?
+            new XRMaterial(new XRTexture?[textures.Count], ShaderHelper.TextureFragDeferred()!) :
+            XRMaterial.CreateLitColorMaterial(new ColorF4(1.0f, 1.0f, 0.0f, 1.0f));
+        mat.RenderPass = (int)EDefaultRenderPass.OpaqueDeferredLit;
+        mat.Name = name;
+        mat.RenderOptions = new RenderingParameters()
+        {
+            CullMode = ECulling.None,
+            DepthTest = new DepthTest()
+            {
+                UpdateDepth = true,
+                Enabled = ERenderParamUsage.Enabled,
+                Function = EComparison.Less,
+            },
+            AlphaTest = new AlphaTest()
+            {
+                Enabled = ERenderParamUsage.Enabled,
+                Comp = EComparison.Greater,
+                Ref = 0.5f,
+                Comp1 = EComparison.Greater,
+                Ref1 = 0.5f,
+                LogicGate = ELogicGate.Or,
+                UseAlphaToCoverage = false,
+                UseConstantAlpha = false
+            },
+            LineWidth = 5.0f,
+        };
+
+        Task.Run(() => Parallel.For(0, textures.Count, i => LoadTexture(modelFilePath, textures, mat, i)));
+
+        //for (int i = 0; i < mat.Textures.Count; i++)
+        //    LoadTexture(modelFilePath, textures, mat, i);
+
+        return mat;
+    }
+
+    private static void LoadTexture(string modelFilePath, List<TextureInfo> textures, XRMaterial mat, int i)
+    {
+        string path = textures[i].path;
+        if (path is null)
+            return;
+
+        path = path.Replace("/", "\\");
+        bool rooted = Path.IsPathRooted(path);
+        if (!rooted)
+        {
+            string? dir = Path.GetDirectoryName(modelFilePath);
+            if (dir is not null)
+                path = Path.Combine(dir, path);
+        }
+
+        XRTexture2D TextureFactory(string x)
+        {
+            var tex = Engine.Assets.Load<XRTexture2D>(path);
+            if (tex is null)
+            {
+                tex = new XRTexture2D()
+                {
+                    Name = Path.GetFileNameWithoutExtension(path),
+                    MagFilter = ETexMagFilter.Linear,
+                    MinFilter = ETexMinFilter.Linear,
+                    UWrap = ETexWrapMode.Repeat,
+                    VWrap = ETexWrapMode.Repeat,
+                    AlphaAsTransparency = true,
+                    AutoGenerateMipmaps = true,
+                    Resizable = true,
+                };
+            }
+            else
+            {
+                tex.MagFilter = ETexMagFilter.Linear;
+                tex.MinFilter = ETexMinFilter.Linear;
+                tex.UWrap = ETexWrapMode.Repeat;
+                tex.VWrap = ETexWrapMode.Repeat;
+                tex.AlphaAsTransparency = true;
+                tex.AutoGenerateMipmaps = true;
+                tex.Resizable = true;
+            }
+            return tex;
+        }
+
+        mat.Textures[i] = _textureCache.GetOrAdd(path, TextureFactory);
     }
 
     static GameState GetGameState()

@@ -15,8 +15,7 @@ uniform float Radius = 0.75f;
 uniform float Power = 4.0f;
 uniform vec2 NoiseScale;
 
-uniform mat4 ModelMatrix;
-uniform mat4 ViewMatrix;
+uniform mat4 InverseViewMatrix;
 uniform mat4 ProjMatrix;
 
 vec3 ViewPosFromDepth(float depth, vec2 uv)
@@ -31,14 +30,16 @@ void main()
     vec2 uv = FragPos.xy;
     if (uv.x > 1.0f || uv.y > 1.0f)
         discard;
-
+    //Normalize uv from [-1, 1] to [0, 1]
+    uv = uv * 0.5f + 0.5f;
+    
     vec3 Normal = texture(Texture0, uv).rgb;
     float Depth = texture(Texture2, uv).r;
 
     vec3 FragPosVS = ViewPosFromDepth(Depth, uv);
 
     vec3 randomVec = vec3(texture(Texture1, uv * NoiseScale).rg * 2.0f - 1.0f, 0.0f);
-    vec3 viewNormal = normalize(vec3(ProjMatrix * ViewMatrix * ModelMatrix * vec4(Normal, 0.0f)));
+    vec3 viewNormal = normalize(vec3(ProjMatrix * inverse(InverseViewMatrix) * vec4(Normal, 0.0f)));
     vec3 viewTangent = normalize(randomVec - viewNormal * dot(randomVec, viewNormal));
     vec3 viewBitangent = cross(viewNormal, viewTangent);
     mat3 TBN = mat3(viewTangent, viewBitangent, viewNormal);
