@@ -52,48 +52,48 @@ namespace XREngine.Rendering
             set => SetField(ref _postProcessing, value);
         }
 
-        private Matrix4x4 _modelViewProjectionMatrix = Matrix4x4.Identity;
-        public Matrix4x4 WorldViewProjectionMatrix
-        {
-            get
-            {
-                VerifyMVP();
-                return _modelViewProjectionMatrix;
-            }
-            set
-            {
-                SetField(ref _modelViewProjectionMatrix, value);
-                _inverseModelViewProjectionMatrix = null;
-            }
-        }
+        //private Matrix4x4 _modelViewProjectionMatrix = Matrix4x4.Identity;
+        //public Matrix4x4 WorldViewProjectionMatrix
+        //{
+        //    get
+        //    {
+        //        VerifyMVP();
+        //        return _modelViewProjectionMatrix;
+        //    }
+        //    set
+        //    {
+        //        SetField(ref _modelViewProjectionMatrix, value);
+        //        _inverseModelViewProjectionMatrix = null;
+        //    }
+        //}
 
-        private Matrix4x4? _inverseModelViewProjectionMatrix = Matrix4x4.Identity;
-        public Matrix4x4 InverseWorldViewProjectionMatrix
-        {
-            get
-            {
-                if (_inverseModelViewProjectionMatrix != null)
-                    return _inverseModelViewProjectionMatrix.Value;
+        //private Matrix4x4? _inverseModelViewProjectionMatrix = Matrix4x4.Identity;
+        //public Matrix4x4 InverseWorldViewProjectionMatrix
+        //{
+        //    get
+        //    {
+        //        if (_inverseModelViewProjectionMatrix != null)
+        //            return _inverseModelViewProjectionMatrix.Value;
 
-                if (!Matrix4x4.Invert(WorldViewProjectionMatrix, out Matrix4x4 inverted))
-                {
-                    Debug.LogWarning($"Failed to invert {nameof(WorldViewProjectionMatrix)}");
-                    inverted = Matrix4x4.Identity;
-                }
-                _inverseModelViewProjectionMatrix = inverted;
-                return inverted;
-            }
-            set
-            {
-                _inverseModelViewProjectionMatrix = value;
-                if (!Matrix4x4.Invert(value, out Matrix4x4 inverted))
-                {
-                    Debug.LogWarning($"Failed to invert value set to {nameof(InverseWorldViewProjectionMatrix)}");
-                    inverted = Matrix4x4.Identity;
-                }
-                WorldViewProjectionMatrix = inverted;
-            }
-        }
+        //        if (!Matrix4x4.Invert(WorldViewProjectionMatrix, out Matrix4x4 inverted))
+        //        {
+        //            Debug.LogWarning($"Failed to invert {nameof(WorldViewProjectionMatrix)}");
+        //            inverted = Matrix4x4.Identity;
+        //        }
+        //        _inverseModelViewProjectionMatrix = inverted;
+        //        return inverted;
+        //    }
+        //    set
+        //    {
+        //        _inverseModelViewProjectionMatrix = value;
+        //        if (!Matrix4x4.Invert(value, out Matrix4x4 inverted))
+        //        {
+        //            Debug.LogWarning($"Failed to invert value set to {nameof(InverseWorldViewProjectionMatrix)}");
+        //            inverted = Matrix4x4.Identity;
+        //        }
+        //        WorldViewProjectionMatrix = inverted;
+        //    }
+        //}
 
         private XRCameraParameters? _parameters;
         public XRCameraParameters Parameters
@@ -104,6 +104,19 @@ namespace XREngine.Rendering
 
         public Matrix4x4 ProjectionMatrix
             => Parameters.GetProjectionMatrix();
+
+        public Matrix4x4 InverseProjectionMatrix
+        {
+            get
+            {
+                if (!Matrix4x4.Invert(ProjectionMatrix, out Matrix4x4 inverted))
+                {
+                    Debug.LogWarning($"Failed to invert {nameof(ProjectionMatrix)}");
+                    inverted = Matrix4x4.Identity;
+                }
+                return inverted;
+            }
+        }
 
         private static XRPerspectiveCameraParameters GetDefaultCameraParameters()
             => new(90.0f, null, 0.1f, 10000.0f);
@@ -144,34 +157,49 @@ namespace XREngine.Rendering
             => _transform?.WorldMatrixChanged.RemoveListener(WorldMatrixChanged);
 
         private void ProjectionMatrixChanged(XRCameraParameters parameters)
-            => InvalidateMVP();
+        {
+            //InvalidateMVP();
+        }
         private void WorldMatrixChanged(TransformBase transform)
-            => InvalidateMVP();
+        {
+            //InvalidateMVP();
+        }
 
-        private bool _mvpInvalidated = true;
-        private PostProcessingSettings? _postProcessing = null;
+        //private bool _mvpInvalidated = true;
+        private PostProcessingSettings? _postProcessing = new();
         private XRMaterial? _postProcessMaterial;
 
-        /// <summary>
-        /// Called any time the camera's world matrix or projection matrix changes.
-        /// </summary>
-        private void InvalidateMVP()
-            => _mvpInvalidated = true;
-        /// <summary>
-        /// Recalculates the model-view-projection matrix.
-        /// </summary>
-        private void RecalcMVP()
-            => WorldViewProjectionMatrix = Parameters.GetViewMatrix(this) * ProjectionMatrix;
-        /// <summary>
-        /// Checks if the model-view-projection matrix has been invalidated and recalculates it if so.
-        /// </summary>
-        private void VerifyMVP()
-        {
-            if (!_mvpInvalidated)
-                return;
+        ///// <summary>
+        ///// Called any time the camera's world matrix or projection matrix changes.
+        ///// </summary>
+        //private void InvalidateMVP()
+        //    => _mvpInvalidated = true;
+        ///// <summary>
+        ///// Recalculates the model-view-projection matrix.
+        ///// </summary>
+        //private void RecalcMVP()
+        //    => WorldViewProjectionMatrix = Transform.InverseWorldMatrix * ProjectionMatrix;
+        ///// <summary>
+        ///// Checks if the model-view-projection matrix has been invalidated and recalculates it if so.
+        ///// </summary>
+        //private void VerifyMVP()
+        //{
+        //    if (!_mvpInvalidated)
+        //        return;
 
-            RecalcMVP();
-            _mvpInvalidated = false;
+        //    RecalcMVP();
+        //    _mvpInvalidated = false;
+        //}
+
+        public float FarZ
+        {
+            get => Parameters.FarZ;
+            set => Parameters.FarZ = value;
+        }
+        public float NearZ
+        {
+            get => Parameters.NearZ;
+            set => Parameters.NearZ = value;
         }
 
         /// <summary>
@@ -179,7 +207,7 @@ namespace XREngine.Rendering
         /// The normal is the camera's forward vector.
         /// </summary>
         /// <returns></returns>
-        public Plane NearPlane()
+        public Plane GetNearPlane()
             => XRMath.CreatePlaneFromPointAndNormal(CenterPointNearPlane, Transform.WorldForward);
 
         /// <summary>
@@ -187,20 +215,20 @@ namespace XREngine.Rendering
         /// The normal is the opposite of the camera's forward vector.
         /// </summary>
         /// <returns></returns>
-        public Plane FarPlane()
+        public Plane GetFarPlane()
             => XRMath.CreatePlaneFromPointAndNormal(CenterPointFarPlane, -Transform.WorldForward);
 
         /// <summary>
         /// The center point of the camera's near plane in world space.
         /// </summary>
         public Vector3 CenterPointNearPlane
-            => Transform.WorldTranslation + Transform.WorldForward * Parameters.NearPlane;
+            => Transform.WorldTranslation + Transform.WorldForward * Parameters.NearZ;
 
         /// <summary>
         /// The center point of the camera's far plane in world space.
         /// </summary>
         public Vector3 CenterPointFarPlane
-            => Transform.WorldTranslation + Transform.WorldForward * Parameters.FarPlane;
+            => Transform.WorldTranslation + Transform.WorldForward * Parameters.FarZ;
 
         /// <summary>
         /// The distance from the camera's position to the given point in world space.
@@ -218,7 +246,7 @@ namespace XREngine.Rendering
         public float DistanceFromNearPlane(Vector3 point)
         {
             Vector3 forward = Transform.WorldForward;
-            Vector3 nearPoint = Transform.WorldTranslation + forward * Parameters.NearPlane;
+            Vector3 nearPoint = Transform.WorldTranslation + forward * Parameters.NearZ;
             return GeoUtil.DistancePlanePoint(forward, XRMath.GetPlaneDistance(nearPoint, forward), point);
         }
 
@@ -230,7 +258,7 @@ namespace XREngine.Rendering
         public float DistanceFromFarPlane(Vector3 point)
         {
             Vector3 forward = Transform.WorldForward;
-            Vector3 farPoint = Transform.WorldTranslation + forward * Parameters.FarPlane;
+            Vector3 farPoint = Transform.WorldTranslation + forward * Parameters.FarZ;
             return GeoUtil.DistancePlanePoint(-forward, XRMath.GetPlaneDistance(farPoint, -forward), point);
         }
 
@@ -242,7 +270,7 @@ namespace XREngine.Rendering
         public Vector3 ClosestPointOnNearPlane(Vector3 point)
         {
             Vector3 forward = Transform.WorldForward;
-            Vector3 nearPoint = Transform.WorldTranslation + forward * Parameters.NearPlane;
+            Vector3 nearPoint = Transform.WorldTranslation + forward * Parameters.NearZ;
             return GeoUtil.ClosestPlanePointToPoint(forward, XRMath.GetPlaneDistance(nearPoint, forward), point);
         }
 
@@ -254,7 +282,7 @@ namespace XREngine.Rendering
         public Vector3 ClosestPointOnFarPlane(Vector3 point)
         {
             Vector3 forward = Transform.WorldForward;
-            Vector3 farPoint = Transform.WorldTranslation + forward * Parameters.FarPlane;
+            Vector3 farPoint = Transform.WorldTranslation + forward * Parameters.FarZ;
             return GeoUtil.ClosestPlanePointToPoint(-forward, XRMath.GetPlaneDistance(farPoint, -forward), point);
         }
 
@@ -306,7 +334,7 @@ namespace XREngine.Rendering
         /// with Z being the normalized depth (0.0f - 1.0f) from NearDepth (0.0f) to FarDepth (1.0f).
         /// </summary>
         public Vector3 WorldToScreen(Vector3 worldPoint)
-            => (((Vector3.Transform(worldPoint, WorldViewProjectionMatrix)) + Vector3.One) * new Vector3(0.5f));
+            => (((Vector3.Transform(worldPoint, Transform.InverseWorldMatrix * ProjectionMatrix)) + Vector3.One) * new Vector3(0.5f));
 
         /// <summary>
         /// Takes an X, Y coordinate relative to the camera's origin along with the normalized depth (0.0f - 1.0f) from NearDepth (0.0f) to FarDepth (1.0f), and returns a position in the world.
@@ -322,7 +350,7 @@ namespace XREngine.Rendering
         /// Takes an X, Y coordinate relative to the camera's Origin, with Z being the normalized depth (0.0f - 1.0f) from NearDepth (0.0f) to FarDepth (1.0f), and returns a position in the world.
         /// </summary>
         public Vector3 ScreenToWorld(Vector3 normalizedPointDepth)
-            => Vector3.Transform(normalizedPointDepth * new Vector3(2.0f) - Vector3.One, InverseWorldViewProjectionMatrix);
+            => Vector3.Transform(normalizedPointDepth * new Vector3(2.0f) - Vector3.One, InverseProjectionMatrix * Transform.WorldMatrix);
 
         public Segment GetWorldSegment(Vector2 screenPoint)
         {

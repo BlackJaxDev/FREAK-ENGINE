@@ -4,10 +4,10 @@ namespace XREngine.Rendering
 {
     public class XRTexture1DView(
         XRTexture1D viewedTexture,
-        int minLevel,
-        int numLevels,
-        int minLayer,
-        int numLayers,
+        uint minLevel,
+        uint numLevels,
+        uint minLayer,
+        uint numLayers,
         EPixelInternalFormat internalFormat,
         bool array) : XRTextureView<XRTexture1D>(viewedTexture, minLevel, numLevels, minLayer, numLayers, internalFormat)
     {

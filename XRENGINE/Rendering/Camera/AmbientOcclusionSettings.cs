@@ -1,4 +1,5 @@
-﻿
+﻿using XREngine.Data;
+
 namespace XREngine.Rendering
 {
     public class AmbientOcclusionSettings
@@ -11,8 +12,8 @@ namespace XREngine.Rendering
             HorizonBasedPlus,
         }
 
-        public bool Enabled { get; set; }
-        public EType Type { get; set; }
+        public bool Enabled { get; set; } = true;
+        public EType Type { get; set; } = EType.ScreenSpace;
 
         /// <summary>
         /// The resolution scale of the ambient occlusion.
@@ -53,7 +54,8 @@ namespace XREngine.Rendering
         /// <summary>
         /// The radius of the poisson disk.
         /// </summary>
-        public float Radius { get; set; }
+        public float Radius { get; set; } = 1.75f;
+        public float Power { get; set; } = 2.0f;
         /// <summary>
         /// The rings of the poisson disk.
         /// </summary>
@@ -75,13 +77,21 @@ namespace XREngine.Rendering
         /// </summary>
         public int Samples { get; set; }
 
-        public AmbientOcclusionSettings()
+        public void Lerp(AmbientOcclusionSettings from, AmbientOcclusionSettings to, float time)
         {
+            Radius = Interp.Lerp(from.Radius, to.Radius, time);
+            Power = Interp.Lerp(from.Power, to.Power, time);
         }
 
-        internal void SetUniforms(XRRenderProgram program)
+        public void SetUniforms(XRRenderProgram program)
         {
-            throw new NotImplementedException();
+            switch (Type)
+            {
+                case EType.ScreenSpace:
+                    program.Uniform("Radius", Radius);
+                    program.Uniform("Power", Power);
+                    break;
+            }
         }
     }
 }

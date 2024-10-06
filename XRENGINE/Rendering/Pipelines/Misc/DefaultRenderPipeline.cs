@@ -73,7 +73,7 @@ public class DefaultRenderPipeline : RenderPipeline
         return c;
     }
 
-    private ViewportRenderCommandContainer CreateFBOTargetCommands()
+    public static ViewportRenderCommandContainer CreateFBOTargetCommands()
     {
         ViewportRenderCommandContainer c = [];
         using (c.AddUsing<VPRC_PushOutputFBORenderArea>())
@@ -215,7 +215,7 @@ public class DefaultRenderPipeline : RenderPipeline
                     ClearDepth(1.0f);
                     AllowDepthWrite(true);
                 };
-                c.Add<VPRC_RenderQuadFBO>().FrameBufferName = SSAOFBOName;
+                c.Add<VPRC_RenderQuadFBO>().FrameBufferName = LightCombineFBOName;
             }
         }
         return c;
@@ -244,7 +244,7 @@ public class DefaultRenderPipeline : RenderPipeline
     }
 
     XRTexture CreateBRDFTexture()
-        => PrecomputeBRDF(128, 128);
+        => PrecomputeBRDF(1024, 1024);
 
     XRTexture CreateDepthStencilTexture()
     {
@@ -255,53 +255,59 @@ public class DefaultRenderPipeline : RenderPipeline
             EFrameBufferAttachment.DepthStencilAttachment);
         dsTex.MinFilter = ETexMinFilter.Nearest;
         dsTex.MagFilter = ETexMagFilter.Nearest;
-        dsTex.Resizable = true;
+        dsTex.Resizable = false;
+        dsTex.Name = DepthStencilTextureName;
+        dsTex.SizedInternalFormat = ESizedInternalFormat.Depth24Stencil8;
         return dsTex;
     }
 
     XRTexture CreateDepthViewTexture()
         => new XRTexture2DView(
             GetTexture<XRTexture2D>(DepthStencilTextureName)!,
-            0, 1, 0, 1,
+            0, 1,
             EPixelInternalFormat.Depth24Stencil8,
             false, false)
         {
-            //Resizable = false,
-            DepthStencilFormat = EDepthStencilFmt.Depth,
-            //MinFilter = ETexMinFilter.Nearest,
-            //MagFilter = ETexMagFilter.Nearest,
-            //UWrap = ETexWrapMode.ClampToEdge,
-            //VWrap = ETexWrapMode.ClampToEdge,
+            DepthStencilViewFormat = EDepthStencilFmt.Depth,
+            Name = DepthViewTextureName,
         };
 
     XRTexture CreateStencilViewTexture()
         => new XRTexture2DView(
             GetTexture<XRTexture2D>(DepthStencilTextureName)!,
-            0, 1, 0, 1,
+            0, 1,
             EPixelInternalFormat.Depth24Stencil8,
             false, false)
         {
-            //Resizable = false,
-            DepthStencilFormat = EDepthStencilFmt.Stencil,
-            //MinFilter = ETexMinFilter.Nearest,
-            //MagFilter = ETexMagFilter.Nearest,
-            //UWrap = ETexWrapMode.ClampToEdge,
-            //VWrap = ETexWrapMode.ClampToEdge,
+            DepthStencilViewFormat = EDepthStencilFmt.Stencil,
+            Name = StencilViewTextureName,
         };
 
-    XRTexture CreateAlbedoOpacityTexture() =>
-        XRTexture2D.CreateFrameBufferTexture(
+    XRTexture CreateAlbedoOpacityTexture()
+    {
+        var tex = XRTexture2D.CreateFrameBufferTexture(
             InternalWidth, InternalHeight,
             EPixelInternalFormat.Rgba16f,
             EPixelFormat.Rgba,
             EPixelType.Float);
+        tex.MinFilter = ETexMinFilter.Nearest;
+        tex.MagFilter = ETexMagFilter.Nearest;
+        tex.Name = AlbedoOpacityTextureName;
+        return tex;
+    }
 
-    XRTexture CreateNormalTexture() =>
-        XRTexture2D.CreateFrameBufferTexture(
+    XRTexture CreateNormalTexture()
+    {
+        var tex = XRTexture2D.CreateFrameBufferTexture(
             InternalWidth, InternalHeight,
             EPixelInternalFormat.Rgba16f,
             EPixelFormat.Rgba,
             EPixelType.Float);
+        tex.MinFilter = ETexMinFilter.Nearest;
+        tex.MagFilter = ETexMagFilter.Nearest;
+        tex.Name = NormalTextureName;
+        return tex;
+    }
 
     XRTexture CreateRMSITexture() =>
         XRTexture2D.CreateFrameBufferTexture(
@@ -447,12 +453,12 @@ public class DefaultRenderPipeline : RenderPipeline
 
     private XRFrameBuffer CreatePostProcessFBO()
     {
-        XRTexture2D[] postProcessRefs =
+        XRTexture[] postProcessRefs =
         [
             GetTexture<XRTexture2D>(HDRSceneTextureName)!,
             GetTexture<XRTexture2D>(BloomBlurTextureName)!,
-            GetTexture<XRTexture2D>(DepthViewTextureName)!,
-            GetTexture<XRTexture2D>(StencilViewTextureName)!,
+            GetTexture<XRTexture2DView>(DepthViewTextureName)!,
+            GetTexture<XRTexture2DView>(StencilViewTextureName)!,
             GetTexture<XRTexture2D>(HUDTextureName)!,
         ];
         XRShader postProcessShader = XRShader.EngineShader(Path.Combine(SceneShaderPath, "PostProcess.fs"), EShaderType.Fragment);

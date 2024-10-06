@@ -17,9 +17,9 @@ namespace XREngine.Components.Lights
             set
             {
                 _influenceVolume.Radius = value;
-                //foreach (PerspectiveCamera cam in ShadowCameras)
-                //    cam.FarZ = value;
-                //LightMatrix = WorldMatrix.Value * Matrix4.CreateScale(Radius);
+                foreach (var cam in ShadowCameras)
+                    cam.FarZ = value;
+                RecalcLightMatrix();
             }
         }
 
@@ -29,9 +29,15 @@ namespace XREngine.Components.Lights
             set => SetShadowMapResolution(value, value);
         }
 
-        public float Brightness { get; set; } = 1.0f;
-        
+        private float _brightness = 1.0f;
+        public float Brightness
+        {
+            get => _brightness;
+            set => SetField(ref _brightness, value);
+        }
+
         public XRCamera[] ShadowCameras { get; }
+
         private Sphere _influenceVolume;
 
         public PointLightComponent()
@@ -52,7 +58,7 @@ namespace XREngine.Components.Lights
                 new(  0.0f, 180.0f, 180.0f), //+Z
                 new(  0.0f,   0.0f, 180.0f), //-Z
             ];
-            ShadowCameras.Fill(i => new XRCamera(new Transform(rotations[i]), new XRPerspectiveCameraParameters(90.0f, 1.0f, 0.01f, radius)));
+            ShadowCameras.Fill(i => new XRCamera(new Transform(rotations[i]) { Parent = Transform }, new XRPerspectiveCameraParameters(90.0f, 1.0f, 0.01f, radius)));
             ShadowExponentBase = 1.0f;
             ShadowExponent = 2.5f;
             ShadowMinBias = 0.05f;
@@ -60,13 +66,24 @@ namespace XREngine.Components.Lights
         }
         protected override void OnTransformWorldMatrixChanged(TransformBase transform)
         {
-            _influenceVolume.Center = transform.WorldTranslation;
-            foreach (XRCamera cam in ShadowCameras)
-                cam.Transform = transform;
-            LightMatrix = transform.WorldMatrix * Matrix4x4.CreateScale(Radius);
-
+            _influenceVolume.Center = Transform.WorldTranslation;
+            RecalcLightMatrix();
             base.OnTransformWorldMatrixChanged(transform);
         }
+
+        protected override void RecalcLightMatrix()
+        {
+            LightMatrix = Transform.WorldMatrix * Matrix4x4.CreateScale(Radius);
+        }
+
+        protected override void OnTransformChanged()
+        {
+            base.OnTransformChanged();
+            foreach (var cam in ShadowCameras)
+                cam.Transform.Parent = Transform;
+            RecalcLightMatrix();
+        }
+
         protected internal override void Start()
         {
             if (World?.VisualScene is VisualScene3D scene && Type == ELightType.Dynamic)
@@ -103,13 +120,19 @@ namespace XREngine.Components.Lights
             program.Uniform($"{targetStructName}Brightness", Brightness);
 
             if (ShadowMap is not null)
-                program.Sampler("ShadowMap", ShadowMap.Material.Textures[1], 4);
+            {
+                var tex = ShadowMap.Material.Textures[1];
+                if (tex is not null)
+                    program.Sampler("ShadowMap", tex, 4);
+            }
         }
         public override void SetShadowMapResolution(uint width, uint height)
         {
             bool wasNull = ShadowMap is null;
             uint res = Math.Max(width, height);
+
             base.SetShadowMapResolution(res, res);
+
             if (wasNull && ShadowMap is not null)
                 ShadowMap.Material.SettingUniforms += SetShadowDepthUniforms;
         }
@@ -126,7 +149,11 @@ namespace XREngine.Components.Lights
             p.Uniform("FarPlaneDist", Radius);
             p.Uniform("LightPos", _influenceVolume.Center);
             for (int i = 0; i < ShadowCameras.Length; ++i)
-                p.Uniform($"ShadowMatrices[{i}]", ShadowCameras[i].WorldViewProjectionMatrix);
+            {
+                var cam = ShadowCameras[i];
+                p.Uniform($"InverseViewMatrices[{i}]", cam.Transform.WorldMatrix);
+                p.Uniform($"ProjectionMatrices[{i}]", cam.ProjectionMatrix);
+            }
         }
         public override XRMaterial GetShadowMapMaterial(uint width, uint height, EDepthPrecision precision = EDepthPrecision.Flt32)
         {
@@ -163,6 +190,11 @@ namespace XREngine.Components.Lights
             mat.RenderOptions.CullMode = ECulling.None;
 
             return mat;
+        }
+
+        protected override XRCamera? GetShadowCamera()
+        {
+            return null;
         }
     }
 }

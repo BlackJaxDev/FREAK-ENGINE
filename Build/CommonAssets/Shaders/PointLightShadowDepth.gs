@@ -16,7 +16,8 @@ out gl_PerVertex
   float gl_ClipDistance[];
 };
 
-uniform mat4 ShadowMatrices[6];
+uniform mat4 InverseViewMatrices[6];
+uniform mat4 ProjectionMatrices[6];
 
 layout (location = 0) out vec3 FragPos;
 
@@ -31,7 +32,7 @@ void main()
 		{
 			pos = gl_in[i].gl_Position;
 			FragPos = pos.xyz;
-			gl_Position = ShadowMatrices[face] * pos;
+			gl_Position = inverse(InverseViewMatrices[face]) * ProjectionMatrices[face] * pos;
 			EmitVertex();
 		}    
 		EndPrimitive();

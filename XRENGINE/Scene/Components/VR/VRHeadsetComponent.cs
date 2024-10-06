@@ -41,20 +41,16 @@ namespace XREngine.Data.Components.Scene
             set => SetField(ref _far, value);
         }
 
-        //Submit these to the vertex shader
-        public Matrix4x4 LeftMVP => LeftEyeCamera.WorldViewProjectionMatrix;
-        public Matrix4x4 RightMVP => RightEyeCamera.WorldViewProjectionMatrix;
-
         protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
         {
             base.OnPropertyChanged(propName, prev, field);
             switch (propName)
             {
                 case nameof(Near):
-                    _leftEyeParams.NearPlane = _rightEyeParams.NearPlane = Near;
+                    _leftEyeParams.NearZ = _rightEyeParams.NearZ = Near;
                     break;
                 case nameof(Far):
-                    _leftEyeParams.FarPlane = _rightEyeParams.FarPlane = Far;
+                    _leftEyeParams.FarZ = _rightEyeParams.FarZ = Far;
                     break;
             }
         }

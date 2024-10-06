@@ -103,10 +103,7 @@ namespace XREngine.Components.Lights
             if (World?.VisualScene is not VisualScene3D scene3D)
                 return;
 
-            var lights = scene3D.Lights;
-            lights.CollectShadowMaps();
-            lights.SwapBuffers();
-            lights.RenderShadowMaps();
+            scene3D.Lights.RenderShadowMaps(true);
 
             int depthLayer;
             IFrameBufferAttachement depthAttachment;
@@ -129,7 +126,7 @@ namespace XREngine.Components.Lights
                     (depthAttachment, EFrameBufferAttachment.DepthAttachment, 0, depthLayer));
 
                 _viewport!.Camera = RenderFBO.Cameras[i];
-                _viewport.Render(null, RenderFBO, World.VisualScene);
+                _viewport.Render(RenderFBO, World.VisualScene);
             }
 
             if (_envTex is not null)

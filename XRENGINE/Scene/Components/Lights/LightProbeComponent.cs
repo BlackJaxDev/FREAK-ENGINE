@@ -150,7 +150,7 @@ namespace XREngine.Components.Lights
                 return;
 
             uint res = IrradianceTexture.CubeExtent;
-            using (Engine.Rendering.State.PipelineState.PushRenderArea(new BoundingRectangle(IVector2.Zero, new IVector2((int)res, (int)res))))
+            using (Engine.Rendering.State.PipelineState?.PushRenderArea(new BoundingRectangle(IVector2.Zero, new IVector2((int)res, (int)res))))
             {
                 for (int i = 0; i < 6; ++i)
                 {

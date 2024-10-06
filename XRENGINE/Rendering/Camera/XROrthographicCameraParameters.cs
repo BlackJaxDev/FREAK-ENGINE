@@ -90,11 +90,11 @@ namespace XREngine.Rendering
             => new(screenPoint.X - _orthoLeft, screenPoint.Y - _orthoBottom, screenPoint.Z);
 
         protected override Matrix4x4 CalculateProjectionMatrix()
-            => Matrix4x4.CreateOrthographicOffCenter(_orthoLeft, _orthoRight, _orthoBottom, _orthoTop, NearPlane, FarPlane);
+            => Matrix4x4.CreateOrthographicOffCenter(_orthoLeft, _orthoRight, _orthoBottom, _orthoTop, NearZ, FarZ);
             //=> Matrix4x4.CreateOrthographic(Width, Height, NearPlane, FarPlane);
 
         protected override Frustum CalculateUntransformedFrustum()
-            => new(Width, Height, NearPlane, FarPlane);
+            => new(Width, Height, NearZ, FarZ);
 
         public override void SetUniforms(XRRenderProgram program)
         {

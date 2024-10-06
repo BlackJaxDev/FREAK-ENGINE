@@ -4,13 +4,11 @@ namespace XREngine.Rendering
 {
     public class XRTexture2DView(
         XRTexture2D viewedTexture,
-        int minLevel,
-        int numLevels,
-        int minLayer,
-        int numLayers,
+        uint minLevel,
+        uint numLevels,
         EPixelInternalFormat internalFormat,
         bool array,
-        bool multisample) : XRTextureView<XRTexture2D>(viewedTexture, minLevel, numLevels, minLayer, numLayers, internalFormat), IFrameBufferAttachement
+        bool multisample) : XRTextureView<XRTexture2D>(viewedTexture, minLevel, numLevels, 0u, 1u, internalFormat), IFrameBufferAttachement
     {
         public override uint MaxDimension { get; } = 2;
 
@@ -28,7 +26,7 @@ namespace XREngine.Rendering
         }
 
         private EDepthStencilFmt _depthStencilFormat = EDepthStencilFmt.None;
-        public EDepthStencilFmt DepthStencilFormat 
+        public EDepthStencilFmt DepthStencilViewFormat 
         {
             get => _depthStencilFormat;
             set => SetField(ref _depthStencilFormat, value);

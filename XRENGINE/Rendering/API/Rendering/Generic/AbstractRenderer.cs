@@ -13,6 +13,7 @@ using XREngine.Data.Rendering;
 using XREngine.Data.Transforms.Rotations;
 using XREngine.Input;
 using XREngine.Rendering.Models.Materials;
+using XREngine.Scene;
 using static XREngine.Engine;
 
 namespace XREngine.Rendering
@@ -210,8 +211,11 @@ namespace XREngine.Rendering
             {
                 Active = true;
                 Current = this;
+
+                TargetWorldInstance?.GlobalPreRender();
                 foreach (var viewport in Viewports)
-                    viewport.Render(XRWindow);
+                    viewport.Render();
+                TargetWorldInstance?.GlobalPostRender();
             }
             finally
             {

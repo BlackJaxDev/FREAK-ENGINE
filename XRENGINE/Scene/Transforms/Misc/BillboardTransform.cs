@@ -104,7 +104,7 @@ namespace XREngine.Scene.Transforms
 
             Vector3 lookAtPoint = Perspective 
                 ? camera.Transform.WorldTranslation
-                : GeoUtil.ClosestPointPlanePoint(camera.NearPlane(), parentPosition);
+                : GeoUtil.ClosestPointPlanePoint(camera.GetNearPlane(), parentPosition);
 
             Vector3 toCamVec = lookAtPoint - parentPosition;
 

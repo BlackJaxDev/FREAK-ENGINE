@@ -78,7 +78,10 @@ public abstract class RenderPipeline : XRBase
         switch (t)
         {
             case XRTexture2D t2d:
-                t2d.Resize(InternalWidth, InternalHeight);
+                if (t2d.Resizable)
+                    t2d.Resize(InternalWidth, InternalHeight);
+                else
+                    t2d.Destroy();
                 break;
         }
     }
@@ -87,7 +90,10 @@ public abstract class RenderPipeline : XRBase
         switch (t)
         {
             case XRTexture2D t2d:
-                t2d.Resize(FullWidth, FullHeight);
+                if (t2d.Resizable)
+                    t2d.Resize(FullWidth, FullHeight);
+                else
+                    t2d.Destroy();
                 break;
         }
     }
@@ -111,20 +117,20 @@ public abstract class RenderPipeline : XRBase
         XRTexture2D brdf = XRTexture2D.CreateFrameBufferTexture(
             width, height,
             EPixelInternalFormat.RG16f,
-            EPixelFormat.Rgb,
+            EPixelFormat.Rg,
             EPixelType.Float,
             EFrameBufferAttachment.ColorAttachment0);
-        brdf.Resizable = true;
+        brdf.Resizable = false;
+        brdf.SizedInternalFormat = ESizedInternalFormat.Rg16f;
         brdf.UWrap = ETexWrapMode.ClampToEdge;
         brdf.VWrap = ETexWrapMode.ClampToEdge;
         brdf.MinFilter = ETexMinFilter.Linear;
         brdf.MagFilter = ETexMagFilter.Linear;
         brdf.SamplerName = "BRDF";
         brdf.Name = "BRDF";
-        XRTexture2D[] texRefs = [];
 
         XRShader shader = XRShader.EngineShader(Path.Combine("Scene3D", "BRDF.fs"), EShaderType.Fragment);
-        XRMaterial mat = new(texRefs, shader)
+        XRMaterial mat = new(shader)
         {
             RenderOptions = new()
             {
@@ -137,20 +143,10 @@ public abstract class RenderPipeline : XRBase
             }
         };
 
-        //ndc space quad, so we don't have to load any camera matrices
-        VertexTriangle[] tris = VertexQuad.Make(
-                new Vector3(-1.0f, -1.0f, -0.5f),
-                new Vector3(1.0f, -1.0f, -0.5f),
-                new Vector3(1.0f, 1.0f, -0.5f),
-                new Vector3(-1.0f, 1.0f, -0.5f),
-                false, false).ToTriangles();
-
-        using XRMaterialFrameBuffer fbo = new(mat);
+        using XRQuadFrameBuffer fbo = new(mat);
         fbo.SetRenderTargets((brdf, EFrameBufferAttachment.ColorAttachment0, 0 , -1));
         fbo.Generate();
 
-        using XRMesh data = XRMesh.Create(tris);
-        using XRMeshRenderer quad = new(data, mat);
         BoundingRectangle region = new(IVector2.Zero, new IVector2((int)width, (int)height));
 
         //Now render the texture to the FBO using the quad
@@ -159,7 +155,10 @@ public abstract class RenderPipeline : XRBase
             using (State.PushRenderArea(region))
             {
                 Clear(true, false, false);
-                quad.Render();
+                using (State.PushRenderingCamera(null))
+                {
+                    fbo.Render();
+                }
             }
         }
         return brdf;

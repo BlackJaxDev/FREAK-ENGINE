@@ -251,23 +251,7 @@ namespace XREngine.Rendering
             if (_mipmaps is null || _mipmaps.Length <= 0)
                 return;
 
-            var baseTexture = _mipmaps[0];
-            if (baseTexture is null)
-                return;
-
-            Mipmap2D[] mips = new Mipmap2D[SmallestMipmapLevel];
-            mips[0] = baseTexture;
-
-            uint w = Width;
-            uint h = Height;
-            for (int i = 1; i < _mipmaps.Length; ++i)
-            {
-                Mipmap2D clone = _mipmaps[i - 1].Clone(true);
-                clone.Resize(w >> i, h >> i);
-                mips[i] = clone;
-            }
-
-            Mipmaps = mips;
+            Mipmaps = GetMipmapsFromImage(_mipmaps[0].GetImage());
         }
 
         /// <summary>

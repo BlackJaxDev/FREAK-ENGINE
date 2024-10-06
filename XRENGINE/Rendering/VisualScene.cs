@@ -1,4 +1,5 @@
-﻿using XREngine.Data.Core;
+﻿using System.Collections.Concurrent;
+using XREngine.Data.Core;
 using XREngine.Data.Rendering;
 using XREngine.Data.Trees;
 using XREngine.Rendering;
@@ -14,21 +15,18 @@ namespace XREngine.Scene
         public abstract IRenderTree RenderablesTree { get; }
 
         protected List<IPreRendered> _preRenderList = [];
-        protected List<IPreRendered> _preRenderAddWaitList = [];
-        protected List<IPreRendered> _preRenderRemoveWaitList = [];
+        protected ConcurrentQueue<IPreRendered> _preRenderAddWaitList = [];
+        protected ConcurrentQueue<IPreRendered> _preRenderRemoveWaitList = [];
         private readonly List<RenderInfo> _renderables = [];
 
         /// <summary>
-        /// Populates the given RenderPasses object with all renderables 
-        /// having culling volumes that reside within the collectionVolume.
+        /// Updates all pre-rendered objects in the scene with the given camera.
         /// </summary>
         /// <param name="commands"></param>
         /// <param name="collectionVolume"></param>
         /// <param name="camera"></param>
-        public void PreRender(RenderCommandCollection commands, IVolume? collectionVolume, XRCamera camera)
+        public void PreRender(XRCamera camera)
         {
-            CollectRenderedItems(commands, collectionVolume, camera);
-
             //TODO: prerender on own consistent animation thread
             //ParallelLoopResult result = await Task.Run(() => Parallel.ForEach(_preRenderList, p => { p.PreRenderUpdate(camera); }));
             foreach (IPreRendered p in _preRenderList)
@@ -44,7 +42,7 @@ namespace XREngine.Scene
         /// <param name="commands"></param>
         /// <param name="collectionVolume"></param>
         /// <param name="camera"></param>
-        public void CollectRenderedItems(RenderCommandCollection commands, IVolume? collectionVolume, XRCamera camera)
+        public void CollectRenderedItems(RenderCommandCollection commands, IVolume? collectionVolume, XRCamera? camera)
         {
             void AddRenderCommands(ITreeItem item)
             {
@@ -66,38 +64,40 @@ namespace XREngine.Scene
             }
         }
 
-        //public void CollectVisible(RenderCommandCollection passes, IVolume collectionVolume, XRCamera camera)
-        //    => Tree.CollectVisible(collectionVolume, false, x => x.AddRenderCommands(passes, camera));
-
+        /// <summary>
+        /// Swaps the update/render buffers for the scene.
+        /// </summary>
         public void SwapBuffers()
         {
             RenderablesTree.Swap();
 
-            foreach (IPreRendered p in _preRenderRemoveWaitList)
+            while (_preRenderRemoveWaitList.TryDequeue(out IPreRendered? p) && p is not null)
                 _preRenderList.Remove(p);
-            foreach (IPreRendered p in _preRenderAddWaitList)
+
+            while (_preRenderAddWaitList.TryDequeue(out IPreRendered? p) && p is not null)
                 _preRenderList.Add(p);
 
-            _preRenderRemoveWaitList.Clear();
-            _preRenderAddWaitList.Clear();
-
-            //foreach (IPreRendered p in _preRenderList)
-            //    if (p.PreRenderEnabled)
-            //        p.PreRenderSwap();
+            foreach (IPreRendered p in _preRenderList)
+                if (p.PreRenderEnabled)
+                    p.PreRenderSwap();
         }
+
         public void AddPreRenderedObject(IPreRendered obj)
         {
             if (obj is null)
                 return;
+
             if (!_preRenderList.Contains(obj))
-                _preRenderAddWaitList.Add(obj);
+                _preRenderAddWaitList.Enqueue(obj);
         }
+
         public void RemovePreRenderedObject(IPreRendered obj)
         {
             if (obj is null)
                 return;
+
             if (_preRenderList.Contains(obj))
-                _preRenderRemoveWaitList.Add(obj);
+                _preRenderRemoveWaitList.Enqueue(obj);
         }
 
         public void AddRenderable(RenderInfo renderable)
@@ -116,5 +116,15 @@ namespace XREngine.Scene
             => ((System.Collections.IEnumerable)_renderables).GetEnumerator();
         public IEnumerator<IRenderable> GetEnumerator()
             => ((IEnumerable<IRenderable>)_renderables).GetEnumerator();
+
+        public virtual void GlobalPreRender()
+        {
+
+        }
+
+        public virtual void GlobalPostRender()
+        {
+
+        }
     }
 }

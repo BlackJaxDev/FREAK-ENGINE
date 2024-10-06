@@ -1,6 +1,6 @@
-#version 410
+#version 460
 layout(location = 0) out vec2 OutColor;
-layout(location = 4) in vec3 FragUV0;
+layout(location = 0) in vec3 FragPos;
 
 const float PI = 3.14159265359f;
 
@@ -99,5 +99,10 @@ vec2 IntegrateBRDF(float NdotV, float roughness)
 
 void main()
 {
-    OutColor = IntegrateBRDF(FragUV0.x, FragUV0.y);
+    vec2 uv = FragPos.xy;
+    if (uv.x > 1.0f || uv.y > 1.0f)
+        discard;
+    //Normalize uv from [-1, 1] to [0, 1]
+    uv = uv * 0.5f + 0.5f;
+    OutColor = IntegrateBRDF(uv.x, uv.y);
 }

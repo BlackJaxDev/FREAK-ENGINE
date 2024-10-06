@@ -74,12 +74,6 @@ namespace XREngine.Rendering
                 foreach (var wrapper in APIWrappers)
                     wrapper.Destroy();
             }
-
-            lock (RenderObjectCache)
-            {
-                if (_roCache.TryGetValue(GetType(), out var list))
-                    list.Remove(this);
-            }
         }
 
         public GenericRenderObject()
@@ -110,6 +104,12 @@ namespace XREngine.Rendering
         ~GenericRenderObject()
         {
             Destroy();
+
+            lock (RenderObjectCache)
+            {
+                if (_roCache.TryGetValue(GetType(), out var list))
+                    list.Remove(this);
+            }
         }
 
         public string GetDescribingName()

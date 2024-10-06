@@ -18,10 +18,8 @@ layout(binding = 7) uniform samplerCube Irradiance;
 layout(binding = 8) uniform samplerCube Prefilter;
 
 uniform vec3 CameraPosition;
-uniform mat4 WorldToCameraSpaceMatrix;
-uniform mat4 CameraToWorldSpaceMatrix;
+uniform mat4 InverseViewMatrix;
 uniform mat4 ProjMatrix;
-uniform mat4 InvProjMatrix;
 
 vec3 SpecF_SchlickRoughness(in float VoH, in vec3 F0, in float roughness)
 {
@@ -37,43 +35,48 @@ vec3 SpecF_SchlickRoughnessApprox(in float VoH, in vec3 F0, in float roughness)
 vec3 WorldPosFromDepth(in float depth, in vec2 uv)
 {
 	vec4 clipSpacePosition = vec4(vec3(uv, depth) * 2.0f - 1.0f, 1.0f);
-	vec4 viewSpacePosition = InvProjMatrix * clipSpacePosition;
+	vec4 viewSpacePosition = inverse(ProjMatrix) * clipSpacePosition;
 	viewSpacePosition /= viewSpacePosition.w;
-	return (CameraToWorldSpaceMatrix * viewSpacePosition).xyz;
+	return (inverse(InverseViewMatrix) * ProjMatrix * viewSpacePosition).xyz;
 }
 void main()
 {
 	vec2 uv = FragPos.xy;
+	if (uv.x > 1.0f || uv.y > 1.0f)
+		discard;
+	//Normalize uv from [-1, 1] to [0, 1]
+	uv = uv * 0.5f + 0.5f;
+
 	vec3 albedoColor = texture(Texture0, uv).rgb;
 	vec3 normal = texture(Texture1, uv).rgb;
 	vec3 rms = texture(Texture2, uv).rgb;
 	float ao = texture(Texture3, uv).r;
 	float depth = texture(Texture4, uv).r;
-  vec3 Lo = texture(Texture5, uv).rgb;
-  vec3 irradianceColor = texture(Irradiance, normal).rgb;
+	vec3 Lo = texture(Texture5, uv).rgb;
+	vec3 irradianceColor = texture(Irradiance, normal).rgb;
 	vec3 fragPosWS = WorldPosFromDepth(depth, uv);
 	//float fogDensity = noise3(fragPosWS);
 
 	float roughness = rms.x;
-  float metallic = rms.y;
+  	float metallic = rms.y;
 	float specularIntensity = rms.z;
 
-  vec3 V = normalize(CameraPosition - fragPosWS);
-  float NoV = max(dot(normal, V), 0.0f);
-  vec3 F0 = mix(vec3(0.04f), albedoColor, metallic);
-  vec2 brdf = texture(BRDF, vec2(NoV, roughness)).rg;
+	vec3 V = normalize(CameraPosition - fragPosWS);
+	float NoV = max(dot(normal, V), 0.0f);
+	vec3 F0 = mix(vec3(0.04f), albedoColor, metallic);
+	vec2 brdf = texture(BRDF, vec2(NoV, roughness)).rg;
 
-  //Calculate specular and diffuse components
-  //Preserve energy by making sure they add up to 1
-  vec3 kS = SpecF_SchlickRoughnessApprox(NoV, F0, roughness) * specularIntensity;
-  vec3 kD = (1.0f - kS) * (1.0f - metallic);
-  vec3 R = reflect(-V, normal);
+	//Calculate specular and diffuse components
+	//Preserve energy by making sure they add up to 1
+	vec3 kS = SpecF_SchlickRoughnessApprox(NoV, F0, roughness) * specularIntensity;
+	vec3 kD = (1.0f - kS) * (1.0f - metallic);
+	vec3 R = reflect(-V, normal);
 
 	//TODO: fix reflection vector, blend environment cubemaps via influence radius
 
-  vec3 diffuse = irradianceColor * albedoColor;
-  vec3 prefilteredColor = textureLod(Prefilter, R, roughness * MAX_REFLECTION_LOD).rgb;
-  vec3 specular = prefilteredColor * (kS * brdf.x + brdf.y);
+	vec3 diffuse = irradianceColor * albedoColor;
+	vec3 prefilteredColor = textureLod(Prefilter, R, roughness * MAX_REFLECTION_LOD).rgb;
+	vec3 specular = prefilteredColor * (kS * brdf.x + brdf.y);
 
-  OutColor = (kD * diffuse + specular) * ao +	Lo;
+	OutColor = vec3(ao, ao, ao);//(kD * diffuse + specular) * ao +	Lo;
 }

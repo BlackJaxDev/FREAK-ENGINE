@@ -47,40 +47,30 @@ namespace XREngine.Scene
                 PointLights[i].SetUniforms(program, $"PointLightData[{i}]");
         }
 
-        public void SwapBuffers()
+        public void CollectVisibleItems()
         {
             foreach (DirectionalLightComponent l in DirectionalLights)
-                l.SwapBuffers();
+                l.CollectVisibleItems(Scene);
 
             foreach (SpotLightComponent l in SpotLights)
-                l.SwapBuffers();
+                l.CollectVisibleItems(Scene);
 
             foreach (PointLightComponent l in PointLights)
-                l.SwapBuffers();
+                l.CollectVisibleItems(Scene);
         }
-        public void CollectShadowMaps()
-        {
-            foreach (DirectionalLightComponent l in DirectionalLights)
-                l.CollectShadowMap(Scene);
 
-            foreach (SpotLightComponent l in SpotLights)
-                l.CollectShadowMap(Scene);
-
-            foreach (PointLightComponent l in PointLights)
-                l.CollectShadowMap(Scene);
-        }
-        public void RenderShadowMaps()
+        public void RenderShadowMaps(bool collectVisibleNow)
         {
             RenderingShadowMaps = true;
 
             foreach (DirectionalLightComponent l in DirectionalLights)
-                l.RenderShadowMap(Scene);
+                l.RenderShadowMap(Scene, collectVisibleNow);
 
             foreach (SpotLightComponent l in SpotLights)
-                l.RenderShadowMap(Scene);
+                l.RenderShadowMap(Scene, collectVisibleNow);
 
             foreach (PointLightComponent l in PointLights)
-                l.RenderShadowMap(Scene);
+                l.RenderShadowMap(Scene, collectVisibleNow);
 
             RenderingShadowMaps = false;
         }

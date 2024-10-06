@@ -15,16 +15,10 @@ uniform sampler2D ShadowMap; //Spot Shadow Map
 uniform vec3 CameraPosition;
 uniform vec3 CameraForward;
 uniform float CameraNearZ;
-uniform float CameraFarZ;
 uniform float ScreenWidth;
 uniform float ScreenHeight;
-uniform float ScreenOrigin;
-uniform float ProjOrigin;
-uniform float ProjRange;
-uniform mat4 WorldToCameraSpaceMatrix;
-uniform mat4 CameraToWorldSpaceMatrix;
+uniform mat4 InverseViewMatrix;
 uniform mat4 ProjMatrix;
-uniform mat4 InvProjMatrix;
 
 uniform float MinFade = 500.0f;
 uniform float MaxFade = 1000.0f;
@@ -37,7 +31,8 @@ struct SpotLight
 {
     vec3 Color;
     float DiffuseIntensity;
-    mat4 WorldToLightSpaceProjMatrix;
+    mat4 WorldToLightInvViewMatrix;
+	mat4 WorldToLightProjMatrix;
 
     vec3 Position;
     vec3 Direction;
@@ -87,10 +82,10 @@ float ReadShadowMap2D(in vec3 fragPosWS, in vec3 N, in float NoL, in mat4 lightM
 	}
 	shadow *= 0.111111111f; //divided by 9
 
-  float dist = fragCoord.z - depth;
-  float maxBlurDist = 0.1f;
-  float normDist = clamp(dist, 0.0f, maxBlurDist) / maxBlurDist;
-  shadow = mix(shadow1, shadow, normDist);
+	float dist = fragCoord.z - depth;
+	float maxBlurDist = 0.1f;
+	float normDist = clamp(dist, 0.0f, maxBlurDist) / maxBlurDist;
+	shadow = mix(shadow1, shadow, normDist);
 
 	return shadow;
 }
@@ -213,7 +208,7 @@ in vec3 F0)
 
 	float shadow = ReadShadowMap2D(
 		fragPosWS, N, NoL,
-		LightData.WorldToLightSpaceProjMatrix);
+		inverse(LightData.WorldToLightInvViewMatrix) * LightData.WorldToLightProjMatrix);
 
 	return color * shadow;
 }
@@ -231,9 +226,9 @@ in vec3 rms)
 vec3 WorldPosFromDepth(in float depth, in vec2 uv)
 {
 	vec4 clipSpacePosition = vec4(vec3(uv, depth) * 2.0f - 1.0f, 1.0f);
-	vec4 viewSpacePosition = InvProjMatrix * clipSpacePosition;
+	vec4 viewSpacePosition = inverse(ProjMatrix) * clipSpacePosition;
 	viewSpacePosition /= viewSpacePosition.w;
-	return (CameraToWorldSpaceMatrix * viewSpacePosition).xyz;
+	return (inverse(InverseViewMatrix) * ProjMatrix * viewSpacePosition).xyz;
 }
 void main()
 {

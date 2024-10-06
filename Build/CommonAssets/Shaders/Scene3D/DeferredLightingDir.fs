@@ -13,18 +13,10 @@ uniform sampler2D Texture3; //Depth
 uniform sampler2D ShadowMap; //Directional Shadow Map
 
 uniform vec3 CameraPosition;
-uniform vec3 CameraForward;
-uniform float CameraNearZ;
-uniform float CameraFarZ;
 uniform float ScreenWidth;
 uniform float ScreenHeight;
-uniform float ScreenOrigin;
-uniform float ProjOrigin;
-uniform float ProjRange;
-uniform mat4 WorldToCameraSpaceMatrix;
-uniform mat4 CameraToWorldSpaceMatrix;
+uniform mat4 InverseViewMatrix;
 uniform mat4 ProjMatrix;
-uniform mat4 InvProjMatrix;
 
 uniform float MinFade = 500.0f;
 uniform float MaxFade = 1000.0f;
@@ -37,7 +29,8 @@ struct DirLight
 {
     vec3 Color;
     float DiffuseIntensity;
-    mat4 WorldToLightSpaceProjMatrix;
+    mat4 WorldToLightInvViewMatrix;
+	mat4 WorldToLightProjMatrix;
     vec3 Direction;
 };
 uniform DirLight LightData;
@@ -177,13 +170,13 @@ in vec3 F0)
 	float NoV = max(dot(N, V), 0.0f);
 	float HoV = max(dot(H, V), 0.0f);
 
-  vec3 color = CalcColor(
+  	vec3 color = CalcColor(
 		NoL, NoH, NoV, HoV,
 		1.0f, albedo, rms, F0);
 
 	float shadow = ReadShadowMap2D(
 		fragPosWS, N, NoL,
-		LightData.WorldToLightSpaceProjMatrix);
+		inverse(LightData.WorldToLightInvViewMatrix) * LightData.WorldToLightProjMatrix);
 
 	return color * shadow;
 }
@@ -200,10 +193,26 @@ in vec3 rms)
 }
 vec3 WorldPosFromDepth(in float depth, in vec2 uv)
 {
-	vec4 clipSpacePosition = vec4(vec3(uv, depth) * 2.0f - 1.0f, 1.0f);
-	vec4 viewSpacePosition = InvProjMatrix * clipSpacePosition;
+	// Transform UV coordinates from [0,1] to Normalized Device Coordinates [-1,1]
+    vec2 ndc = uv * 2.0 - 1.0;
+
+    // Reconstruct the clip-space position
+    float clipZ = depth * 2.0 - 1.0;
+    vec4 clipSpacePosition = vec4(ndc, clipZ, 1.0);
+
+    // Reconstruct the view-space position
+    vec4 viewSpacePosition;
+    viewSpacePosition.x = (clipSpacePosition.x - ProjMatrix[0][2]) / ProjMatrix[0][0];
+    viewSpacePosition.y = (clipSpacePosition.y - ProjMatrix[1][2]) / ProjMatrix[1][1];
+    viewSpacePosition.z = -clipSpacePosition.w; // Since clip.w = -view.z in perspective projection
+    viewSpacePosition.w = 1.0;
+
+    // Transform from view space to world space
+    vec4 worldSpacePosition = InverseViewMatrix * viewSpacePosition;
+
+    return worldSpacePosition.xyz;
 	viewSpacePosition /= viewSpacePosition.w;
-	return (CameraToWorldSpaceMatrix * viewSpacePosition).xyz;
+	return (inverse(InverseViewMatrix) * ProjMatrix * viewSpacePosition).xyz;
 }
 void main()
 {

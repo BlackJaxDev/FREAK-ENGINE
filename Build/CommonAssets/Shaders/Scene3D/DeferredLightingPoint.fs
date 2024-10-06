@@ -13,18 +13,10 @@ uniform sampler2D Texture3; //Depth
 uniform samplerCube ShadowMap; //Point Shadow Map
 
 uniform vec3 CameraPosition;
-uniform vec3 CameraForward;
-uniform float CameraNearZ;
-uniform float CameraFarZ;
 uniform float ScreenWidth;
 uniform float ScreenHeight;
-uniform float ScreenOrigin;
-uniform float ProjOrigin;
-uniform float ProjRange;
-uniform mat4 WorldToCameraSpaceMatrix;
-uniform mat4 CameraToWorldSpaceMatrix;
+uniform mat4 InverseViewMatrix;
 uniform mat4 ProjMatrix;
-uniform mat4 InvProjMatrix;
 
 uniform float MinFade = 500.0f;
 uniform float MaxFade = 1000.0f;
@@ -193,14 +185,14 @@ in vec3 rms)
 	float metallic = rms.y;
 	vec3 V = normalize(CameraPosition - fragPosWS);
 	vec3 F0 = mix(vec3(0.04f), albedo, metallic);
-  return CalcPointLight(normal, V, fragPosWS, albedo, rms, F0);
+  	return CalcPointLight(normal, V, fragPosWS, albedo, rms, F0);
 }
 vec3 WorldPosFromDepth(in float depth, in vec2 uv)
 {
 	vec4 clipSpacePosition = vec4(vec3(uv, depth) * 2.0f - 1.0f, 1.0f);
-	vec4 viewSpacePosition = InvProjMatrix * clipSpacePosition;
+	vec4 viewSpacePosition = inverse(ProjMatrix) * clipSpacePosition;
 	viewSpacePosition /= viewSpacePosition.w;
-	return (CameraToWorldSpaceMatrix * viewSpacePosition).xyz;
+	return (inverse(InverseViewMatrix) * ProjMatrix * viewSpacePosition).xyz;
 }
 void main()
 {
@@ -215,8 +207,8 @@ void main()
 	//Resolve world fragment position using depth and screen UV
 	vec3 fragPosWS = WorldPosFromDepth(depth, uv);
 
-  float fadeRange = MaxFade - MinFade;
-  float dist = length(CameraPosition - fragPosWS);
-  float strength = smoothstep(1.0f, 0.0f, clamp((dist - MinFade) / fadeRange, 0.0f, 1.0f));
-  OutColor = strength * CalcTotalLight(fragPosWS, normal, albedo, rms);
+	float fadeRange = MaxFade - MinFade;
+	float dist = length(CameraPosition - fragPosWS);
+	float strength = smoothstep(1.0f, 0.0f, clamp((dist - MinFade) / fadeRange, 0.0f, 1.0f));
+	OutColor = strength * CalcTotalLight(fragPosWS, normal, albedo, rms);
 }

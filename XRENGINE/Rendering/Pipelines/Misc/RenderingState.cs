@@ -1,4 +1,5 @@
 ﻿using XREngine.Data.Geometry;
+using XREngine.Rendering.OpenGL;
 using XREngine.Scene;
 
 namespace XREngine.Rendering;
@@ -60,6 +61,8 @@ public sealed partial class XRRenderPipelineInstance
             OutputFBO = null;
             ShadowPass = false;
         }
+
+        public XRMaterial? GlobalMaterialOverride { get; set; }
 
         public XRCamera? RenderingCamera
             => _renderingCameras.TryPeek(out var c) ? c : null;
@@ -128,6 +131,7 @@ public sealed partial class XRRenderPipelineInstance
 
         public VisualScene? RenderingScene
             => _renderingScenes.TryPeek(out var s) ? s : null;
+
         private readonly Stack<VisualScene> _renderingScenes = new();
         public StateObject PushRenderingScene(VisualScene scene)
         {

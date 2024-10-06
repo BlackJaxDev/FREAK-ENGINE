@@ -203,8 +203,9 @@ namespace XREngine.Rendering.OpenGL
 
             public GLMaterial GetRenderMaterial(XRMaterial? localMaterialOverride = null)
             {
-                var mat = 
-                    Renderer.GlobalMaterialOverride ??
+                var globalMaterialOverride = Engine.Rendering.State.PipelineState?.GlobalMaterialOverride;
+                var mat =
+                    (globalMaterialOverride is null ? null : (Renderer.GetOrCreateAPIRenderObject(globalMaterialOverride) as GLMaterial)) ??
                     (localMaterialOverride is null ? null : (Renderer.GetOrCreateAPIRenderObject(localMaterialOverride) as GLMaterial)) ??
                     Material;
 
@@ -537,11 +538,6 @@ namespace XREngine.Rendering.OpenGL
             }
         }
 
-        /// <summary>
-        /// Use to globally override the material that meshes render with.
-        /// For example, for shadow mapping
-        /// </summary>
-        public GLMaterial? GlobalMaterialOverride { get; set; }
         public IGLTexture? BoundTexture { get; set; }
 
         /// <summary>

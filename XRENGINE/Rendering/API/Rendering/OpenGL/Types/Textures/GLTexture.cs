@@ -99,7 +99,7 @@ namespace XREngine.Rendering.OpenGL
             Api.TextureParameterI(BindingId, TextureParameterName.TextureMaxLevel, ref param);
         }
 
-        protected bool OnPreBind()
+        protected virtual bool OnPreBind()
         {
             if (Renderer.BoundTexture == this)
                 return false;
@@ -109,7 +109,7 @@ namespace XREngine.Rendering.OpenGL
             return callback.ShouldBind;
         }
 
-        protected void OnPrePushData(out bool shouldPush, out bool allowPostPushCallback)
+        protected virtual void OnPrePushData(out bool shouldPush, out bool allowPostPushCallback)
         {
             PrePushDataCallback callback = new();
             PrePushData.Invoke(callback);
@@ -118,9 +118,7 @@ namespace XREngine.Rendering.OpenGL
         }
 
         protected virtual void OnPostPushData()
-        {
-            PostPushData.Invoke(this);
-        }
+            => PostPushData.Invoke(this);
 
         public abstract ETextureTarget TextureTarget { get; }
 
@@ -179,7 +177,7 @@ namespace XREngine.Rendering.OpenGL
             => Api.GenerateTextureMipmap(BindingId);
 
         protected override uint CreateObject()
-            => Api.CreateTexture(ToGLEnum(TextureTarget));
+            => Api.GenTexture();
 
         protected internal override void PostGenerated()
             => Invalidate();

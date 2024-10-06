@@ -5,31 +5,10 @@ using XREngine.Data.Rendering;
 using XREngine.Rendering;
 using XREngine.Rendering.Commands;
 using XREngine.Rendering.Info;
-using XREngine.Rendering.Pipelines.Commands;
 using XREngine.Scene;
 
 namespace XREngine.Components.Lights
 {
-    //public class ShadowRenderPipeline : RenderPipeline
-    //{
-    //    protected override ViewportRenderCommandContainer GenerateCommandChain()
-    //    {
-
-    //    }
-    //    protected override Dictionary<int, IComparer<RenderCommand>?> GetPassIndicesAndSorters()
-    //    {
-    //        return new()
-    //        {
-    //            //{ 0, _nearToFarSorter }, //No background pass
-    //            { 1, null }, //OpaqueDeferredLit
-    //            //{ 2, _nearToFarSorter }, //No decals
-    //            { 3, null }, //OpaqueForward
-    //            { 4, null }, //TransparentForward
-    //            //{ 5, _nearToFarSorter }, //No on top (UI)
-    //        };
-    //    }
-    //}
-
     public abstract class LightComponent : XRComponent, IRenderable
     {
         protected ColorF3 _color = new(1.0f, 1.0f, 1.0f);
@@ -37,7 +16,6 @@ namespace XREngine.Components.Lights
 
         protected int _lightIndex = -1;
         private XRMaterialFrameBuffer? _shadowMap;
-        private XRCamera? _shadowCamera;
 
         protected BoundingRectangle _shadowMapRenderRegion = new(1024, 1024);
         private ELightType _type = ELightType.Dynamic;
@@ -59,7 +37,7 @@ namespace XREngine.Components.Lights
             RenderInfo = RenderInfo3D.New(this);
             RenderInfo.VisibleInLightingProbes = false;
             RenderedObjects = [RenderInfo];
-            //ShadowRenderPipeline = new ShadowRenderPipeline();
+            ShadowRenderPipeline = new ShadowRenderPipeline();
         }
 
         public Matrix4x4 LightMatrix
@@ -68,17 +46,18 @@ namespace XREngine.Components.Lights
             protected set => SetField(ref _lightMatrix, value);
         }
 
+        protected abstract void RecalcLightMatrix();
+
         public XRMaterialFrameBuffer? ShadowMap
         {
             get => _shadowMap;
             protected set => SetField(ref _shadowMap, value);
         }
 
-        public XRCamera? ShadowCamera
-        {
-            get => _shadowCamera;
-            protected set => SetField(ref _shadowCamera, value);
-        }
+        private XRCamera? _shadowCamera;
+        public XRCamera? ShadowCamera => _shadowCamera ??= GetShadowCamera();
+
+        protected abstract XRCamera GetShadowCamera();
 
         public bool CastsShadows
         {
@@ -143,14 +122,6 @@ namespace XREngine.Components.Lights
         public RenderInfo3D RenderInfo { get; }
         public RenderInfo[] RenderedObjects { get; }
 
-        internal void SetShadowUniforms(XRRenderProgram program)
-        {
-            program.Uniform(Engine.Rendering.Constants.ShadowExponentBaseUniform, ShadowExponentBase);
-            program.Uniform(Engine.Rendering.Constants.ShadowExponentUniform, ShadowExponent);
-            program.Uniform(Engine.Rendering.Constants.ShadowBiasMinUniform, ShadowMinBias);
-            program.Uniform(Engine.Rendering.Constants.ShadowBiasMaxUniform, ShadowMaxBias);
-        }
-
         public virtual void SetShadowMapResolution(uint width, uint height)
         {
             _shadowMapRenderRegion.Width = (int)width;
@@ -162,25 +133,18 @@ namespace XREngine.Components.Lights
                 ShadowMap.Resize(width, height);
         }
 
-        public abstract void SetUniforms(XRRenderProgram program, string? targetStructName = null);
+        public virtual void SetUniforms(XRRenderProgram program, string? targetStructName = null)
+        {
+            program.Uniform(Engine.Rendering.Constants.ShadowExponentBaseUniform, ShadowExponentBase);
+            program.Uniform(Engine.Rendering.Constants.ShadowExponentUniform, ShadowExponent);
+            program.Uniform(Engine.Rendering.Constants.ShadowBiasMinUniform, ShadowMinBias);
+            program.Uniform(Engine.Rendering.Constants.ShadowBiasMaxUniform, ShadowMaxBias);
+        }
 
         protected virtual IVolume? GetShadowVolume()
             => ShadowCamera?.WorldFrustum();
 
         public abstract XRMaterial GetShadowMapMaterial(uint width, uint height, EDepthPrecision precision = EDepthPrecision.Flt32);
-
-        public void CollectShadowMap(VisualScene scene)
-        {
-            if (!CastsShadows || ShadowCamera is null)
-                return;
-
-            scene.PreRender(_shadowRenderPipeline.MeshRenderCommands, GetShadowVolume(), ShadowCamera);
-        }
-
-        public void SwapBuffers()
-        {
-
-        }
 
         private readonly XRRenderPipelineInstance _shadowRenderPipeline = new();
         public RenderPipeline? ShadowRenderPipeline
@@ -189,14 +153,24 @@ namespace XREngine.Components.Lights
             set => _shadowRenderPipeline.Pipeline = value;
         }
 
-        public void RenderShadowMap(VisualScene scene)
+        public void CollectVisibleItems(VisualScene scene)
         {
-            if (ShadowMap?.Material is null || ShadowCamera is null)
+            if (!CastsShadows || ShadowCamera is null)
                 return;
 
-            //using var overrideMat = Engine.Rendering.State.PushOverrideMaterial(ShadowMap.Material);
-            //using var overrideRegion = Engine.Rendering.State.PushRenderArea(_shadowMapRenderRegion);
-            _shadowRenderPipeline.Render(null, scene, ShadowCamera, null, ShadowMap, true, null);
+            scene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, GetShadowVolume(), ShadowCamera);
+        }
+
+        public void RenderShadowMap(VisualScene scene, bool collectVisibleNow = false)
+        {
+            if (!CastsShadows || ShadowCamera is null || ShadowMap?.Material is null)
+                return;
+
+            scene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, GetShadowVolume(), ShadowCamera);
+            scene.PreRender(ShadowCamera);
+            scene.SwapBuffers();
+
+            _shadowRenderPipeline.Render(scene, ShadowCamera, null, ShadowMap, null, true, ShadowMap.Material);
         }
 
         public static EPixelInternalFormat GetShadowDepthMapFormat(EDepthPrecision precision)

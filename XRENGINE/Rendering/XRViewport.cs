@@ -121,7 +121,11 @@ namespace XREngine.Rendering
 
             var cameraComponent = CameraComponent;
             IVolume? cullingVolume = (cameraComponent?.CullWithFrustum ?? true) ? camera.WorldFrustum() : cameraComponent.CullingFrustumOverride;
-            World?.VisualScene?.PreRender(_renderPipeline.MeshRenderCommands, cullingVolume, camera);
+            if (World?.VisualScene is not null)
+            {
+                World.VisualScene.CollectRenderedItems(_renderPipeline.MeshRenderCommands, cullingVolume, camera);
+                World.VisualScene.PreRender(camera);
+            }
             cameraComponent?.UserInterface?.PreRender(this, cameraComponent);
         }
 
@@ -175,7 +179,7 @@ namespace XREngine.Rendering
         /// </summary>
         /// <param name="vp"></param>
         /// <param name="targetFbo"></param>
-        public void Render(XRWindow? window = null, XRFrameBuffer? targetFbo = null, VisualScene? sceneOverride = null)
+        public void Render(XRFrameBuffer? targetFbo = null, VisualScene? sceneOverride = null)
         {
             XRCamera? camera = ActiveCamera;
             if (camera is null)
@@ -192,7 +196,7 @@ namespace XREngine.Rendering
                 SwapBuffers();
             }
 
-            _renderPipeline.Render(window, scene, camera, this, targetFbo, false, CameraComponent?.UserInterface);
+            _renderPipeline.Render(scene, camera, this, targetFbo, CameraComponent?.UserInterface, false);
         }
 
         private readonly XRRenderPipelineInstance _renderPipeline = new();
@@ -209,7 +213,7 @@ namespace XREngine.Rendering
                         {
                             _camera.Viewports.Remove(this);
                             Engine.Time.Timer.SwapBuffers -= SwapBuffers;
-                            Engine.Time.Timer.PreRenderFrame -= PreRender;
+                            Engine.Time.Timer.PostSwap -= PreRender;
                         }
                         break;
                 }
@@ -228,7 +232,7 @@ namespace XREngine.Rendering
                             _camera.Viewports.Add(this);
                         SetAspectRatioToCamera();
                         Engine.Time.Timer.SwapBuffers += SwapBuffers;
-                        Engine.Time.Timer.PreRenderFrame += PreRender;
+                        Engine.Time.Timer.PostSwap += PreRender;
                     }
                     break;
                 case nameof(CameraComponent):

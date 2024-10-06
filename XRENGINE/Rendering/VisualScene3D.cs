@@ -41,5 +41,11 @@ namespace XREngine.Scene
         }
 
         public override IRenderTree RenderablesTree => RenderTree;
+
+        public override void GlobalPreRender()
+        {
+            base.GlobalPreRender();
+            Lights.RenderShadowMaps(false);
+        }
     }
 }

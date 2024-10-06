@@ -63,7 +63,7 @@ namespace XREngine.Rendering.Commands
         {
             if (!_renderingPasses.TryGetValue(pass, out var list))
             {
-                Debug.Out($"No render pass {pass} found.");
+                //Debug.Out($"No render pass {pass} found.");
                 return;
             }
 

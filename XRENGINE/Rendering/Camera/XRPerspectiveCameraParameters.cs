@@ -55,10 +55,10 @@ namespace XREngine.Rendering
             => AspectRatio = width / height;
 
         protected override Matrix4x4 CalculateProjectionMatrix()
-            => Matrix4x4.CreatePerspectiveFieldOfView(XRMath.DegToRad(VerticalFieldOfView), AspectRatio, NearPlane, FarPlane);
+            => Matrix4x4.CreatePerspectiveFieldOfView(XRMath.DegToRad(VerticalFieldOfView), AspectRatio, NearZ, FarZ);
 
         protected override Frustum CalculateUntransformedFrustum()
-            => new(VerticalFieldOfView, AspectRatio, NearPlane, FarPlane, Globals.Forward, Globals.Up, Vector3.Zero);
+            => new(VerticalFieldOfView, AspectRatio, NearZ, FarZ, Globals.Forward, Globals.Up, Vector3.Zero);
 
         public override void SetUniforms(XRRenderProgram program)
         {

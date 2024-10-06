@@ -87,7 +87,6 @@ namespace XREngine.Rendering.Pipelines.Commands
                 return;
 
             Pipeline.State.SceneCamera?.PostProcessing?.Shadows.SetUniforms(materialProgram);
-            _currentLightComponent.SetShadowUniforms(materialProgram);
             _currentLightComponent.SetUniforms(materialProgram);
         }
 

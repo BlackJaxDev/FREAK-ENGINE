@@ -18,50 +18,41 @@ namespace XREngine.Components.Lights
             set
             {
                 _scale = value;
-
-                if (ShadowCamera != null)
-                {
-                    if (ShadowCamera.Parameters is not XROrthographicCameraParameters p)
-                        ShadowCamera.Parameters = p = new XROrthographicCameraParameters(Scale.X, Scale.Y, 0.01f, Scale.Z);
-                    else
-                    {
-                        p.Width = Scale.X;
-                        p.Height = Scale.Y;
-                        p.FarPlane = Scale.Z;
-                        p.NearPlane = 0.01f;
-                    }
-
-                    //ShadowCamera.Translation.Value = Transform.WorldTranslation;
-                    //ShadowCamera.TranslateRelative(0.0f, 0.0f, Scale.Z * 0.5f);
-                }
-
-                LightMatrix = Transform.WorldMatrix * Matrix4x4.CreateScale(_scale);
+                UpdateShadowCameraScale();
+                RecalcLightMatrix();
             }
+        }
+
+        protected override void RecalcLightMatrix()
+            => LightMatrix = Transform.WorldMatrix * Matrix4x4.CreateScale(_scale);
+
+        protected override XRCamera GetShadowCamera()
+        {
+            return new XRCamera(ShadowCameraTransform, new XROrthographicCameraParameters(Scale.X, Scale.Y, 0.01f, Scale.Z));
+        }
+
+        private Transform? _shadowCameraTransform;
+        private Transform ShadowCameraTransform => _shadowCameraTransform ??= new Transform() { Parent = Transform };
+
+        private void UpdateShadowCameraScale()
+        {
+            if (ShadowCamera!.Parameters is not XROrthographicCameraParameters p)
+                ShadowCamera.Parameters = p = new XROrthographicCameraParameters(Scale.X, Scale.Y, 0.01f, Scale.Z);
+            else
+            {
+                p.Width = Scale.X;
+                p.Height = Scale.Y;
+                p.FarZ = Scale.Z;
+                p.NearZ = 0.01f;
+            }
+            ShadowCameraTransform.Translation = new Vector3(0.0f, 0.0f, Scale.Z * 0.5f);
         }
 
         protected override void OnTransformWorldMatrixChanged(TransformBase transform)
         {
-            if (ShadowCamera != null)
-            {
-                //ShadowCamera.Translation.Value = WorldPoint;
-                //ShadowCamera.TranslateRelative(0.0f, 0.0f, Scale.Z * 0.5f);
-            }
-
-            LightMatrix = Transform.WorldMatrix * Matrix4x4.CreateScale(_scale);
+            RecalcLightMatrix();
             base.OnTransformWorldMatrixChanged(transform);
         }
-        //protected override void OnWorldTransformChanged(bool recalcChildWorldTransformsNow = true)
-        //{
-        //    if (ShadowCamera != null)
-        //    {
-        //        ShadowCamera.Translation.Value = WorldPoint;
-        //        ShadowCamera.TranslateRelative(0.0f, 0.0f, Scale.Z * 0.5f);
-        //    }
-
-        //    LightMatrix = WorldMatrix.Value * Scale.AsScaleMatrix();
-
-        //    base.OnWorldTransformChanged(recalcChildWorldTransformsNow);
-        //}
 
         protected internal override void Start()
         {
@@ -74,9 +65,6 @@ namespace XREngine.Components.Lights
                 SetShadowMapResolution((uint)_shadowMapRenderRegion.Width, (uint)_shadowMapRenderRegion.Height);
 
             scene3D.Lights.DirectionalLights.Add(this);
-
-            //ShadowCamera.Transform.LocalTranslation = WorldPoint;
-            //ShadowCamera.TranslateRelative(0.0f, 0.0f, Scale.Z * 0.5f);
         }
 
         protected internal override void Stop()
@@ -99,20 +87,20 @@ namespace XREngine.Components.Lights
             program.Uniform($"{targetStructName}Direction", Transform.WorldForward);
             program.Uniform($"{targetStructName}Color", _color);
             program.Uniform($"{targetStructName}DiffuseIntensity", _diffuseIntensity);
-            program.Uniform($"{targetStructName}WorldToLightSpaceProjMatrix", ShadowCamera.WorldViewProjectionMatrix);
+            program.Uniform($"{targetStructName}WorldToLightInvViewMatrix", ShadowCamera.Transform.WorldMatrix);
+            program.Uniform($"{targetStructName}WorldToLightProjMatrix", ShadowCamera.ProjectionMatrix);
 
-            program.Sampler("ShadowMap", ShadowMap.Material.Textures[1], 4);
+            var shadowMap = ShadowMap.Material.Textures[1];
+            if (shadowMap != null)
+                program.Sampler("ShadowMap", shadowMap, 4);
+
+            base.SetUniforms(program, targetStructName);
         }
 
         public override void SetShadowMapResolution(uint width, uint height)
         {
             base.SetShadowMapResolution(width, height);
-            //if (ShadowCamera is null)
-            //{
-            //    ShadowCamera = new OrthographicCamera(Vector3.One, Vector3.Zero, Rotator.GetZero(), new Vector2(0.5f), 0.0f, Scale.Z);
-            //    ShadowCamera.Rotation.SyncFrom(Transform.Rotation);
-            //    ShadowCamera.Resize(Scale.X, Scale.Y);
-            //}
+            UpdateShadowCameraScale();
         }
 
         public override XRMaterial GetShadowMapMaterial(uint width, uint height, EDepthPrecision precision = EDepthPrecision.Flt32)

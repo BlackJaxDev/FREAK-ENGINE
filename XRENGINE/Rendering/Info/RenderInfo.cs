@@ -68,16 +68,16 @@ namespace XREngine.Rendering.Info
 
         public bool ShouldRender { get; set; } = true;
 
-        public delegate void DelAddRenderCommandsCallback(RenderInfo info, RenderCommandCollection passes, XRCamera camera);
+        public delegate void DelAddRenderCommandsCallback(RenderInfo info, RenderCommandCollection passes, XRCamera? camera);
         public DelAddRenderCommandsCallback? PreAddRenderCommandsCallback { get; set; }
 
-        public void AddRenderCommands(RenderCommandCollection passes, XRCamera camera)
+        public void AddRenderCommands(RenderCommandCollection passes, XRCamera? camera)
         {
             PreAddRenderCommandsCallback?.Invoke(this, passes, camera);
-            if (RenderCommands.Count == 0)
-                Debug.LogWarning($"RenderInfo for {(Owner?.GetType()?.Name ?? "null")} has no render commands.");
-            else
+            if (RenderCommands.Count != 0)
                 passes.AddRange(RenderCommands);
+            //else
+            //    Debug.LogWarning($"RenderInfo for {(Owner?.GetType()?.Name ?? "null")} has no render commands.");
         }
     }
 }

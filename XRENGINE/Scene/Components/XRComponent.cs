@@ -168,12 +168,18 @@ namespace XREngine.Components
             }
         }
 
+        /// <summary>
+        /// Called right before the transform object is changed.
+        /// </summary>
         private void OnTransformChanging()
         {
             Transform.LocalMatrixChanged -= OnTransformLocalMatrixChanged;
             Transform.WorldMatrixChanged -= OnTransformWorldMatrixChanged;
         }
 
+        /// <summary>
+        /// Called right after the transform object is set.
+        /// </summary>
         protected virtual void OnTransformChanged()
         {
             TransformChanged.Invoke(this);

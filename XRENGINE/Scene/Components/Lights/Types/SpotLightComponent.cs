@@ -83,10 +83,11 @@ namespace XREngine.Components.Lights
             SetField(ref _outerCutoff, MathF.Cos(DegToRad(outerDegrees)));
             SetField(ref _innerCutoff, MathF.Cos(DegToRad(innerDegrees)));
 
-            //if (ShadowCamera != null)
-            //    ((PerspectiveCamera)ShadowCamera).VerticalFieldOfView = Math.Max(outerDegrees, innerDegrees) * 2.0f;
+            if (ShadowCamera != null && ShadowCamera.Parameters is XRPerspectiveCameraParameters p)
+                p.VerticalFieldOfView = Math.Max(outerDegrees, innerDegrees) * 2.0f;
 
             UpdateCones();
+            RecalcLightMatrix();
         }
         private void UpdateCones()
         {
@@ -96,8 +97,8 @@ namespace XREngine.Components.Lights
             SetField(ref _outerCone, new(coneOrigin, -dir, _distance, MathF.Tan(DegToRad(OuterCutoffAngleDegrees)) * _distance));
             SetField(ref _innerCone, new(coneOrigin, -dir, _distance, MathF.Tan(DegToRad(InnerCutoffAngleDegrees)) * _distance));
 
-            //if (ShadowCamera != null)
-            //    ShadowCamera.FarZ = _distance;
+            if (ShadowCamera != null)
+                ShadowCamera.FarZ = _distance;
 
             Vector3 lightMeshOrigin = dir * (_distance * 0.5f);
             Matrix4x4 t = Matrix4x4.CreateTranslation(lightMeshOrigin);
@@ -150,23 +151,34 @@ namespace XREngine.Components.Lights
             program.Uniform($"{targetStructName}Exponent", Exponent);
             program.Uniform($"{targetStructName}Color", _color);
             program.Uniform($"{targetStructName}DiffuseIntensity", _diffuseIntensity);
-            program.Uniform($"{targetStructName}WorldToLightSpaceProjMatrix", ShadowCamera?.WorldViewProjectionMatrix ?? Matrix4x4.Identity);
+            program.Uniform($"{targetStructName}WorldToLightProjMatrix", ShadowCamera?.ProjectionMatrix ?? Matrix4x4.Identity);
+            program.Uniform($"{targetStructName}WorldToLightInvViewMatrix", ShadowCamera?.Transform.WorldMatrix ?? Matrix4x4.Identity);
 
             if (ShadowMap is not null)
-                program.Sampler("ShadowMap", ShadowMap.Material.Textures[1], 4);
+            {
+                var tex = ShadowMap.Material.Textures[1];
+                if (tex is not null)
+                    program.Sampler("ShadowMap", tex, 4);
+            }
         }
 
-        public override void SetShadowMapResolution(uint width, uint height)
+        protected override XRCamera GetShadowCamera()
         {
-            base.SetShadowMapResolution(width, height);
-
-            ShadowCamera ??= new XRCamera(
+            return new XRCamera(
                 Transform,
                 new XRPerspectiveCameraParameters(
                     Math.Max(OuterCutoffAngleDegrees, InnerCutoffAngleDegrees) * 2.0f,
                     1.0f,
                     1.0f,
                     _distance));
+        }
+
+        public override void SetShadowMapResolution(uint width, uint height)
+        {
+            base.SetShadowMapResolution(width, height);
+
+            if (ShadowCamera?.Parameters is XRPerspectiveCameraParameters p)
+                p.AspectRatio = width / height;
         }
 
         public override XRMaterial GetShadowMapMaterial(uint width, uint height, EDepthPrecision precision = EDepthPrecision.Flt32)
@@ -199,6 +211,14 @@ namespace XREngine.Components.Lights
             mat.RenderOptions.CullMode = ECulling.None;
 
             return mat;
+        }
+
+        protected override void RecalcLightMatrix()
+        {
+            Vector3 lightMeshOrigin = Transform.WorldForward * (_distance * 0.5f);
+            Matrix4x4 t = Matrix4x4.CreateTranslation(lightMeshOrigin);
+            Matrix4x4 s = Matrix4x4.CreateScale(OuterCone.Radius, OuterCone.Radius, OuterCone.Height);
+            LightMatrix = t * Transform.WorldMatrix * s;
         }
     }
 }

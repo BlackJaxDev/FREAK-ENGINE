@@ -4,10 +4,10 @@ namespace XREngine.Rendering
 {
     public class XRTextureViewCubeArray(
         XRTextureCubeArray viewedTexture,
-        int minLevel,
-        int numLevels,
-        int minLayer,
-        int numLayers,
+        uint minLevel,
+        uint numLevels,
+        uint minLayer,
+        uint numLayers,
         EPixelInternalFormat internalFormat,
         bool array,
         bool view2D) : XRTextureView<XRTextureCubeArray>(viewedTexture, minLevel, numLevels, minLayer, numLayers, internalFormat)

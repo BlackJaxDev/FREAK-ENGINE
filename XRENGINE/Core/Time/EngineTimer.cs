@@ -32,7 +32,7 @@ namespace XREngine.Timers
         /// <summary>
         /// Subscribe to this event to execute logic on the render thread right before buffers are swapped.
         /// </summary>
-        public event Action? PreRenderFrame;
+        public event Action? PostSwap;
         /// <summary>
         /// Subscribe to this event to execute render commands that have been swapped for consumption.
         /// </summary>
@@ -54,10 +54,10 @@ namespace XREngine.Timers
 
         private readonly Stopwatch _watch = new();
 
-        private ManualResetEventSlim 
+        private ManualResetEventSlim
             _swapDone = new(false),
-            _preRenderDone = new(true),
-            _updatingDone = new(false);
+            _preRenderDone = new(true);
+            //_updatingDone = new(false);
 
         public bool IsRunning => _watch.IsRunning;
 
@@ -94,11 +94,19 @@ namespace XREngine.Timers
 
             _swapDone = new ManualResetEventSlim(false);
             _preRenderDone = new ManualResetEventSlim(true);
-            _updatingDone = new ManualResetEventSlim(false);
 
             UpdateTask = Task.Run(UpdateThread);
             PreRenderTask = Task.Run(PreRenderThread);
             FixedUpdateTask = Task.Run(FixedUpdateThread);
+            //There are 4 main threads: Update, PreRender, Render, and FixedUpdate.
+            //Update runs as fast as requested without fences.
+            //PreRender waits for Render to finish swapping buffers.
+            //Render waits for PreRender to finish so it can swap buffers and then render.
+            //FixedUpdate runs at a fixed framerate for physics stability.
+
+            //SwapDone is set when the render thread finishes swapping buffers. This fence is set right before the render thread starts rendering.
+            //PreRenderDone is set when the prerender thread finishes collecting render commands. This fence is set right before the render thread starts swapping buffers.
+
 
             _watch.Start();
             Debug.Out($"Started game loop threads.");
@@ -161,6 +169,8 @@ namespace XREngine.Timers
 
             //Swap update/render buffers
             DispatchSwapBuffers();
+
+            //Tell the other threads that we're done swapping, so it can start prerendering the next frame while this thread renders.
             _swapDone.Set();
 
             //Suspend this thread until a render is dispatched
@@ -218,7 +228,7 @@ namespace XREngine.Timers
             float timestamp = Time();
             float elapsed = (timestamp - _lastPreRenderTimestamp).Clamp(0.0f, 1.0f);
             _lastPreRenderTimestamp = timestamp;
-            PreRenderFrame?.Invoke();
+            PostSwap?.Invoke();
         }
         private void DispatchSwapBuffers() => SwapBuffers?.Invoke();
         private void DispatchFixedUpdate() => FixedUpdate?.Invoke();

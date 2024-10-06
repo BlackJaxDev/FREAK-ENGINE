@@ -97,10 +97,10 @@ namespace XREngine.Rendering.Pipelines.Commands
             RMSITextureName = rmsi;
             DepthStencilTextureName = depthStencil;
         }
-        public void SetOutputNames(string noise, string ssao, string ssaoFBO, string ssaoBlurFBO, string gBufferFBO)
+        public void SetOutputNames(string noise, string ssaoTexture, string ssaoFBO, string ssaoBlurFBO, string gBufferFBO)
         {
             SSAONoiseTextureName = noise;
-            SSAOFBOTextureName = ssao;
+            SSAOFBOTextureName = ssaoTexture;
             SSAOFBOName = ssaoFBO;
             SSAOBlurFBOName = ssaoBlurFBO;
             GBufferFBOFBOName = gBufferFBO;

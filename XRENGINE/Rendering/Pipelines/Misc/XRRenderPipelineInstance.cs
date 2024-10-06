@@ -58,7 +58,7 @@ public sealed partial class XRRenderPipelineInstance : XRBase
     /// <param name="viewport"></param>
     /// <param name="targetFBO"></param>
     /// <param name="shadowPass"></param>
-    public void Render(XRWindow? window, VisualScene visualScene, XRCamera camera, XRViewport? viewport, XRFrameBuffer? targetFBO, bool shadowPass, UICanvasComponent? userInterface)
+    public void Render(VisualScene visualScene, XRCamera camera, XRViewport? viewport, XRFrameBuffer? targetFBO = null, UICanvasComponent? userInterface = null, bool shadowPass = false, XRMaterial? shadowMaterial = null)
     {
         if (Pipeline is null)
         {
@@ -76,6 +76,7 @@ public sealed partial class XRRenderPipelineInstance : XRBase
         //if (window is not null)
         //    State.PushRenderArea(window.Window.Size.X, window.Window.Size.Y);
         State.Set(viewport, visualScene, camera, targetFBO, shadowPass);
+        State.GlobalMaterialOverride = shadowMaterial;
         Pipeline.CommandChain.Execute();
         //hud may sample scene colors, render it after scene
         if (userInterface is not null && viewport is not null && userInterface.DrawSpace == ECanvasDrawSpace.Screen)

@@ -2,7 +2,6 @@
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Drawing.Drawing2D;
 using System.Runtime.CompilerServices;
 using XREngine.Audio;
 using XREngine.Components;
@@ -331,6 +330,22 @@ namespace XREngine.Rendering
         public void CaptureIBL()
         {
 
+        }
+
+        /// <summary>
+        /// Called by windows on the render thread, right before rendering all viewports.
+        /// </summary>
+        public void GlobalPreRender()
+        {
+            VisualScene.GlobalPreRender();
+        }
+
+        /// <summary>
+        /// Called by windows on the render thread, right after rendering all viewports.
+        /// </summary>
+        public void GlobalPostRender()
+        {
+            VisualScene.GlobalPostRender();
         }
     }
 }

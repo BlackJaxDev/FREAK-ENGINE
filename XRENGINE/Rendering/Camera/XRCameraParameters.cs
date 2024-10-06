@@ -22,7 +22,7 @@ namespace XREngine.Rendering
         /// The distance to the near clipping plane (closest to the eye).
         /// This value must be less than the far plane distance but does not need to be positive for orthographic cameras.
         /// </summary>
-        public float NearPlane
+        public float NearZ
         {
             get => nearPlane;
             set => SetField(ref nearPlane, value);
@@ -32,7 +32,7 @@ namespace XREngine.Rendering
         /// The distance to the far clipping plane (farthest from the eye).
         /// This value must be greater than the near plane distance.
         /// </summary>
-        public float FarPlane
+        public float FarZ
         {
             get => farPlane;
             set => SetField(ref farPlane, value);
@@ -71,15 +71,6 @@ namespace XREngine.Rendering
         /// <returns></returns>
         protected abstract Matrix4x4 CalculateProjectionMatrix();
 
-        /// <summary>
-        /// Returns the world transformation of the camera.
-        /// </summary>
-        /// <param name="camera"></param>
-        /// <param name="left"></param>
-        /// <param name="right"></param>
-        public virtual Matrix4x4 GetViewMatrix(XRCamera camera)
-            => camera.Transform.InverseWorldMatrix;
-
         public Frustum GetUntransformedFrustum()
         {
             VerifyProjection();
@@ -89,8 +80,8 @@ namespace XREngine.Rendering
 
         public virtual void SetUniforms(XRRenderProgram program)
         {
-            program.Uniform(EEngineUniform.CameraNearZ.ToString(), NearPlane);
-            program.Uniform(EEngineUniform.CameraFarZ.ToString(), FarPlane);
+            program.Uniform(EEngineUniform.CameraNearZ.ToString(), NearZ);
+            program.Uniform(EEngineUniform.CameraFarZ.ToString(), FarZ);
         }
     }
 }
