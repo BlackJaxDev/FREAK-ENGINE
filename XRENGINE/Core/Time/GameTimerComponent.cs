@@ -56,7 +56,7 @@ namespace XREngine.Timers
         public void StartSingleFire(Action method, float seconds)
         {
             if (_isRunning)
-                Stop();
+                OnComponentDeactivated();
             else
                 Reset();
 
@@ -81,7 +81,7 @@ namespace XREngine.Timers
         public void StartMultiFire(MultiFireAction method, float secondsBetweenFires, int maxFires = -1, float startSeconds = 0.0f)
         {
             if (_isRunning)
-                Stop();
+                OnComponentDeactivated();
             else
                 Reset();
 
@@ -106,7 +106,7 @@ namespace XREngine.Timers
         public void StartMultiFire(Action method, float secondsBetweenFires, int maxFires = -1, float startSeconds = 0.0f)
         {
             if (_isRunning)
-                Stop();
+                OnComponentDeactivated();
             else
                 Reset();
 
@@ -134,7 +134,7 @@ namespace XREngine.Timers
                 _singleMethod?.Invoke();
                 _elapsedSinceLastFire = 0;
                 if (_fireMax >= 0 && _fireNumber >= _fireMax)
-                    Stop();
+                    OnComponentDeactivated();
             }
         }
         private void TickSingle()
@@ -146,7 +146,7 @@ namespace XREngine.Timers
             {
                 _currentSecondsBetweenFires = _secondsBetweenFires;
                 _singleMethod?.Invoke();
-                Stop();
+                OnComponentDeactivated();
             }
         }
     }

@@ -1,5 +1,4 @@
 ﻿using XREngine.Data.Geometry;
-using XREngine.Rendering.OpenGL;
 using XREngine.Scene;
 
 namespace XREngine.Rendering;
@@ -31,23 +30,27 @@ public sealed partial class XRRenderPipelineInstance
         /// Shadow passes do not need to execute all rendering commands.
         /// </summary>
         public bool ShadowPass { get; private set; }
+        public XRMaterial? GlobalMaterialOverride { get; set; }
 
-        public void Set(XRViewport? viewport, VisualScene? scene, XRCamera? camera, XRFrameBuffer? target, bool shadowPass)
+        public StateObject PushMainAttributes(XRViewport? viewport, VisualScene? scene, XRCamera? camera, XRFrameBuffer? target, bool shadowPass, XRMaterial? shadowMaterial)
         {
             WindowViewport = viewport;
             MainScene = scene;
             SceneCamera = camera;
             OutputFBO = target;
             ShadowPass = shadowPass;
+            GlobalMaterialOverride = shadowMaterial;
 
             if (WindowViewport is not null)
                 _renderingViewports.Push(WindowViewport);
 
             if (MainScene is not null)
                 _renderingScenes.Push(MainScene);
+
+            return new StateObject(PopMainAttributes);
         }
 
-        public void Clear()
+        public void PopMainAttributes()
         {
             if (WindowViewport is not null)
                 _renderingViewports.Pop();
@@ -60,9 +63,8 @@ public sealed partial class XRRenderPipelineInstance
             SceneCamera = null;
             OutputFBO = null;
             ShadowPass = false;
+            GlobalMaterialOverride = null;
         }
-
-        public XRMaterial? GlobalMaterialOverride { get; set; }
 
         public XRCamera? RenderingCamera
             => _renderingCameras.TryPeek(out var c) ? c : null;

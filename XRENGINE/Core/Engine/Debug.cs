@@ -6,7 +6,7 @@ namespace XREngine
 {
     public class Debug
     {
-        public static ConcurrentDictionary<string, DateTime> RecentMessageCache = new ConcurrentDictionary<string, DateTime>();
+        private static readonly ConcurrentDictionary<string, DateTime> RecentMessageCache = new();
         public static Queue<(string, DateTime)> Output { get; } = new Queue<(string, DateTime)>();
         public static bool AllowOutput { get; set; } = true;
 

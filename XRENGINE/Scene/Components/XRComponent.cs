@@ -200,9 +200,9 @@ namespace XREngine.Components
             {
                 case nameof(IsActive):
                     if (IsActive)
-                        Start();
+                        OnComponentActivated();
                     else
-                        Stop();
+                        OnComponentDeactivated();
                     break;
             }
         }
@@ -215,7 +215,7 @@ namespace XREngine.Components
         /// Called when the component is made active.
         /// This is where ticks should register and connections to the world should be established.
         /// </summary>
-        protected internal virtual void Start()
+        protected internal virtual void OnComponentActivated()
             => VerifyInterfacesOnStart();
 
         /// <summary>
@@ -232,7 +232,7 @@ namespace XREngine.Components
         /// <summary>
         /// Called when the component is made inactive.
         /// </summary>
-        protected internal virtual void Stop()
+        protected internal virtual void OnComponentDeactivated()
         {
             VerifyInterfacesOnStop();
             if (UnregisterTicksOnStop)

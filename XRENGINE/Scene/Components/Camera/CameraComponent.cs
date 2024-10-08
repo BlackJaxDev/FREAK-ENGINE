@@ -30,17 +30,6 @@ namespace XREngine.Components
             set => SetField(ref _localPlayerIndex, value);
         }
 
-        private RenderPipeline? _renderPipeline = null;
-        /// <summary>
-        /// This is the rendering setup this viewport will use to render the scene the camera sees.
-        /// A render pipeline is a collection of render passes that will be executed in order to render the scene and post-process the result, etc.
-        /// </summary>
-        public RenderPipeline RenderPipeline
-        {
-            get => _renderPipeline ?? SetFieldReturn(ref _renderPipeline, Engine.Rendering.NewRenderPipeline())!;
-            set => SetField(ref _renderPipeline, value);
-        }
-
         public UICanvasComponent? _userInterface;
         public UICanvasComponent? UserInterface
         {
@@ -124,10 +113,10 @@ namespace XREngine.Components
                     if (LocalPlayerIndex is not null)
                         Engine.State.GetLocalPlayer(LocalPlayerIndex.Value)?.Cameras.Add(this);
                     break;
-                case nameof(RenderPipeline):
-                    if (_fboRenderPipeline is not null)
-                        _fboRenderPipeline.Pipeline = RenderPipeline;
-                    break;
+                //case nameof(RenderPipeline):
+                //    if (_fboRenderPipeline is not null)
+                //        _fboRenderPipeline.Pipeline = RenderPipeline;
+                //    break;
                 case nameof(DefaultRenderTarget):
                     if (DefaultRenderTarget is not null && World is not null)
                         if (!World.FramebufferCameras.Contains(this))

@@ -32,7 +32,7 @@ namespace XREngine.Timers
         /// <summary>
         /// Subscribe to this event to execute logic on the render thread right before buffers are swapped.
         /// </summary>
-        public event Action? PostSwap;
+        public event Action? CollectVisible;
         /// <summary>
         /// Subscribe to this event to execute render commands that have been swapped for consumption.
         /// </summary>
@@ -228,7 +228,7 @@ namespace XREngine.Timers
             float timestamp = Time();
             float elapsed = (timestamp - _lastPreRenderTimestamp).Clamp(0.0f, 1.0f);
             _lastPreRenderTimestamp = timestamp;
-            PostSwap?.Invoke();
+            CollectVisible?.Invoke();
         }
         private void DispatchSwapBuffers() => SwapBuffers?.Invoke();
         private void DispatchFixedUpdate() => FixedUpdate?.Invoke();

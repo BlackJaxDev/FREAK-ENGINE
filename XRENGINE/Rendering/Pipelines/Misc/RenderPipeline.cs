@@ -8,6 +8,7 @@ using XREngine.Rendering.Pipelines.Commands;
 using static XREngine.Rendering.XRRenderPipelineInstance;
 using static XREngine.Engine.Rendering.State;
 using XREngine.Data.Core;
+using XREngine.Data.Colors;
 
 namespace XREngine.Rendering;
 
@@ -114,20 +115,22 @@ public abstract class RenderPipeline : XRBase
     /// <returns></returns>
     public static XRTexture2D PrecomputeBRDF(uint width = 2048, uint height = 2048)
     {
-        XRTexture2D brdf = XRTexture2D.CreateFrameBufferTexture(
+        XRTexture2D brdf = new(
             width, height,
             EPixelInternalFormat.RG16f,
             EPixelFormat.Rg,
-            EPixelType.Float,
-            EFrameBufferAttachment.ColorAttachment0);
-        brdf.Resizable = false;
-        brdf.SizedInternalFormat = ESizedInternalFormat.Rg16f;
-        brdf.UWrap = ETexWrapMode.ClampToEdge;
-        brdf.VWrap = ETexWrapMode.ClampToEdge;
-        brdf.MinFilter = ETexMinFilter.Linear;
-        brdf.MagFilter = ETexMagFilter.Linear;
-        brdf.SamplerName = "BRDF";
-        brdf.Name = "BRDF";
+            EPixelType.HalfFloat,
+            false)
+        {
+            UWrap = ETexWrapMode.ClampToEdge,
+            VWrap = ETexWrapMode.ClampToEdge,
+            MinFilter = ETexMinFilter.Linear,
+            MagFilter = ETexMagFilter.Linear,
+            SamplerName = "BRDF",
+            Name = "BRDF",
+            Resizable = true,
+            SizedInternalFormat = ESizedInternalFormat.Rg16f
+        };
 
         XRShader shader = XRShader.EngineShader(Path.Combine("Scene3D", "BRDF.fs"), EShaderType.Fragment);
         XRMaterial mat = new(shader)
@@ -143,10 +146,8 @@ public abstract class RenderPipeline : XRBase
             }
         };
 
-        using XRQuadFrameBuffer fbo = new(mat);
-        fbo.SetRenderTargets((brdf, EFrameBufferAttachment.ColorAttachment0, 0 , -1));
-        fbo.Generate();
-
+        XRQuadFrameBuffer fbo = new(mat, false);
+        fbo.SetRenderTargets((brdf, EFrameBufferAttachment.ColorAttachment0, 0, -1));
         BoundingRectangle region = new(IVector2.Zero, new IVector2((int)width, (int)height));
 
         //Now render the texture to the FBO using the quad
@@ -154,11 +155,9 @@ public abstract class RenderPipeline : XRBase
         {
             using (State.PushRenderArea(region))
             {
-                Clear(true, false, false);
-                using (State.PushRenderingCamera(null))
-                {
-                    fbo.Render();
-                }
+                //ClearColor(new ColorF4(0.0f, 0.0f, 0.0f, 1.0f));
+                //Clear(true, true, false);
+                fbo.Render();
             }
         }
         return brdf;

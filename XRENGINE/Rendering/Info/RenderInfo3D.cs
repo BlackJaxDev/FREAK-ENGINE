@@ -40,6 +40,7 @@ namespace XREngine.Rendering.Info
 
         /// <summary>
         /// The shape the rendering octree will use to determine occlusion and offscreen culling (visibility).
+        /// If null, the object will always be rendered.
         /// </summary>
         public IVolume? CullingVolume
         {

@@ -13,7 +13,7 @@ namespace XREngine.Core
         /// </summary>
         void OnPoolableReleased();
         /// <summary>
-        /// Called when an object is destroyed from the pool.
+        /// Called when the pool is at capacity so the item must be fully destroyed.
         /// </summary>
         void OnPoolableDestroyed();
     }

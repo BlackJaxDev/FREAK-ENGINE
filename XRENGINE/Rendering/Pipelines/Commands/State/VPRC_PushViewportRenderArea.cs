@@ -1,6 +1,6 @@
 ﻿namespace XREngine.Rendering.Pipelines.Commands
 {
-    public class VPRC_PushViewportRenderArea(ViewportRenderCommandContainer pipeline) : ViewportStateRenderCommand<VPRC_PopRenderArea>(pipeline)
+    public class VPRC_PushViewportRenderArea : ViewportStateRenderCommand<VPRC_PopRenderArea>
     {
         /// <summary>
         /// If true, the internal resolution region of the viewport is used.

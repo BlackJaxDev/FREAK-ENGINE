@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using XREngine.Data;
 
 namespace XREngine.Core.Files
 {

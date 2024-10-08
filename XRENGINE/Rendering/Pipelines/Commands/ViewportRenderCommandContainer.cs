@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Diagnostics.CodeAnalysis;
 using XREngine.Data.Core;
 
 namespace XREngine.Rendering.Pipelines.Commands
@@ -15,13 +16,13 @@ namespace XREngine.Rendering.Pipelines.Commands
 
         public ViewportRenderCommand this[int index] => Commands[index];
 
-        public StateObject AddUsing<T>(Action<T>? setOptionsFunc = null) where T : ViewportStateRenderCommandBase
+        public StateObject AddUsing<T>(Action<T>? setOptionsFunc = null) where T : ViewportStateRenderCommandBase, new()
         {
             T cmd = Add<T>();
             setOptionsFunc?.Invoke(cmd);
             return cmd.GetUsingState();
         }
-        public StateObject AddUsing(Type t, Action<ViewportStateRenderCommandBase>? setOptionsFunc = null)
+        public StateObject AddUsing([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type t, Action<ViewportStateRenderCommandBase>? setOptionsFunc = null)
         {
             if (!typeof(ViewportStateRenderCommandBase).IsAssignableFrom(t))
                 throw new ArgumentException("Type must be a subclass of ViewportStateRenderCommand.", nameof(t));
@@ -32,28 +33,31 @@ namespace XREngine.Rendering.Pipelines.Commands
         }
         public StateObject AddUsing(ViewportStateRenderCommandBase cmd)
         {
-            _commands.Add(cmd);
+            Add(cmd);
             return cmd.GetUsingState();
         }
 
-        public T Add<T>() where T : ViewportRenderCommand
+        public T Add<T>() where T : ViewportRenderCommand, new()
         {
             //Create instance with this as the only parameter
-            T cmd = (T)Activator.CreateInstance(typeof(T), this);
-            _commands.Add(cmd);
+            T cmd = new();
+            Add(cmd);
             return cmd;
         }
-        public ViewportRenderCommand Add(Type t)
+        public ViewportRenderCommand Add([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type t)
         {
             if (!typeof(ViewportRenderCommand).IsAssignableFrom(t))
                 throw new ArgumentException("Type must be a subclass of ViewportRenderCommand.", nameof(t));
 
-            ViewportRenderCommand cmd = (ViewportRenderCommand)Activator.CreateInstance(t, this);
-            _commands.Add(cmd);
+            ViewportRenderCommand cmd = Activator.CreateInstance(t) as ViewportRenderCommand ?? throw new ArgumentException("Type must have a public parameterless constructor.", nameof(t));
+            Add(cmd);
             return cmd;
         }
         public void Add(ViewportRenderCommand cmd)
-            => _commands.Add(cmd);
+        {
+            cmd.CommandContainer = this;
+            _commands.Add(cmd);
+        }
 
         public IEnumerator<ViewportRenderCommand> GetEnumerator()
             => Commands.GetEnumerator();

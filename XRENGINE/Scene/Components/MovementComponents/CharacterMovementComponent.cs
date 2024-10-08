@@ -165,14 +165,14 @@ namespace XREngine.Components
             }
         }
 
-        protected internal override void Start()
+        protected internal override void OnComponentActivated()
         {
             CurrentWalkingSurface = null;
             _subUpdateTick = TickFalling;
             RegisterTick(ETickGroup.PrePhysics, (int)ETickOrder.Input, MainUpdateTick);
         }
 
-        protected internal override void Stop()
+        protected internal override void OnComponentDeactivated()
         {
             _subUpdateTick = null;
             UnregisterTick(ETickGroup.PrePhysics, (int)ETickOrder.Input, MainUpdateTick);

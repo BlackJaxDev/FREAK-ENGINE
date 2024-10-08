@@ -118,7 +118,7 @@ namespace XREngine.Components.Lights
             UpdateCones();
         }
 
-        protected internal override void Start()
+        protected internal override void OnComponentActivated()
         {
             if (World is null)
                 return;
@@ -130,16 +130,18 @@ namespace XREngine.Components.Lights
                 SetShadowMapResolution((uint)_shadowMapRenderRegion.Width, (uint)_shadowMapRenderRegion.Height);
         }
 
-        protected internal override void Stop()
+        protected internal override void OnComponentDeactivated()
         {
             if (World?.VisualScene is VisualScene3D scene)
                 scene.Lights.SpotLights.Remove(this);
 
-            base.Stop();
+            base.OnComponentDeactivated();
         }
 
         public override void SetUniforms(XRRenderProgram program, string? targetStructName = null)
         {
+            base.SetUniforms(program, targetStructName);
+
             targetStructName = $"{targetStructName ?? Engine.Rendering.Constants.LightsStructName}.";
 
             program.Uniform($"{targetStructName}Direction", Transform.WorldForward);
@@ -154,12 +156,12 @@ namespace XREngine.Components.Lights
             program.Uniform($"{targetStructName}WorldToLightProjMatrix", ShadowCamera?.ProjectionMatrix ?? Matrix4x4.Identity);
             program.Uniform($"{targetStructName}WorldToLightInvViewMatrix", ShadowCamera?.Transform.WorldMatrix ?? Matrix4x4.Identity);
 
-            if (ShadowMap is not null)
-            {
-                var tex = ShadowMap.Material.Textures[1];
-                if (tex is not null)
-                    program.Sampler("ShadowMap", tex, 4);
-            }
+            if (ShadowMap is null)
+                return;
+            
+            var tex = ShadowMap.Material.Textures[1];
+            if (tex is not null)
+                program.Sampler("ShadowMap", tex, 4);
         }
 
         protected override XRCamera GetShadowCamera()

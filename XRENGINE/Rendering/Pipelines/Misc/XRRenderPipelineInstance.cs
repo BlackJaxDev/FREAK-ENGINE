@@ -66,29 +66,21 @@ public sealed partial class XRRenderPipelineInstance : XRBase
             return;
         }
 
-        if (CurrentPipeline is not null)
+        using (PushPipeline(this))
         {
-            Debug.LogWarning("Render pipeline is already rendering. Cannot render again until the current render is complete.");
-            return;
-        }
+            using (State.PushMainAttributes(viewport, visualScene, camera, targetFBO, shadowPass, shadowMaterial))
+            {
+                Pipeline.CommandChain.Execute();
 
-        CurrentPipeline = this;
-        //if (window is not null)
-        //    State.PushRenderArea(window.Window.Size.X, window.Window.Size.Y);
-        State.Set(viewport, visualScene, camera, targetFBO, shadowPass);
-        State.GlobalMaterialOverride = shadowMaterial;
-        Pipeline.CommandChain.Execute();
-        //hud may sample scene colors, render it after scene
-        if (userInterface is not null && viewport is not null && userInterface.DrawSpace == ECanvasDrawSpace.Screen)
-        {
-            var fbo = GetFBO<XRQuadFrameBuffer>(Pipeline.GetUserInterfaceFBOName());
-            if (fbo is not null)
-                userInterface?.RenderScreenSpace(viewport, fbo);
+                //hud may sample scene colors, render it after scene
+                if (userInterface is not null && viewport is not null && userInterface.DrawSpace == ECanvasDrawSpace.Screen)
+                {
+                    var fbo = GetFBO<XRQuadFrameBuffer>(Pipeline.GetUserInterfaceFBOName());
+                    if (fbo is not null)
+                        userInterface?.RenderScreenSpace(viewport, fbo);
+                }
+            }
         }
-        State.Clear();
-        //if (window is not null)
-        //    State.PopRenderArea();
-        CurrentPipeline = null;
     }
 
     public void DestroyCache()

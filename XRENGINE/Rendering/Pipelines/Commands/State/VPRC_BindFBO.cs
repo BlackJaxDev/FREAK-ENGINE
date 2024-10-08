@@ -1,6 +1,6 @@
 ﻿namespace XREngine.Rendering.Pipelines.Commands
 {
-    public class VPRC_BindFBO(ViewportRenderCommandContainer pipeline) : ViewportStateRenderCommand<VPRC_UnbindFBO>(pipeline)
+    public class VPRC_BindFBO : ViewportStateRenderCommand<VPRC_UnbindFBO>
     {
         public required XRFrameBuffer FrameBuffer { get; set; }
 

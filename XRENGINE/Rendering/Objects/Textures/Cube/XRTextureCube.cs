@@ -1,4 +1,5 @@
-﻿using XREngine.Data.Rendering;
+﻿using Silk.NET.OpenGL;
+using XREngine.Data.Rendering;
 using XREngine.Rendering.Models.Materials.Textures;
 
 namespace XREngine.Rendering
@@ -12,18 +13,17 @@ namespace XREngine.Rendering
         public event DelDetachFaceFromFBO? DetachFaceFromFBORequested;
 
         public XRTextureCube()
-            : this(1u, EPixelInternalFormat.Rgba) { }
+            : this(1u) { }
 
         public XRTextureCube(
             uint dim,
-            EPixelInternalFormat internalFormat,
             int mipCount = 1)
         {
-            _cubeExtent = dim;
             uint sDim = dim;
-            Mipmaps = new CubeMipmap[mipCount];
-            for (uint i = 0u, scale = 1u; i < mipCount; scale = 1u << (int)++i, sDim = dim / scale)
-                Mipmaps[i] = new CubeMipmap(sDim, internalFormat);
+            CubeMipmap[] mips = new CubeMipmap[mipCount];
+            for (uint i = 0u, scale; i < mipCount; scale = 1u << (int)++i, sDim = dim / scale)
+                mips[i] = new CubeMipmap(sDim);
+            Mipmaps = mips;
         }
 
         public XRTextureCube(
@@ -32,40 +32,41 @@ namespace XREngine.Rendering
             EPixelFormat pixelFormat,
             EPixelType pixelType,
             int mipCount = 1)
-            : this(dim, internalFormat, mipCount)
+            : this(dim, mipCount)
         {
             uint sDim = dim;
-            Mipmaps = new CubeMipmap[mipCount];
-            for (uint i = 0u, scale = 1u; i < mipCount; scale = 1u << (int)++i, sDim = dim / scale)
-                Mipmaps[i] = new CubeMipmap(sDim, internalFormat, pixelFormat, pixelType);
-            _internalFormat = internalFormat;
-            _pixelFormat = pixelFormat;
+            CubeMipmap[] mips = new CubeMipmap[mipCount];
+            for (uint i = 0u, scale; i < mipCount; scale = 1u << (int)++i, sDim = dim / scale)
+                mips[i] = new CubeMipmap(sDim, internalFormat, pixelFormat, pixelType);
+            Mipmaps = mips;
         }
 
         public XRTextureCube(params CubeMipmap[] mipmaps)
             => Mipmaps = mipmaps;
 
-        public CubeMipmap[] Mipmaps { get; set; }
+        public CubeMipmap[] _mipmaps = [];
+        public CubeMipmap[] Mipmaps
+        {
+            get => _mipmaps;
+            set => SetField(ref _mipmaps, value);
+        }
 
-        private uint _dimension;
-        public uint Dimension => Mipmaps is null ? _dimension : (Mipmaps.Length > 0 ? Mipmaps[0].Sides[0].Width : _dimension);
+        /// <summary>
+        /// How long the cube's sides are.
+        /// </summary>
+        public uint Extent 
+            => Mipmaps is not null && Mipmaps.Length > 0 
+            ? Mipmaps[0].Sides[0].Width
+            : 0u;
 
-        public override uint MaxDimension => Dimension;
-        public uint Width { get; } = 0;
-        public uint Height { get; } = 0;
+        public override uint MaxDimension => Extent;
 
-        private uint _cubeExtent;
-        
         private ETexWrapMode _uWrapMode = ETexWrapMode.ClampToEdge;
         private ETexWrapMode _vWrapMode = ETexWrapMode.ClampToEdge;
         private ETexWrapMode _wWrapMode = ETexWrapMode.ClampToEdge;
         private ETexMinFilter _minFilter = ETexMinFilter.Nearest;
         private ETexMagFilter _magFilter = ETexMagFilter.Nearest;
         private float _lodBias = 0.0f;
-
-        private EPixelFormat _pixelFormat = EPixelFormat.Rgba;
-        private EPixelType _pixelType = EPixelType.Float;
-        private EPixelInternalFormat _internalFormat = EPixelInternalFormat.Rgba8;
         private bool _resizable = true;
 
         public bool Resizable
@@ -110,7 +111,14 @@ namespace XREngine.Rendering
             set => SetField(ref _lodBias, value);
         }
 
-        public uint CubeExtent => _cubeExtent;
+        private ESizedInternalFormat _sizedInternalFormat;
+        public ESizedInternalFormat SizedInternalFormat
+        {
+            get => _sizedInternalFormat;
+            set => SetField(ref _sizedInternalFormat, value);
+        }
+        uint IFrameBufferAttachement.Width => Extent;
+        uint IFrameBufferAttachement.Height => Extent;
 
         public void AttachFaceToFBO(XRFrameBuffer fbo, ECubemapFace face, int mipLevel = 0)
         {
@@ -127,5 +135,29 @@ namespace XREngine.Rendering
             => AttachFaceToFBORequested?.Invoke(fbo, attachment, face, mipLevel);
         public void DetachFaceFromFBO(XRFrameBuffer fbo, EFrameBufferAttachment attachment, ECubemapFace face, int mipLevel = 0)
             => DetachFaceFromFBORequested?.Invoke(fbo, attachment, face, mipLevel);
+
+        /// <summary>
+        /// Resizes the textures stored in memory.
+        /// Does nothing if Resizeable is false.
+        /// </summary>
+        public void Resize(uint extent)
+        {
+            if (Extent == extent || Mipmaps is null || Mipmaps.Length <= 0)
+                return;
+
+            for (int i = 0; i < Mipmaps.Length && extent > 0u; ++i)
+            {
+                if (Mipmaps[i] is null)
+                    continue;
+
+                Mipmaps[i]?.Resize(extent);
+
+                extent >>= 1;
+            }
+
+            Resized?.Invoke();
+        }
+
+        public event Action? Resized;
     }
 }

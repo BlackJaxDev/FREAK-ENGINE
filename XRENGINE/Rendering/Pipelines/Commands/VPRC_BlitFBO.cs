@@ -6,9 +6,9 @@
     /// </summary>
     /// <param name="source"></param>
     /// <param name="destination"></param>
-    public class VPRC_BlitFBO(ViewportRenderCommandContainer pipeline) : ViewportRenderCommand(pipeline)
+    public class VPRC_BlitFBO : ViewportRenderCommand
     {
-        public required string SourceQuadFBOName { get; set; }
+        public string? SourceQuadFBOName { get; set; }
         public string? DestinationFBOName { get; set; } = null;
 
         public void SetTargets(string sourceQuadFBOName, string? destinationFBOName = null)

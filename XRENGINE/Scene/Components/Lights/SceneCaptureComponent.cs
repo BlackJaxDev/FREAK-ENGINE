@@ -69,14 +69,8 @@ namespace XREngine.Components.Lights
                     SamplerName = "SceneDepthTex"
                 };
 
-            _tempDepth = new XRRenderBuffer
-            {
-                Type = ERenderBufferStorage.DepthComponent32f,
-                Width = ColorResolution,
-                Height = ColorResolution
-            };
-
-            _renderFBO = new XRCubeFrameBuffer(null, null, 0.1f, 10000.0f, true);
+            _tempDepth = new XRRenderBuffer(ColorResolution, ColorResolution, ERenderBufferStorage.DepthComponent32f);
+            _renderFBO = new XRCubeFrameBuffer(null, Transform, 0.1f, 10000.0f, true);
 
             foreach (XRCamera cam in _renderFBO)
             {
@@ -95,8 +89,6 @@ namespace XREngine.Components.Lights
         /// </summary>
         public void Capture()
         {
-            //_cubeTex = new TexRefCube("", 512, new CubeMipmap(Engine.LoadEngineTexture2D("skybox.png")));
-
             if (RenderFBO is null)
                 SetCaptureResolution(512);
 

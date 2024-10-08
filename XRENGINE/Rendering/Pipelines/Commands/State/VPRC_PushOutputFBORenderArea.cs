@@ -1,8 +1,6 @@
-﻿using XREngine.Data.Geometry;
-
-namespace XREngine.Rendering.Pipelines.Commands
+﻿namespace XREngine.Rendering.Pipelines.Commands
 {
-    public class VPRC_PushOutputFBORenderArea(ViewportRenderCommandContainer pipeline) : ViewportStateRenderCommand<VPRC_PopRenderArea>(pipeline)
+    public class VPRC_PushOutputFBORenderArea : ViewportStateRenderCommand<VPRC_PopRenderArea>
     {
         protected override void Execute()
         {

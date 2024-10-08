@@ -113,7 +113,7 @@ namespace XREngine.Rendering
             Resize(width, height);
         }
 
-        private void PreRender()
+        private void CollectVisible()
         {
             XRCamera? camera = ActiveCamera;
             if (camera is null)
@@ -124,15 +124,19 @@ namespace XREngine.Rendering
             if (World?.VisualScene is not null)
             {
                 World.VisualScene.CollectRenderedItems(_renderPipeline.MeshRenderCommands, cullingVolume, camera);
-                World.VisualScene.PreRender(camera);
             }
-            cameraComponent?.UserInterface?.PreRender(this, cameraComponent);
+            //cameraComponent?.UserInterface?.PreRender(this, cameraComponent);
         }
 
         private void SwapBuffers()
         {
-            World?.VisualScene?.SwapBuffers();
-            CameraComponent?.UserInterface?.SwapBuffers();
+            var scene = World?.VisualScene;
+            if (scene is not null)
+            {
+                //scene.PreRender(ActiveCamera!);
+                scene.SwapBuffers();
+            }
+            //CameraComponent?.UserInterface?.SwapBuffers();
             _renderPipeline.MeshRenderCommands.SwapBuffers();
         }
 
@@ -191,8 +195,8 @@ namespace XREngine.Rendering
 
             if (sceneOverride is not null)
             {
-                //Pre-render and swap now
-                PreRender();
+                //Collect and swap now
+                CollectVisible();
                 SwapBuffers();
             }
 
@@ -213,7 +217,7 @@ namespace XREngine.Rendering
                         {
                             _camera.Viewports.Remove(this);
                             Engine.Time.Timer.SwapBuffers -= SwapBuffers;
-                            Engine.Time.Timer.PostSwap -= PreRender;
+                            Engine.Time.Timer.CollectVisible -= CollectVisible;
                         }
                         break;
                 }
@@ -232,15 +236,22 @@ namespace XREngine.Rendering
                             _camera.Viewports.Add(this);
                         SetAspectRatioToCamera();
                         Engine.Time.Timer.SwapBuffers += SwapBuffers;
-                        Engine.Time.Timer.PostSwap += PreRender;
+                        Engine.Time.Timer.CollectVisible += CollectVisible;
                     }
+                    _renderPipeline.Pipeline = _camera?.RenderPipeline;
                     break;
                 case nameof(CameraComponent):
                     ResizeCameraComponentUI();
                     Camera = CameraComponent?.Camera;
-                    _renderPipeline.Pipeline = CameraComponent?.RenderPipeline;
+                    //_renderPipeline.Pipeline = CameraComponent?.RenderPipeline;
                     break;
             }
+        }
+
+        public RenderPipeline? RenderPipeline
+        {
+            get => _renderPipeline.Pipeline;
+            set => _renderPipeline.Pipeline = value;
         }
 
         /// <summary>

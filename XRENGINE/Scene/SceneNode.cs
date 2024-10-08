@@ -178,6 +178,15 @@ namespace XREngine.Scene
             }
         }
 
+        public T? GetTransformAs<T>() where T : TransformBase
+            => Transform is T t ? t : null;
+
+        public bool TryGetTransformAs<T>([MaybeNullWhen(false)] out T? transform) where T : TransformBase
+        {
+            transform = Transform as T;
+            return transform != null;
+        }
+
         /// <summary>
         /// Sets the transform of this scene node.
         /// If retainParent is true, the parent of the new transform will be set to the parent of the current transform.
@@ -496,16 +505,19 @@ namespace XREngine.Scene
         {
             foreach (XRComponent component in this)
                 if (component.IsActive)
-                    component.Start();
+                    component.OnComponentActivated();
 
-            foreach (var child in Transform)
+            lock (Transform.Children)
             {
-                var node = child?.SceneNode;
-                if (node is null)
-                    continue;
+                foreach (var child in Transform.Children)
+                {
+                    var node = child?.SceneNode;
+                    if (node is null)
+                        continue;
 
-                if (node.IsActiveSelf)
-                    node.Start();
+                    if (node.IsActiveSelf)
+                        node.Start();
+                }
             }
         }
         /// <summary>
@@ -515,16 +527,19 @@ namespace XREngine.Scene
         {
             foreach (XRComponent component in this)
                 if (component.IsActive)
-                    component.Stop();
+                    component.OnComponentDeactivated();
 
-            foreach (var child in Transform)
+            lock (Transform.Children)
             {
-                var node = child?.SceneNode;
-                if (node is null)
-                    continue;
+                foreach (var child in Transform.Children)
+                {
+                    var node = child?.SceneNode;
+                    if (node is null)
+                        continue;
 
-                if (node.IsActiveSelf)
-                    node.Stop();
+                    if (node.IsActiveSelf)
+                        node.Stop();
+                }
             }
         }
 
@@ -535,14 +550,20 @@ namespace XREngine.Scene
 
         public void IterateComponents(Action<XRComponent> componentAction, bool iterateChildHierarchy)
         {
-            foreach (var component in this)
-                componentAction(component);
+            lock (Components)
+            {
+                foreach (var component in ComponentsInternal)
+                    componentAction(component);
+            }
 
             if (!iterateChildHierarchy)
                 return;
 
-            foreach (var child in Transform)
-                child?.SceneNode?.IterateComponents(componentAction, true);
+            lock (Transform.Children)
+            {
+                foreach (var child in Transform.Children)
+                    child?.SceneNode?.IterateComponents(componentAction, true);
+            }
         }
 
         public void IterateComponents<T>(Action<T> componentAction, bool iterateChildHierarchy) where T : XRComponent
@@ -555,8 +576,12 @@ namespace XREngine.Scene
         public void IterateHierarchy(Action<SceneNode> nodeAction)
         {
             nodeAction(this);
-            foreach (var child in Transform)
-                child?.SceneNode?.IterateHierarchy(nodeAction);
+
+            lock (Transform.Children)
+            {
+                foreach (var child in Transform.Children)
+                    child?.SceneNode?.IterateHierarchy(nodeAction);
+            }
         }
 
         public bool HasComponent(Type requiredType)

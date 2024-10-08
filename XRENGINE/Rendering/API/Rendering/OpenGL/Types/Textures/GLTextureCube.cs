@@ -1,4 +1,9 @@
-﻿using XREngine.Data.Rendering;
+﻿using Extensions;
+using Silk.NET.OpenGL;
+using System.ComponentModel;
+using XREngine.Data;
+using XREngine.Data.Core;
+using XREngine.Data.Rendering;
 using XREngine.Rendering.OpenGL;
 using static XREngine.Rendering.OpenGL.OpenGLRenderer;
 
@@ -6,18 +11,87 @@ namespace XREngine.Rendering.Models.Materials.Textures
 {
     public class GLTextureCube(OpenGLRenderer renderer, XRTextureCube data) : GLTexture<XRTextureCube>(renderer, data)
     {
-        private CubeMipmap[]? _mipmaps;
-
-        private bool _hasPushed = false;
         private bool _storageSet = false;
 
-        public override ETextureTarget TextureTarget => ETextureTarget.TextureCubeMap;
-
-        public CubeMipmap[]? Mipmaps
+        public class MipmapInfo : XRBase
         {
-            get => _mipmaps;
-            set => _mipmaps = value;
+            private bool _hasPushedResizedData = false;
+            //private bool _hasPushedUpdateData = false;
+            private readonly CubeMipmap _mipmap;
+            private readonly GLTextureCube _texture;
+
+            public CubeMipmap Mipmap => _mipmap;
+
+            public MipmapInfo(GLTextureCube texture, CubeMipmap mipmap)
+            {
+                _texture = texture;
+                _mipmap = mipmap;
+
+                foreach (var side in _mipmap.Sides)
+                    side.PropertyChanged += MipmapPropertyChanged;
+            }
+            ~MipmapInfo()
+            {
+                foreach (var side in _mipmap.Sides)
+                    side.PropertyChanged -= MipmapPropertyChanged;
+            }
+
+            private void MipmapPropertyChanged(object? sender, PropertyChangedEventArgs e)
+            {
+                switch (e.PropertyName)
+                {
+                    case nameof(Mipmap2D.Data):
+                        //HasPushedUpdateData = false;
+                        _texture.Invalidate();
+                        break;
+                    case nameof(Mipmap2D.Width):
+                    case nameof(Mipmap2D.Height):
+                    case nameof(Mipmap2D.InternalFormat):
+                    case nameof(Mipmap2D.PixelFormat):
+                    case nameof(Mipmap2D.PixelType):
+                        HasPushedResizedData = false;
+                        //HasPushedUpdateData = false;
+                        _texture.Invalidate();
+                        break;
+                }
+            }
+
+            public bool HasPushedResizedData
+            {
+                get => _hasPushedResizedData;
+                set => SetField(ref _hasPushedResizedData, value);
+            }
+            //public bool HasPushedUpdateData
+            //{
+            //    get => _hasPushedUpdateData;
+            //    set => SetField(ref _hasPushedUpdateData, value);
+            //}
         }
+
+        public MipmapInfo[] Mipmaps { get; private set; } = [];
+
+        protected override void DataPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            base.DataPropertyChanged(sender, e);
+            switch (e.PropertyName)
+            {
+                case nameof(Data.Mipmaps):
+                    {
+                        UpdateMipmaps();
+                        break;
+                    }
+            }
+        }
+
+        private void UpdateMipmaps()
+        {
+            Mipmaps = new MipmapInfo[Data.Mipmaps.Length];
+            for (int i = 0; i < Data.Mipmaps.Length; ++i)
+                Mipmaps[i] = new MipmapInfo(this, Data.Mipmaps[i]);
+            Invalidate();
+        }
+
+        public override ETextureTarget TextureTarget => ETextureTarget.TextureCubeMap;
 
         protected override void UnlinkData()
         {
@@ -25,6 +99,8 @@ namespace XREngine.Rendering.Models.Materials.Textures
 
             Data.AttachFaceToFBORequested -= AttachFaceToFBO;
             Data.DetachFaceFromFBORequested -= DetachFaceFromFBO;
+            Data.Resized -= DataResized;
+            Mipmaps = [];
         }
 
         protected override void LinkData()
@@ -33,6 +109,19 @@ namespace XREngine.Rendering.Models.Materials.Textures
 
             Data.AttachFaceToFBORequested += AttachFaceToFBO;
             Data.DetachFaceFromFBORequested += DetachFaceFromFBO;
+            Data.Resized += DataResized;
+            UpdateMipmaps();
+        }
+
+        private void DataResized()
+        {
+            _storageSet = false;
+            Mipmaps.ForEach(m =>
+            {
+                m.HasPushedResizedData = false;
+                //m.HasPushedUpdateData = false;
+            });
+            Invalidate();
         }
 
         private void DetachFaceFromFBO(XRFrameBuffer target, EFrameBufferAttachment attachment, ECubemapFace face, int mipLevel)
@@ -53,112 +142,141 @@ namespace XREngine.Rendering.Models.Materials.Textures
 
         public unsafe override void PushData()
         {
-            OnPrePushData(out bool shouldPush, out bool allowPostPushCallback);
-            if (!shouldPush)
+            if (IsPushing)
+                return;
+            try
             {
+                IsPushing = true;
+                Debug.Out($"Pushing texture: {GetDescribingName()}");
+                OnPrePushData(out bool shouldPush, out bool allowPostPushCallback);
+                if (!shouldPush)
+                {
+                    if (allowPostPushCallback)
+                        OnPostPushData();
+                    IsPushing = false;
+                    return;
+                }
+
+                Bind();
+
+                var glTarget = ToGLEnum(TextureTarget);
+
+                Api.PixelStore(PixelStoreParameter.UnpackAlignment, 1);
+
+                EPixelInternalFormat? internalFormatForce = null;
+                if (!Data.Resizable && !_storageSet)
+                {
+                    Api.TextureStorage2D(BindingId, Math.Max((uint)Data.Mipmaps.Length, 1u), ToGLEnum(Data.SizedInternalFormat), Data.Extent, Data.Extent);
+                    internalFormatForce = ToBaseInternalFormat(Data.SizedInternalFormat);
+                    _storageSet = true;
+                }
+
+                if (Mipmaps is null || Mipmaps.Length == 0)
+                    PushMipmap(0, null, internalFormatForce);
+                else
+                {
+                    for (int i = 0; i < Mipmaps.Length; ++i)
+                        PushMipmap(i, Mipmaps[i], internalFormatForce);
+
+                    if (Data.AutoGenerateMipmaps)
+                        GenerateMipmaps();
+                }
+
+                int max = Mipmaps is null || Mipmaps.Length == 0 ? 0 : Mipmaps.Length - 1;
+                Api.TexParameter(glTarget, GLEnum.TextureBaseLevel, 0);
+                Api.TexParameter(glTarget, GLEnum.TextureMaxLevel, max);
+                Api.TexParameter(glTarget, GLEnum.TextureMinLod, 0);
+                Api.TexParameter(glTarget, GLEnum.TextureMaxLod, max);
+
                 if (allowPostPushCallback)
                     OnPostPushData();
+            }
+            catch (Exception ex)
+            {
+                Debug.LogException(ex);
+            }
+            finally
+            {
+                IsPushing = false;
+                Unbind();
+            }
+        }
+
+        private unsafe void PushMipmap(int i, MipmapInfo? info, EPixelInternalFormat? internalFormatForce)
+        {
+            if (!Data.Resizable && !_storageSet)
+            {
+                Debug.LogWarning("Texture storage not set on non-resizable texture, can't push mipmaps.");
                 return;
             }
 
-            Bind();
+            GLEnum pixelFormat;
+            GLEnum pixelType;
+            InternalFormat internalPixelFormat;
 
-            //TODO: copy from teximage2d
-            //ESizedInternalFormat sizedInternalFormat = (ESizedInternalFormat)(int)InternalFormat;
+            DataSource? data;
+            bool hasPushedResized;
+            CubeMipmap? cubeMip = info?.Mipmap;
 
-            if (_mipmaps is null || _mipmaps.Length == 0)
+            for (int side = 0; side < 6; ++side)
             {
-                //int mipCount = SmallestMipmapLevel + 1;
-                //if (!Resizable && !_storageSet)
-                //{
-                //    Api.SetTextureStorage(BindingId, mipCount, sizedInternalFormat, _dimension, _dimension);
-                //    _storageSet = true;
-                //}
-                //else if (!_storageSet)
-                //{
-                //    int dim = _dimension;
-                //    for (int i = 0; i < mipCount; ++i)
-                //    {
-                //        for (int x = 0; x < 6; ++x)
-                //        {
-                //            ETextureTarget target = ETextureTarget.TextureCubeMapPositiveX + x;
-                //            Api.PushTextureData(target, i, InternalFormat, dim, dim, PixelFormat, PixelType, IntPtr.Zero);
-                //        }
-                //        dim /= 2;
-                //    }
-                //}
+                ETextureTarget target = ETextureTarget.TextureCubeMapPositiveX + side;
+                GLEnum glTarget = ToGLEnum(target);
 
-                //if (Data.AutoGenerateMipmaps)
-                //    GenerateMipmaps();
-            }
-            else
-            {
-                //bool setStorage = !Data.Resizable && !_storageSet;
-                //if (setStorage)
-                //{
-                //    Api.TextureStorage2D(
-                //        BindingId,
-                //        _mipmaps.Length,
-                //        sizedInternalFormat,
-                //        _mipmaps[0].Sides[0].Width,
-                //        _mipmaps[0].Sides[0].Height);
-
-                //    _storageSet = true;
-                //}
-
-                //for (int i = 0; i < _mipmaps.Length; ++i)
-                //{
-                //    TextureCubeMipmap mip = _mipmaps[i];
-                //    for (int x = 0; x < mip.Sides.Length; ++x)
-                //    {
-                //        RenderCubeSide side = mip.Sides[x];
-                //        MagickImage? bmp = side.Map;
-                //        ETextureTarget target = ETextureTarget.TextureCubeMapPositiveX + x;
-                //        GLEnum glTarget = ToGLEnum(target);
-
-                //        if (bmp != null)
-                //        {
-                //            //get the pointer to the imagemagick data
-                //            var data = bmp.GetPixelsUnsafe();
-                //            nint ptr = data.GetAreaPointer(0, 0, bmp.Width, bmp.Height);
-
-                //            if (_hasPushed || setStorage)
-                //                Api.TexSubImage2D(glTarget, i, 0, 0, bmp.Width, bmp.Height, side.PixelFormat, side.PixelType, ptr);
-                //            else
-                //                Api.TexImage2D(glTarget, i, side.InternalFormat, bmp.Width, bmp.Height, side.PixelFormat, side.PixelType, data.Scan0);
-                //        }
-                //        else if (!_hasPushed && !setStorage)
-                //            Api.TexImage2D(glTarget, i, side.InternalFormat, side.Width, side.Height, side.PixelFormat, side.PixelType, IntPtr.Zero);
-                //    }
-                //}
-            }
-            _hasPushed = true;
-
-            //int max = _mipmaps is null || _mipmaps.Length == 0 ? 0 : _mipmaps.Length - 1;
-            //Api.TexParameter(TextureTarget, ETexParamName.TextureBaseLevel, 0);
-            //Api.TexParameter(TextureTarget, ETexParamName.TextureMaxLevel, max);
-            //Api.TexParameter(TextureTarget, ETexParamName.TextureMinLod, 0);
-            //Api.TexParameter(TextureTarget, ETexParamName.TextureMaxLod, max);
-
-            if (allowPostPushCallback)
-                OnPostPushData();
-        }
-
-        private bool _disposedValue = false;
-        protected override void Dispose(bool disposing)
-        {
-            if (!_disposedValue)
-            {
-                if (disposing)
+                var mip = cubeMip?.Sides[side];
+                if (mip is null)
                 {
-                    Destroy();
+                    internalPixelFormat = ToInternalFormat(internalFormatForce ?? EPixelInternalFormat.Rgb);
+                    pixelFormat = GLEnum.Rgb;
+                    pixelType = GLEnum.UnsignedByte;
+                    data = null;
+                    hasPushedResized = false;
+                }
+                else
+                {
+                    pixelFormat = ToGLEnum(mip.PixelFormat);
+                    pixelType = ToGLEnum(mip.PixelType);
+                    internalPixelFormat = ToInternalFormat(internalFormatForce ?? mip.InternalFormat);
+                    data = mip.Data;
+                    hasPushedResized = info!.HasPushedResizedData;
                 }
 
-                if (_mipmaps != null)
-                    Array.ForEach(_mipmaps, x => x.Dispose());
-                
-                _disposedValue = true;
+                if (data is null || data.Length == 0)
+                    Push(glTarget, i, Data.Extent >> i, Data.Extent >> i, pixelFormat, pixelType, internalPixelFormat, hasPushedResized);
+                else
+                {
+                    Push(glTarget, i, mip!.Width, mip.Height, pixelFormat, pixelType, internalPixelFormat, data, hasPushedResized);
+                    //data?.Dispose();
+                }
             }
+
+            if (info != null)
+            {
+                info.HasPushedResizedData = true;
+                //info.HasPushedUpdateData = true;
+            }
+        }
+
+        private unsafe void Push(GLEnum glTarget, int i, uint w, uint h, GLEnum pixelFormat, GLEnum pixelType, InternalFormat internalPixelFormat, bool hasPushedResized)
+        {
+            if (!hasPushedResized && Data.Resizable)
+                Api.TexImage2D(glTarget, i, internalPixelFormat, w, h, 0, pixelFormat, pixelType, IntPtr.Zero.ToPointer());
+        }
+        private unsafe void Push(GLEnum glTarget, int i, uint w, uint h, GLEnum pixelFormat, GLEnum pixelType, InternalFormat internalPixelFormat, DataSource bmp, bool hasPushedResized)
+        {
+            // If a non-zero named buffer object is bound to the GL_PIXEL_UNPACK_BUFFER target (see glBindBuffer) while a texture image is specified,
+            // the data ptr is treated as a byte offset into the buffer object's data store.
+            void* ptr = bmp.Address.Pointer;
+            if (ptr is null)
+            {
+                Debug.LogWarning("Texture data source is null.");
+                return;
+            }
+
+            if (hasPushedResized || _storageSet)
+                Api.TexSubImage2D(glTarget, i, 0, 0, w, h, pixelFormat, pixelType, ptr);
+            else
+                Api.TexImage2D(glTarget, i, internalPixelFormat, w, h, 0, pixelFormat, pixelType, ptr);
         }
     }
 }

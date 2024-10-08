@@ -28,7 +28,19 @@ namespace XREngine
                 public static XRFrameBuffer? TargetOutputFBO => PipelineState?.OutputFBO;
                 public static XRMaterial? OverrideMaterial => PipelineState?.OverrideMaterial;
 
-                internal static XRRenderPipelineInstance? CurrentPipeline { get; set; }
+                private static Stack<XRRenderPipelineInstance> PipelineStack { get; } = new();
+                public static StateObject PushPipeline(XRRenderPipelineInstance pipeline)
+                {
+                    PipelineStack.Push(pipeline);
+                    return new StateObject(PopPipeline);
+                }
+                public static void PopPipeline()
+                {
+                    if (PipelineStack.Count > 0)
+                        PipelineStack.Pop();
+                }
+
+                public static XRRenderPipelineInstance? CurrentPipeline => PipelineStack.Count > 0 ? PipelineStack.Peek() : null;
                 public static XRRenderPipelineInstance.RenderingState? PipelineState => CurrentPipeline?.State;
 
                 public static void ClearColor(ColorF4 color)
@@ -53,25 +65,25 @@ namespace XREngine
                 public static byte GetStencilIndex(float x, float y)
                     => AbstractRenderer.Current?.GetStencilIndex(x, y) ?? 0;
 
-                public static void EnableDepthTest(bool v)
-                    => AbstractRenderer.Current?.EnableDepthTest(v);
+                public static void EnableDepthTest(bool enable)
+                    => AbstractRenderer.Current?.EnableDepthTest(enable);
 
                 public static void StencilMask(uint mask)
                     => AbstractRenderer.Current?.StencilMask(mask);
 
-                public static void AllowDepthWrite(bool v)
-                    => AbstractRenderer.Current?.AllowDepthWrite(v);
+                public static void AllowDepthWrite(bool allow)
+                    => AbstractRenderer.Current?.AllowDepthWrite(allow);
 
                 public static void DepthFunc(EComparison always)
                     => AbstractRenderer.Current?.DepthFunc(always);
 
-                public static bool CalcDotLuminance(XRTexture2D texture, out float dotLuminance, bool genMipmapsNow)
+                public static bool TryCalculateDotLuminance(XRTexture2D texture, out float dotLuminance, bool genMipmapsNow)
                 {
                     dotLuminance = 1.0f;
                     return AbstractRenderer.Current?.CalcDotLuminance(texture, out dotLuminance, genMipmapsNow) ?? false;
                 }
                 public static float CalculateDotLuminance(XRTexture2D texture, bool generateMipmapsNow)
-                    => CalcDotLuminance(texture, out float dotLum, generateMipmapsNow) ? dotLum : 1.0f;
+                    => TryCalculateDotLuminance(texture, out float dotLum, generateMipmapsNow) ? dotLum : 1.0f;
             }
         }
     }

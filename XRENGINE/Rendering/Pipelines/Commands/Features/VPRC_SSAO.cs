@@ -9,10 +9,10 @@ namespace XREngine.Rendering.Pipelines.Commands
     /// Generates the necessary textures and framebuffers for SSAO in the render pipeline depending on the current render area.
     /// </summary>
     /// <param name="pipeline"></param>
-    public class VPRC_SSAO(ViewportRenderCommandContainer pipeline) : ViewportRenderCommand(pipeline)
+    public class VPRC_SSAO : ViewportRenderCommand
     {
         public string SSAONoiseTextureName { get; set; } = "SSAONoiseTexture";
-        public string SSAOFBOTextureName { get; set; } = "SSAOFBOTexture";
+        public string SSAOIntensityTextureName { get; set; } = "SSAOFBOTexture";
         public string SSAOFBOName { get; set; } = "SSAOFBO";
         public string SSAOBlurFBOName { get; set; } = "SSAOBlurFBO";
         public string GBufferFBOFBOName { get; set; } = "GBufferFBO";
@@ -59,19 +59,6 @@ namespace XREngine.Rendering.Pipelines.Commands
 
         private Vector2 NoiseScale;
 
-        private void SSAO_SetUniforms(XRRenderProgram program)
-        {
-            program.Uniform("NoiseScale", NoiseScale);
-            program.Uniform("Samples", Kernel!);
-
-            var rc = Pipeline.State.SceneCamera;
-            if (rc != null)
-            {
-                rc.SetUniforms(program);
-                rc.SetAmbientOcclusionUniforms(program);
-            }
-        }
-
         private int _lastWidth = 0;
         private int _lastHeight = 0;
 
@@ -97,10 +84,10 @@ namespace XREngine.Rendering.Pipelines.Commands
             RMSITextureName = rmsi;
             DepthStencilTextureName = depthStencil;
         }
-        public void SetOutputNames(string noise, string ssaoTexture, string ssaoFBO, string ssaoBlurFBO, string gBufferFBO)
+        public void SetOutputNames(string noise, string ssaoIntensityTexture, string ssaoFBO, string ssaoBlurFBO, string gBufferFBO)
         {
             SSAONoiseTextureName = noise;
-            SSAOFBOTextureName = ssaoTexture;
+            SSAOIntensityTextureName = ssaoIntensityTexture;
             SSAOFBOName = ssaoFBO;
             SSAOBlurFBOName = ssaoBlurFBO;
             GBufferFBOFBOName = gBufferFBO;
@@ -155,9 +142,9 @@ namespace XREngine.Rendering.Pipelines.Commands
                 (uint)height,
                 EPixelInternalFormat.R16f,
                 EPixelFormat.Red,
-                EPixelType.Float,
+                EPixelType.HalfFloat,
                 EFrameBufferAttachment.ColorAttachment0);
-            ssaoTex.Name = SSAOFBOTextureName;
+            ssaoTex.Name = SSAOIntensityTextureName;
             ssaoTex.MinFilter = ETexMinFilter.Nearest;
             ssaoTex.MagFilter = ETexMagFilter.Nearest;
             Pipeline.SetTexture(ssaoTex);
@@ -172,29 +159,63 @@ namespace XREngine.Rendering.Pipelines.Commands
                 }
             };
 
-            var shader = XRShader.EngineShader(Path.Combine(SceneShaderPath, "SSAOGen.fs"), EShaderType.Fragment);
-            var ssaoFbo = new XRQuadFrameBuffer(
-                new([normalTex, GetOrCreateNoiseTexture(), depthViewTex], shader) { RenderOptions = renderParams },
-                true,
+            var ssaoGenShader = XRShader.EngineShader(Path.Combine(SceneShaderPath, "SSAOGen.fs"), EShaderType.Fragment);
+            var ssaoBlurShader = XRShader.EngineShader(Path.Combine(SceneShaderPath, "SSAOBlur.fs"), EShaderType.Fragment);
+
+            XRTexture[] ssaoGenTexRefs =
+            [
+                normalTex,
+                GetOrCreateNoiseTexture(),
+                depthViewTex,
+            ];
+            XRTexture[] ssaoBlurTexRefs =
+            [
+                ssaoTex
+            ];
+
+            XRMaterial ssaoGenMat = new(ssaoGenTexRefs, ssaoGenShader) { RenderOptions = renderParams };
+            XRMaterial ssaoBlurMat = new(ssaoBlurTexRefs, ssaoBlurShader) { RenderOptions = renderParams };
+
+            XRQuadFrameBuffer ssaoGenFBO = new(ssaoGenMat, true, 
                 (albedoTex, EFrameBufferAttachment.ColorAttachment0, 0, -1),
                 (normalTex, EFrameBufferAttachment.ColorAttachment1, 0, -1),
                 (rmsiTex, EFrameBufferAttachment.ColorAttachment2, 0, -1),
                 (depthStencilTex, EFrameBufferAttachment.DepthStencilAttachment, 0, -1))
-            { Name = SSAOFBOName };
-
-            ssaoFbo.SettingUniforms += SSAO_SetUniforms;
-
-            Pipeline.SetFBO(ssaoFbo);
-            Pipeline.SetFBO(new XRQuadFrameBuffer(
-                new([ssaoTex],
-                XRShader.EngineShader(Path.Combine(SceneShaderPath, "SSAOBlur.fs"), EShaderType.Fragment))
-                {
-                    RenderOptions = renderParams 
-                })
             {
-                Name = SSAOBlurFBOName 
-            });
-            Pipeline.SetFBO(new XRFrameBuffer((ssaoTex, EFrameBufferAttachment.ColorAttachment0, 0, -1)) { Name = GBufferFBOFBOName });
+                Name = SSAOFBOName
+            };
+            ssaoGenFBO.SettingUniforms += SSAOGen_SetUniforms;
+
+            XRQuadFrameBuffer ssaoBlurFBO = new(ssaoBlurMat, true, (ssaoTex, EFrameBufferAttachment.ColorAttachment0, 0, -1))
+            {
+                Name = SSAOBlurFBOName
+            };
+
+            XRFrameBuffer gbufferFBO = new((ssaoTex, EFrameBufferAttachment.ColorAttachment0, 0, -1)) 
+            {
+                Name = GBufferFBOFBOName
+            };
+
+            Pipeline.SetFBO(ssaoGenFBO);
+            Pipeline.SetFBO(ssaoBlurFBO);
+            Pipeline.SetFBO(gbufferFBO);
+        }
+
+        private void SSAOGen_SetUniforms(XRRenderProgram program)
+        {
+            program.Uniform("NoiseScale", NoiseScale);
+            program.Uniform("Samples", Kernel!);
+
+            var rc = Pipeline.State.SceneCamera;
+            if (rc is null)
+                return;
+            
+            rc.SetUniforms(program);
+            rc.SetAmbientOcclusionUniforms(program);
+
+            program.Uniform(EEngineUniform.ScreenWidth.ToString(), Pipeline.State.CurrentRenderRegion.Width);
+            program.Uniform(EEngineUniform.ScreenHeight.ToString(), Pipeline.State.CurrentRenderRegion.Height);
+            program.Uniform(EEngineUniform.ScreenOrigin.ToString(), 0.0f);
         }
 
         private XRTexture2D GetOrCreateNoiseTexture()

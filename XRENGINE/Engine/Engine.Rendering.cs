@@ -16,10 +16,10 @@ namespace XREngine
             /// </summary>
             /// <param name="obj"></param>
             /// <returns></returns>
-            public static IEnumerable<AbstractRenderAPIObject?> CreateObjectsForAllWindows(GenericRenderObject obj)
+            public static AbstractRenderAPIObject?[] CreateObjectsForAllWindows(GenericRenderObject obj)
             {
                 lock (Windows)
-                    return Windows.Select(window => window.Renderer.GetOrCreateAPIRenderObject(obj));
+                    return Windows.Select(window => window.Renderer.GetOrCreateAPIRenderObject(obj)).ToArray();
             }
 
             /// <summary>

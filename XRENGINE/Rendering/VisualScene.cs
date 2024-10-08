@@ -1,5 +1,4 @@
-﻿using System.Collections.Concurrent;
-using XREngine.Data.Core;
+﻿using XREngine.Data.Core;
 using XREngine.Data.Rendering;
 using XREngine.Data.Trees;
 using XREngine.Rendering;
@@ -14,25 +13,7 @@ namespace XREngine.Scene
         public IReadOnlyList<RenderInfo> Renderables => _renderables;
         public abstract IRenderTree RenderablesTree { get; }
 
-        protected List<IPreRendered> _preRenderList = [];
-        protected ConcurrentQueue<IPreRendered> _preRenderAddWaitList = [];
-        protected ConcurrentQueue<IPreRendered> _preRenderRemoveWaitList = [];
         private readonly List<RenderInfo> _renderables = [];
-
-        /// <summary>
-        /// Updates all pre-rendered objects in the scene with the given camera.
-        /// </summary>
-        /// <param name="commands"></param>
-        /// <param name="collectionVolume"></param>
-        /// <param name="camera"></param>
-        public void PreRender(XRCamera camera)
-        {
-            //TODO: prerender on own consistent animation thread
-            //ParallelLoopResult result = await Task.Run(() => Parallel.ForEach(_preRenderList, p => { p.PreRenderUpdate(camera); }));
-            foreach (IPreRendered p in _preRenderList)
-                if (p.PreRenderEnabled)
-                    p.PreRenderUpdate(camera);
-        }
 
         /// <summary>
         /// Collects render commands for all renderables in the scene that intersect with the given volume.
@@ -68,37 +49,7 @@ namespace XREngine.Scene
         /// Swaps the update/render buffers for the scene.
         /// </summary>
         public void SwapBuffers()
-        {
-            RenderablesTree.Swap();
-
-            while (_preRenderRemoveWaitList.TryDequeue(out IPreRendered? p) && p is not null)
-                _preRenderList.Remove(p);
-
-            while (_preRenderAddWaitList.TryDequeue(out IPreRendered? p) && p is not null)
-                _preRenderList.Add(p);
-
-            foreach (IPreRendered p in _preRenderList)
-                if (p.PreRenderEnabled)
-                    p.PreRenderSwap();
-        }
-
-        public void AddPreRenderedObject(IPreRendered obj)
-        {
-            if (obj is null)
-                return;
-
-            if (!_preRenderList.Contains(obj))
-                _preRenderAddWaitList.Enqueue(obj);
-        }
-
-        public void RemovePreRenderedObject(IPreRendered obj)
-        {
-            if (obj is null)
-                return;
-
-            if (_preRenderList.Contains(obj))
-                _preRenderRemoveWaitList.Enqueue(obj);
-        }
+            => RenderablesTree.Swap();
 
         public void AddRenderable(RenderInfo renderable)
         {
@@ -117,11 +68,17 @@ namespace XREngine.Scene
         public IEnumerator<IRenderable> GetEnumerator()
             => ((IEnumerable<IRenderable>)_renderables).GetEnumerator();
 
+        /// <summary>
+        /// Occurs before rendering any viewports.
+        /// </summary>
         public virtual void GlobalPreRender()
         {
 
         }
 
+        /// <summary>
+        /// Occurs after rendering all viewports.
+        /// </summary>
         public virtual void GlobalPostRender()
         {
 

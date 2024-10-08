@@ -82,7 +82,7 @@ namespace XREngine.Rendering
         public static explicit operator MagickImage(Mipmap2D mipmap)
             => mipmap.GetImage();
 
-        public void SetFromImage(MagickImage image)
+        public unsafe void SetFromImage(MagickImage image)
         {
             lock (_lock)
             {
@@ -93,6 +93,17 @@ namespace XREngine.Rendering
 
                 byte[]? bytes = image.GetPixelsUnsafe().ToByteArray(image.HasAlpha ? PixelMapping.RGBA : PixelMapping.RGB);
                 Data = bytes is null ? null : new DataSource(bytes);
+                //var pixels = image.GetPixelsUnsafe();
+                //var area = pixels.GetReadOnlyArea(0, 0, image.Width, image.Height);
+              
+                //Data = new DataSource((uint)area.Length * 4u);
+                //float* ptr = (float*)Data.Address.Pointer;
+                //for (int i = 0; i < area.Length; i++)
+                //{
+                //    var pixel = area[i];
+                //    *ptr++ = pixel;
+                //}
+                //PixelType = EPixelType.Float;
 
                 Width = image.Width;
                 Height = image.Height;

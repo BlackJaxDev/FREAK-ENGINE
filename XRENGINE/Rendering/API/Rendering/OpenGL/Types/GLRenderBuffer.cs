@@ -40,14 +40,6 @@ namespace XREngine.Rendering.OpenGL
         public void DetachFromFBO(XRFrameBuffer target, EFrameBufferAttachment attachment, int mipLevel)
             => Api.NamedFramebufferRenderbuffer(Renderer.GenericToAPI<GLFrameBuffer>(target)!.BindingId, ToGLEnum(attachment), GLEnum.Renderbuffer, 0);
 
-        private static GLEnum ToGLEnum2(EFramebufferTarget fboType) => fboType switch
-        {
-            EFramebufferTarget.Framebuffer => GLEnum.Framebuffer,
-            EFramebufferTarget.ReadFramebuffer => GLEnum.ReadFramebuffer,
-            EFramebufferTarget.DrawFramebuffer => GLEnum.DrawFramebuffer,
-            _ => GLEnum.Framebuffer
-        };
-
         private static GLEnum ToGLEnum(ERenderBufferStorage type) => type switch
         {
             ERenderBufferStorage.DepthComponent => GLEnum.DepthComponent,
@@ -107,37 +99,6 @@ namespace XREngine.Rendering.OpenGL
             ERenderBufferStorage.Rgb8i => GLEnum.Rgb8i,
             ERenderBufferStorage.Rgb10A2ui => GLEnum.Rgb10A2ui,
             _ => GLEnum.Rgba8
-        };
-
-        private static GLEnum ToGLEnum(EFrameBufferAttachment attachment) => attachment switch
-        {
-            EFrameBufferAttachment.FrontLeft => GLEnum.FrontLeft,
-            EFrameBufferAttachment.FrontRight => GLEnum.FrontRight,
-            EFrameBufferAttachment.BackLeft => GLEnum.BackLeft,
-            EFrameBufferAttachment.BackRight => GLEnum.BackRight,
-            EFrameBufferAttachment.Color => GLEnum.Color,
-            EFrameBufferAttachment.Depth => GLEnum.Depth,
-            EFrameBufferAttachment.Stencil => GLEnum.Stencil,
-            EFrameBufferAttachment.DepthStencilAttachment => GLEnum.DepthStencilAttachment,
-            EFrameBufferAttachment.ColorAttachment0 => GLEnum.ColorAttachment0,
-            EFrameBufferAttachment.ColorAttachment1 => GLEnum.ColorAttachment1,
-            EFrameBufferAttachment.ColorAttachment2 => GLEnum.ColorAttachment2,
-            EFrameBufferAttachment.ColorAttachment3 => GLEnum.ColorAttachment3,
-            EFrameBufferAttachment.ColorAttachment4 => GLEnum.ColorAttachment4,
-            EFrameBufferAttachment.ColorAttachment5 => GLEnum.ColorAttachment5,
-            EFrameBufferAttachment.ColorAttachment6 => GLEnum.ColorAttachment6,
-            EFrameBufferAttachment.ColorAttachment7 => GLEnum.ColorAttachment7,
-            EFrameBufferAttachment.ColorAttachment8 => GLEnum.ColorAttachment8,
-            EFrameBufferAttachment.ColorAttachment9 => GLEnum.ColorAttachment9,
-            EFrameBufferAttachment.ColorAttachment10 => GLEnum.ColorAttachment10,
-            EFrameBufferAttachment.ColorAttachment11 => GLEnum.ColorAttachment11,
-            EFrameBufferAttachment.ColorAttachment12 => GLEnum.ColorAttachment12,
-            EFrameBufferAttachment.ColorAttachment13 => GLEnum.ColorAttachment13,
-            EFrameBufferAttachment.ColorAttachment14 => GLEnum.ColorAttachment14,
-            EFrameBufferAttachment.ColorAttachment15 => GLEnum.ColorAttachment15,
-            EFrameBufferAttachment.DepthAttachment => GLEnum.DepthAttachment,
-            EFrameBufferAttachment.StencilAttachment => GLEnum.StencilAttachment,
-            _ => GLEnum.ColorAttachment0
         };
     }
 }

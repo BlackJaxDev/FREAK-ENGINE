@@ -9,16 +9,19 @@ namespace XREngine.Audio
         internal AudioSource(ListenerContext parentListener)
         {
             ParentListener = parentListener;
-            Handle = parentListener.Api.GenSource();
+            Handle = ParentListener.Api.GenSource();
+            ParentListener.VerifyError();
         }
 
         public ListenerContext ParentListener { get; }
         public AL Api => ParentListener.Api;
-        private uint Handle { get; }
+        public uint Handle { get; private set; }
 
         public void Dispose()
         {
+            Api.SourceStop(Handle);
             Api.DeleteSource(Handle);
+            Handle = 0u;
             GC.SuppressFinalize(this);
         }
 
@@ -44,7 +47,7 @@ namespace XREngine.Audio
                 if (value is not null)
                     SetBufferHandle(value.Handle);
                 else
-                    SetBufferHandle(0); //TODO: is a handle of 0 invalid?
+                    SetBufferHandle(0);
             }
         }
         public unsafe void QueueBuffers(params AudioBuffer[] buffers)
@@ -163,22 +166,34 @@ namespace XREngine.Audio
         /// Plays the source.
         /// </summary>
         public void Play()
-            => Api.SourcePlay(Handle);
+        {
+            Api.SourcePlay(Handle);
+            ParentListener.VerifyError();
+        }
         /// <summary>
         /// Stops the source from playing.
         /// </summary>
         public void Stop()
-            => Api.SourceStop(Handle);
+        {
+            Api.SourceStop(Handle);
+            ParentListener.VerifyError();
+        }
         /// <summary>
         /// Pauses the source.
         /// </summary>
         public void Pause()
-            => Api.SourcePause(Handle);
+        {
+            Api.SourcePause(Handle);
+            ParentListener.VerifyError();
+        }
         /// <summary>
         /// Sets the source to play from the beginning (initial state).
         /// </summary>
         public void Rewind()
-            => Api.SourceRewind(Handle);
+        {
+            Api.SourceRewind(Handle);
+            ParentListener.VerifyError();
+        }
         #endregion
 
         #region Settings
@@ -342,175 +357,263 @@ namespace XREngine.Audio
         private bool GetSourceRelative()
         {
             Api.GetSourceProperty(Handle, SourceBoolean.SourceRelative, out bool value);
+            ParentListener.VerifyError();
             return value;
         }
         private bool GetLooping()
         {
             Api.GetSourceProperty(Handle, SourceBoolean.Looping, out bool value);
+            ParentListener.VerifyError();
             return value;
         }
         private void SetSourceRelative(bool relative)
-            => Api.SetSourceProperty(Handle, SourceBoolean.SourceRelative, relative);
+        {
+            Api.SetSourceProperty(Handle, SourceBoolean.SourceRelative, relative);
+            ParentListener.VerifyError();
+        }
         private void SetLooping(bool loop)
-            => Api.SetSourceProperty(Handle, SourceBoolean.Looping, loop);
+        {
+            Api.SetSourceProperty(Handle, SourceBoolean.Looping, loop);
+            ParentListener.VerifyError();
+        }
 
         private int GetByteOffset()
         {
             Api.GetSourceProperty(Handle, GetSourceInteger.ByteOffset, out int value);
+            ParentListener.VerifyError();
             return value;
         }
         private int GetSampleOffset()
         {
             Api.GetSourceProperty(Handle, GetSourceInteger.SampleOffset, out int value);
+            ParentListener.VerifyError();
             return value;
         }
         private unsafe uint GetBufferHandle()
         {
             uint buffer;
             Api.GetSourceProperty(Handle, GetSourceInteger.Buffer, (int*)&buffer);
+            ParentListener.VerifyError();
             return buffer;
         }
         private int GetSourceType()
         {
             Api.GetSourceProperty(Handle, GetSourceInteger.SourceType, out int value);
+            ParentListener.VerifyError();
             return value;
         }
         private int GetSourceState()
         {
             Api.GetSourceProperty(Handle, GetSourceInteger.SourceState, out int value);
+            ParentListener.VerifyError();
             return value;
         }
         private int GetBuffersQueued()
         {
             Api.GetSourceProperty(Handle, GetSourceInteger.BuffersQueued, out int value);
+            ParentListener.VerifyError();
             return value;
         }
         private int GetBuffersProcessed()
         {
             Api.GetSourceProperty(Handle, GetSourceInteger.BuffersProcessed, out int value);
+            ParentListener.VerifyError();
             return value;
         }
 
         private void SetByteOffset(int offset)
-            => Api.SetSourceProperty(Handle, SourceInteger.ByteOffset, offset);
+        {
+            Api.SetSourceProperty(Handle, SourceInteger.ByteOffset, offset);
+            ParentListener.VerifyError();
+        }
         private void SetSampleOffset(int offset)
-            => Api.SetSourceProperty(Handle, SourceInteger.SampleOffset, offset);
+        {
+            Api.SetSourceProperty(Handle, SourceInteger.SampleOffset, offset);
+            ParentListener.VerifyError();
+        }
         private void SetBufferHandle(uint buffer)
-            => Api.SetSourceProperty(Handle, SourceInteger.Buffer, buffer);
+        {
+            Api.SetSourceProperty(Handle, SourceInteger.Buffer, buffer);
+            ParentListener.VerifyError();
+        }
         private void SetSourceType(int type)
-            => Api.SetSourceProperty(Handle, SourceInteger.SourceType, type);
+        {
+            Api.SetSourceProperty(Handle, SourceInteger.SourceType, type);
+            ParentListener.VerifyError();
+        }
 
         private Vector3 GetPosition()
         {
             Api.GetSourceProperty(Handle, SourceVector3.Position, out Vector3 value);
+            ParentListener.VerifyError();
             return value;
         }
         private Vector3 GetVelocity()
         {
             Api.GetSourceProperty(Handle, SourceVector3.Velocity, out Vector3 value);
+            ParentListener.VerifyError();
             return value;
         }
         private Vector3 GetDirection()
         {
             Api.GetSourceProperty(Handle, SourceVector3.Direction, out Vector3 value);
+            ParentListener.VerifyError();
             return value;
         }
 
         private void SetPosition(Vector3 position)
-            => Api.SetSourceProperty(Handle, SourceVector3.Position, position);
+        {
+            Api.SetSourceProperty(Handle, SourceVector3.Position, position);
+            ParentListener.VerifyError();
+        }
         private void SetVelocity(Vector3 velocity)
-            => Api.SetSourceProperty(Handle, SourceVector3.Velocity, velocity);
+        {
+            Api.SetSourceProperty(Handle, SourceVector3.Velocity, velocity);
+            ParentListener.VerifyError();
+        }
         private void SetDirection(Vector3 direction)
-            => Api.SetSourceProperty(Handle, SourceVector3.Direction, direction);
+        {
+            Api.SetSourceProperty(Handle, SourceVector3.Direction, direction);
+            ParentListener.VerifyError();
+        }
 
         private float GetReferenceDistance()
         {
             Api.GetSourceProperty(Handle, SourceFloat.ReferenceDistance, out float value);
+            ParentListener.VerifyError();
             return value;
         }
         private float GetMaxDistance()
         {
             Api.GetSourceProperty(Handle, SourceFloat.MaxDistance, out float value);
+            ParentListener.VerifyError();
             return value;
         }
         private float GetRolloffFactor()
         {
             Api.GetSourceProperty(Handle, SourceFloat.RolloffFactor, out float value);
+            ParentListener.VerifyError();
             return value;
         }
         private float GetPitch()
         {
             Api.GetSourceProperty(Handle, SourceFloat.Pitch, out float value);
+            ParentListener.VerifyError();
             return value;
         }
         private float GetMinGain()
         {
             Api.GetSourceProperty(Handle, SourceFloat.MinGain, out float value);
+            ParentListener.VerifyError();
             return value;
         }
         private float GetMaxGain()
         {
             Api.GetSourceProperty(Handle, SourceFloat.MaxGain, out float value);
+            ParentListener.VerifyError();
             return value;
         }
         private float GetGain()
         {
             Api.GetSourceProperty(Handle, SourceFloat.Gain, out float value);
+            ParentListener.VerifyError();
             return value;
         }
         private float GetConeInnerAngle()
         {
             Api.GetSourceProperty(Handle, SourceFloat.ConeInnerAngle, out float value);
+            ParentListener.VerifyError();
             return value;
         }
         private float GetConeOuterAngle()
         {
             Api.GetSourceProperty(Handle, SourceFloat.ConeOuterAngle, out float value);
+            ParentListener.VerifyError();
             return value;
         }
         private float GetConeOuterGain()
         {
             Api.GetSourceProperty(Handle, SourceFloat.ConeOuterGain, out float value);
+            ParentListener.VerifyError();
             return value;
         }
         private float GetSecOffset()
         {
             Api.GetSourceProperty(Handle, SourceFloat.SecOffset, out float value);
+            ParentListener.VerifyError();
             return value;
         }
 
         private void SetReferenceDistance(float distance)
-            => Api.SetSourceProperty(Handle, SourceFloat.ReferenceDistance, distance);
+        {
+            Api.SetSourceProperty(Handle, SourceFloat.ReferenceDistance, distance);
+            ParentListener.VerifyError();
+        }
         private void SetMaxDistance(float distance)
-            => Api.SetSourceProperty(Handle, SourceFloat.MaxDistance, distance);
+        {
+            Api.SetSourceProperty(Handle, SourceFloat.MaxDistance, distance);
+            ParentListener.VerifyError();
+        }
         private void SetRolloffFactor(float factor)
-            => Api.SetSourceProperty(Handle, SourceFloat.RolloffFactor, factor);
+        {
+            Api.SetSourceProperty(Handle, SourceFloat.RolloffFactor, factor);
+            ParentListener.VerifyError();
+        }
         private void SetPitch(float pitch)
-            => Api.SetSourceProperty(Handle, SourceFloat.Pitch, pitch);
+        {
+            Api.SetSourceProperty(Handle, SourceFloat.Pitch, pitch);
+            ParentListener.VerifyError();
+        }
         private void SetMinGain(float gain)
-            => Api.SetSourceProperty(Handle, SourceFloat.MinGain, gain);
+        {
+            Api.SetSourceProperty(Handle, SourceFloat.MinGain, gain);
+            ParentListener.VerifyError();
+        }
         private void SetMaxGain(float gain)
-            => Api.SetSourceProperty(Handle, SourceFloat.MaxGain, gain);
+        {
+            Api.SetSourceProperty(Handle, SourceFloat.MaxGain, gain);
+            ParentListener.VerifyError();
+        }
         private void SetGain(float gain)
-            => Api.SetSourceProperty(Handle, SourceFloat.Gain, gain);
+        {
+            Api.SetSourceProperty(Handle, SourceFloat.Gain, gain);
+            ParentListener.VerifyError();
+        }
         private void SetConeInnerAngle(float angle)
-            => Api.SetSourceProperty(Handle, SourceFloat.ConeInnerAngle, angle);
+        {
+            Api.SetSourceProperty(Handle, SourceFloat.ConeInnerAngle, angle);
+            ParentListener.VerifyError();
+        }
         private void SetConeOuterAngle(float angle)
-            => Api.SetSourceProperty(Handle, SourceFloat.ConeOuterAngle, angle);
+        {
+            Api.SetSourceProperty(Handle, SourceFloat.ConeOuterAngle, angle);
+            ParentListener.VerifyError();
+        }
         private void SetConeOuterGain(float gain)
-            => Api.SetSourceProperty(Handle, SourceFloat.ConeOuterGain, gain);
+        {
+            Api.SetSourceProperty(Handle, SourceFloat.ConeOuterGain, gain);
+            ParentListener.VerifyError();
+        }
         private void SetSecOffset(float offset)
-            => Api.SetSourceProperty(Handle, SourceFloat.SecOffset, offset);
+        {
+            Api.SetSourceProperty(Handle, SourceFloat.SecOffset, offset);
+            ParentListener.VerifyError();
+        }
+
         #endregion
 
         void IPoolable.OnPoolableReset()
         {
-
+            Handle = ParentListener.Api.GenSource();
+            ParentListener.VerifyError();
         }
 
         void IPoolable.OnPoolableReleased()
         {
-
+            Api.SourceStop(Handle);
+            Api.DeleteSource(Handle);
+            Handle = 0u;
+            ParentListener.VerifyError();
         }
 
         void IPoolable.OnPoolableDestroyed()

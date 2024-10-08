@@ -245,6 +245,10 @@ namespace XREngine.Rendering.OpenGL
 
                     Renderer.RenderMesh(this, false, instances);
                 }
+                else
+                {
+                    Debug.LogWarning("Failed to get programs for mesh renderer.");
+                }
             }
 
             private bool GetPrograms(GLMaterial material, [MaybeNullWhen(false)] out GLRenderProgram? vertexProgram, [MaybeNullWhen(false)] out GLRenderProgram? materialProgram)
@@ -272,12 +276,7 @@ namespace XREngine.Rendering.OpenGL
 
             private bool GetPipelinePrograms(GLMaterial material, out GLRenderProgram? vertexProgram, out GLRenderProgram? materialProgram)
             {
-                vertexProgram = null;
-                materialProgram = null;
-
-                if (_pipeline is null)
-                    return false;
-
+                _pipeline ??= Renderer.GenericToAPI<GLRenderProgramPipeline>(new XRRenderProgramPipeline())!;
                 _pipeline.Bind();
                 _pipeline.Clear(EProgramStageMask.AllShaderBits);
 
@@ -341,78 +340,89 @@ namespace XREngine.Rendering.OpenGL
 
             protected internal override void PostGenerated()
             {
-                Task.Run(() =>
+                if (Data.GenerateAsync)
+                    Task.Run(GenProgramsAndBuffers);
+                else
+                    GenProgramsAndBuffers();
+            }
+
+            private void GenProgramsAndBuffers()
+            {
+                MakeIndexBuffers();
+
+                //Determine how we're combining the material and vertex shader here
+                GLRenderProgram vertexProgram;
+                if (Engine.Rendering.Settings.AllowShaderPipelines)
                 {
-                    MakeIndexBuffers();
+                    string vertexShaderSource = Data.VertexShaderSource!;
 
-                    //Determine how we're combining the material and vertex shader here
-                    GLRenderProgram vertexProgram;
-                    if (Engine.Rendering.Settings.AllowShaderPipelines)
+                    var shader = new XRShader(EShaderType.Vertex, vertexShaderSource);
+                    var program = new XRRenderProgram(false, shader);
+
+                    _combinedProgram = null;
+                    _defaultVertexProgram = Renderer.GenericToAPI<GLRenderProgram>(program)!;
+                    _defaultVertexProgram.PropertyChanged += SeparatedProgramPropertyChanged;
+
+                    vertexProgram = _defaultVertexProgram;
+                }
+                else
+                {
+                    var material = Material;
+                    if (material is null)
                     {
-                        string vertexShaderSource = Data.VertexShaderSource!;
-
-                        var pipeline = new XRRenderProgramPipeline();
-                        var shader = new XRShader(EShaderType.Vertex, vertexShaderSource);
-                        var program = new XRRenderProgram(false, shader);
-
-                        _combinedProgram = null;
-                        _pipeline = Renderer.GenericToAPI<GLRenderProgramPipeline>(pipeline)!;
-
-                        _defaultVertexProgram = Renderer.GenericToAPI<GLRenderProgram>(program)!;
-                        _defaultVertexProgram.PropertyChanged += SeparatedProgramPropertyChanged;
-
-                        vertexProgram = _defaultVertexProgram;
+                        Debug.LogWarning("No material found for mesh renderer, using invalid material.");
+                        material = Renderer.GenericToAPI<GLMaterial>(Engine.Rendering.State.CurrentPipeline!.InvalidMaterial); //Don't use GetRenderMaterial here, global and local override materials are for current render only
                     }
-                    else
-                    {
-                        var material = Material;
-                        if (material is null)
-                        {
-                            Debug.LogWarning("No material found for mesh renderer, using invalid material.");
-                            material = Renderer.GenericToAPI<GLMaterial>(Engine.Rendering.State.CurrentPipeline!.InvalidMaterial); //Don't use GetRenderMaterial here, global and local override materials are for current render only
-                        }
-                        IEnumerable<XRShader> shaders = material!.Data.Shaders;
+                    IEnumerable<XRShader> shaders = material!.Data.Shaders;
 
-                        //If the material doesn't have a vertex shader, use the default one
-                        bool useDefaultVertexShader = material.Data.VertexShaders.Count == 0;
-                        if (useDefaultVertexShader)
-                            shaders = shaders.Append(new XRShader(EShaderType.Vertex, Data.VertexShaderSource!));
+                    //If the material doesn't have a vertex shader, use the default one
+                    bool useDefaultVertexShader = material.Data.VertexShaders.Count == 0;
+                    if (useDefaultVertexShader)
+                        shaders = shaders.Append(new XRShader(EShaderType.Vertex, Data.VertexShaderSource!));
 
-                        _defaultVertexProgram = null;
+                    _defaultVertexProgram = null;
 
-                        _combinedProgram = Renderer.GenericToAPI<GLRenderProgram>(new XRRenderProgram(shaders, false))!;
-                        _combinedProgram.PropertyChanged += CombinedProgramPropertyChanged;
+                    _combinedProgram = Renderer.GenericToAPI<GLRenderProgram>(new XRRenderProgram(shaders, false))!;
+                    _combinedProgram.PropertyChanged += CombinedProgramPropertyChanged;
 
-                        vertexProgram = _combinedProgram;
-                    }
+                    vertexProgram = _combinedProgram;
+                }
 
-                    _bufferCache = [];
-                    if (Data.Mesh != null)
-                        foreach (var pair in Data.Mesh.Buffers)
-                            _bufferCache.Add(pair.Key, Renderer.GenericToAPI<GLDataBuffer>(pair.Value)!);
+                _bufferCache = [];
+                if (Data.Mesh != null)
+                    foreach (var pair in Data.Mesh.Buffers)
+                        _bufferCache.Add(pair.Key, Renderer.GenericToAPI<GLDataBuffer>(pair.Value)!);
 
-                    vertexProgram.Data.Link();
-                });
+                vertexProgram.Data.Link();
+
+                if (!Data.GenerateAsync)
+                    vertexProgram.Link();
             }
 
             private void SeparatedProgramPropertyChanged(object? sender, PropertyChangedEventArgs e)
             {
-                if (e.PropertyName == nameof(GLRenderProgram.IsLinked) && (_defaultVertexProgram?.IsLinked ?? false))
-                {
-                    //Continue linking the program
-                    _defaultVertexProgram.PropertyChanged -= SeparatedProgramPropertyChanged;
+                if (e.PropertyName != nameof(GLRenderProgram.IsLinked) || !(_defaultVertexProgram?.IsLinked ?? false))
+                    return;
+                
+                //Continue linking the program
+                _defaultVertexProgram.PropertyChanged -= SeparatedProgramPropertyChanged;
+                if (Data.GenerateAsync)
                     Engine.EnqueueMainThreadTask(LinkSeparatedVertex);
-                }
+                else
+                    LinkSeparatedVertex();
             }
 
             private void CombinedProgramPropertyChanged(object? s, PropertyChangedEventArgs e)
             {
-                if (e.PropertyName == nameof(GLRenderProgram.IsLinked) && (_combinedProgram?.IsLinked ?? false))
-                {
-                    //Continue linking the program
-                    _combinedProgram.PropertyChanged -= CombinedProgramPropertyChanged;
+                if (e.PropertyName != nameof(GLRenderProgram.IsLinked) || !(_combinedProgram?.IsLinked ?? false))
+                    return;
+                
+                //Continue linking the program
+                _combinedProgram.PropertyChanged -= CombinedProgramPropertyChanged;
+                if (Data.GenerateAsync)
                     Engine.EnqueueMainThreadTask(LinkCombinedVertex);
-                }
+                else
+                    LinkCombinedVertex();
             }
 
             private void LinkSeparatedVertex()

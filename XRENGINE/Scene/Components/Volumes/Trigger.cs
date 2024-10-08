@@ -44,15 +44,15 @@ namespace XREngine.Components.Scene.Volumes
         //        SimulatePhysics = false,
         //    }) { }
 
-        protected internal override void Start()
+        protected internal override void OnComponentActivated()
         {
-            base.Start();
+            base.OnComponentActivated();
             RegisterTick(ETickGroup.PostPhysics, (int)ETickOrder.Scene, Tick);
         }
-        protected internal override void Stop()
+        protected internal override void OnComponentDeactivated()
         {
             UnregisterTick(ETickGroup.PostPhysics, (int)ETickOrder.Scene, Tick);
-            base.Stop();
+            base.OnComponentDeactivated();
         }
 
         private readonly ContactTestMulti _test = new(null, 0, 0);

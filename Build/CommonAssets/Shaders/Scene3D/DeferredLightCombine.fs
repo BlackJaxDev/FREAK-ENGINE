@@ -13,9 +13,20 @@ layout(binding = 2) uniform sampler2D Texture2; //PBR: Roughness, Metallic, Spec
 layout(binding = 3) uniform sampler2D Texture3; //SSAO Intensity
 layout(binding = 4) uniform sampler2D Texture4; //Depth
 layout(binding = 5) uniform sampler2D Texture5; //Diffuse Light Color
+
 layout(binding = 6) uniform sampler2D BRDF;
+
 layout(binding = 7) uniform samplerCube Irradiance;
 layout(binding = 8) uniform samplerCube Prefilter;
+
+layout(binding = 9) uniform samplerCube Irradiance1;
+layout(binding = 10) uniform samplerCube Prefilter1;
+
+layout(binding = 11) uniform samplerCube Irradiance2;
+layout(binding = 12) uniform samplerCube Prefilter2;
+
+layout(binding = 13) uniform samplerCube Irradiance3;
+layout(binding = 14) uniform samplerCube Prefilter3;
 
 uniform vec3 CameraPosition;
 uniform mat4 InverseViewMatrix;
@@ -64,7 +75,7 @@ void main()
 	vec3 V = normalize(CameraPosition - fragPosWS);
 	float NoV = max(dot(normal, V), 0.0f);
 	vec3 F0 = mix(vec3(0.04f), albedoColor, metallic);
-	vec2 brdf = texture(BRDF, vec2(NoV, roughness)).rg;
+	vec2 brdfValue = texture(BRDF, vec2(NoV, roughness)).rg;
 
 	//Calculate specular and diffuse components
 	//Preserve energy by making sure they add up to 1
@@ -76,7 +87,7 @@ void main()
 
 	vec3 diffuse = irradianceColor * albedoColor;
 	vec3 prefilteredColor = textureLod(Prefilter, R, roughness * MAX_REFLECTION_LOD).rgb;
-	vec3 specular = prefilteredColor * (kS * brdf.x + brdf.y);
+	vec3 specular = prefilteredColor * (kS * brdfValue.x + brdfValue.y);
 
-	OutColor = vec3(ao, ao, ao);//(kD * diffuse + specular) * ao +	Lo;
+	OutColor = albedoColor;//(kD * diffuse + specular) * ao + Lo;
 }

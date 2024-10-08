@@ -395,6 +395,17 @@ namespace XREngine.Rendering
             set => SetField(ref _postProcessMaterial, value);
         }
 
+        private RenderPipeline? _renderPipeline = null;
+        /// <summary>
+        /// This is the rendering setup this viewport will use to render the scene the camera sees.
+        /// A render pipeline is a collection of render passes that will be executed in order to render the scene and post-process the result, etc.
+        /// </summary>
+        public RenderPipeline RenderPipeline
+        {
+            get => _renderPipeline ?? SetFieldReturn(ref _renderPipeline, Engine.Rendering.NewRenderPipeline())!;
+            set => SetField(ref _renderPipeline, value);
+        }
+
         public virtual void SetUniforms(XRRenderProgram program)
         {
             program.Uniform(EEngineUniform.InverseViewMatrix.ToString(), Transform.WorldMatrix);

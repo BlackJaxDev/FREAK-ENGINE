@@ -540,6 +540,89 @@ namespace XREngine.Rendering
 
             public static XRMesh WireframeCircle(float radius, Vector3 normal, Vector3 center, int sides)
                 => Create(CircleLineStrip(radius, normal, center, sides));
+
+            public static XRMesh SolidFrustum(Frustum frustum)
+            {
+                Vector3 ltf = frustum.LeftTopFar;
+                Vector3 lbf = frustum.LeftBottomFar;
+                Vector3 rtf = frustum.RightTopFar;
+                Vector3 rbf = frustum.RightBottomFar;
+
+                Vector3 ltn = frustum.LeftTopNear;
+                Vector3 lbn = frustum.LeftBottomNear;
+                Vector3 rtn = frustum.RightTopNear;
+                Vector3 rbn = frustum.RightBottomNear;
+
+                VertexTriangle[] triangles =
+                [
+                    new(ltf, rtf, lbf),
+                    new(rtf, rbf, lbf),
+                    new(ltn, lbn, rbn),
+                    new(ltn, rbn, rtn),
+                    new(ltf, ltn, rtf),
+                    new(ltn, rtn, rtf),
+                    new(lbf, rbf, lbn),
+                    new(rbf, rbn, lbn),
+                    new(ltf, lbf, ltn),
+                    new(lbf, lbn, ltn),
+                    new(rtf, rtn, rbf),
+                    new(rbf, rtn, rbn),
+                ];
+
+                return Create(triangles);
+            }
+
+            public static XRMesh WireframeFrustum(Frustum frustum)
+            {
+                Vector3 ltf = frustum.LeftTopFar;
+                Vector3 lbf = frustum.LeftBottomFar;
+                Vector3 rtf = frustum.RightTopFar;
+                Vector3 rbf = frustum.RightBottomFar;
+
+                Vector3 ltn = frustum.LeftTopNear;
+                Vector3 lbn = frustum.LeftBottomNear;
+                Vector3 rtn = frustum.RightTopNear;
+                Vector3 rbn = frustum.RightBottomNear;
+
+                VertexLine[] lines =
+                [
+                    new(ltf, rtf),
+                    new(rtf, rbf),
+                    new(rbf, lbf),
+                    new(lbf, ltf),
+                    new(ltn, lbn),
+                    new(lbn, rbn),
+                    new(rbn, rtn),
+                    new(rtn, ltn),
+                    new(ltf, ltn),
+                    new(rtf, rtn),
+                    new(rbf, rbn),
+                    new(lbf, lbn),
+                ];
+
+                return Create(lines);
+            }
+
+            public static XRMesh? FromVolume(IVolume volume, bool wireframe) 
+                => volume switch
+                {
+                    AABB box => wireframe
+                        ? GetWireframeAABB(box, true)
+                        : GetSolidAABB(box, true),
+                    Sphere sphere => wireframe
+                        ? WireframeSphere(sphere.Center, sphere.Radius, 32)
+                        : SolidSphere(sphere.Center, sphere.Radius, 32),
+                    Cone cone => wireframe
+                        ? WireframeCone(cone.Center, cone.Up, cone.Height, cone.Radius, 32)
+                        : SolidCone(cone.Center, cone.Up, cone.Height, cone.Radius, 32, false),
+                    Capsule capsule => wireframe
+                        ? WireframeCapsule(capsule.Center, capsule.UpAxis, capsule.Radius, capsule.HalfHeight, 32)
+                        : SolidCone(capsule.Center, capsule.UpAxis, capsule.HalfHeight, capsule.Radius, 32, true),
+                    Frustum frustum => wireframe
+                        ? WireframeFrustum(frustum)
+                        : SolidFrustum(frustum),
+                    _ => null,
+                };
         }
     }
 }

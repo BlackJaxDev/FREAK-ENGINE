@@ -1,10 +1,10 @@
 ﻿namespace XREngine.Rendering.Pipelines.Commands
 {
-    public abstract class ViewportRenderCommand(ViewportRenderCommandContainer commandContainer)
+    public abstract class ViewportRenderCommand
     {
         public const string SceneShaderPath = "Scene3D";
 
-        public ViewportRenderCommandContainer CommandContainer { get; } = commandContainer;
+        public ViewportRenderCommandContainer? CommandContainer { get; internal set; }
         public static XRRenderPipelineInstance Pipeline => Engine.Rendering.State.CurrentPipeline!;
 
         /// <summary>

@@ -28,7 +28,7 @@ namespace XREngine.Rendering.Models
 
         public SubMesh() { }
 
-        public SubMesh(XRMesh primitives, XRMaterial material)
+        public SubMesh(XRMesh? primitives, XRMaterial? material)
             : this(new SubMeshLOD(material, primitives, 0.0f)) { }
 
         public SubMesh(params SubMeshLOD[] lods)

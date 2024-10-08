@@ -1,5 +1,6 @@
 ﻿
 using XREngine.Core.Files;
+using XREngine.Data;
 using XREngine.Rendering.Models.Materials;
 
 namespace XREngine.Rendering
@@ -22,6 +23,13 @@ namespace XREngine.Rendering
         {
             get => _source;
             set => SetField(ref _source, value);
+        }
+
+        private bool _generateAsync = false;
+        public bool GenerateAsync
+        {
+            get => _generateAsync;
+            set => SetField(ref _generateAsync, value);
         }
 
         public XRShader() { }

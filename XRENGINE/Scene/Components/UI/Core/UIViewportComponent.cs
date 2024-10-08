@@ -1,16 +1,15 @@
 ﻿using XREngine.Data.Rendering;
-using XREngine.Scene;
 
 namespace XREngine.Rendering.UI
 {
     /// <summary>
     /// Houses a viewport that renders a scene from a designated camera.
     /// </summary>
-    public class UIViewportComponent : UIMaterialComponent, IRenderable, IPreRendered
+    public class UIViewportComponent : UIMaterialComponent, IRenderable
     {
         public event DelSetUniforms SettingUniforms;
 
-        //private MaterialFrameBuffer _fbo;
+        private readonly XRMaterialFrameBuffer _fbo;
 
         //These bools are to prevent infinite pre-rendering recursion
         private bool _updating = false;
@@ -19,8 +18,12 @@ namespace XREngine.Rendering.UI
 
         public UIViewportComponent() : base(GetViewporXRMaterial())
         {
-            //_fbo = new MaterialFrameBuffer(Material);
-            //RenderCommand.Mesh.SettingUniforms += SetUniforms;
+            _fbo = new XRMaterialFrameBuffer(Material);
+            RenderCommand.Mesh.SettingUniforms += SetUniforms;
+
+            Engine.Time.Timer.SwapBuffers += SwapBuffers;
+            Engine.Time.Timer.UpdateFrame += Update;
+            Engine.Time.Timer.RenderFrame += Render;
         }
 
         private static XRMaterial GetViewporXRMaterial()
@@ -37,12 +40,8 @@ namespace XREngine.Rendering.UI
         private void SetUniforms(XRRenderProgram vertexProgram, XRRenderProgram materialProgram)
             => SettingUniforms?.Invoke(materialProgram);
 
-        //public bool PreRenderEnabled => IsVisible && ViewportCamera?.OwningComponent?.OwningScene != null;
-
         public XRViewport Viewport { get; private set; } = new XRViewport(null, 1, 1);
-        public bool PreRenderEnabled { get; }
-
-        //protected override void OnResizeLayout(BoundingRectangleF parentRegion)
+        //protected override void OnResizeLayout(BoundingRectangle parentRegion)
         //{
         //    base.OnResizeLayout(parentRegion);
 
@@ -54,7 +53,7 @@ namespace XREngine.Rendering.UI
         //    _fbo.Resize(w, h);
         //}
 
-        public void PreRenderUpdate(XRCamera camera)
+        public void Update(XRCamera camera)
         {
             if (!IsVisible || _updating)
                 return;
@@ -63,7 +62,7 @@ namespace XREngine.Rendering.UI
             //Viewport.PreRenderUpdate();
             _updating = false;
         }
-        public void PreRenderSwap()
+        public void SwapBuffers()
         {
             if (!IsVisible || _swapping)
                 return;
@@ -72,7 +71,7 @@ namespace XREngine.Rendering.UI
             //Viewport.PreRenderSwap();
             _swapping = false;
         }
-        public void PreRender(XRViewport viewport, XRCamera camera)
+        public void Render()
         {
             if (!IsVisible || _rendering)
                 return;

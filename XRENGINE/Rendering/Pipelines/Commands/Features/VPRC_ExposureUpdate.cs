@@ -1,7 +1,7 @@
 ﻿
 namespace XREngine.Rendering.Pipelines.Commands
 {
-    public class VPRC_ExposureUpdate(ViewportRenderCommandContainer pipeline) : ViewportRenderCommand(pipeline)
+    public class VPRC_ExposureUpdate : ViewportRenderCommand
     {
         /// <summary>
         /// This is the texture that exposure will be calculated from.
@@ -15,11 +15,7 @@ namespace XREngine.Rendering.Pipelines.Commands
         public bool GenerateMipmapsHere { get; set; } = true;
 
         protected override void Execute()
-        {
-            ColorGradingSettings? cgs = Pipeline.State.SceneCamera?.PostProcessing?.ColorGrading;
-            if (cgs != null && cgs.AutoExposure)
-                cgs.Exposure = Engine.Rendering.State.CalculateDotLuminance(Pipeline.GetTexture<XRTexture2D>(HDRSceneTextureName)!, GenerateMipmapsHere);
-        }
+            => Pipeline.State.SceneCamera?.PostProcessing?.ColorGrading?.UpdateExposure(Pipeline.GetTexture<XRTexture2D>(HDRSceneTextureName)!, GenerateMipmapsHere);
 
         public void SetOptions(string hdrSceneTextureName, bool generateMipmapsHere)
         {

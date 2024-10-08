@@ -13,11 +13,11 @@ namespace XREngine.Rendering.OpenGL
         public delegate void DelCompile(bool compiledSuccessfully, string? compileInfo);
         public class GLRenderProgram(OpenGLRenderer renderer, XRRenderProgram data) : GLObject<XRRenderProgram>(renderer, data), IEnumerable<GLShader>
         {
-            private bool _isValid = true;
+            private bool _isLinked = false;
             public bool IsLinked
             {
-                get => _isValid;
-                private set => SetField(ref _isValid, value);
+                get => _isLinked;
+                private set => SetField(ref _isLinked, value);
             }
 
             public override GLObjectType Type => GLObjectType.Program;
@@ -289,7 +289,7 @@ namespace XREngine.Rendering.OpenGL
                 return handle;
             }
 
-            private static object HashLock = new();
+            //private static object HashLock = new();
             public bool Link()
             {
                 if (IsLinked)
@@ -340,7 +340,10 @@ namespace XREngine.Rendering.OpenGL
                         _cachedProgram = null;
 
                         foreach (GLShader shader in _shaderCache.Values)
-                            Engine.EnqueueMainThreadTask(shader.Generate);
+                            if (shader.Data.GenerateAsync)
+                                Engine.EnqueueMainThreadTask(shader.Generate);
+                            else
+                                shader.Generate();
 
                         if (_shaderCache.Values.Any(x => !x.IsCompiled))
                             return false;

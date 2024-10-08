@@ -1,16 +1,16 @@
 ﻿namespace XREngine.Rendering.Pipelines.Commands
 {
-    public class VPRC_CacheOrCreateTexture(ViewportRenderCommandContainer pipeline) : ViewportRenderCommand(pipeline)
+    public class VPRC_CacheOrCreateTexture : ViewportRenderCommand
     {
         /// <summary>
         /// The name of the texture in the pipeline.
         /// </summary>
-        public required string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// Factory method to create the texture when it is not cached.
         /// </summary>
-        public required Func<XRTexture> TextureFactory { get; set; }
+        public Func<XRTexture>? TextureFactory { get; set; }
 
         /// <summary>
         /// This action is called when the texture is already cached.
@@ -31,12 +31,12 @@
 
         protected override void Execute()
         {
-            if (Pipeline.TryGetTexture(Name, out var texture) && (texture is null || !(NeedsRecreate?.Invoke(texture) ?? false)))
+            if (Name is null || Pipeline.TryGetTexture(Name, out var texture) && (texture is null || !(NeedsRecreate?.Invoke(texture) ?? false)))
                 return;
 
             if (texture is not null && Resize is not null)
                 Resize.Invoke(texture);
-            else
+            else if (TextureFactory is not null)
             {
                 texture = TextureFactory();
                 texture.Name = Name;

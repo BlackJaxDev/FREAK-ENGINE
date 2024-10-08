@@ -6,7 +6,9 @@ using System.Numerics;
 using XREngine;
 using XREngine.Components;
 using XREngine.Components.Lights;
+using XREngine.Components.Scene;
 using XREngine.Components.Scene.Mesh;
+using XREngine.Data;
 using XREngine.Data.Colors;
 using XREngine.Data.Rendering;
 using XREngine.Editor;
@@ -18,6 +20,7 @@ using XREngine.Rendering.Models;
 using XREngine.Rendering.Models.Materials;
 using XREngine.Scene;
 using XREngine.Scene.Transforms;
+using static XREngine.Audio.AudioSource;
 
 internal class Program
 {
@@ -50,9 +53,6 @@ internal class Program
 
         //Create a test cube
         var modelNode = new SceneNode(rootNode) { Name = "TestModelNode" };
-        var modelTransform = modelNode.SetTransform<OrbitTransform>();
-        modelTransform.Radius = 0.0f;
-        modelTransform.RegisterAnimationTick<OrbitTransform>(TickRotation);
         if (modelNode.TryAddComponent<ModelComponent>(out var modelComp))
         {
             modelComp!.Name = "TestModel";
@@ -80,41 +80,112 @@ internal class Program
 
         //Create the camera
         var cameraNode = new SceneNode(rootNode) { Name = "TestCameraNode" };
-        var cameraTransform = cameraNode.SetTransform<Transform>();
-        cameraTransform.Translation = new Vector3(0.0f, 0.0f, 5.0f);
-        cameraTransform.LookAt(Vector3.Zero);
+        var orbitTransform = cameraNode.SetTransform<OrbitTransform>();
+        orbitTransform.Radius = 50.0f;
+        orbitTransform.IgnoreRotation = true;
+        orbitTransform.RegisterAnimationTick<OrbitTransform>(TickRotation);
         if (cameraNode.TryAddComponent<CameraComponent>(out var cameraComp))
         {
             cameraComp!.Name = "TestCamera";
             cameraComp.LocalPlayerIndex = ELocalPlayerIndex.One;
+            cameraComp.CullWithFrustum = false;
+
             cameraComp.Camera.Parameters = new XRPerspectiveCameraParameters(45.0f, null, 0.1f, 100000.0f);
-            cameraComp.CullWithFrustum = true;
-            cameraComp.RenderPipeline = new DefaultRenderPipeline();
+            cameraComp.Camera.RenderPipeline = new DefaultRenderPipeline();
         }
 
         var dirLight = new SceneNode(rootNode) { Name = "TestDirectionalLightNode" };
         var dirLightTransform = dirLight.SetTransform<Transform>();
         dirLightTransform.Translation = new Vector3(20.0f, 10.0f, 20.0f);
-        dirLightTransform.LookAt(Vector3.Zero);
+        dirLightTransform.Rotation = Quaternion.CreateFromYawPitchRoll(MathF.PI / 4.0f, MathF.PI / 4.0f, 0.0f);
         if (dirLight.TryAddComponent<DirectionalLightComponent>(out var dirLightComp))
         {
             dirLightComp!.Name = "TestDirectionalLight";
             dirLightComp.Color = new Vector3(1.0f, 1.0f, 1.0f);
             dirLightComp.Intensity = 1.0f;
+            dirLightComp.Scale = new Vector3(100.0f, 100.0f, 100.0f);
         }
+
+        var listener = new SceneNode(cameraNode) { Name = "TestListenerNode" };
+        var listenerTransform = listener.SetTransform<Transform>();
+        listenerTransform.Translation = new Vector3(0.0f, 0.0f, 0.0f);
+        if (listener.TryAddComponent<AudioListenerComponent>(out var listenerComp))
+            listenerComp!.Name = "TestListener";
+        
+        var sound = new SceneNode(rootNode) { Name = "TestSoundNode" };
+        var soundTransform = sound.SetTransform<Transform>();
+        soundTransform.Translation = new Vector3(0.0f, 0.0f, 0.0f);
+        if (sound.TryAddComponent<AudioSourceComponent>(out var soundComp))
+        {
+            soundComp!.Name = "TestSound";
+            var data = Engine.Assets.LoadEngineAsset<AudioData>("Audio", "test16bit.wav");
+            data.ConvertToMono(); //Convert to mono for 3D audio - stereo will just play equally in both ears
+            soundComp.RelativeToListener = false;
+            soundComp.ReferenceDistance = 1.0f;
+            soundComp.MaxDistance = 10.0f;
+            soundComp.RolloffFactor = 1.0f;
+            soundComp.Gain = 0.3f;
+            soundComp.Loop = true;
+            soundComp.Type = ESourceType.Static;
+            soundComp.StaticBuffer = data;
+            soundComp.PlayOnActivate = true;
+        }
+
+        //var probe = new SceneNode(rootNode) { Name = "TestLightProbeNode" };
+        //var probeTransform = probe.SetTransform<Transform>();
+        //probeTransform.Translation = new Vector3(0.0f, 0.0f, 0.0f);
+        //if (probe.TryAddComponent<LightProbeComponent>(out var probeComp))
+        //{
+        //    probeComp!.Name = "TestLightProbe";
+        //    probeComp.SetCaptureResolution(512, true, 512);
+        //}
+
+        //var skybox = new SceneNode(rootNode) { Name = "TestSkyboxNode" };
+        //var skyboxTransform = skybox.SetTransform<Transform>();
+        //skyboxTransform.Translation = new Vector3(0.0f, 0.0f, 0.0f);
+        //if (skybox.TryAddComponent<ModelComponent>(out var skyboxComp))
+        //{
+        //    skyboxComp!.Name = "TestSkybox";
+        //    skyboxComp.Model = new Model([new SubMesh(
+        //        XRMesh.Shapes.SolidBox(new Vector3(-1000.0f), new Vector3(1000.0f), true, XRMesh.Shapes.ECubemapTextureUVs.None), 
+        //        new XRMaterial(
+        //            [Engine.Assets.LoadEngineAsset<XRTexture2D>("Textures", "overcast_soil_puresky_4k.hdr")],
+        //            Engine.Assets.LoadEngineAsset<XRShader>("Shaders", "Scene3D", "Skybox.fs"))
+        //        {
+        //            RenderPass = (int)EDefaultRenderPass.Background,
+        //            RenderOptions = new RenderingParameters()
+        //            {
+        //                CullMode = ECulling.None,
+        //                DepthTest = new DepthTest()
+        //                {
+        //                    UpdateDepth = true,
+        //                    Enabled = ERenderParamUsage.Enabled,
+        //                    Function = EComparison.Less,
+        //                },
+        //                AlphaTest = new AlphaTest()
+        //                {
+        //                    Enabled = ERenderParamUsage.Disabled,
+        //                },
+        //                LineWidth = 5.0f,
+        //            }
+        //        })]);
+        //}
 
         //Pawn
         //cameraNode.TryAddComponent<PawnComponent>(out var pawnComp);
         //pawnComp!.Name = "TestPawn";
         //pawnComp!.CurrentCameraComponent = cameraComp;
 
+        var importedModelsNode = new SceneNode(rootNode) { Name = "TestImportedModelsNode" };
+        importedModelsNode.GetTransformAs<Transform>()?.ApplyScale(new Vector3(0.2f));
+
         world.Scenes.Add(scene);
 
         string fbxPathDesktop = Path.Combine(desktopDir, "test.fbx");
-        _ = ModelImporter.ImportAsync(fbxPathDesktop, PostProcessSteps.None, MaterialFactory, modelNode);
+        _ = ModelImporter.ImportAsync(fbxPathDesktop, PostProcessSteps.None, MaterialFactory, rootNode);
 
         string sponzaPath = Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj");
-        _ = ModelImporter.ImportAsync(sponzaPath, PostProcessSteps.None, MaterialFactory, modelNode);
+        _ = ModelImporter.ImportAsync(sponzaPath, PostProcessSteps.None, MaterialFactory, importedModelsNode);
 
         return world;
     }

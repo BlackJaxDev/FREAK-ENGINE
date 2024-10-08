@@ -11,9 +11,9 @@ namespace XREngine.Data.Colors
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public unsafe struct ColorF4
     {
-        public static readonly ColorF4 White = new(1.0f);
-        public static readonly ColorF4 Gray = new(0.5f);
-        public static readonly ColorF4 Black = new(0.0f);
+        public static readonly ColorF4 White = new(1.0f, 1.0f);
+        public static readonly ColorF4 Gray = new(0.5f, 1.0f);
+        public static readonly ColorF4 Black = new(0.0f, 1.0f);
 
         public float R, G, B, A;
 

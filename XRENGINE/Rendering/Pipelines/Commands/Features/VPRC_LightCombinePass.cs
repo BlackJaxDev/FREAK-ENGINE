@@ -6,7 +6,7 @@ using XREngine.Scene;
 
 namespace XREngine.Rendering.Pipelines.Commands
 {
-    public class VPRC_LightCombinePass(ViewportRenderCommandContainer pipeline) : ViewportRenderCommand(pipeline)
+    public class VPRC_LightCombinePass : ViewportRenderCommand
     {
         public string AlbedoOpacityTexture { get; set; } = "AlbedoOpacityTexture";
         public string NormalTexture { get; set; } = "NormalTexture";
@@ -54,20 +54,20 @@ namespace XREngine.Rendering.Pipelines.Commands
                 CreateLightRenderers(albOpacTex, normTex, rmsiTex, depthViewTex);
             }
 
-            var lights = scene.Lights;
-
-            foreach (PointLightComponent c in lights.PointLights)
-                RenderPointLight(c);
-
-            foreach (SpotLightComponent c in lights.SpotLights)
-                RenderSpotLight(c);
-
-            foreach (DirectionalLightComponent c in lights.DirectionalLights)
-                RenderDirLight(c);
+            using (Pipeline.State.PushRenderingCamera(Pipeline.State.SceneCamera))
+            {
+                var lights = scene.Lights;
+                foreach (PointLightComponent c in lights.PointLights)
+                    RenderPointLight(c);
+                foreach (SpotLightComponent c in lights.SpotLights)
+                    RenderSpotLight(c);
+                foreach (DirectionalLightComponent c in lights.DirectionalLights)
+                    RenderDirLight(c);
+            }
         }
 
         private void RenderDirLight(DirectionalLightComponent c)
-          => RenderLight(DirectionalLightRenderer!, c);
+            => RenderLight(DirectionalLightRenderer!, c);
         private void RenderPointLight(PointLightComponent c)
             => RenderLight(PointLightRenderer!, c);
         private void RenderSpotLight(SpotLightComponent c)
@@ -86,7 +86,6 @@ namespace XREngine.Rendering.Pipelines.Commands
             if (_currentLightComponent is null)
                 return;
 
-            Pipeline.State.SceneCamera?.PostProcessing?.Shadows.SetUniforms(materialProgram);
             _currentLightComponent.SetUniforms(materialProgram);
         }
 

@@ -40,12 +40,21 @@ namespace XREngine.Rendering
             uint channels = bmp.ChannelCount;
             bool signed = bmp.Settings.ColorSpace == ColorSpace.sRGB;
             uint depth = bmp.Depth; //8 is s/byte, 16 is u/short, 32 is float
-            pixelType = depth switch
+            pixelType = bmp.Format switch
             {
-                8 => signed ? EPixelType.Byte : EPixelType.UnsignedByte,
-                16 => signed ? EPixelType.Short : EPixelType.UnsignedShort,
-                32 => EPixelType.Float,
-                _ => throw new NotSupportedException($"Unsupported pixel depth: {depth}"),
+                //MagickFormat.Hdr or MagickFormat.Exr => depth switch
+                //{
+                //    16 => EPixelType.HalfFloat,
+                //    32 => EPixelType.Float,
+                //    _ => throw new NotSupportedException($"Unsupported pixel depth: {depth}"),
+                //},
+                _ => depth switch
+                {
+                    8 => signed ? EPixelType.Byte : EPixelType.UnsignedByte,
+                    16 => signed ? EPixelType.Short : EPixelType.UnsignedShort,
+                    32 => EPixelType.Float,
+                    _ => throw new NotSupportedException($"Unsupported pixel depth: {depth}"),
+                },
             };
             switch (channels)
             {
@@ -58,7 +67,7 @@ namespace XREngine.Rendering
                     pixelFormat = EPixelFormat.Rg;
                     break;
                 case 3:
-                    internalPixelFormat = internalCompression ? EPixelInternalFormat.CompressedRgb : EPixelInternalFormat.Rgb8;
+                    internalPixelFormat = internalCompression ? EPixelInternalFormat.CompressedRgb : EPixelInternalFormat.Rgb;
                     pixelFormat = EPixelFormat.Rgb;
                     break;
                 default:

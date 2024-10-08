@@ -71,17 +71,18 @@ namespace XREngine.Rendering.OpenGL
 
             private void SetEngineUniforms()
             {
-                //TODO: keep track of time
-                //SecondsLive += Engine.Time.Timer.UpdateDelta;
+                SecondsLive += Engine.Time.Timer.Update.Delta;
 
                 var reqs = Data.RenderOptions.RequiredEngineUniforms;
 
                 //Set engine uniforms
-                //if (reqs.HasFlag(EUniformRequirements.Camera))
-                //    Renderer.CurrentCamera.SetUniforms(program);
+                if (reqs.HasFlag(EUniformRequirements.Camera) && Program is not null)
+                    Engine.Rendering.State.PipelineState?.RenderingCamera?.SetUniforms(Program.Data);
 
-                //if (Requirements.HasFlag(EUniformRequirements.Lights))
-                //    AbstractRenderer.Current3DScene.Lights.SetUniforms(program);
+                if (reqs.HasFlag(EUniformRequirements.Lights))
+                {
+                    //AbstractRenderer.Current3DScene.Lights.SetUniforms(program);
+                }
 
                 if (reqs.HasFlag(EUniformRequirements.RenderTime))
                 {

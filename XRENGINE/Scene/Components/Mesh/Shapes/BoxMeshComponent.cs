@@ -2,7 +2,7 @@
 
 namespace XREngine.Scene.Components.Mesh.Shapes
 {
-    public class BoxMeshComponent() : ShapeMeshComponent()
+    public class BoxMeshComponent : ShapeMeshComponent
     {
         private AABB _box;
         public AABB Box

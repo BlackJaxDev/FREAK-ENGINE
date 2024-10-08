@@ -14,6 +14,7 @@ namespace XREngine.Scene.Transforms
 
         private float _angle = 0.0f;
         private float _radius = 1.0f;
+        private bool _ignoreRotation = false;
 
         public float Radius
         {
@@ -25,6 +26,12 @@ namespace XREngine.Scene.Transforms
         {
             get => _angle;
             set => SetField(ref _angle, value);
+        }
+
+        public bool IgnoreRotation 
+        {
+            get => _ignoreRotation;
+            set => SetField(ref _ignoreRotation, value);
         }
 
         protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
@@ -40,6 +47,9 @@ namespace XREngine.Scene.Transforms
         }
 
         protected override Matrix4x4 CreateLocalMatrix()
-            => Matrix4x4.CreateTranslation(new Vector3(Radius, 0, 0)) * Matrix4x4.CreateRotationY(Angle);
+        {
+            var mtx = Matrix4x4.CreateTranslation(new Vector3(0, 0, Radius)) * Matrix4x4.CreateRotationY(Angle);
+            return IgnoreRotation ? Matrix4x4.CreateTranslation(mtx.Translation) : mtx;
+        }
     }
 }

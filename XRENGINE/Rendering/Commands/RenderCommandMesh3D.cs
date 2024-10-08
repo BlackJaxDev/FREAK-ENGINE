@@ -38,8 +38,7 @@ namespace XREngine.Data.Rendering
             int renderPass,
             XRMeshRenderer manager,
             Matrix4x4 worldMatrix,
-            float renderDistance,
-            XRMaterial? materialOverride = null) : base(renderPass, renderDistance)
+            XRMaterial? materialOverride = null) : base(renderPass)
         {
             Mesh = manager;
             WorldMatrix = worldMatrix;

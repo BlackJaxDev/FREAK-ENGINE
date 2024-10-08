@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using Silk.NET.OpenAL;
+using System.Numerics;
 using XREngine.Audio;
 
 namespace XREngine.Components.Scene
@@ -7,16 +8,56 @@ namespace XREngine.Components.Scene
     {
         public ListenerContext? Listener { get; private set; }
 
-        protected internal override void Start()
+        public float DopplerFactor
         {
-            base.Start();
+            get => Listener?.DopplerFactor ?? 1.0f;
+            set
+            {
+                if (Listener is not null) 
+                    Listener.DopplerFactor = value;
+            }
+        }
+        /// <summary>
+        /// Speed of Sound in units per second. Default: 343.3f.
+        /// </summary>
+        public float SpeedOfSound
+        {
+            get => Listener?.SpeedOfSound ?? 343.3f;
+            set
+            {
+                if (Listener is not null)
+                    Listener.SpeedOfSound = value;
+            }
+        }
+        public DistanceModel DistanceModel
+        {
+            get => Listener?.DistanceModel ?? DistanceModel.None;
+            set
+            {
+                if (Listener is not null)
+                    Listener.DistanceModel = value;
+            }
+        }
+        public float Gain
+        {
+            get => Listener?.Gain ?? 1.0f;
+            set
+            {
+                if (Listener is not null)
+                    Listener.Gain = value;
+            }
+        }
+
+        protected internal override void OnComponentActivated()
+        {
+            base.OnComponentActivated();
             MakeListener();
             RegisterTick(ETickGroup.PostPhysics, ETickOrder.Scene, UpdatePosition);
         }
 
-        protected internal override void Stop()
+        protected internal override void OnComponentDeactivated()
         {
-            base.Stop();
+            base.OnComponentDeactivated();
             DestroyListener();
         }
 
@@ -41,9 +82,18 @@ namespace XREngine.Components.Scene
 
             float delta = Engine.Time.Timer.FixedUpdateDelta;
             Vector3 pos = Transform.WorldTranslation;
-            Vector3 lastPosition = Listener.Position;
+
+            Engine.EnqueueMainThreadTask(() => UpdateListenerPosition(pos, delta));
+        }
+
+        private void UpdateListenerPosition(Vector3 pos, float delta)
+        {
+            if (Listener is null)
+                return;
+
+            Listener.Velocity = delta > 0.0f ? (pos - Listener.Position) / delta : Vector3.Zero;
             Listener.Position = pos;
-            Listener.Velocity = (pos - lastPosition) / delta;
+            Listener.SetOrientation(Transform.WorldForward, Transform.WorldUp);
         }
     }
 }

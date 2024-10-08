@@ -36,9 +36,10 @@ namespace XREngine.Rendering
             set => SetField(ref _radius, value);
         }
 
-        internal void SetUniforms(XRRenderProgram program)
+        public void SetUniforms(XRRenderProgram program)
         {
-
+            program.Uniform("BloomIntensity", Intensity);
+            program.Uniform("BloomThreshold", Threshold);
         }
     }
 }

@@ -197,9 +197,9 @@ namespace XREngine.Components
         private void RigidBodyCollision_Collided(XRCollisionObject @this, XRCollisionObject other, XRContactInfo info, bool thisIsA)
             => Movement.OnHit(other, info, thisIsA);
 
-        protected internal override void Start()
+        protected internal override void OnComponentActivated()
         {
-            base.Start();
+            base.OnComponentActivated();
 
             float radius = CharacterWidthMeters / 2.0f;
             float capsuleTotalHalfHeight = CharacterHeightMeters / 2.0f;

@@ -5,7 +5,7 @@
     /// This FBO may be null if the pipeline is not rendering to a framebuffer.
     /// </summary>
     /// <param name="pipeline"></param>
-    public class VPRC_BindOutputFBO(ViewportRenderCommandContainer pipeline) : ViewportStateRenderCommand<VPRC_UnbindFBO>(pipeline)
+    public class VPRC_BindOutputFBO : ViewportStateRenderCommand<VPRC_UnbindFBO>
     {
         public bool Write { get; set; } = true;
 

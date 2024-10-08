@@ -151,14 +151,14 @@ namespace XREngine.Components
             _rightClickPressed = pressed;
         }
 
-        protected internal override void Start()
+        protected internal override void OnComponentActivated()
         {
-            base.Start();
+            base.OnComponentActivated();
             RegisterTick(ETickGroup.PrePhysics, ETickOrder.Input, Tick);
         }
-        protected internal override void Stop()
+        protected internal override void OnComponentDeactivated()
         {
-            base.Stop();
+            base.OnComponentDeactivated();
             UnregisterTick(ETickGroup.PrePhysics, ETickOrder.Input, Tick);
         }
 

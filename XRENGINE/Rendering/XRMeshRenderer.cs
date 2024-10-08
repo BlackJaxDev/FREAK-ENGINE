@@ -17,9 +17,6 @@ namespace XREngine.Rendering
     {
         public XRMeshRenderer(XRMesh? mesh, XRMaterial? material)
         {
-            ArgumentNullException.ThrowIfNull(mesh);
-            ArgumentNullException.ThrowIfNull(material);
-
             _mesh = mesh;
             _material = material;
 
@@ -56,6 +53,7 @@ namespace XREngine.Rendering
             return ((T)Activator.CreateInstance(typeof(T), Mesh)!).Generate();
         }
 
+        private TransformBase? _singleBind = null;
         /// <summary>
         /// This is the one bone affecting the transform of this mesh, and is handled differently than if there were multiple.
         /// </summary>
@@ -64,8 +62,6 @@ namespace XREngine.Rendering
             get => _singleBind;
             private set => SetField(ref _singleBind, value);
         }
-
-        private TransformBase? _singleBind = null;
 
         private void InitializeBones()
         {
@@ -202,6 +198,13 @@ namespace XREngine.Rendering
         /// Same length as BlendshapeIndices, stream-write buffer.
         /// </summary>
         public XRDataBuffer? BlendshapeWeights { get; private set; }
+
+        private bool _generateAsync = false;
+        public bool GenerateAsync
+        {
+            get => _generateAsync;
+            set => SetField(ref _generateAsync, value);
+        }
 
         public delegate void DelSetUniforms(XRRenderProgram vertexProgram, XRRenderProgram materialProgram);
         /// <summary>

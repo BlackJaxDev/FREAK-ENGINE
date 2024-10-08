@@ -8,9 +8,9 @@ namespace XREngine.Rendering
     /// </summary>
     public class XRMaterialFrameBuffer : XRFrameBuffer
     {
-        private XRMaterial _material;
+        private XRMaterial? _material;
 
-        public XRMaterialFrameBuffer(XRMaterial material)
+        public XRMaterialFrameBuffer(XRMaterial? material)
         {
             _material = material;
             SetRenderTargets(_material);
@@ -22,7 +22,7 @@ namespace XREngine.Rendering
             params (IFrameBufferAttachement Target, EFrameBufferAttachment Attachment, int MipLevel, int LayerIndex)[]? targets)
             : this(material) => SetRenderTargets(targets);
 
-        public XRMaterial Material
+        public XRMaterial? Material
         {
             get => _material;
             set
@@ -39,35 +39,38 @@ namespace XREngine.Rendering
         {
             uint? w = null;
             uint? h = null;
-            foreach (var tex in Material.Textures)
+            if (Material != null)
             {
-                if (tex?.FrameBufferAttachment is null)
-                    continue;
-
-                uint tw;
-                uint th;
-                if (tex is XRTexture2D tref)
+                foreach (var tex in Material.Textures)
                 {
-                    tw = tref.Width;
-                    th = tref.Height;
+                    if (tex?.FrameBufferAttachment is null)
+                        continue;
+
+                    uint tw;
+                    uint th;
+                    if (tex is XRTexture2D tref)
+                    {
+                        tw = tref.Width;
+                        th = tref.Height;
+                    }
+                    //else if (tex is XRTextureView2D vref) //TextureView derives from Texture2D
+                    //{
+                    //    tw = vref.Width;
+                    //    th = vref.Height;
+                    //}
+                    else
+                        continue;
+
+                    if (w is null)
+                        w = tw;
+                    else if (w != tw)
+                        Debug.LogWarning($"FBO texture widths are not all the same.");
+
+                    if (h is null)
+                        h = th;
+                    else if (h != th)
+                        Debug.LogWarning($"FBO texture heights are not all the same.");
                 }
-                //else if (tex is XRTextureView2D vref) //TextureView derives from Texture2D
-                //{
-                //    tw = vref.Width;
-                //    th = vref.Height;
-                //}
-                else
-                    continue;
-
-                if (w is null)
-                    w = tw;
-                else if (w != tw)
-                    Debug.LogWarning($"FBO texture widths are not all the same.");
-
-                if (h is null)
-                    h = th;
-                else if (h != th)
-                    Debug.LogWarning($"FBO texture heights are not all the same.");
             }
             if (w is not null && h is not null)
                 Resize(w.Value, h.Value);

@@ -73,6 +73,7 @@ namespace XREngine.Data
                     {
                         Marshal.FreeHGlobal(Address);
                         Address = null;
+                        Length = 0;
                     }
                 }
                 catch (Exception e)

@@ -19,6 +19,7 @@ namespace XREngine.Rendering
         {
             if (useTriangle)
             {
+                //Render a triangle that overdraws past the screen - discard fragments outside the screen in the shader.
                 VertexTriangle triangle = new(
                     new Vector3(-1, -1, 0),
                     new Vector3( 3, -1, 0),
@@ -56,8 +57,8 @@ namespace XREngine.Rendering
         /// <param name="mat">The material containing textures to render to this fullscreen quad.</param>
         public XRQuadFrameBuffer(XRMaterial mat, bool useTriangle = true) : base(mat)
         {
-            FullScreenMesh = new XRMeshRenderer(Mesh(useTriangle), Material);
-            FullScreenMesh.Generate();
+            FullScreenMesh = new XRMeshRenderer(Mesh(useTriangle), mat);
+            //FullScreenMesh.Generate();
             FullScreenMesh.SettingUniforms += SetUniforms;
         }
 

@@ -17,7 +17,7 @@ namespace XREngine.Data.Components
         
         private List<Transform> SocketChain { get; } = [];
 
-        protected internal override void Start()
+        protected internal override void OnComponentActivated()
         {
             SocketChain.Clear();
 
@@ -30,7 +30,7 @@ namespace XREngine.Data.Components
 
             RegisterTick(ETickGroup.PrePhysics, ETickOrder.Logic, Update);
         }
-        protected internal override void Stop()
+        protected internal override void OnComponentDeactivated()
         {
             SocketChain.Clear();
 

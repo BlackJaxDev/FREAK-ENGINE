@@ -122,7 +122,7 @@ namespace XREngine
         private static void DequeueAsyncTasks()
         {
             while (_asyncTaskQueue.TryDequeue(out var task))
-                task();
+                task.Invoke();
         }
 
         private static void DequeueMainThreadTasks()
@@ -131,9 +131,9 @@ namespace XREngine
             sw.Start();
             while (_mainThreadTaskQueue.TryDequeue(out var task))
             {
-                task();
-                if (sw.ElapsedMilliseconds > 1)
-                    break;
+                task.Invoke();
+                //if (sw.ElapsedMilliseconds > 1)
+                //    break;
             }
             sw.Stop();
         }

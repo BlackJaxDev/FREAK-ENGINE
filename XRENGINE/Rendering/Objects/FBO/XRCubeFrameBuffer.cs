@@ -45,14 +45,14 @@ namespace XREngine.Rendering
             ];
 
             XRCameraParameters p = perspectiveCameras
-                ? new XRPerspectiveCameraParameters(nearZ, farZ, 90.0f, 1.0f)
+                ? new XRPerspectiveCameraParameters(90.0f, 1.0f, nearZ, farZ)
                 : new XROrthographicCameraParameters(2.0f, 2.0f, nearZ, farZ);
 
             for (int i = 0; i < 6; ++i)
                 _cameras[i] = new(_cameraTransforms[i] = new Transform()
                 {
                     Rotation = rotations[i].ToQuaternion(),
-                    Parent = Transform
+                    Parent = Transform,
                 }, p);
         }
 
@@ -69,12 +69,12 @@ namespace XREngine.Rendering
             {
                 using (state.PushRenderingCamera(_cameras[(int)face]))
                 {
-                    _cube.Render(Matrix4x4.Identity);
+                    _cube.Render();
                 }
             }
             else
             {
-                _cube.Render(Matrix4x4.Identity);
+                _cube.Render();
             }
         }
 

@@ -3,6 +3,10 @@
     public enum EDefaultRenderPass
     {
         /// <summary>
+        /// Not for visible objects, used for pre-rendering operations.
+        /// </summary>
+        PreRender = -1,
+        /// <summary>
         /// Use for any objects that will ALWAYS be rendered behind the scene, even if they are outside of the viewing frustum.
         /// </summary>
         Background,

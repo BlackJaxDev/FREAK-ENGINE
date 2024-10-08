@@ -4,6 +4,7 @@ using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
 using XREngine.Data.Vectors;
 using XREngine.Rendering;
+using XREngine.Rendering.Commands;
 using XREngine.Rendering.Info;
 using XREngine.Rendering.Models.Materials;
 using XREngine.Scene;
@@ -18,12 +19,59 @@ namespace XREngine.Components.Lights
         /// </summary>
         double[] IVertex.Position => [Transform.WorldTranslation.X, Transform.WorldTranslation.Y, Transform.WorldTranslation.Z];
 
-        public LightProbeComponent() : base()
-            => RenderedObjects = [RenderInfo = RenderInfo3D.New(this, _rc = new RenderCommandMesh3D(0))];
+        private void EnsureCaptured(bool shadowPass)
+        {
+            if (shadowPass)
+                return;
 
-        private readonly RenderCommandMesh3D _rc;
-        public RenderInfo3D RenderInfo { get; }
+            if (!_hasCaptured)
+            {
+                FullCapture(
+                    ColorResolution,
+                    CaptureDepthCubeMap,
+                    DepthResolution);
+            }
+            else if (RealTime && (RealTimeUpdateInterval is null || DateTime.Now - _lastUpdateTime >= RealTimeUpdateInterval))
+            {
+                _lastUpdateTime = DateTime.Now;
+                Capture();
+                GenerateIrradianceMap();
+                GeneratePrefilterMap();
+            }
+        }
+
+        public LightProbeComponent() : base()
+        {
+            RenderedObjects = 
+            [
+                VisualRenderInfo = RenderInfo3D.New(this, _visualRC = new RenderCommandMesh3D((int)EDefaultRenderPass.OpaqueDeferredLit)),
+                PreRenderInfo = RenderInfo3D.New(this, _preRenderRC = new RenderCommandMethod3D((int)EDefaultRenderPass.PreRender, EnsureCaptured))
+            ];
+        }
+
+        private readonly RenderCommandMesh3D _visualRC;
+        private readonly RenderCommandMethod3D _preRenderRC;
+
+        public RenderInfo3D VisualRenderInfo { get; }
+        public RenderInfo3D PreRenderInfo { get; }
         public RenderInfo[] RenderedObjects { get; }
+
+        private bool _realTime = false;
+        /// <summary>
+        /// If true, the light probe will update in real time.
+        /// </summary>
+        public bool RealTime
+        {
+            get => _realTime;
+            set => SetField(ref _realTime, value);
+        }
+
+        private TimeSpan? _realTimeUpdateInterval = TimeSpan.FromMilliseconds(1000.0f);
+        public TimeSpan? RealTimeUpdateInterval 
+        {
+            get => _realTimeUpdateInterval;
+            set => SetField(ref _realTimeUpdateInterval, value);
+        }
 
         private XRCubeFrameBuffer? _irradianceFBO;
         private XRCubeFrameBuffer? _prefilterFBO;
@@ -72,17 +120,11 @@ namespace XREngine.Components.Lights
 
         protected override void OnTransformWorldMatrixChanged(TransformBase transform)
         {
-            if (_rc != null && IrradianceSphere != null)
+            if (_visualRC != null && IrradianceSphere != null)
             {
                 IrradianceSphere.Parameter<ShaderVector3>(0)!.Value = Transform.WorldTranslation;
-                _rc.WorldMatrix = Transform.WorldMatrix;
+                _visualRC.WorldMatrix = Transform.WorldMatrix;
             }
-            //if (IsSpawned && _envTex != null)
-            //{
-            //    Capture();
-            //    GenerateIrradianceMap();
-            //    GeneratePrefilterMap();
-            //}
             base.OnTransformWorldMatrixChanged(transform);
         }
         protected override void InitializeForCapture()
@@ -115,8 +157,8 @@ namespace XREngine.Components.Lights
                 new ShaderInt((int)ColorResolution, "CubemapDim"),
             ];
 
-            XRShader irrShader = ShaderHelper.LoadEngineShader("Common/Scene/IrradianceConvolution.fs", EShaderType.Fragment);
-            XRShader prefShader = ShaderHelper.LoadEngineShader("Common/Scene/Prefilter.fs", EShaderType.Fragment);
+            XRShader irrShader = ShaderHelper.LoadEngineShader("Scene3D\\IrradianceConvolution.fs", EShaderType.Fragment);
+            XRShader prefShader = ShaderHelper.LoadEngineShader("Scene3D\\Prefilter.fs", EShaderType.Fragment);
 
             RenderingParameters r = new();
             r.DepthTest.Enabled = ERenderParamUsage.Disabled;
@@ -125,6 +167,8 @@ namespace XREngine.Components.Lights
 
             _irradianceFBO = new XRCubeFrameBuffer(irrMat, null, 0.0f, 1.0f, false);
             _prefilterFBO = new XRCubeFrameBuffer(prefMat, null, 0.0f, 1.0f, false);
+
+            CachePreviewSphere();
         }
 
         public void FullCapture(uint colorResolution, bool captureDepth, uint depthResolution)
@@ -134,11 +178,6 @@ namespace XREngine.Components.Lights
             
             _hasCaptured = true;
             SetCaptureResolution(colorResolution, captureDepth, depthResolution);
-            CachePreviewSphere();
-            //}
-            //if (DateTime.Now - _lastUpdateTime > TimeSpan.FromSeconds(1.0))
-            //{
-            _lastUpdateTime = DateTime.Now;
             Capture();
             GenerateIrradianceMap();
             GeneratePrefilterMap();
@@ -149,7 +188,7 @@ namespace XREngine.Components.Lights
             if (IrradianceTexture is null)
                 return;
 
-            uint res = IrradianceTexture.CubeExtent;
+            uint res = IrradianceTexture.Extent;
             using (Engine.Rendering.State.PipelineState?.PushRenderArea(new BoundingRectangle(IVector2.Zero, new IVector2((int)res, (int)res))))
             {
                 for (int i = 0; i < 6; ++i)
@@ -204,20 +243,15 @@ namespace XREngine.Components.Lights
             XRShader shader = XRShader.EngineShader("CubeMapSphereMesh.fs", EShaderType.Fragment);
             XRMaterial mat = new([new ShaderVector3(Vector3.Zero, "SphereCenter")], [_showPrefilterTexture ? PrefilterTex! : IrradianceTexture!], shader);
             IrradianceSphere = new XRMeshRenderer(XRMesh.Shapes.SolidSphere(Vector3.Zero, 1.0f, 20u), mat);
-            _rc.Mesh = IrradianceSphere;
+            _visualRC.Mesh = IrradianceSphere;
             IrradianceSphere.Parameter<ShaderVector3>(0)!.Value = Transform.WorldTranslation;
-            _rc.WorldMatrix = Transform.WorldMatrix;
+            _visualRC.WorldMatrix = Transform.WorldMatrix;
+            VisualRenderInfo.CullingVolume = new Sphere(Vector3.Zero, 1.0f);
         }
 
-        protected internal override void Start()
+        protected internal override void OnComponentActivated()
         {
-            base.Start();
-
-            if (!_hasCaptured)
-                FullCapture(
-                    Engine.Rendering.Settings.LightProbeDefaultColorResolution, 
-                    Engine.Rendering.Settings.ShouldLightProbesCaptureDepth,
-                    Engine.Rendering.Settings.LightProbeDefaultDepthResolution);
+            base.OnComponentActivated();
 
             if (World?.VisualScene is VisualScene3D scene3D)
                 scene3D.Lights.LightProbes.Add(this);
@@ -225,9 +259,9 @@ namespace XREngine.Components.Lights
                 Debug.LogWarning("LightProbeComponent must be in a VisualScene3D to function properly.");
         }
 
-        protected internal override void Stop()
+        protected internal override void OnComponentDeactivated()
         {
-            base.Stop();
+            base.OnComponentDeactivated();
             if (World?.VisualScene is VisualScene3D scene3D)
                 scene3D.Lights.LightProbes.Remove(this);
         }

@@ -182,16 +182,6 @@ namespace XREngine.Rendering
             w.Render += RenderCallback;
         }
 
-        private XRCamera? _currentCamera;
-        /// <summary>
-        /// The camera currently in use for rendering operations
-        /// </summary>
-        public XRCamera? CurrentCamera
-        {
-            get => _currentCamera;
-            set => SetField(ref _currentCamera, value);
-        }
-
         private XRWorldInstance? _worldInstance;
         public XRWorldInstance? TargetWorldInstance
         {
@@ -360,11 +350,11 @@ namespace XREngine.Rendering
         public abstract void SetReadBuffer(EDrawBuffersAttachment attachment);
         public abstract float GetDepth(float x, float y);
         public abstract byte GetStencilIndex(float x, float y);
-        public abstract void EnableDepthTest(bool v);
+        public abstract void EnableDepthTest(bool enable);
         public abstract void StencilMask(uint mask);
-        public abstract void ClearStencil(int v);
-        public abstract void ClearDepth(float v);
-        public abstract void AllowDepthWrite(bool v);
+        public abstract void ClearStencil(int value);
+        public abstract void ClearDepth(float value);
+        public abstract void AllowDepthWrite(bool allow);
         public abstract void DepthFunc(EComparison always);
 
         public void Dispose()

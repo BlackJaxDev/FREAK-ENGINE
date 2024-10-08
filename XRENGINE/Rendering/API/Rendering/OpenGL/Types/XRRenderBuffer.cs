@@ -10,7 +10,21 @@ namespace XREngine.Rendering
         private uint _width = 1u;
         private uint _height = 1u;
         private int _multisampleCount = 1;
-        private XRFrameBuffer? _attachedFBO = null;
+
+        public XRRenderBuffer()
+        {
+
+        }
+        public XRRenderBuffer(uint width, uint height, ERenderBufferStorage type, int multisampleCount = 1)
+        {
+            Width = width;
+            Height = height;
+            Type = type;
+            MultisampleCount = multisampleCount;
+        }
+
+        public XRRenderBuffer(uint width, uint height, ERenderBufferStorage type, EFrameBufferAttachment attachment, int multisampleCount = 1)
+            : this(width, height, type, multisampleCount) => FrameBufferAttachment = attachment;
 
         public ERenderBufferStorage Type
         {
@@ -31,11 +45,6 @@ namespace XREngine.Rendering
         {
             get => _multisampleCount;
             set => SetField(ref _multisampleCount, value);
-        }
-        public XRFrameBuffer? AttachedFBO
-        {
-            get => _attachedFBO;
-            set => SetField(ref _attachedFBO, value);
         }
         public EFrameBufferAttachment? FrameBufferAttachment
         {

@@ -1,8 +1,8 @@
 ﻿namespace XREngine.Rendering.Pipelines.Commands
 {
-    public class VPRC_BindFBOByName(ViewportRenderCommandContainer pipeline) : ViewportStateRenderCommand<VPRC_UnbindFBO>(pipeline)
+    public class VPRC_BindFBOByName : ViewportStateRenderCommand<VPRC_UnbindFBO>
     {
-        public required string FrameBufferName { get; set; }
+        public string? FrameBufferName { get; set; }
         public bool Write { get; set; } = true;
 
         public void SetOptions(string frameBufferName, bool write)
@@ -13,6 +13,9 @@
 
         protected override void Execute()
         {
+            if (FrameBufferName is null)
+                return;
+
             var fbo = Pipeline.GetFBO<XRFrameBuffer>(FrameBufferName);
             if (fbo is null)
                 return;

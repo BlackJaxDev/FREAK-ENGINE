@@ -30,11 +30,16 @@ namespace XREngine.Components.Lights
         private float _shadowExponent = 1.0f;
         private float _shadowExponentBase = 0.04f;
 
+        private readonly RenderCommandMesh3D _shadowVolumeRC = new((int)EDefaultRenderPass.OpaqueForward);
+
         public LightComponent() : base()
         {
-            //This can have a limited number of render passes compared to a normal, non-shadow pass render
-            //No sorting is needed either
-            RenderInfo = RenderInfo3D.New(this);
+            XRMesh volumeMesh = XRMesh.Shapes.FromVolume(GetShadowVolume(), true)!;
+            XRMaterial mat = XRMaterial.CreateUnlitColorMaterialForward(new ColorF4(1.0f, 0.0f, 0.0f, 0.0f));
+            mat.RenderPass = (int)EDefaultRenderPass.OpaqueForward;
+            _shadowVolumeRC.Mesh = new XRMeshRenderer(volumeMesh, mat);
+
+            RenderInfo = RenderInfo3D.New(this, _shadowVolumeRC);
             RenderInfo.VisibleInLightingProbes = false;
             RenderedObjects = [RenderInfo];
             ShadowRenderPipeline = new ShadowRenderPipeline();
@@ -55,7 +60,7 @@ namespace XREngine.Components.Lights
         }
 
         private XRCamera? _shadowCamera;
-        public XRCamera? ShadowCamera => _shadowCamera ??= GetShadowCamera();
+        public XRCamera ShadowCamera => _shadowCamera ??= GetShadowCamera();
 
         protected abstract XRCamera GetShadowCamera();
 
@@ -141,8 +146,8 @@ namespace XREngine.Components.Lights
             program.Uniform(Engine.Rendering.Constants.ShadowBiasMaxUniform, ShadowMaxBias);
         }
 
-        protected virtual IVolume? GetShadowVolume()
-            => ShadowCamera?.WorldFrustum();
+        protected virtual IVolume GetShadowVolume()
+            => ShadowCamera.WorldFrustum();
 
         public abstract XRMaterial GetShadowMapMaterial(uint width, uint height, EDepthPrecision precision = EDepthPrecision.Flt32);
 
@@ -166,8 +171,10 @@ namespace XREngine.Components.Lights
             if (!CastsShadows || ShadowCamera is null || ShadowMap?.Material is null)
                 return;
 
-            scene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, GetShadowVolume(), ShadowCamera);
-            scene.PreRender(ShadowCamera);
+            if (collectVisibleNow)
+                scene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, GetShadowVolume(), ShadowCamera);
+
+            //scene.PreRender(ShadowCamera);
             scene.SwapBuffers();
 
             _shadowRenderPipeline.Render(scene, ShadowCamera, null, ShadowMap, null, true, ShadowMap.Material);

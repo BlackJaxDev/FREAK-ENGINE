@@ -27,9 +27,7 @@ namespace XREngine.Components.Lights
             => LightMatrix = Transform.WorldMatrix * Matrix4x4.CreateScale(_scale);
 
         protected override XRCamera GetShadowCamera()
-        {
-            return new XRCamera(ShadowCameraTransform, new XROrthographicCameraParameters(Scale.X, Scale.Y, 0.01f, Scale.Z));
-        }
+            => new(ShadowCameraTransform, new XROrthographicCameraParameters(Scale.X, Scale.Y, 0.01f, Scale.Z));
 
         private Transform? _shadowCameraTransform;
         private Transform ShadowCameraTransform => _shadowCameraTransform ??= new Transform() { Parent = Transform };
@@ -54,9 +52,9 @@ namespace XREngine.Components.Lights
             base.OnTransformWorldMatrixChanged(transform);
         }
 
-        protected internal override void Start()
+        protected internal override void OnComponentActivated()
         {
-            base.Start();
+            base.OnComponentActivated();
 
             if (Type != ELightType.Dynamic || World?.VisualScene is not VisualScene3D scene3D)
                 return;
@@ -67,9 +65,9 @@ namespace XREngine.Components.Lights
             scene3D.Lights.DirectionalLights.Add(this);
         }
 
-        protected internal override void Stop()
+        protected internal override void OnComponentDeactivated()
         {
-            base.Stop();
+            base.OnComponentDeactivated();
 
             ShadowMap?.Destroy();
             
@@ -79,22 +77,22 @@ namespace XREngine.Components.Lights
 
         public override void SetUniforms(XRRenderProgram program, string? targetStructName = null)
         {
-            if (ShadowMap?.Material is null || ShadowCamera is null)
-                return;
+            base.SetUniforms(program, targetStructName);
 
             targetStructName = $"{targetStructName ?? Engine.Rendering.Constants.LightsStructName}.";
 
             program.Uniform($"{targetStructName}Direction", Transform.WorldForward);
             program.Uniform($"{targetStructName}Color", _color);
             program.Uniform($"{targetStructName}DiffuseIntensity", _diffuseIntensity);
-            program.Uniform($"{targetStructName}WorldToLightInvViewMatrix", ShadowCamera.Transform.WorldMatrix);
-            program.Uniform($"{targetStructName}WorldToLightProjMatrix", ShadowCamera.ProjectionMatrix);
+            program.Uniform($"{targetStructName}WorldToLightProjMatrix", ShadowCamera?.ProjectionMatrix ?? Matrix4x4.Identity);
+            program.Uniform($"{targetStructName}WorldToLightInvViewMatrix", ShadowCamera?.Transform.WorldMatrix ?? Matrix4x4.Identity);
+
+            if (ShadowMap?.Material is null)
+                return;
 
             var shadowMap = ShadowMap.Material.Textures[1];
             if (shadowMap != null)
                 program.Sampler("ShadowMap", shadowMap, 4);
-
-            base.SetUniforms(program, targetStructName);
         }
 
         public override void SetShadowMapResolution(uint width, uint height)

@@ -7,7 +7,7 @@ namespace XREngine.Rendering.Pipelines.Commands
     /// <summary>
     /// Applies bloom to the last FBO.
     /// </summary>
-    public class VPRC_BloomPass(ViewportRenderCommandContainer pipeline) : ViewportRenderCommand(pipeline)
+    public class VPRC_BloomPass : ViewportRenderCommand
     {
         public const string BloomBlur1FBOName = "BloomBlurFBO1";
         public const string BloomBlur2FBOName = "BloomBlurFBO2";

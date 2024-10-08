@@ -84,7 +84,7 @@ namespace XREngine.Components.Lights
             RecalcLightMatrix();
         }
 
-        protected internal override void Start()
+        protected internal override void OnComponentActivated()
         {
             if (World?.VisualScene is VisualScene3D scene && Type == ELightType.Dynamic)
             {
@@ -93,14 +93,14 @@ namespace XREngine.Components.Lights
                 if (ShadowMap is null)
                     SetShadowMapResolution(1024, 1024);
             }
-            base.Start();
+            base.OnComponentActivated();
         }
-        protected internal override void Stop()
+        protected internal override void OnComponentDeactivated()
         {
             if (World?.VisualScene is VisualScene3D scene && Type == ELightType.Dynamic)
                 scene.Lights.PointLights.Remove(this);
 
-            base.Stop();
+            base.OnComponentDeactivated();
         }
 
         protected override IVolume GetShadowVolume() => _influenceVolume;
@@ -111,6 +111,8 @@ namespace XREngine.Components.Lights
         /// </summary>
         public override void SetUniforms(XRRenderProgram program, string? targetStructName = null)
         {
+            base.SetUniforms(program, targetStructName);
+
             targetStructName = $"{(targetStructName ?? Engine.Rendering.Constants.LightsStructName)}.";
 
             program.Uniform($"{targetStructName}Color", _color);
@@ -119,12 +121,12 @@ namespace XREngine.Components.Lights
             program.Uniform($"{targetStructName}Radius", Radius);
             program.Uniform($"{targetStructName}Brightness", Brightness);
 
-            if (ShadowMap is not null)
-            {
-                var tex = ShadowMap.Material.Textures[1];
-                if (tex is not null)
-                    program.Sampler("ShadowMap", tex, 4);
-            }
+            if (ShadowMap is null)
+                return;
+            
+            var tex = ShadowMap.Material.Textures[1];
+            if (tex is not null)
+                program.Sampler("ShadowMap", tex, 4);
         }
         public override void SetShadowMapResolution(uint width, uint height)
         {

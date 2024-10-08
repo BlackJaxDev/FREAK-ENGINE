@@ -134,16 +134,16 @@ namespace XREngine.Data.Components
 
         }
 
-        protected internal override void Start()
+        protected internal override void OnComponentActivated()
         {
-            base.Start();
+            base.OnComponentActivated();
 
             if (_collisionObject is not null)
                 World?.PhysicsScene?.AddCollisionObject(_collisionObject);
         }
-        protected internal override void Stop()
+        protected internal override void OnComponentDeactivated()
         {
-            base.Stop();
+            base.OnComponentDeactivated();
 
             if (_collisionObject is not null)
                 World?.PhysicsScene?.RemoveCollisionObject(_collisionObject);

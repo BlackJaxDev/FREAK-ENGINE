@@ -145,9 +145,9 @@ namespace XREngine.Components
             //Bounds = bounds;
             Canvas?.InvalidateLayout();
         }
-        protected internal override void Start()
+        protected internal override void OnComponentActivated()
         {
-            base.Start();
+            base.OnComponentActivated();
             Canvas?.InvalidateLayout();
         }
         //public void Render()
