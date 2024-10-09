@@ -132,8 +132,8 @@ namespace XREngine
             while (_mainThreadTaskQueue.TryDequeue(out var task))
             {
                 task.Invoke();
-                //if (sw.ElapsedMilliseconds > 1)
-                //    break;
+                if (sw.ElapsedMilliseconds > 1)
+                    break;
             }
             sw.Stop();
         }

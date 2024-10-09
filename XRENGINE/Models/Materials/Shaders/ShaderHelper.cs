@@ -6,6 +6,7 @@
         {
             XRShader source = Engine.Assets.LoadEngineAsset<XRShader>("Shaders", relativePath);
             source._type = type ?? XRShader.ResolveType(Path.GetExtension(relativePath));
+            //source.GenerateAsync = true;
             return source;
         }
 
@@ -13,6 +14,7 @@
         {
             XRShader source = await Engine.Assets.LoadEngineAssetAsync<XRShader>("Shaders", relativePath);
             source._type = type ?? XRShader.ResolveType(Path.GetExtension(relativePath));
+            //source.GenerateAsync = true;
             return source;
         }
 

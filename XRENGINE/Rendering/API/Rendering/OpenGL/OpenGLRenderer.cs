@@ -312,7 +312,7 @@ namespace XREngine.Rendering.OpenGL
                 if (LayerIndex >= 0)
                     debug += $" Layer{LayerIndex}";
                 if (targetExists)
-                    debug += $" | {GetTargetDebugInfo(gro!)}";
+                    debug += $" / {GetTargetDebugInfo(gro!)}";
             }
             return debug;
         }

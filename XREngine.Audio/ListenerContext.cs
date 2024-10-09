@@ -2,6 +2,7 @@
 using Silk.NET.OpenAL.Extensions.Creative;
 using Silk.NET.OpenAL.Extensions.EXT;
 using System.Numerics;
+using XREngine.Audio.Effects;
 using XREngine.Core;
 
 namespace XREngine.Audio

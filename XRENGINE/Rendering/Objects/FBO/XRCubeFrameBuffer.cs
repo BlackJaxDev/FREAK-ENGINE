@@ -28,7 +28,7 @@ namespace XREngine.Rendering
             _transform = transform ?? new Transform();
             float middle = (nearZ + farZ) * 0.5f;
 
-            _cube = new XRMeshRenderer(XRMesh.Shapes.SolidBox(new Vector3(-middle), new Vector3(middle), true), Material);
+            _cube = new XRMeshRenderer(XRMesh.Shapes.SolidBox(new Vector3(-middle), new Vector3(middle), true), mat);
             _cube.SettingUniforms += SetUniforms;
 
             _cameraTransforms = new Transform[6];

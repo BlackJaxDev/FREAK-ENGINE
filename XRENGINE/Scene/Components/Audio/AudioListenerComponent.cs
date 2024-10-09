@@ -83,7 +83,7 @@ namespace XREngine.Components.Scene
             float delta = Engine.Time.Timer.FixedUpdateDelta;
             Vector3 pos = Transform.WorldTranslation;
 
-            Engine.EnqueueMainThreadTask(() => UpdateListenerPosition(pos, delta));
+            /*Engine.EnqueueMainThreadTask(() => */UpdateListenerPosition(pos, delta);//);
         }
 
         private void UpdateListenerPosition(Vector3 pos, float delta)

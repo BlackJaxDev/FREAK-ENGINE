@@ -1,12 +1,13 @@
 ﻿using Extensions;
 using XREngine.Data.Core;
+using XREngine.Data.Rendering;
 using XREngine.Rendering.Models.Materials;
 
 namespace XREngine.Rendering
 {
     public abstract class XRMaterialBase : GenericRenderObject
     {
-        private int _renderPass = 0;
+        private int _renderPass = (int)EDefaultRenderPass.OpaqueForward;
         /// <summary>
         /// This is the render pass bucket that any meshes using this material will be put in.
         /// Render passes are used to separate different types of rendering, such as opaque, transparent, etc.

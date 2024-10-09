@@ -205,7 +205,7 @@ public class DefaultRenderPipeline : RenderPipeline
                 c.Add<VPRC_DepthFunc>().Comp = EComparison.Always;
                 c.Add<VPRC_DepthWrite>().Allow = false;
 
-                c.Add<VPRC_RenderQuadFBO>().FrameBufferName = LightCombineFBOName;
+                c.Add<VPRC_RenderQuadFBO>().FrameBufferName = PostProcessFBOName;
             }
         }
         return c;
@@ -471,11 +471,12 @@ public class DefaultRenderPipeline : RenderPipeline
     }
     private void PostProcess_SettingUniforms(XRRenderProgram program)
     {
-        if (RenderingCamera is null)
+        var sceneCam = PipelineState?.SceneCamera;
+        if (sceneCam is null)
             return;
 
-        RenderingCamera.SetUniforms(program);
-        RenderingCamera.SetPostProcessUniforms(program);
+        sceneCam.SetUniforms(program);
+        sceneCam.SetPostProcessUniforms(program);
 
         program.Uniform(EEngineUniform.ScreenWidth.ToString(), RenderArea.Width);
         program.Uniform(EEngineUniform.ScreenHeight.ToString(), RenderArea.Height);
@@ -511,7 +512,13 @@ public class DefaultRenderPipeline : RenderPipeline
 
 
     private void BrightPassFBO_SettingUniforms(XRRenderProgram program)
-        => RenderingCamera?.SetBloomUniforms(program);
+    {
+        var sceneCam = PipelineState?.SceneCamera;
+        if (sceneCam is null)
+            return;
+
+        sceneCam.SetBloomUniforms(program);
+    }
 
     private XRFrameBuffer CreateLightCombineFBO()
     {
@@ -550,23 +557,26 @@ public class DefaultRenderPipeline : RenderPipeline
 
     private void LightCombineFBO_SettingUniforms(XRRenderProgram program)
     {
-        if (RenderingCamera is null)
+        var sceneCam = PipelineState?.SceneCamera;
+        if (sceneCam is null)
             return;
-
-        RenderingCamera.SetUniforms(program);
+        
+        sceneCam.SetUniforms(program);
 
         program.Uniform(EEngineUniform.ScreenWidth.ToString(), RenderArea.Width);
         program.Uniform(EEngineUniform.ScreenHeight.ToString(), RenderArea.Height);
         program.Uniform(EEngineUniform.ScreenOrigin.ToString(), 0.0f);
 
-        if (RenderingWorld?.VisualScene is not VisualScene3D scene)
+        if (RenderingScene is not VisualScene3D scene)
             return;
 
-        var lightProbes = scene.Lights.GetNearestProbes(/*program.LightProbeTransform?.WorldTranslation ?? */Vector3.Zero);
-        if (lightProbes.Length == 0)
-            return;
+        //var lightProbes = scene.Lights.GetNearestProbes(/*program.LightProbeTransform?.WorldTranslation ?? */Vector3.Zero);
+        //if (lightProbes.Length == 0)
+        //    return;
 
-        LightProbeComponent probe = lightProbes[0];
+        //LightProbeComponent probe = lightProbes[0];
+        LightProbeComponent probe = scene.Lights.LightProbes[0];
+
         int baseCount = GetFBO<XRQuadFrameBuffer>(LightCombineFBOName)?.Material?.Textures?.Count ?? 0;
 
         if (probe.IrradianceTexture != null)

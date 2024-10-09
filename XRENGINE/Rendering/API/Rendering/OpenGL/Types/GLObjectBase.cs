@@ -388,6 +388,15 @@ namespace XREngine.Rendering.OpenGL
 
                     ETextureTarget.TextureBuffer => GLEnum.TextureBuffer,
 
+                    ETextureTarget.TextureBindingCubeMap => GLEnum.TextureBindingCubeMap,
+                    ETextureTarget.TextureCubeMapArray => GLEnum.TextureBindingCubeMapArray,
+                    ETextureTarget.TextureCubeMapPositiveX => GLEnum.TextureCubeMapPositiveX,
+                    ETextureTarget.TextureCubeMapNegativeX => GLEnum.TextureCubeMapNegativeX,
+                    ETextureTarget.TextureCubeMapPositiveY => GLEnum.TextureCubeMapPositiveY,
+                    ETextureTarget.TextureCubeMapNegativeY => GLEnum.TextureCubeMapNegativeY,
+                    ETextureTarget.TextureCubeMapPositiveZ => GLEnum.TextureCubeMapPositiveZ,
+                    ETextureTarget.TextureCubeMapNegativeZ => GLEnum.TextureCubeMapNegativeZ,
+
                     _ => GLEnum.Texture2D
                 };
 

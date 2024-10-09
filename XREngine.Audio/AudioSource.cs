@@ -1,4 +1,5 @@
 ﻿using Silk.NET.OpenAL;
+using Silk.NET.OpenAL.Extensions.Creative;
 using System.Numerics;
 using XREngine.Core;
 
@@ -600,6 +601,191 @@ namespace XREngine.Audio
             ParentListener.VerifyError();
         }
 
+        #endregion
+
+        #region Effect Settings
+        public int DirectFilter
+        {
+            get => GetDirectFilter();
+            set => SetDirectFilter(value);
+        }
+        public float AirAbsorptionFactor
+        {
+            get => GetAirAbsorptionFactor();
+            set => SetAirAbsorptionFactor(value);
+        }
+        public float RoomRolloffFactor
+        {
+            get => GetRoomRolloffFactor();
+            set => SetRoomRolloffFactor(value);
+        }
+        public float ConeOuterGainHighFreq
+        {
+            get => GetConeOuterGainHF();
+            set => SetConeOuterGainHF(value);
+        }
+        public bool DirectFilterGainHighFreqAuto
+        {
+            get => GetSourceProperty(EFXSourceBoolean.DirectFilterGainHighFrequencyAuto, out bool value) && value;
+            set => SetSourceProperty(EFXSourceBoolean.DirectFilterGainHighFrequencyAuto, value);
+        }
+        public bool AuxiliarySendFilterGainAuto
+        {
+            get => GetSourceProperty(EFXSourceBoolean.AuxiliarySendFilterGainAuto, out bool value) && value;
+            set => SetSourceProperty(EFXSourceBoolean.AuxiliarySendFilterGainAuto, value);
+        }
+        public bool AuxiliarySendFilterGainHighFrequencyAuto
+        {
+            get => GetSourceProperty(EFXSourceBoolean.AuxiliarySendFilterGainHighFrequencyAuto, out bool value) && value;
+            set => SetSourceProperty(EFXSourceBoolean.AuxiliarySendFilterGainHighFrequencyAuto, value);
+        }
+        public struct AuxSendFilter
+        {
+            public int AuxEffectSlotID;
+            public int AuxSendNumber;
+            public int FilterID;
+        }
+        public AuxSendFilter AuxiliarySendFilter
+        {
+            get => GetAuxiliarySendFilter();
+            set => SetAuxiliarySendFilter(value.AuxEffectSlotID, value.AuxSendNumber, value.FilterID);
+        }
+        #endregion
+
+        #region Effects Get / Set Methods
+        public AuxSendFilter GetAuxiliarySendFilter()
+        {
+            GetSourceProperty(EFXSourceInteger3.AuxiliarySendFilter, out int slotID, out int sendNumber, out int filterID);
+            return new AuxSendFilter { AuxEffectSlotID = slotID, AuxSendNumber = sendNumber, FilterID = filterID };
+        }
+        public void SetAuxiliarySendFilter(int slotID, int sendNumber, int filterID)
+        {
+            SetSourceProperty(EFXSourceInteger3.AuxiliarySendFilter, slotID, sendNumber, filterID);
+        }
+        private void SetDirectFilter(int value)
+        {
+            SetSourceProperty(EFXSourceInteger.DirectFilter, value);
+        }
+        private int GetDirectFilter()
+        {
+            GetSourceProperty(EFXSourceInteger.DirectFilter, out int value);
+            return value;
+        }
+        private void SetAirAbsorptionFactor(float value)
+        {
+            SetSourceProperty(EFXSourceFloat.AirAbsorptionFactor, value);
+        }
+        private float GetAirAbsorptionFactor()
+        {
+            GetSourceProperty(EFXSourceFloat.AirAbsorptionFactor, out float value);
+            return value;
+        }
+        private void SetRoomRolloffFactor(float value)
+        {
+            SetSourceProperty(EFXSourceFloat.RoomRolloffFactor, value);
+        }
+        private float GetRoomRolloffFactor()
+        {
+            GetSourceProperty(EFXSourceFloat.RoomRolloffFactor, out float value);
+            return value;
+        }
+        private void SetConeOuterGainHF(float value)
+        {
+            SetSourceProperty(EFXSourceFloat.ConeOuterGainHighFrequency, value);
+        }
+        private float GetConeOuterGainHF()
+        {
+            GetSourceProperty(EFXSourceFloat.ConeOuterGainHighFrequency, out float value);
+            return value;
+        }
+        public bool GetSourceProperty(EFXSourceInteger param, out int value)
+        {
+            var eff = ParentListener.Effects?.Api;
+            if (eff is null)
+            {
+                value = 0;
+                return false;
+            }
+
+            eff.GetSourceProperty(Handle, param, out value);
+            ParentListener.VerifyError();
+            return true;
+        }
+        public bool GetSourceProperty(EFXSourceFloat param, out float value)
+        {
+            var eff = ParentListener.Effects?.Api;
+            if (eff is null)
+            {
+                value = 0;
+                return false;
+            }
+
+            eff.GetSourceProperty(Handle, param, out value);
+            ParentListener.VerifyError();
+            return true;
+        }
+        public bool GetSourceProperty(EFXSourceBoolean param, out bool value)
+        {
+            var eff = ParentListener.Effects?.Api;
+            if (eff is null)
+            {
+                value = false;
+                return false;
+            }
+
+            eff.GetSourceProperty(Handle, param, out value);
+            ParentListener.VerifyError();
+            return true;
+        }
+        public bool GetSourceProperty(EFXSourceInteger3 param, out int x, out int y, out int z)
+        {
+            var eff = ParentListener.Effects?.Api;
+            if (eff is null)
+            {
+                x = y = z = 0;
+                return false;
+            }
+
+            eff.GetSourceProperty(Handle, param, out x, out y, out z);
+            ParentListener.VerifyError();
+            return true;
+        }
+        public void SetSourceProperty(EFXSourceInteger param, int value)
+        {
+            var eff = ParentListener.Effects?.Api;
+            if (eff is null)
+                return;
+
+            eff.SetSourceProperty(Handle, param, value);
+            ParentListener.VerifyError();
+        }
+        public void SetSourceProperty(EFXSourceFloat param, float value)
+        {
+            var eff = ParentListener.Effects?.Api;
+            if (eff is null)
+                return;
+
+            eff.SetSourceProperty(Handle, param, value);
+            ParentListener.VerifyError();
+        }
+        public void SetSourceProperty(EFXSourceBoolean param, bool value)
+        {
+            var eff = ParentListener.Effects?.Api;
+            if (eff is null)
+                return;
+
+            eff.SetSourceProperty(Handle, param, value);
+            ParentListener.VerifyError();
+        }
+        public void SetSourceProperty(EFXSourceInteger3 param, int x, int y, int z)
+        {
+            var eff = ParentListener.Effects?.Api;
+            if (eff is null)
+                return;
+
+            eff.SetSourceProperty(Handle, param, x, y, z);
+            ParentListener.VerifyError();
+        }
         #endregion
 
         void IPoolable.OnPoolableReset()

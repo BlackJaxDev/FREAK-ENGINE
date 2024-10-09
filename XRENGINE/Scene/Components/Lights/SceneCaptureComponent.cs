@@ -8,7 +8,7 @@ namespace XREngine.Components.Lights
     {
         private uint _colorResolution;
         private uint _depthResolution;
-        private bool _captureDepthCubeMap = true;
+        private bool _captureDepthCubeMap = false;
 
         protected uint ColorResolution
         {
@@ -40,13 +40,13 @@ namespace XREngine.Components.Lights
         {
             ColorResolution = colorResolution;
             DepthResolution = depthResolution;
-            _captureDepthCubeMap = captureDepth;
+            CaptureDepthCubeMap = captureDepth;
             InitializeForCapture();
         }
 
         protected virtual void InitializeForCapture()
         {
-            _viewport = new XRViewport(null, ColorResolution, ColorResolution);
+            _viewport = new XRViewport(null, ColorResolution, ColorResolution) { WorldInstanceOverride = World };
 
             _envTex = new XRTextureCube(ColorResolution, EPixelInternalFormat.Rgb8, EPixelFormat.Rgb, EPixelType.UnsignedByte)
             {
@@ -55,21 +55,35 @@ namespace XREngine.Components.Lights
                 UWrap = ETexWrapMode.ClampToEdge,
                 VWrap = ETexWrapMode.ClampToEdge,
                 WWrap = ETexWrapMode.ClampToEdge,
-                SamplerName = "SceneTex"
+                Resizable = false,
+                SizedInternalFormat = ESizedInternalFormat.Rgb8,
+                SamplerName = "SceneTex",
+                Name = "SceneCaptureEnvColor",
+                AutoGenerateMipmaps = false,
             };
 
             if (CaptureDepthCubeMap)
-                _envDepthTex = new XRTextureCube(DepthResolution, EPixelInternalFormat.Rgb16f, EPixelFormat.Rgb, EPixelType.Float)
+            {
+                _envDepthTex = new XRTextureCube(DepthResolution, EPixelInternalFormat.DepthComponent24, EPixelFormat.DepthComponent, EPixelType.UnsignedInt248)
                 {
                     MinFilter = ETexMinFilter.NearestMipmapLinear,
                     MagFilter = ETexMagFilter.Nearest,
                     UWrap = ETexWrapMode.ClampToEdge,
                     VWrap = ETexWrapMode.ClampToEdge,
                     WWrap = ETexWrapMode.ClampToEdge,
-                    SamplerName = "SceneDepthTex"
+                    Resizable = false,
+                    SizedInternalFormat = ESizedInternalFormat.DepthComponent24,
+                    SamplerName = "SceneDepthTex",
+                    Name = "SceneCaptureEnvDepth",
+                    AutoGenerateMipmaps = false,
                 };
+            }
+            else
+            {
+                _tempDepth = new XRRenderBuffer(ColorResolution, ColorResolution, ERenderBufferStorage.DepthComponent24);
+                _tempDepth.Allocate();
+            }
 
-            _tempDepth = new XRRenderBuffer(ColorResolution, ColorResolution, ERenderBufferStorage.DepthComponent32f);
             _renderFBO = new XRCubeFrameBuffer(null, Transform, 0.1f, 10000.0f, true);
 
             foreach (XRCamera cam in _renderFBO)
@@ -90,32 +104,31 @@ namespace XREngine.Components.Lights
         public void Capture()
         {
             if (RenderFBO is null)
-                SetCaptureResolution(512);
+                SetCaptureResolution(1024);
 
             if (World?.VisualScene is not VisualScene3D scene3D)
                 return;
 
             scene3D.Lights.RenderShadowMaps(true);
 
-            int depthLayer;
             IFrameBufferAttachement depthAttachment;
+            int[] depthLayers;
+            if (CaptureDepthCubeMap)
+            {
+                depthAttachment = _envDepthTex!;
+                depthLayers = [0, 1, 2, 3, 4, 5];
+            }
+            else
+            {
+                depthAttachment = _tempDepth!;
+                depthLayers = [0, 0, 0, 0, 0, 0];
+            }
 
             for (int i = 0; i < 6; ++i)
             {
-                if (CaptureDepthCubeMap)
-                {
-                    depthLayer = i;
-                    depthAttachment = _envDepthTex!;
-                }
-                else
-                {
-                    depthLayer = 0;
-                    depthAttachment = _tempDepth!;
-                }
-
                 RenderFBO!.SetRenderTargets(
                     (_envTex!, EFrameBufferAttachment.ColorAttachment0, 0, i),
-                    (depthAttachment, EFrameBufferAttachment.DepthAttachment, 0, depthLayer));
+                    (depthAttachment, EFrameBufferAttachment.DepthAttachment, 0, depthLayers[i]));
 
                 _viewport!.Camera = RenderFBO.Cameras[i];
                 _viewport.Render(RenderFBO, World.VisualScene);

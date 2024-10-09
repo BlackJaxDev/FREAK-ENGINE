@@ -1,4 +1,5 @@
 ﻿using XREngine.Data.Core;
+using XREngine.Data.Rendering;
 
 namespace XREngine.Rendering.Commands
 {
@@ -10,7 +11,7 @@ namespace XREngine.Rendering.Commands
         /// <summary>
         /// Used by the engine for proper order of rendering.
         /// </summary>
-        public int RenderPass { get; set; } = 0;//ERenderPass.OpaqueForward;
+        public int RenderPass { get; set; } = (int)EDefaultRenderPass.OpaqueForward;
 
         public abstract int CompareTo(RenderCommand? other);
         public int CompareTo(object? obj) => CompareTo(obj as RenderCommand);

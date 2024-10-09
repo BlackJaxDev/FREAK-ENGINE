@@ -247,7 +247,7 @@ namespace XREngine.Rendering.OpenGL
                 }
                 else
                 {
-                    Debug.LogWarning("Failed to get programs for mesh renderer.");
+                    //Debug.LogWarning("Failed to get programs for mesh renderer.");
                 }
             }
 

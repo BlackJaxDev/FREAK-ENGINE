@@ -47,6 +47,9 @@ public sealed partial class XRRenderPipelineInstance
             if (MainScene is not null)
                 _renderingScenes.Push(MainScene);
 
+            if (SceneCamera is not null)
+                _renderingCameras.Push(RenderingCamera);
+
             return new StateObject(PopMainAttributes);
         }
 
@@ -57,6 +60,9 @@ public sealed partial class XRRenderPipelineInstance
 
             if (MainScene is not null)
                 _renderingScenes.Pop();
+
+            if (SceneCamera is not null)
+                _renderingCameras.Pop();
 
             WindowViewport = null;
             MainScene = null;

@@ -81,7 +81,9 @@ namespace XREngine.Rendering
             }
         }
 
-        public XRWorldInstance? World => CameraComponent?.SceneNode?.World;
+        public XRWorldInstance? WorldInstanceOverride { get; set; } = null;
+        public XRWorldInstance? World => WorldInstanceOverride ?? CameraComponent?.SceneNode?.World;
+
         public Vector2 CursorPosition { get; set; }
 
         public void Destroy()

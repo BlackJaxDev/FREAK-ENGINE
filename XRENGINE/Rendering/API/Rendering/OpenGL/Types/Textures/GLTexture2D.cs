@@ -157,7 +157,7 @@ namespace XREngine.Rendering.OpenGL
                 EPixelInternalFormat? internalFormatForce = null;
                 if (!Data.Resizable && !_storageSet)
                 {
-                    Api.TextureStorage2D(BindingId, Math.Max((uint)Data.Mipmaps.Length, 1u), ToGLEnum(Data.SizedInternalFormat), Data.Width, Data.Height);
+                    Api.TextureStorage2D(BindingId, (uint)Data.SmallestMipmapLevel, ToGLEnum(Data.SizedInternalFormat), Data.Width, Data.Height);
                     internalFormatForce = ToBaseInternalFormat(Data.SizedInternalFormat);
                     _storageSet = true;
                 }
@@ -168,17 +168,21 @@ namespace XREngine.Rendering.OpenGL
                 {
                     for (int i = 0; i < Mipmaps.Length; ++i)
                         PushMipmap(glTarget, i, Mipmaps[i], internalFormatForce);
-
-                    if (Data.AutoGenerateMipmaps)
-                        GenerateMipmaps();
                 }
 
-                int max = Mipmaps is null || Mipmaps.Length == 0 ? 0 : Mipmaps.Length - 1;
-                Api.TexParameter(glTarget, GLEnum.TextureBaseLevel, 0);
-                Api.TexParameter(glTarget, GLEnum.TextureMaxLevel, max);
-                Api.TexParameter(glTarget, GLEnum.TextureMinLod, 0);
-                Api.TexParameter(glTarget, GLEnum.TextureMaxLod, max);
-                
+                int baseLevel = 0;
+                int maxLevel = 1000;
+                int minLOD = -1000;
+                int maxLOD = 1000;
+
+                Api.TextureParameterI(BindingId, GLEnum.TextureBaseLevel, in baseLevel);
+                Api.TextureParameterI(BindingId, GLEnum.TextureMaxLevel, in maxLevel);
+                Api.TextureParameterI(BindingId, GLEnum.TextureMinLod, in minLOD);
+                Api.TextureParameterI(BindingId, GLEnum.TextureMaxLod, in maxLOD);
+
+                if (Data.AutoGenerateMipmaps)
+                    GenerateMipmaps();
+
                 if (allowPostPushCallback)
                     OnPostPushData();
             }

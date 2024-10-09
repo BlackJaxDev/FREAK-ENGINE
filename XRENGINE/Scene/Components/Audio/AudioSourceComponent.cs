@@ -290,8 +290,8 @@ namespace XREngine.Components.Scene
         protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
         {
             base.OnPropertyChanged(propName, prev, field);
-            Engine.EnqueueMainThreadTask(() =>
-            {
+            //Engine.EnqueueMainThreadTask(() =>
+            //{
                 switch (propName)
                 {
                     case nameof(RolloffFactor):
@@ -392,7 +392,7 @@ namespace XREngine.Components.Scene
                         StaticBufferChanged();
                         break;
                 }
-            });
+            //});
         }
 
         private void StateChanged()
@@ -478,12 +478,12 @@ namespace XREngine.Components.Scene
 
         private void UpdatePosition()
         {
-            Engine.EnqueueMainThreadTask(() =>
-            {
+            //Engine.EnqueueMainThreadTask(() =>
+            //{
                 Vector3 worldPosition = Transform.WorldTranslation;
                 UpdateValidListeners(worldPosition);
                 UpdateOrientation(worldPosition);
-            });
+            //});
         }
 
         private void UpdateOrientation(Vector3 worldPosition)

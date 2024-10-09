@@ -163,7 +163,7 @@ namespace XREngine
             string path = ResolveEngineAssetPath(relativePathFolders);
             return Load<T>(path) ?? throw new FileNotFoundException($"Unable to find engine file at {path}");
         }
-        public async Task<T?> LoadEngineAssetAsync<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(params string[] relativePathFolders) where T : XRAsset, new()
+        public async Task<T> LoadEngineAssetAsync<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(params string[] relativePathFolders) where T : XRAsset, new()
         {
             string path = ResolveEngineAssetPath(relativePathFolders);
             return await LoadAsync<T>(path) ?? throw new FileNotFoundException($"Unable to find engine file at {path}");

@@ -39,7 +39,7 @@ namespace XREngine.Components.Scene.Mesh
             RenderInfo.PreAddRenderCommandsCallback = BeforeAdd;
         }
 
-        private void BeforeAdd(RenderInfo info, RenderCommandCollection passes, XRCamera camera)
+        private void BeforeAdd(RenderInfo info, RenderCommandCollection passes, XRCamera? camera)
         {
             float distance = camera?.DistanceFromNearPlane(Component.Transform.WorldTranslation) ?? 0.0f;
 

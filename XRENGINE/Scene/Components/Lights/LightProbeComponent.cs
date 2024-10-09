@@ -44,7 +44,7 @@ namespace XREngine.Components.Lights
         {
             RenderedObjects = 
             [
-                VisualRenderInfo = RenderInfo3D.New(this, _visualRC = new RenderCommandMesh3D((int)EDefaultRenderPass.OpaqueDeferredLit)),
+                VisualRenderInfo = RenderInfo3D.New(this, _visualRC = new RenderCommandMesh3D((int)EDefaultRenderPass.OpaqueForward)),
                 PreRenderInfo = RenderInfo3D.New(this, _preRenderRC = new RenderCommandMethod3D((int)EDefaultRenderPass.PreRender, EnsureCaptured))
             ];
         }
@@ -56,7 +56,7 @@ namespace XREngine.Components.Lights
         public RenderInfo3D PreRenderInfo { get; }
         public RenderInfo[] RenderedObjects { get; }
 
-        private bool _realTime = false;
+        private bool _realTime = true;
         /// <summary>
         /// If true, the light probe will update in real time.
         /// </summary>
@@ -97,7 +97,7 @@ namespace XREngine.Components.Lights
             private set => SetField(ref _irradianceSphere, value);
         }
 
-        private bool _showPrefilterTexture = false;
+        private bool _showPrefilterTexture = true;
         public bool ShowPrefilterTexture
         {
             get => _showPrefilterTexture;
@@ -140,15 +140,21 @@ namespace XREngine.Components.Lights
                 UWrap = ETexWrapMode.ClampToEdge,
                 VWrap = ETexWrapMode.ClampToEdge,
                 WWrap = ETexWrapMode.ClampToEdge,
+                Resizable = false,
+                SizedInternalFormat = ESizedInternalFormat.Rgb8,
+                AutoGenerateMipmaps = true,
             };
 
-            PrefilterTex = new XRTextureCube(ColorResolution, EPixelInternalFormat.Rgb16f, EPixelFormat.Rgb, EPixelType.Float)
+            PrefilterTex = new XRTextureCube(ColorResolution, EPixelInternalFormat.Rgb16f, EPixelFormat.Rgb, EPixelType.HalfFloat)
             {
                 MinFilter = ETexMinFilter.LinearMipmapLinear,
                 MagFilter = ETexMagFilter.Linear,
                 UWrap = ETexWrapMode.ClampToEdge,
                 VWrap = ETexWrapMode.ClampToEdge,
                 WWrap = ETexWrapMode.ClampToEdge,
+                Resizable = false,
+                SizedInternalFormat = ESizedInternalFormat.Rgb16f,
+                AutoGenerateMipmaps = true,
             };
 
             ShaderVar[] prefilterVars =
@@ -162,11 +168,13 @@ namespace XREngine.Components.Lights
 
             RenderingParameters r = new();
             r.DepthTest.Enabled = ERenderParamUsage.Disabled;
-            XRMaterial irrMat = new([], new XRTexture[] { _envTex! }, irrShader);
-            XRMaterial prefMat = new(prefilterVars, [_envTex!], prefShader);
+            r.CullMode = ECulling.None;
+            XRTexture[] texArray = [_envTex!];
+            XRMaterial irrMat = new([], texArray, irrShader);
+            XRMaterial prefMat = new(prefilterVars, texArray, prefShader);
 
-            _irradianceFBO = new XRCubeFrameBuffer(irrMat, null, 0.0f, 1.0f, false);
-            _prefilterFBO = new XRCubeFrameBuffer(prefMat, null, 0.0f, 1.0f, false);
+            _irradianceFBO = new XRCubeFrameBuffer(irrMat, Transform, 0.0f, 1.0f, false);
+            _prefilterFBO = new XRCubeFrameBuffer(prefMat, Transform, 0.0f, 1.0f, false);
 
             CachePreviewSphere();
         }
@@ -241,12 +249,14 @@ namespace XREngine.Components.Lights
                 return;
 
             XRShader shader = XRShader.EngineShader("CubeMapSphereMesh.fs", EShaderType.Fragment);
-            XRMaterial mat = new([new ShaderVector3(Vector3.Zero, "SphereCenter")], [_showPrefilterTexture ? PrefilterTex! : IrradianceTexture!], shader);
+            XRMaterial mat = new([new ShaderVector3(Vector3.Zero, "SphereCenter")], [_showPrefilterTexture ? PrefilterTex! : IrradianceTexture!], shader)
+            {
+                RenderPass = (int)EDefaultRenderPass.OpaqueForward
+            };
             IrradianceSphere = new XRMeshRenderer(XRMesh.Shapes.SolidSphere(Vector3.Zero, 1.0f, 20u), mat);
             _visualRC.Mesh = IrradianceSphere;
-            IrradianceSphere.Parameter<ShaderVector3>(0)!.Value = Transform.WorldTranslation;
             _visualRC.WorldMatrix = Transform.WorldMatrix;
-            VisualRenderInfo.CullingVolume = new Sphere(Vector3.Zero, 1.0f);
+            //VisualRenderInfo.CullingVolume = new Sphere(Vector3.Zero, 1.0f);
         }
 
         protected internal override void OnComponentActivated()

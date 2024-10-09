@@ -35,6 +35,6 @@ namespace XREngine.Rendering.Models
         }
 
         public XRMeshRenderer NewRenderer()
-            => new(mesh, material);
+            => new(mesh, material) { GenerateAsync = true };
     }
 }
