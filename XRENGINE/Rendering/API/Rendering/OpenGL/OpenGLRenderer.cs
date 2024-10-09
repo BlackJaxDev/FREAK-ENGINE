@@ -290,8 +290,8 @@ namespace XREngine.Rendering.OpenGL
             string name = fbo.GetDescribingName();
             if (result != GLEnum.FramebufferComplete)
                 Debug.LogWarning($"FBO {name} is not complete. Status: {result}{debug}", 0, 20);
-            else
-                Debug.Out($"FBO {name} is complete.{debug}");
+            //else
+            //    Debug.Out($"FBO {name} is complete.{debug}");
         }
 
         private static string GetFBODebugInfo(GLFrameBuffer fbo, string splitter)
@@ -331,8 +331,27 @@ namespace XREngine.Rendering.OpenGL
                 case XRRenderBuffer rb:
                     debug += $"{rb.Width}x{rb.Height} | {rb.Type}";
                     break;
+                case XRTextureCube tc:
+                    debug += $"{tc.MaxDimension}x{tc.MaxDimension}x{tc.MaxDimension}{FormatMipLevels(tc)}";
+                    break;
             }
             return debug;
+        }
+
+        private static string FormatMipLevels(XRTextureCube tc)
+        {
+            switch (tc.Mipmaps.Length)
+            {
+                case 0:
+                    return " | No mipmaps";
+                case 1:
+                    return $" | {FormatMipmap(0, tc.Mipmaps)}";
+                default:
+                    string mipmaps = $" | {tc.Mipmaps.Length} mipmaps";
+                    for (int i = 0; i < tc.Mipmaps.Length; i++)
+                        mipmaps += $"{Environment.NewLine}{FormatMipmap(i, tc.Mipmaps)}";
+                    return mipmaps;
+            }
         }
 
         private static string FormatMipLevels(XRTexture2D t2d)
@@ -349,6 +368,24 @@ namespace XREngine.Rendering.OpenGL
                         mipmaps += $"{Environment.NewLine}{FormatMipmap(i, t2d.Mipmaps)}";
                     return mipmaps;
             }
+        }
+
+        private static string FormatMipmap(int i, CubeMipmap[] mipmaps)
+        {
+            if (i >= mipmaps.Length)
+                return string.Empty;
+
+            CubeMipmap m = mipmaps[i];
+            //Format all sides
+            string sides = string.Empty;
+            for (int j = 0; j < m.Sides.Length; j++)
+            {
+                Mipmap2D side = m.Sides[j];
+                sides += $"{side.Width}x{side.Height} | internal:{side.InternalFormat} | {side.PixelFormat}/{side.PixelType}";
+                if (j < m.Sides.Length - 1)
+                    sides += Environment.NewLine;
+            }
+            return $"Mip{i} | {sides}";
         }
 
         private static string FormatMipmap(int i, Mipmap2D[] mipmaps)
@@ -418,7 +455,7 @@ namespace XREngine.Rendering.OpenGL
             //Get the average color from the scene texture
             Vector3 rgb = Vector3.Zero;
             void* addr = &rgb;
-            Api.GetTextureImage(glTex.BindingId, texture.SmallestMipmapLevel, GLObjectBase.ToGLEnum(EPixelFormat.Rgb), GLObjectBase.ToGLEnum(EPixelType.Float), (uint)sizeof(Vector3), addr);
+            Api.GetTextureImage(glTex.BindingId, texture.SmallestMipmapLevel + 1, GLObjectBase.ToGLEnum(EPixelFormat.Rgb), GLObjectBase.ToGLEnum(EPixelType.Float), (uint)sizeof(Vector3), addr);
 
             if (float.IsNaN(rgb.X) ||
                 float.IsNaN(rgb.Y) ||

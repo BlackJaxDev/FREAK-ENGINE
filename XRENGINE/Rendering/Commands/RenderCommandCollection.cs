@@ -21,8 +21,7 @@ namespace XREngine.Rendering.Commands
     /// </summary>
     public sealed class RenderCommandCollection : XRBase
     {
-        public bool IsShadowPass { get; set; }
-
+        public bool IsShadowPass { get; private set; } = false;
         public void SetRenderPasses(Dictionary<int, IComparer<RenderCommand>?> passIndicesAndSorters)
         {
             _updatingPasses = passIndicesAndSorters.ToDictionary(x => x.Key, x => x.Value is null ? [] : (ICollection<RenderCommand>)new SortedSet<RenderCommand>(x.Value));
@@ -59,7 +58,7 @@ namespace XREngine.Rendering.Commands
             _numCommandsRecentlyAddedToUpdate = 0;
             return added;
         }
-        internal void Render(int pass)
+        internal void Render(int pass, bool shadowPass)
         {
             if (!_renderingPasses.TryGetValue(pass, out var list))
             {
@@ -67,8 +66,10 @@ namespace XREngine.Rendering.Commands
                 return;
             }
 
-            list.ForEach(x => x.Render(IsShadowPass));
+            IsShadowPass = true;
+            list.ForEach(x => x.Render(shadowPass));
             list.Clear();
+            IsShadowPass = false;
         }
         internal void ClearRendering(int pass)
         {

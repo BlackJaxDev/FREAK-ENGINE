@@ -38,36 +38,59 @@ namespace XREngine.Rendering.OpenGL
             Data.UnbindRequested += Unbind;
         }
 
+        private bool _invalidated = true;
+
         private void Value_PreSetRenderTargets()
         {
             if (IsGenerated)
                 Data.DetachAll();
+            else
+                _invalidated = true;
         }
         private void Value_PostSetRenderTargets()
         {
             if (IsGenerated)
                 Data.AttachAll();
+            else
+                _invalidated = true;
         }
 
         private void Value_PreSetRenderTarget(int i)
         {
-            Bind();
-
             if (IsGenerated)
+            {
+                Bind();
                 Data.Detach(i);
+            }
+            else
+                _invalidated = true;
         }
         private void Value_PostSetRenderTarget(int i)
         {
             if (IsGenerated)
+            {
                 Data.Attach(i);
+                Unbind();
+            }
+            else
+                _invalidated = true;
+        }
 
-            Unbind();
+        private void VerifyAttached()
+        {
+            if (_invalidated)
+            {
+                Data.AttachAll();
+                _invalidated = false;
+            }
         }
 
         public void BindForReading()
         {
             Api.BindFramebuffer(GLEnum.ReadFramebuffer, BindingId);
+            VerifyAttached();
         }
+
         public void UnbindFromReading()
         {
             //CheckErrors();
@@ -77,6 +100,7 @@ namespace XREngine.Rendering.OpenGL
         public void BindForWriting()
         {
             Api.BindFramebuffer(GLEnum.DrawFramebuffer, BindingId);
+            VerifyAttached();
         }
         public void UnbindFromWriting()
         {
@@ -157,8 +181,5 @@ namespace XREngine.Rendering.OpenGL
 
         public void CheckErrors()
             => Renderer.CheckFrameBufferErrors(this);
-
-        protected internal override void PostGenerated()
-            => Data.AttachAll();
     }
 }

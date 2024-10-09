@@ -11,7 +11,7 @@ namespace XREngine.Rendering
     {
         public override void Load3rdParty(string filePath)
         {
-            Mipmap2D[] mips = [new Mipmap2D(1, 1, EPixelInternalFormat.Red, EPixelFormat.Red, EPixelType.UnsignedByte)];
+            Mipmap2D[] mips = [new Mipmap2D(1, 1, EPixelInternalFormat.Red, EPixelFormat.Red, EPixelType.UnsignedByte, false)];
             //mips = GetMipmapsFromImage(image);
             Mipmaps = mips;
             AutoGenerateMipmaps = true;

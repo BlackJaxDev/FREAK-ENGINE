@@ -26,6 +26,7 @@ namespace XREngine.Rendering
         public XRCubeFrameBuffer(XRMaterial? mat, TransformBase? transform = null, float nearZ = 1.0f, float farZ = 1000.0f, bool perspectiveCameras = true) : base(mat)
         {
             _transform = transform ?? new Transform();
+            float range = farZ - nearZ;
             float middle = (nearZ + farZ) * 0.5f;
 
             _cube = new XRMeshRenderer(XRMesh.Shapes.SolidBox(new Vector3(-middle), new Vector3(middle), true), mat);
@@ -46,7 +47,7 @@ namespace XREngine.Rendering
 
             XRCameraParameters p = perspectiveCameras
                 ? new XRPerspectiveCameraParameters(90.0f, 1.0f, nearZ, farZ)
-                : new XROrthographicCameraParameters(2.0f, 2.0f, nearZ, farZ);
+                : new XROrthographicCameraParameters(range, range, nearZ, farZ);
 
             for (int i = 0; i < 6; ++i)
                 _cameras[i] = new(_cameraTransforms[i] = new Transform()

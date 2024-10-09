@@ -56,6 +56,9 @@ namespace XREngine.Rendering
         //    }
         //}
 
+        /// <summary>
+        /// Tells API objects to generate this object right now instead of waiting for the first access.
+        /// </summary>
         public void Generate()
         {
             //GetWrappers();
@@ -127,7 +130,7 @@ namespace XREngine.Rendering
             lock (_apiWrappers)
             {
                 //Destroy all API wrappers that wrap this object
-                Debug.Out($"{GetDescribingName()} is being destroyed. Destroying {_apiWrappers.Count} API wrapper{(_apiWrappers.Count == 1 ? "" : "s")}.");
+                //Debug.Out($"{GetDescribingName()} is being destroyed. Destroying {_apiWrappers.Count} API wrapper{(_apiWrappers.Count == 1 ? "" : "s")}.");
                 foreach (var wrapper in _apiWrappers)
                     wrapper.Destroy();
             }

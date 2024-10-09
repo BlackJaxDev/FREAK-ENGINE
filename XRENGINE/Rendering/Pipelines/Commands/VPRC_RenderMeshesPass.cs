@@ -7,7 +7,7 @@
         protected override void Execute()
         {
             using (Pipeline.State.PushRenderingCamera(Pipeline.State.SceneCamera))
-                Pipeline.MeshRenderCommands.Render(RenderPass);
+                Pipeline.MeshRenderCommands.Render(RenderPass, Pipeline.State.ShadowPass);
         }
     }
 }

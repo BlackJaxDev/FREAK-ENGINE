@@ -26,6 +26,7 @@ namespace XREngine.Components.Lights
         {
             return new()
             {
+                { -1, null }, //Prerender
                 //{ 0, _nearToFarSorter }, //No background pass
                 { 1, null }, //OpaqueDeferredLit
                 //{ 2, _nearToFarSorter }, //No decals

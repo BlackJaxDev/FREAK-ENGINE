@@ -240,7 +240,8 @@ namespace XREngine.Rendering
                         Engine.Time.Timer.SwapBuffers += SwapBuffers;
                         Engine.Time.Timer.CollectVisible += CollectVisible;
                     }
-                    _renderPipeline.Pipeline = _camera?.RenderPipeline;
+                    if (SetRenderPipelineFromCamera)
+                        _renderPipeline.Pipeline = _camera?.RenderPipeline;
                     break;
                 case nameof(CameraComponent):
                     ResizeCameraComponentUI();
@@ -255,6 +256,7 @@ namespace XREngine.Rendering
             get => _renderPipeline.Pipeline;
             set => _renderPipeline.Pipeline = value;
         }
+        public bool SetRenderPipelineFromCamera { get; set; } = true;
 
         /// <summary>
         /// Sizes the viewport according to the window's size and the sizing percentages set to this viewport.

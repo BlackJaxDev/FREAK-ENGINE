@@ -126,18 +126,17 @@ namespace XREngine.Rendering.Models.Materials.Textures
 
         private void DetachFaceFromFBO(XRFrameBuffer target, EFrameBufferAttachment attachment, ECubemapFace face, int mipLevel)
         {
-            if (Renderer.GetOrCreateAPIRenderObject(target) is not GLObjectBase glObj)
+            if (Renderer.GetOrCreateAPIRenderObject(target) is not GLObjectBase apiFBO)
                 return;
 
-            Api.NamedFramebufferTextureLayer(glObj.BindingId, ToGLEnum(attachment), 0, mipLevel, (int)face);
+            Api.NamedFramebufferTextureLayer(apiFBO.BindingId, ToGLEnum(attachment), 0, mipLevel, (int)face);
         }
-
         public void AttachFaceToFBO(XRFrameBuffer fbo, EFrameBufferAttachment attachment, ECubemapFace face, int mipLevel)
         {
-            if (Renderer.GetOrCreateAPIRenderObject(fbo) is not GLObjectBase glObj)
+            if (Renderer.GetOrCreateAPIRenderObject(fbo) is not GLObjectBase apiFBO)
                 return;
 
-            Api.NamedFramebufferTextureLayer(glObj.BindingId, ToGLEnum(attachment), BindingId, mipLevel, (int)face);
+            Api.NamedFramebufferTextureLayer(apiFBO.BindingId, ToGLEnum(attachment), BindingId, mipLevel, (int)face);
         }
 
         public unsafe override void PushData()
@@ -147,7 +146,7 @@ namespace XREngine.Rendering.Models.Materials.Textures
             try
             {
                 IsPushing = true;
-                Debug.Out($"Pushing texture: {GetDescribingName()}");
+                //Debug.Out($"Pushing texture: {GetDescribingName()}");
                 OnPrePushData(out bool shouldPush, out bool allowPostPushCallback);
                 if (!shouldPush)
                 {
@@ -159,14 +158,12 @@ namespace XREngine.Rendering.Models.Materials.Textures
 
                 Bind();
 
-                var glTarget = ToGLEnum(TextureTarget);
-
                 Api.PixelStore(PixelStoreParameter.UnpackAlignment, 1);
 
                 EPixelInternalFormat? internalFormatForce = null;
                 if (!Data.Resizable && !_storageSet)
                 {
-                    Api.TextureStorage2D(BindingId, (uint)Data.SmallestMipmapLevel, ToGLEnum(Data.SizedInternalFormat), Data.Extent, Data.Extent);
+                    Api.TextureStorage2D(BindingId, (uint)Data.SmallestMipmapLevel + 1u, ToGLEnum(Data.SizedInternalFormat), Data.Extent, Data.Extent);
                     internalFormatForce = ToBaseInternalFormat(Data.SizedInternalFormat);
                     _storageSet = true;
                 }

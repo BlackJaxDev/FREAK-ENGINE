@@ -27,13 +27,22 @@ namespace XREngine.Rendering.OpenGL
             Data.DetachFromFBORequested -= DetachFromFBO;
         }
 
+        public bool Invalidated { get; private set; } = true;
+
         public void Bind()
-            => Api.BindRenderbuffer(GLEnum.Renderbuffer, BindingId);
+        {
+            Api.BindRenderbuffer(GLEnum.Renderbuffer, BindingId);
+            if (Invalidated)
+            {
+                Invalidated = false;
+                Api.NamedRenderbufferStorage(BindingId, ToGLEnum(Data.Type), Data.Width, Data.Height);
+            }
+        }
         public void Unbind()
             => Api.BindRenderbuffer(GLEnum.Renderbuffer, 0);
 
         private void Allocate()
-            => Api.NamedRenderbufferStorage(BindingId, ToGLEnum(Data.Type), Data.Width, Data.Height);
+            => Invalidated = true;
 
         public void AttachToFBO(XRFrameBuffer target, EFrameBufferAttachment attachment, int mipLevel)
             => Api.NamedFramebufferRenderbuffer(Renderer.GenericToAPI<GLFrameBuffer>(target)!.BindingId, ToGLEnum(attachment), GLEnum.Renderbuffer, BindingId);

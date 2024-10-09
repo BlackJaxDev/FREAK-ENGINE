@@ -69,8 +69,11 @@ namespace XREngine.Rendering.Pipelines.Commands
         /// </summary>
         public void Execute()
         {
-            foreach (ViewportRenderCommand command in _commands)
+            for (int i = 0; i < _commands.Count; i++)
+            {
+                ViewportRenderCommand command = _commands[i];
                 command.ExecuteIfShould();
+            }
         }
         //public void GenerateFBOs()
         //{

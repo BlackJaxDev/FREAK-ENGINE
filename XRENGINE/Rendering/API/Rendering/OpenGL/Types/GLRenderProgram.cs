@@ -176,6 +176,9 @@ namespace XREngine.Rendering.OpenGL
                 Data.UniformSetDoubleArrayRequested += Uniform;
                 Data.UniformSetMatrix4x4ArrayRequested += Uniform;
 
+                Data.SamplerRequested += Sampler;
+                Data.SamplerRequestedByLocation += Sampler;
+
                 foreach (XRShader shader in Data.Shaders)
                     ShaderAdded(shader);
                 Data.Shaders.PostAnythingAdded += ShaderAdded;
@@ -203,6 +206,9 @@ namespace XREngine.Rendering.OpenGL
                 Data.UniformSetUIntArrayRequested -= Uniform;
                 Data.UniformSetDoubleArrayRequested -= Uniform;
                 Data.UniformSetMatrix4x4ArrayRequested -= Uniform;
+
+                Data.SamplerRequested -= Sampler;
+                Data.SamplerRequestedByLocation -= Sampler;
 
                 Data.Shaders.PostAnythingAdded -= ShaderAdded;
                 Data.Shaders.PostAnythingRemoved -= ShaderRemoved;
@@ -642,6 +648,21 @@ namespace XREngine.Rendering.OpenGL
             #endregion
 
             #region Samplers
+            public void Sampler(int location, XRTexture texture, int textureUnit)
+            {
+                var glObj = Renderer.GetOrCreateAPIRenderObject(texture);
+                if (glObj is not IGLTexture glTex)
+                    return;
+
+                Sampler(location, glTex, textureUnit);
+            }
+            public void Sampler(string name, XRTexture texture, int textureUnit)
+            {
+                if (!GetUniform(name, out int location))
+                    return;
+
+                Sampler(location, texture, textureUnit);
+            }
             /// <summary>
             /// Passes a texture sampler into the fragment shader of this program by name.
             /// The name is cached so that retrieving the sampler's location is only required once.

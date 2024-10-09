@@ -73,9 +73,9 @@ namespace XREngine.Rendering
         /// </summary>
         /// <param name="material"></param>
         public void SetRenderTargets(XRMaterial? material)
-            => SetRenderTargets(material?.Textures?.
+            => SetRenderTargets(material?.Textures.
                 Where(x => x?.FrameBufferAttachment != null).
-                Select(x => ((IFrameBufferAttachement)x, x.FrameBufferAttachment!.Value, 0, -1)).
+                Select(x => ((IFrameBufferAttachement)x!, x!.FrameBufferAttachment!.Value, 0, -1)).
                 ToArray());
 
         /// <summary>
@@ -252,12 +252,13 @@ namespace XREngine.Rendering
 
         public unsafe void AttachAll()
         {
-            Bind();
+            //if (Targets is null || Targets.Length == 0)
+            //    return;
+
             if (Targets != null)
                 for (int i = 0; i < Targets.Length; ++i)
                     Attach(i);
             SetDrawBuffers();
-            Unbind();
         }
 
         public event Action? SetDrawBuffersRequested;
@@ -267,11 +268,12 @@ namespace XREngine.Rendering
 
         public void DetachAll()
         {
-            Bind();
+            //if (Targets is null || Targets.Length == 0)
+            //    return;
+
             if (Targets != null)
                 for (int i = 0; i < Targets.Length; ++i)
                     Detach(i);
-            Unbind();
         }
         public void Attach(int i)
         {
@@ -284,9 +286,7 @@ namespace XREngine.Rendering
             {
                 case XRTexture texture:
                     {
-                        texture.PushData();
                         texture.Bind();
-
                         if (texture is XRTextureCube cuberef && LayerIndex >= 0 && LayerIndex < 6)
                             cuberef.AttachFaceToFBO(this, Attachment, ECubemapFace.PosX + LayerIndex, MipLevel);
                         else
@@ -294,7 +294,6 @@ namespace XREngine.Rendering
 
                         break;
                     }
-
                 case XRRenderBuffer buf:
                     buf.Bind();
                     buf.AttachToFBO(this, Attachment);

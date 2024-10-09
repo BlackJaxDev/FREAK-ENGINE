@@ -46,9 +46,14 @@ namespace XREngine.Components.Lights
 
         protected virtual void InitializeForCapture()
         {
-            _viewport = new XRViewport(null, ColorResolution, ColorResolution) { WorldInstanceOverride = World };
+            _viewport = new XRViewport(null, ColorResolution, ColorResolution)
+            {
+                WorldInstanceOverride = World,
+                RenderPipeline = new DefaultRenderPipeline(),
+                SetRenderPipelineFromCamera = false
+            };
 
-            _envTex = new XRTextureCube(ColorResolution, EPixelInternalFormat.Rgb8, EPixelFormat.Rgb, EPixelType.UnsignedByte)
+            _envTex = new XRTextureCube(ColorResolution, EPixelInternalFormat.Rgb8, EPixelFormat.Rgb, EPixelType.UnsignedByte, false)
             {
                 MinFilter = ETexMinFilter.NearestMipmapLinear,
                 MagFilter = ETexMagFilter.Nearest,
@@ -60,11 +65,13 @@ namespace XREngine.Components.Lights
                 SamplerName = "SceneTex",
                 Name = "SceneCaptureEnvColor",
                 AutoGenerateMipmaps = false,
+                //FrameBufferAttachment = EFrameBufferAttachment.ColorAttachment0,
             };
+            //_envTex.Generate();
 
             if (CaptureDepthCubeMap)
             {
-                _envDepthTex = new XRTextureCube(DepthResolution, EPixelInternalFormat.DepthComponent24, EPixelFormat.DepthComponent, EPixelType.UnsignedInt248)
+                _envDepthTex = new XRTextureCube(DepthResolution, EPixelInternalFormat.DepthComponent24, EPixelFormat.DepthStencil, EPixelType.UnsignedInt248, false)
                 {
                     MinFilter = ETexMinFilter.NearestMipmapLinear,
                     MagFilter = ETexMagFilter.Nearest,
@@ -72,19 +79,23 @@ namespace XREngine.Components.Lights
                     VWrap = ETexWrapMode.ClampToEdge,
                     WWrap = ETexWrapMode.ClampToEdge,
                     Resizable = false,
-                    SizedInternalFormat = ESizedInternalFormat.DepthComponent24,
+                    SizedInternalFormat = ESizedInternalFormat.Depth24Stencil8,
                     SamplerName = "SceneDepthTex",
                     Name = "SceneCaptureEnvDepth",
                     AutoGenerateMipmaps = false,
+                    //FrameBufferAttachment = EFrameBufferAttachment.DepthAttachment,
                 };
+                //_envDepthTex.Generate();
             }
             else
             {
-                _tempDepth = new XRRenderBuffer(ColorResolution, ColorResolution, ERenderBufferStorage.DepthComponent24);
-                _tempDepth.Allocate();
+                _tempDepth = new XRRenderBuffer(DepthResolution, DepthResolution, ERenderBufferStorage.Depth24Stencil8);
+                //_tempDepth.Generate();
+                //_tempDepth.Allocate();
             }
 
             _renderFBO = new XRCubeFrameBuffer(null, Transform, 0.1f, 10000.0f, true);
+            //_renderFBO.Generate();
 
             foreach (XRCamera cam in _renderFBO)
             {
@@ -101,7 +112,7 @@ namespace XREngine.Components.Lights
         /// <summary>
         /// Renders the scene to the ResultTexture cubemap.
         /// </summary>
-        public void Capture()
+        public virtual void Capture()
         {
             if (RenderFBO is null)
                 SetCaptureResolution(1024);
@@ -128,7 +139,7 @@ namespace XREngine.Components.Lights
             {
                 RenderFBO!.SetRenderTargets(
                     (_envTex!, EFrameBufferAttachment.ColorAttachment0, 0, i),
-                    (depthAttachment, EFrameBufferAttachment.DepthAttachment, 0, depthLayers[i]));
+                    (depthAttachment, EFrameBufferAttachment.DepthStencilAttachment, 0, depthLayers[i]));
 
                 _viewport!.Camera = RenderFBO.Cameras[i];
                 _viewport.Render(RenderFBO, World.VisualScene);

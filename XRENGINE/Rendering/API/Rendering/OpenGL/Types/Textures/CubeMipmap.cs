@@ -31,8 +31,8 @@ namespace XREngine.Rendering.Models.Materials.Textures
         
         public CubeMipmap(uint dim, MagickColor? color = null)
             => SetSides(dim, color);
-        public CubeMipmap(uint dim, EPixelInternalFormat internalFormat, EPixelFormat format, EPixelType type)
-            => Sides.Fill(i => new Mipmap2D(dim, dim, internalFormat, format, type));
+        public CubeMipmap(uint dim, EPixelInternalFormat internalFormat, EPixelFormat format, EPixelType type, bool allocateData)
+            => Sides.Fill(i => new Mipmap2D(dim, dim, internalFormat, format, type, allocateData));
 
         public bool SetEquirectangularMap(MagickImage equirectangularBmp)
         {
@@ -281,8 +281,8 @@ namespace XREngine.Rendering.Models.Materials.Textures
         public void SetSides(uint dim, MagickColor? color = null)
             => Sides.Fill(i => new Mipmap2D(new MagickImage(color ??= new MagickColor(0, 0, 0, 0), dim, dim)));
 
-        public void SetSides(uint dim, EPixelInternalFormat internalFormat, EPixelFormat format, EPixelType type)
-            => Sides.Fill(i => new Mipmap2D(dim, dim, internalFormat, format, type));
+        public void SetSides(uint dim, EPixelInternalFormat internalFormat, EPixelFormat format, EPixelType type, bool allocateData)
+            => Sides.Fill(i => new Mipmap2D(dim, dim, internalFormat, format, type, allocateData));
 
         public void Resize(uint extent)
         {

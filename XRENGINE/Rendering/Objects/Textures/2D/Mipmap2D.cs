@@ -31,7 +31,7 @@ namespace XREngine.Rendering
                 Height = mipmap.Height;
             }
         }
-        public Mipmap2D(uint width, uint height, EPixelInternalFormat internalFormat, EPixelFormat pixelFormat, EPixelType pixelType)
+        public Mipmap2D(uint width, uint height, EPixelInternalFormat internalFormat, EPixelFormat pixelFormat, EPixelType pixelType, bool allocateData)
         {
             lock (_lock)
             {
@@ -40,7 +40,7 @@ namespace XREngine.Rendering
                 InternalFormat = internalFormat;
                 PixelFormat = pixelFormat;
                 PixelType = pixelType;
-                Data = new DataSource(XRTexture.AllocateBytes(width, height, pixelFormat, pixelType));
+                Data = allocateData ? new DataSource(XRTexture.AllocateBytes(width, height, pixelFormat, pixelType)) : null;
             }
         }
 

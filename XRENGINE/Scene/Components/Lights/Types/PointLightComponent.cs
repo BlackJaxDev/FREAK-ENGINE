@@ -162,7 +162,7 @@ namespace XREngine.Components.Lights
             uint cubeExtent = Math.Max(width, height);
             XRTexture[] refs =
             [
-                new XRTextureCube(cubeExtent, GetShadowDepthMapFormat(precision), EPixelFormat.Red, EPixelType.UnsignedByte)
+                new XRTextureCube(cubeExtent, GetShadowDepthMapFormat(precision), EPixelFormat.Red, EPixelType.UnsignedByte, false)
                 {
                     MinFilter = ETexMinFilter.Nearest,
                     MagFilter = ETexMagFilter.Nearest,
@@ -171,7 +171,7 @@ namespace XREngine.Components.Lights
                     WWrap = ETexWrapMode.ClampToEdge,
                     FrameBufferAttachment = EFrameBufferAttachment.DepthAttachment,
                 },
-                 new XRTextureCube(cubeExtent, EPixelInternalFormat.R32f, EPixelFormat.Red, EPixelType.Float)
+                 new XRTextureCube(cubeExtent, EPixelInternalFormat.R32f, EPixelFormat.Red, EPixelType.Float, false)
                 {
                     MinFilter = ETexMinFilter.Nearest,
                     MagFilter = ETexMagFilter.Nearest,

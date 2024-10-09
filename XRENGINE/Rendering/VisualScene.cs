@@ -23,7 +23,7 @@ namespace XREngine.Scene
         /// <param name="commands"></param>
         /// <param name="collectionVolume"></param>
         /// <param name="camera"></param>
-        public void CollectRenderedItems(RenderCommandCollection commands, IVolume? collectionVolume, XRCamera? camera)
+        public virtual void CollectRenderedItems(RenderCommandCollection commands, IVolume? collectionVolume, XRCamera? camera)
         {
             void AddRenderCommands(ITreeItem item)
             {

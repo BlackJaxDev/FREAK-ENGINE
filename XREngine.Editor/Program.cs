@@ -90,7 +90,7 @@ internal class Program
             cameraComp.LocalPlayerIndex = ELocalPlayerIndex.One;
             cameraComp.CullWithFrustum = true;
 
-            cameraComp.Camera.Parameters = new XRPerspectiveCameraParameters(60.0f, null, 0.1f, 100000.0f);
+            cameraComp.Camera.Parameters = new XRPerspectiveCameraParameters(45.0f, null, 0.1f, 100000.0f);
             cameraComp.Camera.RenderPipeline = new DefaultRenderPipeline();
         }
 
@@ -137,7 +137,14 @@ internal class Program
         if (probe.TryAddComponent<LightProbeComponent>(out var probeComp))
         {
             probeComp!.Name = "TestLightProbe";
-            probeComp.SetCaptureResolution(256, false, 256);
+            probeComp.SetCaptureResolution(512, false, 512);
+            probeComp.RealTime = true;
+            probeComp.RealTimeUpdateInterval = TimeSpan.FromSeconds(5.0);
+            //Task.Run(async () =>
+            //{
+            //    await Task.Delay(2000);
+            //    Engine.EnqueueMainThreadTask(probeComp.Capture);
+            //});
         }
 
         //var skybox = new SceneNode(rootNode) { Name = "TestSkyboxNode" };
@@ -194,8 +201,16 @@ internal class Program
 
     public static XRMaterial MaterialFactory(string modelFilePath, string name, List<TextureInfo> textures, TextureFlags flags, ShadingMode mode, Dictionary<string, List<object>> properties)
     {
+        Random r = new();
+
         XRMaterial mat = textures.Count > 0 ?
-            new XRMaterial(new XRTexture?[textures.Count], ShaderHelper.TextureFragDeferred()!) :
+            new XRMaterial([
+                    new ShaderFloat(1.0f, "Opacity"),
+                    new ShaderFloat(r.NextSingle(), "Specular"),
+                    new ShaderFloat(r.NextSingle(), "Roughness"),
+                    new ShaderFloat(r.NextSingle(), "Metallic"),
+                    new ShaderFloat(1.0f, "IndexOfRefraction"),
+                ], new XRTexture?[textures.Count], ShaderHelper.TextureFragDeferred()!) :
             XRMaterial.CreateLitColorMaterial(new ColorF4(1.0f, 1.0f, 0.0f, 1.0f));
         mat.RenderPass = (int)EDefaultRenderPass.OpaqueDeferredLit;
         mat.Name = name;

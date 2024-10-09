@@ -21,8 +21,11 @@ namespace XREngine.Rendering
         {
             uint sDim = dim;
             CubeMipmap[] mips = new CubeMipmap[mipCount];
-            for (uint i = 0u, scale; i < mipCount; scale = 1u << (int)++i, sDim = dim / scale)
+            for (uint i = 0u; i < mipCount; i++)
+            {
                 mips[i] = new CubeMipmap(sDim);
+                sDim >>= 1;
+            }
             Mipmaps = mips;
         }
 
@@ -31,13 +34,16 @@ namespace XREngine.Rendering
             EPixelInternalFormat internalFormat,
             EPixelFormat pixelFormat,
             EPixelType pixelType,
+            bool allocateData,
             int mipCount = 1)
-            : this(dim, mipCount)
         {
             uint sDim = dim;
             CubeMipmap[] mips = new CubeMipmap[mipCount];
-            for (uint i = 0u, scale; i < mipCount; scale = 1u << (int)++i, sDim = dim / scale)
-                mips[i] = new CubeMipmap(sDim, internalFormat, pixelFormat, pixelType);
+            for (uint i = 0u; i < mipCount; i++)
+            {
+                mips[i] = new CubeMipmap(sDim, internalFormat, pixelFormat, pixelType, allocateData);
+                sDim >>= 1;
+            }
             Mipmaps = mips;
         }
 

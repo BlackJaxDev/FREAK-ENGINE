@@ -59,7 +59,14 @@ namespace XREngine.Rendering.Pipelines.Commands
             BloomRect2.Width = (int)(width * 0.5f);
             BloomRect2.Height = (int)(height * 0.5f);
 
-            Pipeline.GetTexture<XRTexture2D>(BloomOutputTextureName)?.Resize(width, height);
+            var outputTexture = Pipeline.GetTexture<XRTexture2D>(BloomOutputTextureName);
+            if (outputTexture is null)
+            {
+                Debug.Out($"Failed to resize bloom pass FBOs. Output texture not found.");
+                return;
+            }
+
+            outputTexture.Resize(width, height);
         }
 
         private void RegenerateFBOs(uint width, uint height)
@@ -86,15 +93,14 @@ namespace XREngine.Rendering.Pipelines.Commands
             var outputTexture = XRTexture2D.CreateFrameBufferTexture(
                 width,
                 height,
-                EPixelInternalFormat.Rgb,
+                EPixelInternalFormat.Rgb8,
                 EPixelFormat.Rgb,
-                EPixelType.Float);
+                EPixelType.UnsignedByte);
             outputTexture.Name = BloomOutputTextureName;
             outputTexture.MagFilter = ETexMagFilter.Linear;
             outputTexture.MinFilter = ETexMinFilter.LinearMipmapLinear;
             outputTexture.UWrap = ETexWrapMode.ClampToEdge;
             outputTexture.VWrap = ETexWrapMode.ClampToEdge;
-
             Pipeline.SetTexture(outputTexture);
 
             XRMaterial bloomBlurMat = new

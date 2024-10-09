@@ -2,6 +2,7 @@
 using System.Numerics;
 using XREngine.Data.Rendering;
 using XREngine.Data.Vectors;
+using XREngine.Rendering.OpenGL;
 
 namespace XREngine.Rendering
 {
@@ -77,7 +78,8 @@ namespace XREngine.Rendering
         public event Action<string, UVector4[]>? UniformSetUVector4ArrayRequested = null;
 
         public event Action<string, XRTexture, int>? SamplerRequested = null;
-
+        public event Action<int, XRTexture, int>? SamplerRequestedByLocation = null;
+        
         /// <summary>
         /// Mask of the shader types included in the program.
         /// </summary>
@@ -219,5 +221,7 @@ namespace XREngine.Rendering
 
         public void Sampler(string name, XRTexture texture, int textureUnit)
             => SamplerRequested?.Invoke(name, texture, textureUnit);
+        public void Sampler(int location, XRTexture texture, int textureUnit)
+            => SamplerRequestedByLocation?.Invoke(location, texture, textureUnit);
     }
 }

@@ -433,7 +433,7 @@ public class DefaultRenderPipeline : RenderPipeline
             (uint)State.WindowViewport!.Height,
             EPixelInternalFormat.Rgba16f,
             EPixelFormat.Rgba,
-            EPixelType.Float);
+            EPixelType.HalfFloat);
         hudTexture.MinFilter = ETexMinFilter.Nearest;
         hudTexture.MagFilter = ETexMagFilter.Nearest;
         hudTexture.UWrap = ETexWrapMode.ClampToEdge;
@@ -575,6 +575,9 @@ public class DefaultRenderPipeline : RenderPipeline
         //    return;
 
         //LightProbeComponent probe = lightProbes[0];
+        if (scene.Lights.LightProbes.Count == 0)
+            return;
+
         LightProbeComponent probe = scene.Lights.LightProbes[0];
 
         int baseCount = GetFBO<XRQuadFrameBuffer>(LightCombineFBOName)?.Material?.Textures?.Count ?? 0;
@@ -583,7 +586,7 @@ public class DefaultRenderPipeline : RenderPipeline
         {
             var tex = probe.IrradianceTexture;
             if (tex != null)
-                program.Sampler("Irradiance", tex, baseCount);
+                program.Sampler(7, tex, baseCount);
         }
 
         ++baseCount;
@@ -592,7 +595,7 @@ public class DefaultRenderPipeline : RenderPipeline
         {
             var tex = probe.PrefilterTex;
             if (tex != null)
-                program.Sampler("Prefilter", tex, baseCount);
+                program.Sampler(8, tex, baseCount);
         }
     }
 

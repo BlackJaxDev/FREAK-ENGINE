@@ -24,19 +24,18 @@ namespace XREngine.Components.Lights
             if (shadowPass)
                 return;
 
-            if (!_hasCaptured)
-            {
-                FullCapture(
-                    ColorResolution,
-                    CaptureDepthCubeMap,
-                    DepthResolution);
-            }
-            else if (RealTime && (RealTimeUpdateInterval is null || DateTime.Now - _lastUpdateTime >= RealTimeUpdateInterval))
+            //if (!_hasCaptured)
+            //{
+            //    FullCapture(
+            //        ColorResolution,
+            //        CaptureDepthCubeMap,
+            //        DepthResolution);
+            //}
+            //else
+            if (RealTime && (RealTimeUpdateInterval is null || DateTime.Now - _lastUpdateTime >= RealTimeUpdateInterval))
             {
                 _lastUpdateTime = DateTime.Now;
                 Capture();
-                GenerateIrradianceMap();
-                GeneratePrefilterMap();
             }
         }
 
@@ -56,7 +55,7 @@ namespace XREngine.Components.Lights
         public RenderInfo3D PreRenderInfo { get; }
         public RenderInfo[] RenderedObjects { get; }
 
-        private bool _realTime = true;
+        private bool _realTime = false;
         /// <summary>
         /// If true, the light probe will update in real time.
         /// </summary>
@@ -133,7 +132,7 @@ namespace XREngine.Components.Lights
 
             //Irradiance texture doesn't need to be very high quality, 
             //linear filtering on low resolution will do fine
-            IrradianceTexture = new XRTextureCube(64, EPixelInternalFormat.Rgb8, EPixelFormat.Rgb, EPixelType.UnsignedByte)
+            IrradianceTexture = new XRTextureCube(64, EPixelInternalFormat.Rgb8, EPixelFormat.Rgb, EPixelType.UnsignedByte, false)
             {
                 MinFilter = ETexMinFilter.Linear,
                 MagFilter = ETexMagFilter.Linear,
@@ -145,7 +144,7 @@ namespace XREngine.Components.Lights
                 AutoGenerateMipmaps = true,
             };
 
-            PrefilterTex = new XRTextureCube(ColorResolution, EPixelInternalFormat.Rgb16f, EPixelFormat.Rgb, EPixelType.HalfFloat)
+            PrefilterTex = new XRTextureCube(ColorResolution, EPixelInternalFormat.Rgb16f, EPixelFormat.Rgb, EPixelType.HalfFloat, false)
             {
                 MinFilter = ETexMinFilter.LinearMipmapLinear,
                 MagFilter = ETexMagFilter.Linear,
@@ -173,8 +172,8 @@ namespace XREngine.Components.Lights
             XRMaterial irrMat = new([], texArray, irrShader);
             XRMaterial prefMat = new(prefilterVars, texArray, prefShader);
 
-            _irradianceFBO = new XRCubeFrameBuffer(irrMat, Transform, 0.0f, 1.0f, false);
-            _prefilterFBO = new XRCubeFrameBuffer(prefMat, Transform, 0.0f, 1.0f, false);
+            _irradianceFBO = new XRCubeFrameBuffer(irrMat, null, 0.0f, 1.0f, false);
+            _prefilterFBO = new XRCubeFrameBuffer(prefMat, null, 0.0f, 1.0f, false);
 
             CachePreviewSphere();
         }
@@ -187,6 +186,11 @@ namespace XREngine.Components.Lights
             _hasCaptured = true;
             SetCaptureResolution(colorResolution, captureDepth, depthResolution);
             Capture();
+        }
+
+        public override void Capture()
+        {
+            base.Capture();
             GenerateIrradianceMap();
             GeneratePrefilterMap();
         }

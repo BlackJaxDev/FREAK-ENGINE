@@ -5,8 +5,8 @@ namespace XREngine.Rendering
 {
     public class BloomSettings : XRBase
     {
-        private float _intensity;
-        private float _threshold;
+        private float _intensity = 1.0f;
+        private float _threshold = 1.0f;
         private float _softKnee;
         private float _radius;
 

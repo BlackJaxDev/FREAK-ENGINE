@@ -1,5 +1,8 @@
 ﻿using XREngine.Data.Geometry;
+using XREngine.Data.Rendering;
 using XREngine.Data.Trees;
+using XREngine.Rendering;
+using XREngine.Rendering.Commands;
 using XREngine.Rendering.Info;
 
 namespace XREngine.Scene
@@ -42,10 +45,16 @@ namespace XREngine.Scene
 
         public override IRenderTree RenderablesTree => RenderTree;
 
+        public override void CollectRenderedItems(RenderCommandCollection commands, IVolume? collectionVolume, XRCamera? camera)
+        {
+            base.CollectRenderedItems(commands, collectionVolume, camera);
+            //Lights.CollectVisibleItems();
+        }
+
         public override void GlobalPreRender()
         {
             base.GlobalPreRender();
-            Lights.RenderShadowMaps(false);
+            //Lights.RenderShadowMaps(false);
         }
     }
 }
