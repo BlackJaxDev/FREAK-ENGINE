@@ -17,17 +17,20 @@ namespace XREngine.Components.Lights
             get => _scale;
             set
             {
-                _scale = value;
+                SetField(ref _scale, value);
                 UpdateShadowCameraScale();
                 RecalcLightMatrix();
             }
         }
 
         protected override void RecalcLightMatrix()
-            => LightMatrix = Transform.WorldMatrix * Matrix4x4.CreateScale(_scale);
+            => LightMatrix = Matrix4x4.CreateScale(_scale) * Transform.WorldMatrix;
 
-        protected override XRCamera GetShadowCamera()
+        protected XRCamera GetShadowCamera()
             => new(ShadowCameraTransform, new XROrthographicCameraParameters(Scale.X, Scale.Y, 0.01f, Scale.Z));
+
+        private XRCamera? _shadowCamera;
+        private XRCamera ShadowCamera => _shadowCamera ??= GetShadowCamera();
 
         private Transform? _shadowCameraTransform;
         private Transform ShadowCameraTransform => _shadowCameraTransform ??= new Transform() { Parent = Transform };
@@ -101,7 +104,7 @@ namespace XREngine.Components.Lights
             UpdateShadowCameraScale();
         }
 
-        public override XRMaterial GetShadowMapMaterial(uint width, uint height, EDepthPrecision precision = EDepthPrecision.Flt32)
+        public override XRMaterial GetShadowMapMaterial(uint width, uint height, EDepthPrecision precision = EDepthPrecision.Int24)
         {
             XRTexture[] refs =
             [
@@ -113,7 +116,7 @@ namespace XREngine.Components.Lights
                      VWrap = ETexWrapMode.ClampToEdge,
                      FrameBufferAttachment = EFrameBufferAttachment.DepthAttachment,
                  },
-                 new XRTexture2D(width, height, EPixelInternalFormat.R32f, EPixelFormat.Red, EPixelType.Float)
+                 new XRTexture2D(width, height, EPixelInternalFormat.R16f, EPixelFormat.Red, EPixelType.HalfFloat)
                  {
                      MinFilter = ETexMinFilter.Nearest,
                      MagFilter = ETexMagFilter.Nearest,
@@ -131,6 +134,29 @@ namespace XREngine.Components.Lights
             mat.RenderOptions.CullMode = ECulling.None;
 
             return mat;
+        }
+
+        protected override IVolume GetShadowVolume()
+            => ShadowCamera.WorldFrustum();
+
+        public override void CollectVisibleItems(VisualScene scene)
+        {
+            if (!CastsShadows)
+                return;
+
+            scene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, GetShadowVolume(), ShadowCamera);
+        }
+
+        public override void RenderShadowMap(VisualScene scene, bool collectVisibleNow = false)
+        {
+            if (!CastsShadows || ShadowMap?.Material is null)
+                return;
+
+            if (collectVisibleNow)
+                scene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, GetShadowVolume(), ShadowCamera);
+
+            scene.SwapBuffers();
+            _shadowRenderPipeline.Render(scene, ShadowCamera, null, ShadowMap, null, true, ShadowMap.Material);
         }
     }
 }

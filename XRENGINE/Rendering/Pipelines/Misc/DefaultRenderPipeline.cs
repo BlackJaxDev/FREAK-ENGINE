@@ -59,7 +59,7 @@ public class DefaultRenderPipeline : RenderPipeline
     const string AlbedoOpacityTextureName = "AlbedoOpacity";
     const string RMSITextureName = "RMSI";
     const string DepthStencilTextureName = "DepthStencil";
-    const string LightingTextureName = "LightingTexture";
+    const string DiffuseTextureName = "LightingTexture";
     const string HDRSceneTextureName = "HDRSceneTex";
     const string BloomBlurTextureName = "BloomBlurTexture";
     const string HUDTextureName = "HUDTex";
@@ -406,7 +406,7 @@ public class DefaultRenderPipeline : RenderPipeline
 
         //Lighting texture
         c.Add<VPRC_CacheOrCreateTexture>().SetOptions(
-            LightingTextureName,
+            DiffuseTextureName,
             CreateLightingTexture,
             NeedsRecreateTextureInternalSize,
             ResizeTextureInternalSize);
@@ -477,16 +477,18 @@ public class DefaultRenderPipeline : RenderPipeline
 
         sceneCam.SetUniforms(program);
         sceneCam.SetPostProcessUniforms(program);
-
-        program.Uniform(EEngineUniform.ScreenWidth.ToString(), RenderArea.Width);
-        program.Uniform(EEngineUniform.ScreenHeight.ToString(), RenderArea.Height);
-        program.Uniform(EEngineUniform.ScreenOrigin.ToString(), 0.0f);
     }
 
     private XRFrameBuffer CreateForwardPassFBO()
     {
         XRTexture2D[] brightRefs = { GetTexture<XRTexture2D>(HDRSceneTextureName)! };
         XRMaterial brightMat = new(
+            [
+                new ShaderFloat(1.0f, "BloomIntensity"),
+                new ShaderFloat(1.0f, "BloomThreshold"),
+                new ShaderFloat(0.5f, "SoftKnee"),
+                new ShaderVector3(Engine.Rendering.Settings.DefaultLuminance, "Luminance") 
+            ],
             brightRefs,
             XRShader.EngineShader(Path.Combine(SceneShaderPath, "BrightPass.fs"), EShaderType.Fragment))
         {
@@ -517,18 +519,20 @@ public class DefaultRenderPipeline : RenderPipeline
         if (sceneCam is null)
             return;
 
-        sceneCam.SetBloomUniforms(program);
+        sceneCam.SetBloomBrightPassUniforms(program);
     }
 
     private XRFrameBuffer CreateLightCombineFBO()
     {
+        var diffuseTexture = GetTexture<XRTexture2D>(DiffuseTextureName)!;
+
         XRTexture[] lightCombineTextures = [
             GetTexture<XRTexture2D>(AlbedoOpacityTextureName)!,
             GetTexture<XRTexture2D>(NormalTextureName)!,
             GetTexture<XRTexture2D>(RMSITextureName)!,
             GetTexture<XRTexture2D>(SSAOIntensityTextureName)!,
             GetTexture<XRTexture2DView>(DepthViewTextureName)!,
-            GetTexture<XRTexture2D>(LightingTextureName)!,
+            diffuseTexture,
             GetTexture<XRTexture2D>(BRDFTextureName)!,
             //irradiance
             //prefilter
@@ -547,10 +551,8 @@ public class DefaultRenderPipeline : RenderPipeline
             }
         };
 
-        var lightingTexture = GetTexture<XRTexture2D>(LightingTextureName)!;
-
         var lightCombineFBO = new XRQuadFrameBuffer(lightCombineMat) { Name = LightCombineFBOName };
-        lightCombineFBO.SetRenderTargets((lightingTexture, EFrameBufferAttachment.ColorAttachment0, 0, -1));
+        lightCombineFBO.SetRenderTargets((diffuseTexture, EFrameBufferAttachment.ColorAttachment0, 0, -1));
         lightCombineFBO.SettingUniforms += LightCombineFBO_SettingUniforms;
         return lightCombineFBO;
     }
@@ -562,10 +564,6 @@ public class DefaultRenderPipeline : RenderPipeline
             return;
         
         sceneCam.SetUniforms(program);
-
-        program.Uniform(EEngineUniform.ScreenWidth.ToString(), RenderArea.Width);
-        program.Uniform(EEngineUniform.ScreenHeight.ToString(), RenderArea.Height);
-        program.Uniform(EEngineUniform.ScreenOrigin.ToString(), 0.0f);
 
         if (RenderingScene is not VisualScene3D scene)
             return;
@@ -586,7 +584,7 @@ public class DefaultRenderPipeline : RenderPipeline
         {
             var tex = probe.IrradianceTexture;
             if (tex != null)
-                program.Sampler(7, tex, baseCount);
+                program.Sampler("Irradiance", tex, baseCount);
         }
 
         ++baseCount;
@@ -595,7 +593,7 @@ public class DefaultRenderPipeline : RenderPipeline
         {
             var tex = probe.PrefilterTex;
             if (tex != null)
-                program.Sampler(8, tex, baseCount);
+                program.Sampler("Prefilter", tex, baseCount);
         }
     }
 

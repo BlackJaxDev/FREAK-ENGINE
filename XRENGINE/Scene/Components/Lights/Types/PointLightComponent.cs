@@ -73,7 +73,7 @@ namespace XREngine.Components.Lights
 
         protected override void RecalcLightMatrix()
         {
-            LightMatrix = Transform.WorldMatrix * Matrix4x4.CreateScale(Radius);
+            LightMatrix = Matrix4x4.CreateScale(Radius) * Transform.WorldMatrix;
         }
 
         protected override void OnTransformChanged()
@@ -121,10 +121,11 @@ namespace XREngine.Components.Lights
             program.Uniform($"{targetStructName}Radius", Radius);
             program.Uniform($"{targetStructName}Brightness", Brightness);
 
-            if (ShadowMap is null)
+            var mat = ShadowMap?.Material;
+            if (mat is null || mat.Textures.Count < 2)
                 return;
             
-            var tex = ShadowMap.Material.Textures[1];
+            var tex = mat.Textures[1];
             if (tex is not null)
                 program.Sampler("ShadowMap", tex, 4);
         }
@@ -135,7 +136,7 @@ namespace XREngine.Components.Lights
 
             base.SetShadowMapResolution(res, res);
 
-            if (wasNull && ShadowMap is not null)
+            if (wasNull && ShadowMap?.Material is not null)
                 ShadowMap.Material.SettingUniforms += SetShadowDepthUniforms;
         }
         /// <summary>
@@ -157,7 +158,7 @@ namespace XREngine.Components.Lights
                 p.Uniform($"ProjectionMatrices[{i}]", cam.ProjectionMatrix);
             }
         }
-        public override XRMaterial GetShadowMapMaterial(uint width, uint height, EDepthPrecision precision = EDepthPrecision.Flt32)
+        public override XRMaterial GetShadowMapMaterial(uint width, uint height, EDepthPrecision precision = EDepthPrecision.Int24)
         {
             uint cubeExtent = Math.Max(width, height);
             XRTexture[] refs =
@@ -171,7 +172,7 @@ namespace XREngine.Components.Lights
                     WWrap = ETexWrapMode.ClampToEdge,
                     FrameBufferAttachment = EFrameBufferAttachment.DepthAttachment,
                 },
-                 new XRTextureCube(cubeExtent, EPixelInternalFormat.R32f, EPixelFormat.Red, EPixelType.Float, false)
+                new XRTextureCube(cubeExtent, EPixelInternalFormat.R16f, EPixelFormat.Red, EPixelType.HalfFloat, false)
                 {
                     MinFilter = ETexMinFilter.Nearest,
                     MagFilter = ETexMagFilter.Nearest,
@@ -194,9 +195,24 @@ namespace XREngine.Components.Lights
             return mat;
         }
 
-        protected override XRCamera? GetShadowCamera()
+        public override void CollectVisibleItems(VisualScene scene)
         {
-            return null;
+            if (!CastsShadows)
+                return;
+
+            scene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, GetShadowVolume(), null);
+        }
+
+        public override void RenderShadowMap(VisualScene scene, bool collectVisibleNow = false)
+        {
+            if (!CastsShadows || ShadowMap?.Material is null)
+                return;
+
+            if (collectVisibleNow)
+                scene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, GetShadowVolume(), null);
+
+            scene.SwapBuffers();
+            _shadowRenderPipeline.Render(scene, null, null, ShadowMap, null, true, ShadowMap.Material);
         }
     }
 }

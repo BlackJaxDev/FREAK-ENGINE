@@ -32,7 +32,7 @@ void main()
 		{
 			pos = gl_in[i].gl_Position;
 			FragPos = pos.xyz;
-			gl_Position = inverse(InverseViewMatrices[face]) * ProjectionMatrices[face] * pos;
+			gl_Position = ProjectionMatrices[face] * inverse(InverseViewMatrices[face]) * pos;
 			EmitVertex();
 		}    
 		EndPrimitive();

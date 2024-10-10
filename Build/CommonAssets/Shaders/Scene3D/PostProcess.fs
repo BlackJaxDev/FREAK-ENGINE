@@ -95,7 +95,7 @@ void main()
     hdrSceneColor += textureLod(Texture1, uv, lod).rgb;
 
   //Tone mapping
-	vec3 ldrSceneColor = vec3(1.0f) - exp(-hdrSceneColor * 1.0f);
+	vec3 ldrSceneColor = vec3(1.0f) - exp(-hdrSceneColor * ColorGrade.Exposure);
 
 	//Color grading
 	//ldrSceneColor *= ColorGrade.Tint;
@@ -115,13 +115,13 @@ void main()
 	//ldrSceneColor = mix(Vignette.Color, ldrSceneColor, vig);
 
   //Add HUD on top of scene
-  //vec4 hudColor = texture(HUDTex, uv);
-  //ldrSceneColor = mix(ldrSceneColor, hudColor.rgb, hudColor.a);
+  vec4 hudColor = texture(HUDTex, uv);
+  ldrSceneColor = mix(ldrSceneColor, hudColor.rgb, hudColor.a);
 
 	//Gamma-correct
-	//ldrSceneColor = pow(ldrSceneColor, vec3(1.0f / ColorGrade.Gamma));
+	ldrSceneColor = pow(ldrSceneColor, vec3(1.0f / ColorGrade.Gamma));
   //Fix subtle banding by applying fine noise
-  //ldrSceneColor += mix(-0.5f / 255.0f, 0.5f / 255.0f, rand(uv));
+  ldrSceneColor += mix(-0.5f / 255.0f, 0.5f / 255.0f, rand(uv));
 
 	OutColor = vec4(ldrSceneColor, 1.0f);
 

@@ -64,18 +64,18 @@ float ReadShadowMap2D(in vec3 fragPosWS, in vec3 N, in float NoL, in mat4 lightM
 	vec2 texelSize = 1.0f / textureSize(ShadowMap, 0);
 	for (int x = -1; x <= 1; ++x)
 	{
-	    for (int y = -1; y <= 1; ++y)
-	    {
-	        float pcfDepth = texture(ShadowMap, fragCoord.xy + vec2(x, y) * texelSize).r;
-	        shadow += (fragCoord.z - bias > pcfDepth) ? 0.0f : 1.0f;
-	    }
+		for (int y = -1; y <= 1; ++y)
+		{
+			float pcfDepth = texture(ShadowMap, fragCoord.xy + vec2(x, y) * texelSize).r;
+			shadow += (fragCoord.z - bias > pcfDepth) ? 0.0f : 1.0f;
+		}
 	}
 	shadow *= 0.111111111f; //divided by 9
 
-  float dist = fragCoord.z - depth;
-  float maxBlurDist = 0.1f;
-  float normDist = clamp(dist, 0.0f, maxBlurDist) / maxBlurDist;
-  shadow = mix(shadow1, shadow, normDist);
+	float dist = fragCoord.z - depth;
+	float maxBlurDist = 0.1f;
+	float normDist = clamp(dist, 0.0f, maxBlurDist) / maxBlurDist;
+	shadow = mix(shadow1, shadow, normDist);
 
 	return shadow;
 }
@@ -149,7 +149,7 @@ in vec3 F0)
 	float denom = 4.0f * NoV * NoL + 0.0001f;
 	vec3 spec =  specular * D * G * F / denom;
 
-  vec3 kD = 1.0f - F;
+	vec3 kD = 1.0f - F;
 	kD *= 1.0f - metallic;
 
 	vec3 radiance = lightAttenuation * LightData.Color * LightData.DiffuseIntensity;
@@ -193,30 +193,14 @@ in vec3 rms)
 }
 vec3 WorldPosFromDepth(in float depth, in vec2 uv)
 {
-	// Transform UV coordinates from [0,1] to Normalized Device Coordinates [-1,1]
-    vec2 ndc = uv * 2.0 - 1.0;
-
-    // Reconstruct the clip-space position
-    float clipZ = depth * 2.0 - 1.0;
-    vec4 clipSpacePosition = vec4(ndc, clipZ, 1.0);
-
-    // Reconstruct the view-space position
-    vec4 viewSpacePosition;
-    viewSpacePosition.x = (clipSpacePosition.x - ProjMatrix[0][2]) / ProjMatrix[0][0];
-    viewSpacePosition.y = (clipSpacePosition.y - ProjMatrix[1][2]) / ProjMatrix[1][1];
-    viewSpacePosition.z = -clipSpacePosition.w; // Since clip.w = -view.z in perspective projection
-    viewSpacePosition.w = 1.0;
-
-    // Transform from view space to world space
-    vec4 worldSpacePosition = InverseViewMatrix * viewSpacePosition;
-
-    return worldSpacePosition.xyz;
+	vec4 clipSpacePosition = vec4(vec3(uv, depth) * 2.0f - 1.0f, 1.0f);
+	vec4 viewSpacePosition = inverse(ProjMatrix) * clipSpacePosition;
 	viewSpacePosition /= viewSpacePosition.w;
 	return (inverse(InverseViewMatrix) * ProjMatrix * viewSpacePosition).xyz;
 }
 void main()
 {
-  vec2 uv = gl_FragCoord.xy / vec2(ScreenWidth, ScreenHeight);
+  	vec2 uv = gl_FragCoord.xy / vec2(ScreenWidth, ScreenHeight);
 
 	//Retrieve shading information from GBuffer textures
 	vec3 albedo = texture(Texture0, uv).rgb;
@@ -227,8 +211,8 @@ void main()
 	//Resolve world fragment position using depth and screen UV
 	vec3 fragPosWS = WorldPosFromDepth(depth, uv);
 
-  //float fadeRange = MaxFade - MinFade;
-  //float dist = length(CameraPosition - fragPosWS);
-  //float strength = smoothstep(1.0f, 0.0f, clamp((dist - MinFade) / fadeRange, 0.0f, 1.0f));
+	//float fadeRange = MaxFade - MinFade;
+	//float dist = length(CameraPosition - fragPosWS);
+	//float strength = smoothstep(1.0f, 0.0f, clamp((dist - MinFade) / fadeRange, 0.0f, 1.0f));
 	OutColor = CalcTotalLight(fragPosWS, normal, albedo, rms);
 }

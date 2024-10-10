@@ -4,7 +4,7 @@ const float PI = 3.14159265359f;
 const float InvPI = 0.31831f;
 const float MAX_REFLECTION_LOD = 4.0f;
 
-layout(location = 0) out vec3 OutColor; //HDR Scene Color
+layout(location = 0) out vec3 OutLo; //Diffuse Light Color, to start off the HDR Scene Texture
 layout(location = 0) in vec3 FragPos;
 
 layout(binding = 0) uniform sampler2D Texture0; //AlbedoOpacity
@@ -63,7 +63,7 @@ void main()
 	vec3 rms = texture(Texture2, uv).rgb;
 	float ao = texture(Texture3, uv).r;
 	float depth = texture(Texture4, uv).r;
-	vec3 Lo = texture(Texture5, uv).rgb;
+	vec3 InLo = texture(Texture5, uv).rgb;
 	vec3 irradianceColor = texture(Irradiance, normal).rgb;
 	vec3 fragPosWS = WorldPosFromDepth(depth, uv);
 	//float fogDensity = noise3(fragPosWS);
@@ -89,5 +89,5 @@ void main()
 	vec3 prefilteredColor = textureLod(Prefilter, R, roughness * MAX_REFLECTION_LOD).rgb;
 	vec3 specular = prefilteredColor * (kS * brdfValue.x + brdfValue.y);
 
-	OutColor = (kD * diffuse + specular) * ao + Lo;
+	OutLo = (kD * diffuse + specular) * ao + InLo;
 }

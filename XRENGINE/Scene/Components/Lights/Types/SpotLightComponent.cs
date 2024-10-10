@@ -103,7 +103,7 @@ namespace XREngine.Components.Lights
             Vector3 lightMeshOrigin = dir * (_distance * 0.5f);
             Matrix4x4 t = Matrix4x4.CreateTranslation(lightMeshOrigin);
             Matrix4x4 s = Matrix4x4.CreateScale(OuterCone.Radius, OuterCone.Radius, OuterCone.Height);
-            LightMatrix = t * Transform.WorldMatrix * s;
+            LightMatrix = s * t * Transform.WorldMatrix;
         }
 
         public Cone OuterCone => _outerCone;
@@ -156,24 +156,20 @@ namespace XREngine.Components.Lights
             program.Uniform($"{targetStructName}WorldToLightProjMatrix", ShadowCamera?.ProjectionMatrix ?? Matrix4x4.Identity);
             program.Uniform($"{targetStructName}WorldToLightInvViewMatrix", ShadowCamera?.Transform.WorldMatrix ?? Matrix4x4.Identity);
 
-            if (ShadowMap is null)
+            var mat = ShadowMap?.Material;
+            if (mat is null || mat.Textures.Count < 2)
                 return;
             
-            var tex = ShadowMap.Material.Textures[1];
+            var tex = mat.Textures[1];
             if (tex is not null)
                 program.Sampler("ShadowMap", tex, 4);
         }
 
-        protected override XRCamera GetShadowCamera()
-        {
-            return new XRCamera(
-                Transform,
-                new XRPerspectiveCameraParameters(
-                    Math.Max(OuterCutoffAngleDegrees, InnerCutoffAngleDegrees) * 2.0f,
-                    1.0f,
-                    1.0f,
-                    _distance));
-        }
+        protected XRCamera GetShadowCamera()
+            => new(Transform, new XRPerspectiveCameraParameters(Math.Max(OuterCutoffAngleDegrees, InnerCutoffAngleDegrees) * 2.0f, 1.0f, 1.0f, _distance));
+
+        private XRCamera? _shadowCamera;
+        private XRCamera ShadowCamera => _shadowCamera ??= GetShadowCamera();
 
         public override void SetShadowMapResolution(uint width, uint height)
         {
@@ -183,7 +179,7 @@ namespace XREngine.Components.Lights
                 p.AspectRatio = width / height;
         }
 
-        public override XRMaterial GetShadowMapMaterial(uint width, uint height, EDepthPrecision precision = EDepthPrecision.Flt32)
+        public override XRMaterial GetShadowMapMaterial(uint width, uint height, EDepthPrecision precision = EDepthPrecision.Int24)
         {
             XRTexture2D[] textures =
             [
@@ -195,7 +191,7 @@ namespace XREngine.Components.Lights
                     VWrap = ETexWrapMode.ClampToEdge,
                     FrameBufferAttachment = EFrameBufferAttachment.DepthAttachment,
                 },
-                new XRTexture2D(width, height, EPixelInternalFormat.R32f, EPixelFormat.Red, EPixelType.Float)
+                new XRTexture2D(width, height, EPixelInternalFormat.R16f, EPixelFormat.Red, EPixelType.HalfFloat)
                 {
                     MinFilter = ETexMinFilter.Nearest,
                     MagFilter = ETexMagFilter.Nearest,
@@ -220,7 +216,30 @@ namespace XREngine.Components.Lights
             Vector3 lightMeshOrigin = Transform.WorldForward * (_distance * 0.5f);
             Matrix4x4 t = Matrix4x4.CreateTranslation(lightMeshOrigin);
             Matrix4x4 s = Matrix4x4.CreateScale(OuterCone.Radius, OuterCone.Radius, OuterCone.Height);
-            LightMatrix = t * Transform.WorldMatrix * s;
+            LightMatrix = s * t * Transform.WorldMatrix;
+        }
+
+        protected override IVolume GetShadowVolume()
+            => ShadowCamera.WorldFrustum();
+
+        public override void CollectVisibleItems(VisualScene scene)
+        {
+            if (!CastsShadows)
+                return;
+
+            scene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, GetShadowVolume(), ShadowCamera);
+        }
+
+        public override void RenderShadowMap(VisualScene scene, bool collectVisibleNow = false)
+        {
+            if (!CastsShadows || ShadowMap?.Material is null)
+                return;
+
+            if (collectVisibleNow)
+                scene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, GetShadowVolume(), ShadowCamera);
+
+            scene.SwapBuffers();
+            _shadowRenderPipeline.Render(scene, ShadowCamera, null, ShadowMap, null, true, ShadowMap.Material);
         }
     }
 }

@@ -202,7 +202,7 @@ namespace XREngine.Rendering
                 SwapBuffers();
             }
 
-            _renderPipeline.Render(scene, camera, this, targetFbo, CameraComponent?.UserInterface, false);
+            _renderPipeline.Render(scene, camera, this, targetFbo, CameraComponent?.UserInterface);
         }
 
         private readonly XRRenderPipelineInstance _renderPipeline = new();

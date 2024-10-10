@@ -45,16 +45,15 @@ namespace XREngine.Scene
 
         public override IRenderTree RenderablesTree => RenderTree;
 
-        public override void CollectRenderedItems(RenderCommandCollection commands, IVolume? collectionVolume, XRCamera? camera)
+        public override void GlobalCollectVisible()
         {
-            base.CollectRenderedItems(commands, collectionVolume, camera);
-            //Lights.CollectVisibleItems();
+            Lights.CollectVisibleItems();
         }
 
         public override void GlobalPreRender()
         {
             base.GlobalPreRender();
-            //Lights.RenderShadowMaps(false);
+            Lights.RenderShadowMaps(false);
         }
     }
 }

@@ -59,11 +59,6 @@ namespace XREngine.Components.Lights
             protected set => SetField(ref _shadowMap, value);
         }
 
-        private XRCamera? _shadowCamera;
-        public XRCamera ShadowCamera => _shadowCamera ??= GetShadowCamera();
-
-        protected abstract XRCamera GetShadowCamera();
-
         public bool CastsShadows
         {
             get => _castsShadows;
@@ -146,39 +141,19 @@ namespace XREngine.Components.Lights
             program.Uniform(Engine.Rendering.Constants.ShadowBiasMaxUniform, ShadowMaxBias);
         }
 
-        protected virtual IVolume GetShadowVolume()
-            => ShadowCamera.WorldFrustum();
+        protected abstract IVolume GetShadowVolume();
 
         public abstract XRMaterial GetShadowMapMaterial(uint width, uint height, EDepthPrecision precision = EDepthPrecision.Flt32);
 
-        private readonly XRRenderPipelineInstance _shadowRenderPipeline = new();
+        protected readonly XRRenderPipelineInstance _shadowRenderPipeline = new();
         public RenderPipeline? ShadowRenderPipeline
         {
             get => _shadowRenderPipeline.Pipeline;
             set => _shadowRenderPipeline.Pipeline = value;
         }
 
-        public void CollectVisibleItems(VisualScene scene)
-        {
-            if (!CastsShadows || ShadowCamera is null)
-                return;
-
-            scene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, GetShadowVolume(), ShadowCamera);
-        }
-
-        public void RenderShadowMap(VisualScene scene, bool collectVisibleNow = false)
-        {
-            if (!CastsShadows || ShadowCamera is null || ShadowMap?.Material is null)
-                return;
-
-            if (collectVisibleNow)
-                scene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, GetShadowVolume(), ShadowCamera);
-
-            //scene.PreRender(ShadowCamera);
-            scene.SwapBuffers();
-
-            _shadowRenderPipeline.Render(scene, ShadowCamera, null, ShadowMap, null, true, ShadowMap.Material);
-        }
+        public abstract void CollectVisibleItems(VisualScene scene);
+        public abstract void RenderShadowMap(VisualScene scene, bool collectVisibleNow = false);
 
         public static EPixelInternalFormat GetShadowDepthMapFormat(EDepthPrecision precision)
             => precision switch

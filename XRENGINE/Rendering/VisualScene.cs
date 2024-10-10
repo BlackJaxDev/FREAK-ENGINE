@@ -68,6 +68,11 @@ namespace XREngine.Scene
         public IEnumerator<IRenderable> GetEnumerator()
             => ((IEnumerable<IRenderable>)_renderables).GetEnumerator();
 
+        public virtual void GlobalCollectVisible()
+        {
+
+        }
+
         /// <summary>
         /// Occurs before rendering any viewports.
         /// </summary>

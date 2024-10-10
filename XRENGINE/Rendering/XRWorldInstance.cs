@@ -118,6 +118,7 @@ namespace XREngine.Rendering
             Time.Timer.UpdateFrame += Update;
             Time.Timer.FixedUpdate += FixedUpdate;
             Time.Timer.SwapBuffers += SwapBuffers;
+            Time.Timer.CollectVisible += GlobalCollectVisible;
         }
 
         private void UnlinkTimeCallbacks()
@@ -125,6 +126,7 @@ namespace XREngine.Rendering
             Time.Timer.UpdateFrame -= Update;
             Time.Timer.FixedUpdate -= FixedUpdate;
             Time.Timer.SwapBuffers -= SwapBuffers;
+            Time.Timer.CollectVisible -= GlobalCollectVisible;
         }
 
         public void RecalcTransforms()
@@ -327,9 +329,9 @@ namespace XREngine.Rendering
             Sequences.Clear();
         }
 
-        public void CaptureIBL()
+        public void GlobalCollectVisible()
         {
-
+            VisualScene.GlobalCollectVisible();
         }
 
         /// <summary>

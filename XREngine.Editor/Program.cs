@@ -1,14 +1,9 @@
-﻿using Extensions;
-using Silk.NET.Assimp;
+﻿using Silk.NET.Assimp;
 using System.Collections.Concurrent;
-using System.IO;
 using System.Numerics;
 using XREngine;
 using XREngine.Components;
 using XREngine.Components.Lights;
-using XREngine.Components.Scene;
-using XREngine.Components.Scene.Mesh;
-using XREngine.Data;
 using XREngine.Data.Colors;
 using XREngine.Data.Rendering;
 using XREngine.Editor;
@@ -16,11 +11,9 @@ using XREngine.Native;
 using XREngine.Rendering;
 using XREngine.Rendering.Commands;
 using XREngine.Rendering.Info;
-using XREngine.Rendering.Models;
 using XREngine.Rendering.Models.Materials;
 using XREngine.Scene;
 using XREngine.Scene.Transforms;
-using static XREngine.Audio.AudioSource;
 
 internal class Program
 {
@@ -80,10 +73,12 @@ internal class Program
 
         //Create the camera
         var cameraNode = new SceneNode(rootNode) { Name = "TestCameraNode" };
+
         var orbitTransform = cameraNode.SetTransform<OrbitTransform>();
         orbitTransform.Radius = 10.0f;
         orbitTransform.IgnoreRotation = false;
         orbitTransform.RegisterAnimationTick<OrbitTransform>(TickRotation);
+
         if (cameraNode.TryAddComponent<CameraComponent>(out var cameraComp))
         {
             cameraComp!.Name = "TestCamera";
@@ -94,17 +89,30 @@ internal class Program
             cameraComp.Camera.RenderPipeline = new DefaultRenderPipeline();
         }
 
-        var dirLight = new SceneNode(rootNode) { Name = "TestDirectionalLightNode" };
-        var dirLightTransform = dirLight.SetTransform<Transform>();
+        var dirLightNode = new SceneNode(rootNode) { Name = "TestDirectionalLightNode" };
+        var dirLightTransform = dirLightNode.SetTransform<Transform>();
         dirLightTransform.Translation = new Vector3(20.0f, 10.0f, 20.0f);
-        dirLightTransform.Rotation = Quaternion.CreateFromYawPitchRoll(MathF.PI / 4.0f, MathF.PI / 4.0f, 0.0f);
-        if (dirLight.TryAddComponent<DirectionalLightComponent>(out var dirLightComp))
+        //Face the light directly down
+        dirLightTransform.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitX, -MathF.PI / 2.0f);
+        if (dirLightNode.TryAddComponent<DirectionalLightComponent>(out var dirLightComp))
         {
             dirLightComp!.Name = "TestDirectionalLight";
-            dirLightComp.Color = new Vector3(1.0f, 1.0f, 1.0f);
+            dirLightComp.Color = new Vector3(1.0f, 0.8f, 0.8f);
             dirLightComp.Intensity = 1.0f;
-            dirLightComp.Scale = new Vector3(100.0f, 100.0f, 100.0f);
+            dirLightComp.Scale = new Vector3(1000.0f, 1000.0f, 1000.0f);
+            dirLightComp.CastsShadows = true;
         }
+
+        //var pointLight = new SceneNode(rootNode) { Name = "TestPointLightNode" };
+        //var pointLightTransform = pointLight.SetTransform<Transform>();
+        //pointLightTransform.Translation = new Vector3(0.0f, 10.0f, 0.0f);
+        //if (pointLight.TryAddComponent<PointLightComponent>(out var pointLightComp))
+        //{
+        //    pointLightComp!.Name = "TestPointLight";
+        //    pointLightComp.Color = new Vector3(1.0f, 0.0f, 1.0f);
+        //    pointLightComp.Intensity = 100.0f;
+        //    pointLightComp.Radius = 1000.0f;
+        //}
 
         //var listener = new SceneNode(cameraNode) { Name = "TestListenerNode" };
         //var listenerTransform = listener.SetTransform<Transform>();
@@ -133,13 +141,19 @@ internal class Program
 
         var probe = new SceneNode(rootNode) { Name = "TestLightProbeNode" };
         var probeTransform = probe.SetTransform<Transform>();
-        probeTransform.Translation = new Vector3(0.0f, 15.0f, 0.0f);
+        probeTransform.Translation = new Vector3(0.0f, 1.0f, 0.0f);
         if (probe.TryAddComponent<LightProbeComponent>(out var probeComp))
         {
             probeComp!.Name = "TestLightProbe";
-            probeComp.SetCaptureResolution(512, false, 512);
-            probeComp.RealTime = true;
-            probeComp.RealTimeUpdateInterval = TimeSpan.FromSeconds(5.0);
+            probeComp.ColorResolution = 512;
+            probeComp.EnvironmentTextureEquirect = Engine.Assets.LoadEngineAsset<XRTexture2D>("Textures", "overcast_soil_puresky_4k.hdr");
+            probeComp.GenerateIrradianceMap();
+            probeComp.GeneratePrefilterMap();
+
+            //probeComp.SetCaptureResolution(512, false, 512);
+            //probeComp.RealTimeCapture = true;
+            //probeComp.RealTimeCaptureUpdateInterval = TimeSpan.FromSeconds(1);
+
             //Task.Run(async () =>
             //{
             //    await Task.Delay(2000);
@@ -188,8 +202,8 @@ internal class Program
 
         world.Scenes.Add(scene);
 
-        //string fbxPathDesktop = Path.Combine(desktopDir, "test.fbx");
-        //_ = ModelImporter.ImportAsync(fbxPathDesktop, PostProcessSteps.None, MaterialFactory, rootNode);
+        string fbxPathDesktop = Path.Combine(desktopDir, "test.fbx");
+        _ = ModelImporter.ImportAsync(fbxPathDesktop, PostProcessSteps.None, MaterialFactory, rootNode);
 
         string sponzaPath = Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj");
         _ = ModelImporter.ImportAsync(sponzaPath, PostProcessSteps.None, MaterialFactory, importedModelsNode);
@@ -201,14 +215,14 @@ internal class Program
 
     public static XRMaterial MaterialFactory(string modelFilePath, string name, List<TextureInfo> textures, TextureFlags flags, ShadingMode mode, Dictionary<string, List<object>> properties)
     {
-        Random r = new();
+        //Random r = new();
 
         XRMaterial mat = textures.Count > 0 ?
             new XRMaterial([
                     new ShaderFloat(1.0f, "Opacity"),
-                    new ShaderFloat(r.NextSingle(), "Specular"),
-                    new ShaderFloat(r.NextSingle(), "Roughness"),
-                    new ShaderFloat(r.NextSingle(), "Metallic"),
+                    new ShaderFloat(1.0f, "Specular"),
+                    new ShaderFloat(1.0f, "Roughness"),
+                    new ShaderFloat(0.0f, "Metallic"),
                     new ShaderFloat(1.0f, "IndexOfRefraction"),
                 ], new XRTexture?[textures.Count], ShaderHelper.TextureFragDeferred()!) :
             XRMaterial.CreateLitColorMaterial(new ColorF4(1.0f, 1.0f, 0.0f, 1.0f));

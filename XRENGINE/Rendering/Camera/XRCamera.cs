@@ -384,8 +384,8 @@ namespace XREngine.Rendering
 
         public virtual void SetAmbientOcclusionUniforms(XRRenderProgram program)
             => PostProcessing?.AmbientOcclusion?.SetUniforms(program);
-        public virtual void SetBloomUniforms(XRRenderProgram program)
-            => PostProcessing?.Bloom?.SetUniforms(program);
+        public virtual void SetBloomBrightPassUniforms(XRRenderProgram program)
+            => PostProcessing?.Bloom?.SetBrightPassUniforms(program);
         public virtual void SetPostProcessUniforms(XRRenderProgram program)
             => PostProcessing?.SetUniforms(program);
 

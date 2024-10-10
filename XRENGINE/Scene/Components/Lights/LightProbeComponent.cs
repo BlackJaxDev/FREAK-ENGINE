@@ -32,7 +32,7 @@ namespace XREngine.Components.Lights
             //        DepthResolution);
             //}
             //else
-            if (RealTime && (RealTimeUpdateInterval is null || DateTime.Now - _lastUpdateTime >= RealTimeUpdateInterval))
+            if (RealTimeCapture && (RealTimeCaptureUpdateInterval is null || DateTime.Now - _lastUpdateTime >= RealTimeCaptureUpdateInterval))
             {
                 _lastUpdateTime = DateTime.Now;
                 Capture();
@@ -59,14 +59,14 @@ namespace XREngine.Components.Lights
         /// <summary>
         /// If true, the light probe will update in real time.
         /// </summary>
-        public bool RealTime
+        public bool RealTimeCapture
         {
             get => _realTime;
             set => SetField(ref _realTime, value);
         }
 
         private TimeSpan? _realTimeUpdateInterval = TimeSpan.FromMilliseconds(1000.0f);
-        public TimeSpan? RealTimeUpdateInterval 
+        public TimeSpan? RealTimeCaptureUpdateInterval 
         {
             get => _realTimeUpdateInterval;
             set => SetField(ref _realTimeUpdateInterval, value);
@@ -126,6 +126,24 @@ namespace XREngine.Components.Lights
             }
             base.OnTransformWorldMatrixChanged(transform);
         }
+
+        public void FullCapture(uint colorResolution, bool captureDepth, uint depthResolution)
+        {
+            if (_hasCaptured)
+                return;
+
+            _hasCaptured = true;
+            SetCaptureResolution(colorResolution, captureDepth, depthResolution);
+            Capture();
+        }
+
+        public override void Capture()
+        {
+            base.Capture();
+            GenerateIrradianceMap();
+            GeneratePrefilterMap();
+        }
+
         protected override void InitializeForCapture()
         {
             base.InitializeForCapture();
@@ -141,7 +159,7 @@ namespace XREngine.Components.Lights
                 WWrap = ETexWrapMode.ClampToEdge,
                 Resizable = false,
                 SizedInternalFormat = ESizedInternalFormat.Rgb8,
-                AutoGenerateMipmaps = true,
+                AutoGenerateMipmaps = false,
             };
 
             PrefilterTex = new XRTextureCube(ColorResolution, EPixelInternalFormat.Rgb16f, EPixelFormat.Rgb, EPixelType.HalfFloat, false)
@@ -153,7 +171,7 @@ namespace XREngine.Components.Lights
                 WWrap = ETexWrapMode.ClampToEdge,
                 Resizable = false,
                 SizedInternalFormat = ESizedInternalFormat.Rgb16f,
-                AutoGenerateMipmaps = true,
+                AutoGenerateMipmaps = false,
             };
 
             ShaderVar[] prefilterVars =
@@ -168,7 +186,7 @@ namespace XREngine.Components.Lights
             RenderingParameters r = new();
             r.DepthTest.Enabled = ERenderParamUsage.Disabled;
             r.CullMode = ECulling.None;
-            XRTexture[] texArray = [_envTex!];
+            XRTexture[] texArray = [_environmentTextureCubemap!];
             XRMaterial irrMat = new([], texArray, irrShader);
             XRMaterial prefMat = new(prefilterVars, texArray, prefShader);
 
@@ -178,21 +196,73 @@ namespace XREngine.Components.Lights
             CachePreviewSphere();
         }
 
-        public void FullCapture(uint colorResolution, bool captureDepth, uint depthResolution)
+        public void InitializeStatic()
         {
-            if (_hasCaptured)
-                return;
-            
-            _hasCaptured = true;
-            SetCaptureResolution(colorResolution, captureDepth, depthResolution);
-            Capture();
+            //Irradiance texture doesn't need to be very high quality, 
+            //linear filtering on low resolution will do fine
+            IrradianceTexture = new XRTextureCube(64, EPixelInternalFormat.Rgb8, EPixelFormat.Rgb, EPixelType.UnsignedByte, false)
+            {
+                MinFilter = ETexMinFilter.Linear,
+                MagFilter = ETexMagFilter.Linear,
+                UWrap = ETexWrapMode.ClampToEdge,
+                VWrap = ETexWrapMode.ClampToEdge,
+                WWrap = ETexWrapMode.ClampToEdge,
+                Resizable = false,
+                SizedInternalFormat = ESizedInternalFormat.Rgb8,
+                AutoGenerateMipmaps = false,
+            };
+
+            PrefilterTex = new XRTextureCube(ColorResolution, EPixelInternalFormat.Rgb16f, EPixelFormat.Rgb, EPixelType.HalfFloat, false)
+            {
+                MinFilter = ETexMinFilter.LinearMipmapLinear,
+                MagFilter = ETexMagFilter.Linear,
+                UWrap = ETexWrapMode.ClampToEdge,
+                VWrap = ETexWrapMode.ClampToEdge,
+                WWrap = ETexWrapMode.ClampToEdge,
+                Resizable = false,
+                SizedInternalFormat = ESizedInternalFormat.Rgb16f,
+                AutoGenerateMipmaps = false,
+            };
+
+            ShaderVar[] prefilterVars =
+            [
+                new ShaderFloat(0.0f, "Roughness"),
+                new ShaderInt((int)ColorResolution, "CubemapDim"),
+            ];
+
+            XRShader irrShader = ShaderHelper.LoadEngineShader("Scene3D\\IrradianceConvolutionEquirect.fs", EShaderType.Fragment);
+            XRShader prefShader = ShaderHelper.LoadEngineShader("Scene3D\\PrefilterEquirect.fs", EShaderType.Fragment);
+
+            RenderingParameters r = new();
+            r.DepthTest.Enabled = ERenderParamUsage.Disabled;
+            r.CullMode = ECulling.None;
+            XRTexture[] texArray = [_environmentTextureEquirect!];
+            XRMaterial irrMat = new([], texArray, irrShader);
+            XRMaterial prefMat = new(prefilterVars, texArray, prefShader);
+
+            _irradianceFBO = new XRCubeFrameBuffer(irrMat, null, 0.0f, 1.0f, false);
+            _prefilterFBO = new XRCubeFrameBuffer(prefMat, null, 0.0f, 1.0f, false);
+
+            CachePreviewSphere();
         }
 
-        public override void Capture()
+        private XRTexture2D? _environmentTextureEquirect;
+        public XRTexture2D? EnvironmentTextureEquirect
         {
-            base.Capture();
-            GenerateIrradianceMap();
-            GeneratePrefilterMap();
+            get => _environmentTextureEquirect;
+            set => SetField(ref _environmentTextureEquirect, value);
+        }
+
+        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+        {
+            base.OnPropertyChanged(propName, prev, field);
+            switch (propName)
+            {
+                case nameof(EnvironmentTextureEquirect):
+                    if (EnvironmentTextureEquirect is not null)
+                        InitializeStatic();
+                    break;
+            }
         }
 
         public void GenerateIrradianceMap()

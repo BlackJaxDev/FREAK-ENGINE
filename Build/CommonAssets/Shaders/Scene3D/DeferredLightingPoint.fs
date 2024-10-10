@@ -174,7 +174,7 @@ in vec3 F0)
 
 	float shadow = ReadPointShadowMap(radius, -L, lightDist, NoL);
 
-	return color * shadow;
+	return color;// * shadow;
 }
 vec3 CalcTotalLight(
 in vec3 fragPosWS,

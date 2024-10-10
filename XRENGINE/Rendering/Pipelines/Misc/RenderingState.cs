@@ -29,7 +29,7 @@ public sealed partial class XRRenderPipelineInstance
         /// If this pipeline is rendering a shadow pass.
         /// Shadow passes do not need to execute all rendering commands.
         /// </summary>
-        public bool ShadowPass { get; private set; }
+        public bool ShadowPass { get; private set; } = false;
         public XRMaterial? GlobalMaterialOverride { get; set; }
 
         public StateObject PushMainAttributes(XRViewport? viewport, VisualScene? scene, XRCamera? camera, XRFrameBuffer? target, bool shadowPass, XRMaterial? shadowMaterial)

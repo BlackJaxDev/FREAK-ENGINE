@@ -33,7 +33,8 @@
 
         public void SetUniforms(XRRenderProgram program)
         {
-
+            Vignette.SetUniforms(program);
+            ColorGrading.SetUniforms(program);
         }
     }
 }

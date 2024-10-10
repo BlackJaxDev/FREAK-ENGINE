@@ -7,8 +7,8 @@ namespace XREngine.Rendering
     {
         private float _intensity = 1.0f;
         private float _threshold = 1.0f;
-        private float _softKnee;
-        private float _radius;
+        private float _softKnee = 0.5f;
+        private float _radius = 2.0f;
 
         public BloomSettings()
         {
@@ -36,10 +36,16 @@ namespace XREngine.Rendering
             set => SetField(ref _radius, value);
         }
 
-        public void SetUniforms(XRRenderProgram program)
+        public void SetBrightPassUniforms(XRRenderProgram program)
         {
             program.Uniform("BloomIntensity", Intensity);
             program.Uniform("BloomThreshold", Threshold);
+            program.Uniform("SoftKnee", SoftKnee);
+            program.Uniform("Luminance", Engine.Rendering.Settings.DefaultLuminance);
+        }
+        public void SetBlurPassUniforms(XRRenderProgram program)
+        {
+            program.Uniform("Radius", Radius);
         }
     }
 }

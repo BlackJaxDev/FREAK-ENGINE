@@ -66,7 +66,7 @@ namespace XREngine.Rendering.Commands
                 return;
             }
 
-            IsShadowPass = true;
+            IsShadowPass = shadowPass;
             list.ForEach(x => x.Render(shadowPass));
             list.Clear();
             IsShadowPass = false;

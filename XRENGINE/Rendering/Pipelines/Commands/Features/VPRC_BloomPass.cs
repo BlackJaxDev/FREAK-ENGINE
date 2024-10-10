@@ -105,7 +105,11 @@ namespace XREngine.Rendering.Pipelines.Commands
 
             XRMaterial bloomBlurMat = new
             (
-                [new ShaderFloat(0.0f, "Ping"), new ShaderInt(0, "LOD")],
+                [
+                    new ShaderFloat(0.0f, "Ping"),
+                    new ShaderInt(0, "LOD"),
+                    new ShaderFloat(2.0f, "Radius")
+                ],
                 [outputTexture],
                 XRShader.EngineShader(Path.Combine(SceneShaderPath, "BloomBlur.fs"), EShaderType.Fragment))
             {

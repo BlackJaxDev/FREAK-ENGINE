@@ -455,7 +455,7 @@ namespace XREngine.Rendering.OpenGL
             //Get the average color from the scene texture
             Vector3 rgb = Vector3.Zero;
             void* addr = &rgb;
-            Api.GetTextureImage(glTex.BindingId, texture.SmallestMipmapLevel + 1, GLObjectBase.ToGLEnum(EPixelFormat.Rgb), GLObjectBase.ToGLEnum(EPixelType.Float), (uint)sizeof(Vector3), addr);
+            Api.GetTextureImage(glTex.BindingId, texture.SmallestMipmapLevel, GLObjectBase.ToGLEnum(EPixelFormat.Rgb), GLObjectBase.ToGLEnum(EPixelType.Float), (uint)sizeof(Vector3), addr);
 
             if (float.IsNaN(rgb.X) ||
                 float.IsNaN(rgb.Y) ||

@@ -10,12 +10,12 @@ namespace XREngine.Components.Lights
         private uint _depthResolution;
         private bool _captureDepthCubeMap = false;
 
-        protected uint ColorResolution
+        public uint ColorResolution
         {
             get => _colorResolution;
             set => SetField(ref _colorResolution, value);
         }
-        protected uint DepthResolution
+        public uint DepthResolution
         {
             get => _depthResolution;
             set => SetField(ref _depthResolution, value);
@@ -27,13 +27,18 @@ namespace XREngine.Components.Lights
         }
 
         protected XRViewport? _viewport;
-        protected XRTextureCube? _envTex;
-        protected XRTextureCube? _envDepthTex;
+        protected XRTextureCube? _environmentTextureCubemap;
+        protected XRTextureCube? _environmentDepthTextureCubemap;
         protected XRRenderBuffer? _tempDepth;
         private XRCubeFrameBuffer? _renderFBO;
 
-        public XRTextureCube? ResultTexture => _envTex;
-        public XRTextureCube? ResultDepthTexture => _envDepthTex;
+        public XRTextureCube? EnvironmentTextureCubemap
+        {
+            get => _environmentTextureCubemap;
+            set => SetField(ref _environmentTextureCubemap, value);
+        }
+
+        public XRTextureCube? EnvironmentDepthTextureCubemap => _environmentDepthTextureCubemap;
         protected XRCubeFrameBuffer? RenderFBO => _renderFBO;
 
         public void SetCaptureResolution(uint colorResolution, bool captureDepth = false, uint depthResolution = 1u)
@@ -53,7 +58,8 @@ namespace XREngine.Components.Lights
                 SetRenderPipelineFromCamera = false
             };
 
-            _envTex = new XRTextureCube(ColorResolution, EPixelInternalFormat.Rgb8, EPixelFormat.Rgb, EPixelType.UnsignedByte, false)
+            _environmentTextureCubemap?.Destroy();
+            _environmentTextureCubemap = new XRTextureCube(ColorResolution, EPixelInternalFormat.Rgb8, EPixelFormat.Rgb, EPixelType.UnsignedByte, false)
             {
                 MinFilter = ETexMinFilter.NearestMipmapLinear,
                 MagFilter = ETexMagFilter.Nearest,
@@ -71,7 +77,8 @@ namespace XREngine.Components.Lights
 
             if (CaptureDepthCubeMap)
             {
-                _envDepthTex = new XRTextureCube(DepthResolution, EPixelInternalFormat.DepthComponent24, EPixelFormat.DepthStencil, EPixelType.UnsignedInt248, false)
+                _environmentDepthTextureCubemap?.Destroy();
+                _environmentDepthTextureCubemap = new XRTextureCube(DepthResolution, EPixelInternalFormat.DepthComponent24, EPixelFormat.DepthStencil, EPixelType.UnsignedInt248, false)
                 {
                     MinFilter = ETexMinFilter.NearestMipmapLinear,
                     MagFilter = ETexMagFilter.Nearest,
@@ -126,7 +133,7 @@ namespace XREngine.Components.Lights
             int[] depthLayers;
             if (CaptureDepthCubeMap)
             {
-                depthAttachment = _envDepthTex!;
+                depthAttachment = _environmentDepthTextureCubemap!;
                 depthLayers = [0, 1, 2, 3, 4, 5];
             }
             else
@@ -138,17 +145,17 @@ namespace XREngine.Components.Lights
             for (int i = 0; i < 6; ++i)
             {
                 RenderFBO!.SetRenderTargets(
-                    (_envTex!, EFrameBufferAttachment.ColorAttachment0, 0, i),
+                    (_environmentTextureCubemap!, EFrameBufferAttachment.ColorAttachment0, 0, i),
                     (depthAttachment, EFrameBufferAttachment.DepthStencilAttachment, 0, depthLayers[i]));
 
                 _viewport!.Camera = RenderFBO.Cameras[i];
                 _viewport.Render(RenderFBO, World.VisualScene);
             }
 
-            if (_envTex is not null)
+            if (_environmentTextureCubemap is not null)
             {
-                _envTex.Bind();
-                _envTex.GenerateMipmapsGPU();
+                _environmentTextureCubemap.Bind();
+                _environmentTextureCubemap.GenerateMipmapsGPU();
             }
         }
     }
