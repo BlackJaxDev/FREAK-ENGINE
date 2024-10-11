@@ -122,33 +122,33 @@ namespace XREngine.Scene.Transforms
         private Func<Matrix4x4>? _localMatrixGen;
         protected override Matrix4x4 CreateLocalMatrix()
             => _localMatrixGen?.Invoke() ?? Matrix4x4.Identity;
-
-        private Matrix4x4 RTS() =>
+        
+        private Matrix4x4 STR() =>
             Matrix4x4.CreateFromQuaternion(Rotation) *
             Matrix4x4.CreateTranslation(Translation) *
             Matrix4x4.CreateScale(Scale);
 
-        private Matrix4x4 SRT() =>
+        private Matrix4x4 TRS() =>
             Matrix4x4.CreateScale(Scale) *
             Matrix4x4.CreateFromQuaternion(Rotation) *
             Matrix4x4.CreateTranslation(Translation);
 
-        private Matrix4x4 TSR() =>
+        private Matrix4x4 RST() =>
             Matrix4x4.CreateTranslation(Translation) *
             Matrix4x4.CreateScale(Scale) *
             Matrix4x4.CreateFromQuaternion(Rotation);
 
-        private Matrix4x4 STR() =>
+        private Matrix4x4 RTS() =>
             Matrix4x4.CreateScale(Scale) *
-             Matrix4x4.CreateTranslation(Translation) *
-             Matrix4x4.CreateFromQuaternion(Rotation);
+            Matrix4x4.CreateTranslation(Translation) *
+            Matrix4x4.CreateFromQuaternion(Rotation);
 
-        private Matrix4x4 RST() =>
+        private Matrix4x4 TSR() =>
             Matrix4x4.CreateFromQuaternion(Rotation) *
             Matrix4x4.CreateScale(Scale) *
             Matrix4x4.CreateTranslation(Translation);
 
-        private Matrix4x4 TRS() =>
+        private Matrix4x4 SRT() =>
             Matrix4x4.CreateTranslation(Translation) *
             Matrix4x4.CreateFromQuaternion(Rotation) *
             Matrix4x4.CreateScale(Scale);

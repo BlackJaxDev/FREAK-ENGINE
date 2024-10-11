@@ -10,6 +10,10 @@ namespace XREngine.Scene.Transforms
         public DrivenWorldTransform() { }
         public DrivenWorldTransform(TransformBase parent)
             : base(parent) { }
+        public DrivenWorldTransform(Matrix4x4 worldMatrix)
+            => _worldMatrix = worldMatrix;
+        public DrivenWorldTransform(Matrix4x4 worldMatrix, TransformBase parent) : base(parent)
+            => _worldMatrix = worldMatrix;
 
         private Matrix4x4 _worldMatrix;
 

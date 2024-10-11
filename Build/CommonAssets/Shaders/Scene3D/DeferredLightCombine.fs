@@ -48,7 +48,7 @@ vec3 WorldPosFromDepth(in float depth, in vec2 uv)
 	vec4 clipSpacePosition = vec4(vec3(uv, depth) * 2.0f - 1.0f, 1.0f);
 	vec4 viewSpacePosition = inverse(ProjMatrix) * clipSpacePosition;
 	viewSpacePosition /= viewSpacePosition.w;
-	return (inverse(InverseViewMatrix) * ProjMatrix * viewSpacePosition).xyz;
+	return (InverseViewMatrix * viewSpacePosition).xyz;
 }
 void main()
 {

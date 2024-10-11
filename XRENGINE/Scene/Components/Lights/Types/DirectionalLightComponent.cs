@@ -11,49 +11,37 @@ namespace XREngine.Components.Lights
     [RequiresTransform(typeof(Transform))]
     public class DirectionalLightComponent : LightComponent
     {
+        private const float NearZ = 0.01f;
+
         private Vector3 _scale = Vector3.One;
         public Vector3 Scale
         {
             get => _scale;
-            set
-            {
-                SetField(ref _scale, value);
-                UpdateShadowCameraScale();
-                RecalcLightMatrix();
-            }
+            set => SetField(ref _scale, value);
         }
 
-        protected override void RecalcLightMatrix()
-            => LightMatrix = Matrix4x4.CreateScale(_scale) * Transform.WorldMatrix;
+        public static XRMesh GetVolumeMeshStatic()
+            => XRMesh.Shapes.SolidBox(new Vector3(-0.5f), new Vector3(0.5f));
+        protected override XRMesh GetWireframeMesh()
+            => XRMesh.Shapes.WireframeBox(new Vector3(-0.5f), new Vector3(0.5f));
 
         protected XRCamera GetShadowCamera()
-            => new(ShadowCameraTransform, new XROrthographicCameraParameters(Scale.X, Scale.Y, 0.01f, Scale.Z));
+        {
+            XROrthographicCameraParameters parameters = new(Scale.X, Scale.Y, NearZ, Scale.Z - NearZ);
+            parameters.SetOriginPercentages(0.5f, 0.5f);
+            return new(ShadowCameraTransform, parameters);
+        }
 
         private XRCamera? _shadowCamera;
         private XRCamera ShadowCamera => _shadowCamera ??= GetShadowCamera();
 
         private Transform? _shadowCameraTransform;
-        private Transform ShadowCameraTransform => _shadowCameraTransform ??= new Transform() { Parent = Transform };
-
-        private void UpdateShadowCameraScale()
+        private Transform ShadowCameraTransform => _shadowCameraTransform ??= new Transform() 
         {
-            if (ShadowCamera!.Parameters is not XROrthographicCameraParameters p)
-                ShadowCamera.Parameters = p = new XROrthographicCameraParameters(Scale.X, Scale.Y, 0.01f, Scale.Z);
-            else
-            {
-                p.Width = Scale.X;
-                p.Height = Scale.Y;
-                p.FarZ = Scale.Z;
-                p.NearZ = 0.01f;
-            }
-            ShadowCameraTransform.Translation = new Vector3(0.0f, 0.0f, Scale.Z * 0.5f);
-        }
-
-        protected override void OnTransformWorldMatrixChanged(TransformBase transform)
-        {
-            RecalcLightMatrix();
-            base.OnTransformWorldMatrixChanged(transform);
-        }
+            Parent = Transform,
+            Order = XREngine.Scene.Transforms.Transform.EOrder.TRS,
+            Translation = Globals.Backward * Scale.Z * 0.5f,
+        };
 
         protected internal override void OnComponentActivated()
         {
@@ -62,20 +50,20 @@ namespace XREngine.Components.Lights
             if (Type != ELightType.Dynamic || World?.VisualScene is not VisualScene3D scene3D)
                 return;
 
-            if (ShadowMap is null)
-                SetShadowMapResolution((uint)_shadowMapRenderRegion.Width, (uint)_shadowMapRenderRegion.Height);
+            if (CastsShadows && ShadowMap is null)
+                SetShadowMapResolution(1024u, 1024u);
 
             scene3D.Lights.DirectionalLights.Add(this);
         }
 
         protected internal override void OnComponentDeactivated()
         {
-            base.OnComponentDeactivated();
-
             ShadowMap?.Destroy();
             
             if (Type == ELightType.Dynamic && World?.VisualScene is VisualScene3D scene3D)
                 scene3D.Lights.DirectionalLights.Remove(this);
+
+            base.OnComponentDeactivated();
         }
 
         public override void SetUniforms(XRRenderProgram program, string? targetStructName = null)
@@ -96,12 +84,6 @@ namespace XREngine.Components.Lights
             var shadowMap = ShadowMap.Material.Textures[1];
             if (shadowMap != null)
                 program.Sampler("ShadowMap", shadowMap, 4);
-        }
-
-        public override void SetShadowMapResolution(uint width, uint height)
-        {
-            base.SetShadowMapResolution(width, height);
-            UpdateShadowCameraScale();
         }
 
         public override XRMaterial GetShadowMapMaterial(uint width, uint height, EDepthPrecision precision = EDepthPrecision.Int24)
@@ -136,15 +118,12 @@ namespace XREngine.Components.Lights
             return mat;
         }
 
-        protected override IVolume GetShadowVolume()
-            => ShadowCamera.WorldFrustum();
-
         public override void CollectVisibleItems(VisualScene scene)
         {
             if (!CastsShadows)
                 return;
 
-            scene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, GetShadowVolume(), ShadowCamera);
+            scene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, ShadowCamera.WorldFrustum(), ShadowCamera);
         }
 
         public override void RenderShadowMap(VisualScene scene, bool collectVisibleNow = false)
@@ -153,10 +132,41 @@ namespace XREngine.Components.Lights
                 return;
 
             if (collectVisibleNow)
-                scene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, GetShadowVolume(), ShadowCamera);
+            {
+                scene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, ShadowCamera.WorldFrustum(), ShadowCamera);
+                _shadowRenderPipeline.MeshRenderCommands.SwapBuffers();
+            }
 
-            scene.SwapBuffers();
             _shadowRenderPipeline.Render(scene, ShadowCamera, null, ShadowMap, null, true, ShadowMap.Material);
+        }
+
+        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+        {
+            base.OnPropertyChanged(propName, prev, field);
+            switch (propName)
+            {
+                case nameof(Transform):
+                    if (_shadowCameraTransform is not null)
+                        _shadowCameraTransform.Parent = Transform;
+                    break;
+                case nameof(Scale):
+                    MeshCenterAdjustMatrix = Matrix4x4.CreateScale(Scale);
+                    ShadowCameraTransform.Translation = Globals.Backward * Scale.Z * 0.5f;
+                    if (ShadowCamera.Parameters is not XROrthographicCameraParameters p)
+                    {
+                        XROrthographicCameraParameters parameters = new(Scale.X, Scale.Y, NearZ, Scale.Z - NearZ);
+                        parameters.SetOriginPercentages(0.5f, 0.5f);
+                        ShadowCamera.Parameters = parameters;
+                    }
+                    else
+                    {
+                        p.Width = Scale.X;
+                        p.Height = Scale.Y;
+                        p.FarZ = Scale.Z - NearZ;
+                        p.NearZ = NearZ;
+                    }
+                    break;
+            }
         }
     }
 }

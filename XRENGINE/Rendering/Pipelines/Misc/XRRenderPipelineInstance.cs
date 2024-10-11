@@ -58,7 +58,14 @@ public sealed partial class XRRenderPipelineInstance : XRBase
     /// <param name="viewport"></param>
     /// <param name="targetFBO"></param>
     /// <param name="shadowPass"></param>
-    public void Render(VisualScene visualScene, XRCamera? camera, XRViewport? viewport, XRFrameBuffer? targetFBO = null, UICanvasComponent? userInterface = null, bool shadowPass = false, XRMaterial? shadowMaterial = null)
+    public void Render(
+        VisualScene visualScene,
+        XRCamera? camera,
+        XRViewport? viewport,
+        XRFrameBuffer? targetFBO = null,
+        UICanvasComponent? userInterface = null,
+        bool shadowPass = false,
+        XRMaterial? shadowMaterial = null)
     {
         if (Pipeline is null)
         {

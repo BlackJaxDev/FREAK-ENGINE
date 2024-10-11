@@ -156,12 +156,12 @@ namespace XREngine.Components
             set
             {
                 if (_currentWalkingSurface?.Owner is XRComponent comp1)
-                    comp1.Transform.WorldMatrixChanged.RemoveListener(FloorTransformChanged);
+                    comp1.Transform.WorldMatrixChanged -= FloorTransformChanged;
 
                 SetField(ref _currentWalkingSurface, value);
 
                 if (_currentWalkingSurface?.Owner is XRComponent comp2)
-                    comp2.Transform.WorldMatrixChanged.AddListener(FloorTransformChanged);
+                    comp2.Transform.WorldMatrixChanged += FloorTransformChanged;
             }
         }
 

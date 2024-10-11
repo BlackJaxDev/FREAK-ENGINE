@@ -67,7 +67,8 @@ namespace XREngine.Scene.Transforms
                 switch (propName)
                 {
                     case nameof(ConstrainDirectionTransform):
-                        ConstrainDirectionTransform?.WorldMatrixChanged.RemoveListener(OnConstrainDirectionChanged);
+                        if (ConstrainDirectionTransform is not null)
+                            ConstrainDirectionTransform.WorldMatrixChanged -= OnConstrainDirectionChanged;
                         break;
                 }
             }
@@ -85,7 +86,8 @@ namespace XREngine.Scene.Transforms
                     break;
 
                 case nameof(ConstrainDirectionTransform):
-                    ConstrainDirectionTransform?.WorldMatrixChanged.AddListener(OnConstrainDirectionChanged);
+                    if (ConstrainDirectionTransform is not null)
+                        ConstrainDirectionTransform.WorldMatrixChanged += OnConstrainDirectionChanged;
                     MarkWorldModified();
                     break;
             }

@@ -132,13 +132,6 @@ namespace XREngine.Rendering
 
         private void SwapBuffers()
         {
-            var scene = World?.VisualScene;
-            if (scene is not null)
-            {
-                //scene.PreRender(ActiveCamera!);
-                scene.SwapBuffers();
-            }
-            //CameraComponent?.UserInterface?.SwapBuffers();
             _renderPipeline.MeshRenderCommands.SwapBuffers();
         }
 

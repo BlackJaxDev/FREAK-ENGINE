@@ -45,14 +45,20 @@ namespace XREngine.Rendering
                 new(  0.0f,   0.0f,   0.0f), //-Z
             ];
 
-            XRCameraParameters p = perspectiveCameras
-                ? new XRPerspectiveCameraParameters(90.0f, 1.0f, nearZ, farZ)
-                : new XROrthographicCameraParameters(range, range, nearZ, farZ);
+            XRCameraParameters p;
+            if (perspectiveCameras)
+                p = new XRPerspectiveCameraParameters(90.0f, 1.0f, nearZ, farZ);
+            else
+            {
+                var ortho = new XROrthographicCameraParameters(range, range, nearZ, farZ);
+                ortho.SetOriginPercentages(0.5f, 0.5f);
+                p = ortho;
+            }
 
             for (int i = 0; i < 6; ++i)
                 _cameras[i] = new(_cameraTransforms[i] = new Transform()
                 {
-                    Rotation = rotations[i].ToQuaternion(),
+                    Rotation = rotations[i].ToQuaternion(true),
                     Parent = Transform,
                 }, p);
         }

@@ -96,7 +96,7 @@ namespace XREngine.Components.Lights
             private set => SetField(ref _irradianceSphere, value);
         }
 
-        private bool _showPrefilterTexture = true;
+        private bool _showPrefilterTexture = false;
         public bool ShowPrefilterTexture
         {
             get => _showPrefilterTexture;
@@ -198,6 +198,12 @@ namespace XREngine.Components.Lights
 
         public void InitializeStatic()
         {
+            if (_environmentTextureEquirect is not null)
+            {
+                _environmentTextureEquirect.Bind();
+                _environmentTextureEquirect.GenerateMipmapsGPU();
+            }
+
             //Irradiance texture doesn't need to be very high quality, 
             //linear filtering on low resolution will do fine
             IrradianceTexture = new XRTextureCube(64, EPixelInternalFormat.Rgb8, EPixelFormat.Rgb, EPixelType.UnsignedByte, false)
@@ -230,8 +236,8 @@ namespace XREngine.Components.Lights
                 new ShaderInt((int)ColorResolution, "CubemapDim"),
             ];
 
-            XRShader irrShader = ShaderHelper.LoadEngineShader("Scene3D\\IrradianceConvolutionEquirect.fs", EShaderType.Fragment);
-            XRShader prefShader = ShaderHelper.LoadEngineShader("Scene3D\\PrefilterEquirect.fs", EShaderType.Fragment);
+            XRShader irrShader = ShaderHelper.LoadEngineShader("Scene3D\\IrradianceConvolutionEquirect.fs");
+            XRShader prefShader = ShaderHelper.LoadEngineShader("Scene3D\\PrefilterEquirect.fs");
 
             RenderingParameters r = new();
             r.DepthTest.Enabled = ERenderParamUsage.Disabled;
@@ -278,7 +284,7 @@ namespace XREngine.Components.Lights
                     _irradianceFBO!.SetRenderTargets((IrradianceTexture, EFrameBufferAttachment.ColorAttachment0, 0, i));
                     using (_irradianceFBO.BindForWriting())
                     {
-                        Engine.Rendering.State.Clear(true, false, false);
+                        Engine.Rendering.State.ClearByBoundFBO();
                         Engine.Rendering.State.EnableDepthTest(false);
                         _irradianceFBO.RenderFullscreen(ECubemapFace.PosX + i);
                     }
@@ -310,7 +316,7 @@ namespace XREngine.Components.Lights
                     _prefilterFBO.SetRenderTargets((PrefilterTex, EFrameBufferAttachment.ColorAttachment0, mip, i));
                     using (_prefilterFBO.BindForWriting())
                     {
-                        Engine.Rendering.State.Clear(true, false, false);
+                        Engine.Rendering.State.ClearByBoundFBO();
                         _prefilterFBO.RenderFullscreen(ECubemapFace.PosX + i);
                     }
                 }

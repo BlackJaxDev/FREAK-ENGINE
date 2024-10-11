@@ -1,6 +1,7 @@
 ﻿using Extensions;
 using XREngine.Data.Rendering;
 using XREngine.Rendering.Models.Materials;
+using static XREngine.Rendering.OpenGL.OpenGLRenderer;
 
 namespace XREngine.Rendering.OpenGL
 {
@@ -42,25 +43,24 @@ namespace XREngine.Rendering.OpenGL
             
             private void TextureAdded(XRTexture tex)
             {
-
             }
 
-            public void SetUniforms()
+            public void SetUniforms(GLRenderProgram? program)
             {
                 //Apply special rendering parameters
                 if (Data.RenderOptions != null)
                     Renderer.ApplyRenderParameters(Data.RenderOptions);
 
-                var program = Data.ShaderPipelineProgram;
+                program ??= Renderer.GenericToAPI<GLRenderProgram>(Data.ShaderPipelineProgram);
                 if (program is null)
                     return;
 
                 foreach (ShaderVar param in Data.Parameters)
-                    param.SetUniform(program);
+                    param.SetUniform(program.Data);
 
-                SetTextureUniforms();
-                SetEngineUniforms();
-                Data.SettingUniforms.Invoke(Data);
+                SetTextureUniforms(program);
+                SetEngineUniforms(program);
+                Data.OnSettingUniforms(program.Data);
             }
 
             public float SecondsLive
@@ -69,15 +69,15 @@ namespace XREngine.Rendering.OpenGL
                 set => SetField(ref _secondsLive, value);
             }
 
-            private void SetEngineUniforms()
+            private void SetEngineUniforms(GLRenderProgram program)
             {
                 SecondsLive += Engine.Time.Timer.Update.Delta;
 
                 var reqs = Data.RenderOptions.RequiredEngineUniforms;
 
                 //Set engine uniforms
-                if (reqs.HasFlag(EUniformRequirements.Camera) && Program is not null)
-                    Engine.Rendering.State.PipelineState?.RenderingCamera?.SetUniforms(Program.Data);
+                if (reqs.HasFlag(EUniformRequirements.Camera))
+                    Engine.Rendering.State.PipelineState?.RenderingCamera?.SetUniforms(program.Data);
 
                 if (reqs.HasFlag(EUniformRequirements.Lights))
                 {
@@ -86,7 +86,7 @@ namespace XREngine.Rendering.OpenGL
 
                 if (reqs.HasFlag(EUniformRequirements.RenderTime))
                 {
-                    Program?.Uniform(nameof(EUniformRequirements.RenderTime), SecondsLive);
+                    program?.Uniform(nameof(EUniformRequirements.RenderTime), SecondsLive);
                 }
                 if (reqs.HasFlag(EUniformRequirements.ViewportDimensions))
                 {
@@ -104,10 +104,11 @@ namespace XREngine.Rendering.OpenGL
                     return [];
 
                 List<EDrawBuffersAttachment> fboAttachments = [];
-                foreach (XRTexture tref in Data.Textures)
+                foreach (XRTexture? tref in Data.Textures)
                 {
-                    if (!tref.FrameBufferAttachment.HasValue)
+                    if (tref is null || !tref.FrameBufferAttachment.HasValue)
                         continue;
+
                     switch (tref.FrameBufferAttachment.Value)
                     {
                         case EFrameBufferAttachment.Color:
@@ -124,12 +125,12 @@ namespace XREngine.Rendering.OpenGL
                 return [.. fboAttachments];
             }
 
-            public void SetTextureUniforms()
+            public void SetTextureUniforms(GLRenderProgram program)
             {
                 for (int i = 0; i < Data.Textures.Count; ++i)
-                    SetTextureUniform(i);
+                    SetTextureUniform(program, i);
             }
-            public void SetTextureUniform(int textureIndex, string? samplerNameOverride = null)
+            public void SetTextureUniform(GLRenderProgram program, int textureIndex, string? samplerNameOverride = null)
             {
                 if (!Data.Textures.IndexInRange(textureIndex))
                     return;
@@ -138,7 +139,7 @@ namespace XREngine.Rendering.OpenGL
                 if (tex is null || Renderer.GetOrCreateAPIRenderObject(tex) is not IGLTexture texture)
                     return;
 
-                Program?.Sampler(texture.ResolveSamplerName(textureIndex, samplerNameOverride), texture, textureIndex);
+                program?.Sampler(texture.ResolveSamplerName(textureIndex, samplerNameOverride), texture, textureIndex);
             }
         }
     }

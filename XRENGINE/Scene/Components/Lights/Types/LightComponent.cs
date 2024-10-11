@@ -3,9 +3,9 @@ using XREngine.Data.Colors;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
 using XREngine.Rendering;
-using XREngine.Rendering.Commands;
 using XREngine.Rendering.Info;
 using XREngine.Scene;
+using XREngine.Scene.Transforms;
 
 namespace XREngine.Components.Lights
 {
@@ -13,31 +13,54 @@ namespace XREngine.Components.Lights
     {
         protected ColorF3 _color = new(1.0f, 1.0f, 1.0f);
         protected float _diffuseIntensity = 1.0f;
-
-        protected int _lightIndex = -1;
-        private XRMaterialFrameBuffer? _shadowMap;
-
+        private XRMaterialFrameBuffer? _shadowMap = null;
         protected BoundingRectangle _shadowMapRenderRegion = new(1024, 1024);
         private ELightType _type = ELightType.Dynamic;
         private bool _castsShadows = true;
-        private Matrix4x4 _lightMatrix = Matrix4x4.Identity;
-
-        private readonly NearToFarRenderCommandSorter _nearToFarSorter = new();
-        private readonly FarToNearRenderCommandSorter _farToNearSorter = new();
-
         private float _shadowMaxBias = 0.1f;
         private float _shadowMinBias = 0.00001f;
         private float _shadowExponent = 1.0f;
         private float _shadowExponentBase = 0.04f;
-
+        private Matrix4x4 _lightMatrix = Matrix4x4.Identity;
+        private Matrix4x4 _meshCenterAdjustMatrix = Matrix4x4.Identity;
         private readonly RenderCommandMesh3D _shadowVolumeRC = new((int)EDefaultRenderPass.OpaqueForward);
+
+        /// <summary>
+        /// This matrix is the location of the center of the light source. Used for rendering the light mesh.
+        /// </summary>
+        public Matrix4x4 MeshCenterAdjustMatrix
+        {
+            get => _meshCenterAdjustMatrix;
+            protected set => SetField(ref _meshCenterAdjustMatrix, value);
+        }
+        public Matrix4x4 LightMeshMatrix => _lightMatrix;
+
+        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+        {
+            base.OnPropertyChanged(propName, prev, field);
+            switch (propName)
+            {
+                case nameof(CastsShadows):
+                    if (CastsShadows)
+                        SetShadowMapResolution((uint)_shadowMapRenderRegion.Width, (uint)_shadowMapRenderRegion.Height);
+                    else
+                    {
+                        ShadowMap?.Destroy();
+                        ShadowMap = null;
+                    }
+                    break;
+                case nameof(MeshCenterAdjustMatrix):
+                    _lightMatrix = MeshCenterAdjustMatrix * Transform.WorldMatrix;
+                    break;
+            }
+        }
 
         public LightComponent() : base()
         {
-            XRMesh volumeMesh = XRMesh.Shapes.FromVolume(GetShadowVolume(), true)!;
-            XRMaterial mat = XRMaterial.CreateUnlitColorMaterialForward(new ColorF4(1.0f, 0.0f, 0.0f, 0.0f));
+            XRMaterial mat = XRMaterial.CreateUnlitColorMaterialForward(new ColorF4(0.0f, 1.0f, 0.0f, 0.0f));
             mat.RenderPass = (int)EDefaultRenderPass.OpaqueForward;
-            _shadowVolumeRC.Mesh = new XRMeshRenderer(volumeMesh, mat);
+            mat.RenderOptions.DepthTest.Enabled = Rendering.Models.Materials.ERenderParamUsage.Disabled;
+            _shadowVolumeRC.Mesh = new XRMeshRenderer(GetWireframeMesh(), mat);
 
             RenderInfo = RenderInfo3D.New(this, _shadowVolumeRC);
             RenderInfo.VisibleInLightingProbes = false;
@@ -45,13 +68,14 @@ namespace XREngine.Components.Lights
             ShadowRenderPipeline = new ShadowRenderPipeline();
         }
 
-        public Matrix4x4 LightMatrix
-        {
-            get => _lightMatrix;
-            protected set => SetField(ref _lightMatrix, value);
-        }
+        protected abstract XRMesh GetWireframeMesh();
 
-        protected abstract void RecalcLightMatrix();
+        protected override void OnTransformWorldMatrixChanged(TransformBase transform)
+        {
+            _lightMatrix = MeshCenterAdjustMatrix * Transform.WorldMatrix;
+            _shadowVolumeRC.WorldMatrix = _lightMatrix;
+            base.OnTransformWorldMatrixChanged(transform);
+        }
 
         public XRMaterialFrameBuffer? ShadowMap
         {
@@ -141,8 +165,6 @@ namespace XREngine.Components.Lights
             program.Uniform(Engine.Rendering.Constants.ShadowBiasMaxUniform, ShadowMaxBias);
         }
 
-        protected abstract IVolume GetShadowVolume();
-
         public abstract XRMaterial GetShadowMapMaterial(uint width, uint height, EDepthPrecision precision = EDepthPrecision.Flt32);
 
         protected readonly XRRenderPipelineInstance _shadowRenderPipeline = new();
@@ -151,6 +173,9 @@ namespace XREngine.Components.Lights
             get => _shadowRenderPipeline.Pipeline;
             set => _shadowRenderPipeline.Pipeline = value;
         }
+
+        public void SwapBuffers()
+            => _shadowRenderPipeline.MeshRenderCommands.SwapBuffers();
 
         public abstract void CollectVisibleItems(VisualScene scene);
         public abstract void RenderShadowMap(VisualScene scene, bool collectVisibleNow = false);

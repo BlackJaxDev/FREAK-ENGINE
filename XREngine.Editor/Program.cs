@@ -1,10 +1,12 @@
-﻿using Silk.NET.Assimp;
+﻿using ImageMagick;
+using Silk.NET.Assimp;
 using System.Collections.Concurrent;
 using System.Numerics;
 using XREngine;
 using XREngine.Components;
 using XREngine.Components.Lights;
 using XREngine.Data.Colors;
+using XREngine.Data.Core;
 using XREngine.Data.Rendering;
 using XREngine.Editor;
 using XREngine.Native;
@@ -32,9 +34,6 @@ internal class Program
         Engine.Run();
         Engine.ShutDown();
     }
-
-    static void TickRotation(OrbitTransform t) 
-        => t.Angle += Engine.DilatedDelta * 0.5f;
 
     static XRWorld CreateTestWorld()
     {
@@ -77,41 +76,75 @@ internal class Program
         var orbitTransform = cameraNode.SetTransform<OrbitTransform>();
         orbitTransform.Radius = 10.0f;
         orbitTransform.IgnoreRotation = false;
-        orbitTransform.RegisterAnimationTick<OrbitTransform>(TickRotation);
+        orbitTransform.RegisterAnimationTick<OrbitTransform>(t => t.Angle += Engine.DilatedDelta * 0.5f);
 
         if (cameraNode.TryAddComponent<CameraComponent>(out var cameraComp))
         {
             cameraComp!.Name = "TestCamera";
             cameraComp.LocalPlayerIndex = ELocalPlayerIndex.One;
-            cameraComp.CullWithFrustum = true;
+            cameraComp.CullWithFrustum = false;
 
-            cameraComp.Camera.Parameters = new XRPerspectiveCameraParameters(45.0f, null, 0.1f, 100000.0f);
+            cameraComp.Camera.Parameters = new XRPerspectiveCameraParameters(45.0f, null, 0.1f, 9999.0f);
             cameraComp.Camera.RenderPipeline = new DefaultRenderPipeline();
         }
 
-        var dirLightNode = new SceneNode(rootNode) { Name = "TestDirectionalLightNode" };
-        var dirLightTransform = dirLightNode.SetTransform<Transform>();
-        dirLightTransform.Translation = new Vector3(20.0f, 10.0f, 20.0f);
-        //Face the light directly down
-        dirLightTransform.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitX, -MathF.PI / 2.0f);
-        if (dirLightNode.TryAddComponent<DirectionalLightComponent>(out var dirLightComp))
+        //var dirLightNode = new SceneNode(rootNode) { Name = "TestDirectionalLightNode" };
+        //var dirLightTransform = dirLightNode.SetTransform<Transform>();
+        //dirLightTransform.Translation = new Vector3(0.0f, 0.0f, 0.0f);
+        ////Face the light directly down
+        //dirLightTransform.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitX, XRMath.DegToRad(-70.0f));
+        ////dirLightTransform.RegisterAnimationTick<Transform>(t => t.Rotation *= Quaternion.CreateFromAxisAngle(Globals.Backward, Engine.DilatedDelta));
+        //if (dirLightNode.TryAddComponent<DirectionalLightComponent>(out var dirLightComp))
+        //{
+        //    dirLightComp!.Name = "TestDirectionalLight";
+        //    dirLightComp.Color = new Vector3(1.0f, 0.8f, 0.8f);
+        //    dirLightComp.Intensity = 1.0f;
+        //    dirLightComp.Scale = new Vector3(1000.0f, 1000.0f, 1000.0f);
+        //    dirLightComp.CastsShadows = true;
+        //    dirLightComp.SetShadowMapResolution(1024, 1024);
+        //}
+
+        var spotLightNode = new SceneNode(rootNode) { Name = "TestSpotLightNode" };
+        var spotLightTransform = spotLightNode.SetTransform<Transform>();
+        spotLightTransform.Translation = new Vector3(0.0f, 0.0f, 0.0f);
+        spotLightTransform.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitX, XRMath.DegToRad(-90.0f));
+        if (spotLightNode.TryAddComponent<SpotLightComponent>(out var spotLightComp))
         {
-            dirLightComp!.Name = "TestDirectionalLight";
-            dirLightComp.Color = new Vector3(1.0f, 0.8f, 0.8f);
-            dirLightComp.Intensity = 1.0f;
-            dirLightComp.Scale = new Vector3(1000.0f, 1000.0f, 1000.0f);
-            dirLightComp.CastsShadows = true;
+            spotLightComp!.Name = "TestSpotLight";
+            spotLightComp.Color = new Vector3(1.0f, 1.0f, 1.0f);
+            spotLightComp.Intensity = 10.0f;
+            spotLightComp.Brightness = 1.0f;
+            spotLightComp.Distance = 4.0f;
+            spotLightComp.SetCutoffs(10, 40);
+            spotLightComp.CastsShadows = true;
+            spotLightComp.SetShadowMapResolution(256, 256);
         }
+
+        //var dirLightNode2 = new SceneNode(rootNode) { Name = "TestDirectionalLightNode2" };
+        //var dirLightTransform2 = dirLightNode2.SetTransform<Transform>();
+        //dirLightTransform2.Translation = new Vector3(0.0f, 10.0f, 0.0f);
+        //dirLightTransform.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitX, MathF.PI / 2.0f);
+        //if (dirLightNode2.TryAddComponent<DirectionalLightComponent>(out var dirLightComp2))
+        //{
+        //    dirLightComp!.Name = "TestDirectionalLight2";
+        //    dirLightComp.Color = new Vector3(1.0f, 0.8f, 0.8f);
+        //    dirLightComp.Intensity = 1.0f;
+        //    dirLightComp.Scale = new Vector3(1000.0f, 1000.0f, 1000.0f);
+        //    dirLightComp.CastsShadows = true;
+        //}
 
         //var pointLight = new SceneNode(rootNode) { Name = "TestPointLightNode" };
         //var pointLightTransform = pointLight.SetTransform<Transform>();
-        //pointLightTransform.Translation = new Vector3(0.0f, 10.0f, 0.0f);
+        //pointLightTransform.Translation = new Vector3(100.0f, 1.0f, 0.0f);
         //if (pointLight.TryAddComponent<PointLightComponent>(out var pointLightComp))
         //{
         //    pointLightComp!.Name = "TestPointLight";
-        //    pointLightComp.Color = new Vector3(1.0f, 0.0f, 1.0f);
-        //    pointLightComp.Intensity = 100.0f;
+        //    pointLightComp.Color = new Vector3(1.0f, 1.0f, 1.0f);
+        //    pointLightComp.Intensity = 10.0f;
+        //    pointLightComp.Brightness = 1.0f;
         //    pointLightComp.Radius = 1000.0f;
+        //    pointLightComp.CastsShadows = true;
+        //    pointLightComp.SetShadowMapResolution(256, 256);
         //}
 
         //var listener = new SceneNode(cameraNode) { Name = "TestListenerNode" };
@@ -146,7 +179,7 @@ internal class Program
         {
             probeComp!.Name = "TestLightProbe";
             probeComp.ColorResolution = 512;
-            probeComp.EnvironmentTextureEquirect = Engine.Assets.LoadEngineAsset<XRTexture2D>("Textures", "overcast_soil_puresky_4k.hdr");
+            probeComp.EnvironmentTextureEquirect = new XRTexture2D(new MagickImage(MagickColor.FromRgb(240, 200, 200), 16, 16));// Engine.Assets.LoadEngineAsset<XRTexture2D>("Textures", "overcast_soil_puresky_4k.hdr");
             probeComp.GenerateIrradianceMap();
             probeComp.GeneratePrefilterMap();
 
@@ -320,7 +353,8 @@ internal class Program
     {
         int w = 1920;
         int h = 1080;
-        float fps = 60.0f;
+        float update = 60.0f;
+        float render = 0.0f;
 
         int primaryX = NativeMethods.GetSystemMetrics(0);
         int primaryY = NativeMethods.GetSystemMetrics(1);
@@ -345,8 +379,8 @@ internal class Program
             UseIntegerWeightingIds = true,
             DefaultUserSettings = new UserSettings()
             {
-                TargetFramesPerSecond = fps,
-                TargetUpdatesPerSecond = fps,
+                TargetFramesPerSecond = render,
+                TargetUpdatesPerSecond = update,
                 VSync = EVSyncMode.Off,
             }
         };

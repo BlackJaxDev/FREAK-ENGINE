@@ -35,11 +35,7 @@ namespace XREngine.Components.Lights
         public float Distance
         {
             get => _distance;
-            set
-            {
-                SetField(ref _distance, value);
-                UpdateCones();
-            }
+            set => SetField(ref _distance, value);
         }
 
         public float Exponent
@@ -66,45 +62,10 @@ namespace XREngine.Components.Lights
             set => SetCutoffs(value, OuterCutoffAngleDegrees, false);
         }
 
-        private void SetCutoffs(float innerDegrees, float outerDegrees, bool settingOuter)
-        {
-            innerDegrees = innerDegrees.Clamp(0.0f, 90.0f);
-            outerDegrees = outerDegrees.Clamp(0.0f, 90.0f);
-
-            if (outerDegrees < innerDegrees)
-            {
-                float bias = 0.0001f;
-                if (settingOuter)
-                    innerDegrees = outerDegrees - bias;
-                else
-                    outerDegrees = innerDegrees + bias;
-            }
-
-            SetField(ref _outerCutoff, MathF.Cos(DegToRad(outerDegrees)));
-            SetField(ref _innerCutoff, MathF.Cos(DegToRad(innerDegrees)));
-
-            if (ShadowCamera != null && ShadowCamera.Parameters is XRPerspectiveCameraParameters p)
-                p.VerticalFieldOfView = Math.Max(outerDegrees, innerDegrees) * 2.0f;
-
-            UpdateCones();
-            RecalcLightMatrix();
-        }
-        private void UpdateCones()
-        {
-            Vector3 dir = Transform.WorldForward;
-            Vector3 coneOrigin = Transform.WorldTranslation + dir * (_distance * 0.5f);
-
-            SetField(ref _outerCone, new(coneOrigin, -dir, _distance, MathF.Tan(DegToRad(OuterCutoffAngleDegrees)) * _distance));
-            SetField(ref _innerCone, new(coneOrigin, -dir, _distance, MathF.Tan(DegToRad(InnerCutoffAngleDegrees)) * _distance));
-
-            if (ShadowCamera != null)
-                ShadowCamera.FarZ = _distance;
-
-            Vector3 lightMeshOrigin = dir * (_distance * 0.5f);
-            Matrix4x4 t = Matrix4x4.CreateTranslation(lightMeshOrigin);
-            Matrix4x4 s = Matrix4x4.CreateScale(OuterCone.Radius, OuterCone.Radius, OuterCone.Height);
-            LightMatrix = s * t * Transform.WorldMatrix;
-        }
+        public static XRMesh GetVolumeMeshStatic()
+            => XRMesh.Shapes.SolidCone(Vector3.Zero, Globals.Backward, 1.0f, 1.0f, 32, true);
+        protected override XRMesh GetWireframeMesh()
+            => XRMesh.Shapes.WireframeCone(Vector3.Zero, Globals.Backward, 1.0f, 1.0f, 32);
 
         public Cone OuterCone => _outerCone;
         public Cone InnerCone => _innerCone;
@@ -114,25 +75,27 @@ namespace XREngine.Components.Lights
 
         protected override void OnTransformWorldMatrixChanged(TransformBase transform)
         {
-            base.OnTransformWorldMatrixChanged(transform);
             UpdateCones();
+            base.OnTransformWorldMatrixChanged(transform);
         }
 
         protected internal override void OnComponentActivated()
         {
-            if (World is null)
+            base.OnComponentActivated();
+
+            if (Type != ELightType.Dynamic || World?.VisualScene is not VisualScene3D scene)
                 return;
             
-            if (World.VisualScene is VisualScene3D scene)
-                scene.Lights.SpotLights.Add(this);
-
-            if (ShadowMap is null)
-                SetShadowMapResolution((uint)_shadowMapRenderRegion.Width, (uint)_shadowMapRenderRegion.Height);
+            scene.Lights.SpotLights.Add(this);
+            if (CastsShadows && ShadowMap is null)
+                SetShadowMapResolution(1024u, 1024u);
         }
 
         protected internal override void OnComponentDeactivated()
         {
-            if (World?.VisualScene is VisualScene3D scene)
+            ShadowMap?.Destroy();
+
+            if (Type == ELightType.Dynamic && World?.VisualScene is VisualScene3D scene)
                 scene.Lights.SpotLights.Remove(this);
 
             base.OnComponentDeactivated();
@@ -181,9 +144,9 @@ namespace XREngine.Components.Lights
 
         public override XRMaterial GetShadowMapMaterial(uint width, uint height, EDepthPrecision precision = EDepthPrecision.Int24)
         {
-            XRTexture2D[] textures =
+            XRTexture2D[] refs =
             [
-                new XRTexture2D(width, height, GetShadowDepthMapFormat(precision), EPixelFormat.Red, EPixelType.UnsignedByte)
+                new XRTexture2D(width, height, GetShadowDepthMapFormat(precision), EPixelFormat.DepthComponent, EPixelType.UnsignedByte)
                 {
                     MinFilter = ETexMinFilter.Nearest,
                     MagFilter = ETexMagFilter.Nearest,
@@ -203,7 +166,7 @@ namespace XREngine.Components.Lights
             ];
 
             //This material is used for rendering to the framebuffer.
-            XRMaterial mat = new([], textures, new XRShader(EShaderType.Fragment, ShaderHelper.Frag_DepthOutput));
+            XRMaterial mat = new(refs, new XRShader(EShaderType.Fragment, ShaderHelper.Frag_DepthOutput));
 
             //No culling so if a light exists inside of a mesh it will shadow everything.
             mat.RenderOptions.CullMode = ECulling.None;
@@ -211,23 +174,12 @@ namespace XREngine.Components.Lights
             return mat;
         }
 
-        protected override void RecalcLightMatrix()
-        {
-            Vector3 lightMeshOrigin = Transform.WorldForward * (_distance * 0.5f);
-            Matrix4x4 t = Matrix4x4.CreateTranslation(lightMeshOrigin);
-            Matrix4x4 s = Matrix4x4.CreateScale(OuterCone.Radius, OuterCone.Radius, OuterCone.Height);
-            LightMatrix = s * t * Transform.WorldMatrix;
-        }
-
-        protected override IVolume GetShadowVolume()
-            => ShadowCamera.WorldFrustum();
-
         public override void CollectVisibleItems(VisualScene scene)
         {
             if (!CastsShadows)
                 return;
 
-            scene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, GetShadowVolume(), ShadowCamera);
+            scene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, ShadowCamera.WorldFrustum(), ShadowCamera);
         }
 
         public override void RenderShadowMap(VisualScene scene, bool collectVisibleNow = false)
@@ -236,10 +188,61 @@ namespace XREngine.Components.Lights
                 return;
 
             if (collectVisibleNow)
-                scene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, GetShadowVolume(), ShadowCamera);
+            {
+                scene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, ShadowCamera.WorldFrustum(), ShadowCamera);
+                _shadowRenderPipeline.MeshRenderCommands.SwapBuffers();
+            }
 
-            scene.SwapBuffers();
             _shadowRenderPipeline.Render(scene, ShadowCamera, null, ShadowMap, null, true, ShadowMap.Material);
+        }
+
+        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+        {
+            base.OnPropertyChanged(propName, prev, field);
+            switch (propName)
+            {
+                case nameof(Distance):
+                    UpdateCones();
+                    break;
+            }
+        }
+
+        public void SetCutoffs(float innerDegrees, float outerDegrees, bool constrainInnerToOuter = true)
+        {
+            innerDegrees = innerDegrees.Clamp(0.0f, 90.0f);
+            outerDegrees = outerDegrees.Clamp(0.0f, 90.0f);
+
+            if (outerDegrees < innerDegrees)
+            {
+                float bias = 0.0001f;
+                if (constrainInnerToOuter)
+                    innerDegrees = outerDegrees - bias;
+                else
+                    outerDegrees = innerDegrees + bias;
+            }
+
+            SetField(ref _outerCutoff, MathF.Cos(DegToRad(outerDegrees)));
+            SetField(ref _innerCutoff, MathF.Cos(DegToRad(innerDegrees)));
+
+            if (ShadowCamera != null && ShadowCamera.Parameters is XRPerspectiveCameraParameters p)
+                p.VerticalFieldOfView = Math.Max(outerDegrees, innerDegrees) * 2.0f;
+
+            UpdateCones();
+        }
+
+        private void UpdateCones()
+        {
+            float d = Distance;
+            Vector3 dir = Transform.WorldForward;
+            Vector3 coneOrigin = Transform.WorldTranslation + dir * (d * 0.5f);
+
+            SetField(ref _outerCone, new(coneOrigin, -dir, d, MathF.Tan(DegToRad(OuterCutoffAngleDegrees)) * d));
+            SetField(ref _innerCone, new(coneOrigin, -dir, d, MathF.Tan(DegToRad(InnerCutoffAngleDegrees)) * d));
+
+            if (ShadowCamera != null)
+                ShadowCamera.FarZ = d;
+
+            MeshCenterAdjustMatrix = Matrix4x4.CreateScale(OuterCone.Radius, OuterCone.Radius, OuterCone.Height) * Matrix4x4.CreateTranslation(Transform.WorldForward * (Distance * 0.5f));
         }
     }
 }

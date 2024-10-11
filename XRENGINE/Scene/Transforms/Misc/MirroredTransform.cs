@@ -23,7 +23,8 @@ namespace XREngine.Scene.Transforms
                 switch (propName)
                 {
                     case nameof(MirrorForwardTransform):
-                        MirrorForwardTransform?.WorldMatrixChanged.RemoveListener(OnSourceMatrixChanged);
+                        if (MirrorForwardTransform is not null)
+                            MirrorForwardTransform.WorldMatrixChanged -= OnSourceMatrixChanged;
                         break;
                 }
             }
@@ -35,7 +36,8 @@ namespace XREngine.Scene.Transforms
             switch (propName)
             {
                 case nameof(MirrorForwardTransform):
-                    MirrorForwardTransform?.WorldMatrixChanged.AddListener(OnSourceMatrixChanged);
+                    if (MirrorForwardTransform is not null)
+                        MirrorForwardTransform.WorldMatrixChanged += OnSourceMatrixChanged;
                     break;
             }
         }

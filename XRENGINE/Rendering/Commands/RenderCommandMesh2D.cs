@@ -44,12 +44,6 @@ namespace XREngine.Data.Rendering
         }
 
         public override void Render(bool shadowPass)
-        {
-            //Don't render points or lines in shadow passes
-            if (shadowPass && Mesh?.Mesh?.Triangles is null)
-                return;
-
-            Mesh?.Render(WorldMatrix, MaterialOverride);
-        }
+            => Mesh?.Render(WorldMatrix, MaterialOverride);
     }
 }

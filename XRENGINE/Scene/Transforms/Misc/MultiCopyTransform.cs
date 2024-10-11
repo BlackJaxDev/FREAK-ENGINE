@@ -84,13 +84,15 @@ namespace XREngine.Scene.Transforms
 
         private void UnlinkTransform(WeightedSource item)
         {
-            item.Transform.WorldMatrixChanged.RemoveListener(OnSourceMatrixChanged);
+            if (item.Transform is not null)
+                item.Transform.WorldMatrixChanged -= OnSourceMatrixChanged;
             MarkWorldModified();
         }
 
         private void LinkTransform(WeightedSource item)
         {
-            item.Transform.WorldMatrixChanged.AddListener(OnSourceMatrixChanged);
+            if (item.Transform is not null)
+                item.Transform.WorldMatrixChanged += OnSourceMatrixChanged;
             MarkWorldModified();
         }
 

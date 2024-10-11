@@ -59,6 +59,18 @@ namespace XREngine.Scene
                 l.CollectVisibleItems(Scene);
         }
 
+        public void SwapBuffers()
+        {
+            foreach (DirectionalLightComponent l in DirectionalLights)
+                l.SwapBuffers();
+
+            foreach (SpotLightComponent l in SpotLights)
+                l.SwapBuffers();
+
+            foreach (PointLightComponent l in PointLights)
+                l.SwapBuffers();
+        }
+
         public void RenderShadowMaps(bool collectVisibleNow)
         {
             RenderingShadowMaps = true;

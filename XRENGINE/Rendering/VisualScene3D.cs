@@ -47,6 +47,7 @@ namespace XREngine.Scene
 
         public override void GlobalCollectVisible()
         {
+            base.GlobalCollectVisible();
             Lights.CollectVisibleItems();
         }
 
@@ -54,6 +55,12 @@ namespace XREngine.Scene
         {
             base.GlobalPreRender();
             Lights.RenderShadowMaps(false);
+        }
+
+        public override void GlobalSwapBuffers()
+        {
+            base.GlobalSwapBuffers();
+            Lights.SwapBuffers();
         }
     }
 }

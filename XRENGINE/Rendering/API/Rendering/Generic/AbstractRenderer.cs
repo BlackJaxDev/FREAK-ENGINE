@@ -48,11 +48,12 @@ namespace XREngine.Rendering
         protected virtual void RenderFrame()
         {
             Window.DoRender();
+            Window.DoEvents();
         }
 
         protected virtual void SwapBuffers()
         {
-            Window.DoEvents();
+
         }
 
         protected override void OnPropertyChanged<T>(string? propName, T prev, T field)

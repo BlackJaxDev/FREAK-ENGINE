@@ -55,8 +55,8 @@ namespace XREngine.Timers
         private readonly Stopwatch _watch = new();
 
         private ManualResetEventSlim
-            _swapDone = new(false),
-            _preRenderDone = new(true);
+            _renderDone = new(false),
+            _collectVisibleDone = new(true);
             //_updatingDone = new(false);
 
         public bool IsRunning => _watch.IsRunning;
@@ -92,11 +92,11 @@ namespace XREngine.Timers
             if (IsRunning)
                 return;
 
-            _swapDone = new ManualResetEventSlim(false);
-            _preRenderDone = new ManualResetEventSlim(true);
+            _renderDone = new ManualResetEventSlim(false);
+            _collectVisibleDone = new ManualResetEventSlim(true);
 
             UpdateTask = Task.Run(UpdateThread);
-            PreRenderTask = Task.Run(PreRenderThread);
+            PreRenderTask = Task.Run(CollectVisibleThread);
             FixedUpdateTask = Task.Run(FixedUpdateThread);
             //There are 4 main threads: Update, PreRender, Render, and FixedUpdate.
             //Update runs as fast as requested without fences.
@@ -107,12 +107,16 @@ namespace XREngine.Timers
             //SwapDone is set when the render thread finishes swapping buffers. This fence is set right before the render thread starts rendering.
             //PreRenderDone is set when the prerender thread finishes collecting render commands. This fence is set right before the render thread starts swapping buffers.
 
-
             _watch.Start();
             Debug.Out($"Started game loop threads.");
 
             while (runUntilPredicate())
+            {
+                Stopwatch sw = Stopwatch.StartNew();
                 RenderThread();
+                sw.Stop();
+                Debug.Out($"Render took {sw.ElapsedMilliseconds}ms.");
+            }
         }
 
         /// <summary>
@@ -128,17 +132,16 @@ namespace XREngine.Timers
         /// This thread waits for the render thread to finish swapping the last frame's prerender buffers, 
         /// then dispatches a prerender to collect the next frame's batch of render commands while this frame renders.
         /// </summary>
-        private void PreRenderThread()
+        private void CollectVisibleThread()
         {
             while (IsRunning)
             {
-                //Wait for last frame's swap to finish
-                _swapDone.Wait();
-                _swapDone.Reset();
-
                 //Dispatch prerender, which collects visible objects and generates render commands for the game's current state.
-                DispatchPreRender();
-                _preRenderDone.Set();
+                DispatchCollectVisible();
+                _renderDone.Wait();
+                _renderDone.Reset();
+                DispatchSwapBuffers();
+                _collectVisibleDone.Set();
             }
         }
         /// <summary>
@@ -164,25 +167,19 @@ namespace XREngine.Timers
         public void RenderThread()
         {
             //Wait for prerender to finish
-            _preRenderDone.Wait();
-            _preRenderDone.Reset();
-
-            //Swap update/render buffers
-            DispatchSwapBuffers();
-
-            //Tell the other threads that we're done swapping, so it can start prerendering the next frame while this thread renders.
-            _swapDone.Set();
-
+            _collectVisibleDone.Wait();
+            _collectVisibleDone.Reset();
             //Suspend this thread until a render is dispatched
             while (!DispatchRender()) ;
+            _renderDone.Set();
         }
 
         public void Stop()
         {
             _watch.Stop();
 
-            _preRenderDone?.Set();
-            _swapDone?.Set();
+            _collectVisibleDone?.Set();
+            _renderDone?.Set();
             //_updatingDone?.Set();
 
             UpdateTask?.Wait();
@@ -223,7 +220,7 @@ namespace XREngine.Timers
             }
             return dispatch;
         }
-        private void DispatchPreRender()
+        private void DispatchCollectVisible()
         {
             float timestamp = Time();
             float elapsed = (timestamp - _lastPreRenderTimestamp).Clamp(0.0f, 1.0f);

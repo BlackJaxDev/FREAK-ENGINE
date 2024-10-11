@@ -13,6 +13,21 @@ namespace XREngine.Rendering.OpenGL
     {
         public OpenGLRenderer(XRWindow window) : base(window)
         {
+            Api.Enable(EnableCap.Multisample);
+            Api.Enable(EnableCap.TextureCubeMapSeamless);
+            Api.FrontFace(FrontFaceDirection.Ccw);
+
+            //TODO: Modify depth range so there is no loss of precision with scale and bias conversion
+            Api.ClipControl(GLEnum.LowerLeft, GLEnum.NegativeOneToOne);
+
+            //Fix gamma manually inside of the post process shader
+            //GL.Enable(EnableCap.FramebufferSrgb);
+
+            Api.PixelStore(PixelStoreParameter.PackAlignment, 1);
+            Api.PixelStore(PixelStoreParameter.UnpackAlignment, 1);
+
+            Api.UseProgram(0);
+
             Api.Enable(EnableCap.DebugOutput);
             Api.Enable(EnableCap.DebugOutputSynchronous);
             Api.DebugMessageCallback(DebugCallback, null);

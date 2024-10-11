@@ -152,9 +152,19 @@ namespace XREngine.Rendering
             => parameters?.ProjectionMatrixChanged.RemoveListener(ProjectionMatrixChanged);
 
         private void RegisterWorldMatrixChanged()
-            => _transform?.WorldMatrixChanged.AddListener(WorldMatrixChanged);
+        {
+            if (_transform is null)
+                return;
+
+            _transform.WorldMatrixChanged += WorldMatrixChanged;
+        }
         private void UnregisterWorldMatrixChanged()
-            => _transform?.WorldMatrixChanged.RemoveListener(WorldMatrixChanged);
+        {
+            if (_transform is null)
+                return;
+
+            _transform.WorldMatrixChanged -= WorldMatrixChanged;
+        }
 
         private void ProjectionMatrixChanged(XRCameraParameters parameters)
         {

@@ -240,7 +240,7 @@ namespace XREngine.Rendering.OpenGL
 
                     Data.PushBoneMatricesToGPU();
                     SetMeshUniforms(modelMatrix, vertexProgram!);
-                    material.SetUniforms();
+                    material.SetUniforms(materialProgram);
                     OnSettingUniforms(vertexProgram!, materialProgram!);
 
                     Renderer.RenderMesh(this, false, instances);

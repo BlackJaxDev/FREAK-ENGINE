@@ -78,7 +78,7 @@ namespace XREngine.Rendering.Pipelines.Commands
         private void RenderLight(XRMeshRenderer renderer, LightComponent comp)
         {
             _currentLightComponent = comp;
-            renderer.Render(comp.LightMatrix);
+            renderer.Render(comp.LightMeshMatrix);
             _currentLightComponent = null;
         }
         private void LightManager_SettingUniforms(XRRenderProgram vertexProgram, XRRenderProgram materialProgram)
@@ -113,9 +113,9 @@ namespace XREngine.Rendering.Pipelines.Commands
             XRMaterial spotLightMat = new(lightRefs, spotLightShader) { RenderOptions = additiveRenderParams, RenderPass = (int)EDefaultRenderPass.OpaqueForward };
             XRMaterial dirLightMat = new(lightRefs, dirLightShader) { RenderOptions = additiveRenderParams, RenderPass = (int)EDefaultRenderPass.OpaqueForward };
 
-            XRMesh pointLightMesh = XRMesh.Shapes.SolidSphere(Vector3.Zero, 1.0f, 20u);
-            XRMesh spotLightMesh = XRMesh.Shapes.SolidCone(Vector3.Zero, Vector3.UnitZ, 1.0f, 1.0f, 32, true);
-            XRMesh dirLightMesh = XRMesh.Shapes.SolidBox(new Vector3(-0.5f), new Vector3(0.5f));
+            XRMesh pointLightMesh = PointLightComponent.GetVolumeMesh();
+            XRMesh spotLightMesh = SpotLightComponent.GetVolumeMeshStatic();
+            XRMesh dirLightMesh = DirectionalLightComponent.GetVolumeMeshStatic();
 
             PointLightRenderer = new XRMeshRenderer(pointLightMesh, pointLightMat);
             PointLightRenderer.SettingUniforms += LightManager_SettingUniforms;

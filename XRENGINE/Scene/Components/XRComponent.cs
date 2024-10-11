@@ -185,6 +185,8 @@ namespace XREngine.Components
             TransformChanged.Invoke(this);
             Transform.LocalMatrixChanged += OnTransformLocalMatrixChanged;
             Transform.WorldMatrixChanged += OnTransformWorldMatrixChanged;
+            OnTransformLocalMatrixChanged(Transform);
+            OnTransformWorldMatrixChanged(Transform);
         }
 
         protected virtual void OnTransformLocalMatrixChanged(TransformBase transform)

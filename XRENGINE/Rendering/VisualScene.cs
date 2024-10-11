@@ -45,12 +45,6 @@ namespace XREngine.Scene
             }
         }
 
-        /// <summary>
-        /// Swaps the update/render buffers for the scene.
-        /// </summary>
-        public void SwapBuffers()
-            => RenderablesTree.Swap();
-
         public void AddRenderable(RenderInfo renderable)
         {
             _renderables.Add(renderable);
@@ -88,5 +82,11 @@ namespace XREngine.Scene
         {
 
         }
+
+        /// <summary>
+        /// Swaps the update/render buffers for the scene.
+        /// </summary>
+        public virtual void GlobalSwapBuffers()
+            => RenderablesTree.Swap();
     }
 }

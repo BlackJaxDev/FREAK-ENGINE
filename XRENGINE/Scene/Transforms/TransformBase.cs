@@ -15,10 +15,10 @@ namespace XREngine.Scene.Transforms
     /// </summary>
     public abstract partial class TransformBase : XRWorldObjectBase, IList, IList<TransformBase>, IEnumerable<TransformBase>
     {
-        public XREvent<TransformBase> LocalMatrixChanged;
-        public XREvent<TransformBase> InverseLocalMatrixChanged;
-        public XREvent<TransformBase> WorldMatrixChanged;
-        public XREvent<TransformBase> InverseWorldMatrixChanged;
+        public event Action<TransformBase>? LocalMatrixChanged;
+        public event Action<TransformBase>? InverseLocalMatrixChanged;
+        public event Action<TransformBase>? WorldMatrixChanged;
+        public event Action<TransformBase>? InverseWorldMatrixChanged;
 
         protected TransformBase() : this(null) { }
         protected TransformBase(TransformBase? parent)
@@ -34,11 +34,6 @@ namespace XREngine.Scene.Transforms
             _worldMatrix = new MatrixInfo { NeedsRecalc = true };
             _inverseLocalMatrix = new MatrixInfo { NeedsRecalc = true };
             _inverseWorldMatrix = new MatrixInfo { NeedsRecalc = true };
-
-            LocalMatrixChanged = new XREvent<TransformBase>();
-            InverseLocalMatrixChanged = new XREvent<TransformBase>();
-            WorldMatrixChanged = new XREvent<TransformBase>();
-            InverseWorldMatrixChanged = new XREvent<TransformBase>();
         }
 
         private void ChildAdded(TransformBase e)
@@ -132,15 +127,33 @@ namespace XREngine.Scene.Transforms
         /// <summary>
         /// 
         /// </summary>
-        internal void TryParallelDepthRecalculate()
+        internal bool ParallelDepthRecalculate()
         {
-            VerifyLocal();
-            VerifyLocalInv();
-            VerifyWorld();
-            VerifyWorldInv();
+            if (_localMatrix.NeedsRecalc)
+            {
+                _localMatrix.NeedsRecalc = false;
+                RecalcLocal();
+                _worldMatrix.NeedsRecalc = true;
+            }
+
+            if (!_worldMatrix.NeedsRecalc)
+                return false;
+            
+            RecalcWorld(false);
+
+            if (World is null)
+                return false;
+
             lock (Children)
+            {
+                bool wasAdded = false;
                 foreach (TransformBase child in Children)
-                    child.MarkWorldModified();
+                {
+                    World.AddDirtyTransform(child, out bool wasDepthAdded);
+                    wasAdded |= wasDepthAdded;
+                }
+                return wasAdded;
+            }
         }
 
         private readonly EventList<TransformBase> _children;
@@ -223,7 +236,7 @@ namespace XREngine.Scene.Transforms
         }
 
         protected virtual void OnLocalMatrixChanged()
-            => LocalMatrixChanged.Invoke(this);
+            => LocalMatrixChanged?.Invoke(this);
         #endregion
 
         #region World Matrix
@@ -268,7 +281,7 @@ namespace XREngine.Scene.Transforms
                 : WorldMatrix * inverted;
 
         protected virtual void OnWorldMatrixChanged()
-            => WorldMatrixChanged.Invoke(this);
+            => WorldMatrixChanged?.Invoke(this);
         #endregion
 
         #region Inverse Local Matrix
@@ -307,7 +320,7 @@ namespace XREngine.Scene.Transforms
         }
 
         protected virtual void OnInverseLocalMatrixChanged()
-            => InverseLocalMatrixChanged.Invoke(this);
+            => InverseLocalMatrixChanged?.Invoke(this);
 
         #endregion
 
@@ -357,7 +370,7 @@ namespace XREngine.Scene.Transforms
                 : inverted * InverseWorldMatrix;
 
         protected virtual void OnInverseWorldMatrixChanged()
-            => InverseWorldMatrixChanged.Invoke(this);
+            => InverseWorldMatrixChanged?.Invoke(this);
         #endregion
 
         #region Overridable Methods
@@ -377,7 +390,7 @@ namespace XREngine.Scene.Transforms
         {
             _localMatrix.NeedsRecalc = true;
             MarkWorldModified();
-            World?.AddDirtyTransform(this);
+            World?.AddDirtyTransform(this, out _);
         }
 
         /// <summary>
@@ -386,10 +399,10 @@ namespace XREngine.Scene.Transforms
         protected void MarkWorldModified()
         {
             _worldMatrix.NeedsRecalc = true;
-            lock (_children)
-                foreach (TransformBase child in _children)
-                    child.MarkWorldModified();
-            World?.AddDirtyTransform(this);
+            //lock (_children)
+            //    foreach (TransformBase child in _children)
+            //        child.MarkWorldModified();
+            World?.AddDirtyTransform(this, out _);
         }
 
         ///// <summary>

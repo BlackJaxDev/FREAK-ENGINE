@@ -20,7 +20,9 @@ namespace XREngine.Rendering
             set => SetField(ref _renderPass, value);
         }
 
-        public XREvent<XRMaterialBase> SettingUniforms;
+        public event Action<XRMaterialBase, XRRenderProgram>? SettingUniforms;
+        public void OnSettingUniforms(XRRenderProgram program)
+            => SettingUniforms?.Invoke(this, program);
 
         public XRMaterialBase() { }
         protected XRMaterialBase(ShaderVar[] parameters)

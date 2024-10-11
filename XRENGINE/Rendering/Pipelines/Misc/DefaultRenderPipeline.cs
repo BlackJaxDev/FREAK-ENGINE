@@ -68,10 +68,6 @@ public class DefaultRenderPipeline : RenderPipeline
     protected override ViewportRenderCommandContainer GenerateCommandChain()
     {
         ViewportRenderCommandContainer c = [];
-
-        c.Add<VPRC_SetClears>().Set(ColorF4.Black, 1.0f, 0);
-        c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.PreRender;
-
         var ifElse = c.Add<VPRC_IfElse>();
         ifElse.ConditionEvaluator = () => State.WindowViewport is not null;
         ifElse.TrueCommands = CreateViewportTargetCommands();
@@ -82,12 +78,16 @@ public class DefaultRenderPipeline : RenderPipeline
     public static ViewportRenderCommandContainer CreateFBOTargetCommands()
     {
         ViewportRenderCommandContainer c = [];
+
+        c.Add<VPRC_SetClears>().Set(ColorF4.Black, 1.0f, 0);
+        c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.PreRender;
+
         using (c.AddUsing<VPRC_PushOutputFBORenderArea>())
         {
             using (c.AddUsing<VPRC_BindOutputFBO>())
             {
                 c.Add<VPRC_StencilMask>().Set(~0u);
-                c.Add<VPRC_Clear>().Set(true, true, true); //todo: use fbo texture types
+                c.Add<VPRC_ClearByBoundFBO>();
                 c.Add<VPRC_DepthTest>().Enable = true;
                 c.Add<VPRC_DepthWrite>().Allow = false;
                 c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.Background;
@@ -115,6 +115,9 @@ public class DefaultRenderPipeline : RenderPipeline
             CreateUserInterfaceFBO,
             GetDesiredFBOSizeFull);
 
+        c.Add<VPRC_SetClears>().Set(ColorF4.Black, 1.0f, 0);
+        c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.PreRender;
+
         using (c.AddUsing<VPRC_PushViewportRenderArea>(t => t.UseInternalResolution = true))
         {
             //Render to the SSAO FBO
@@ -125,7 +128,7 @@ public class DefaultRenderPipeline : RenderPipeline
             using (c.AddUsing<VPRC_BindFBOByName>(x => x.FrameBufferName = SSAOFBOName))
             {
                 c.Add<VPRC_StencilMask>().Set(~0u);
-                c.Add<VPRC_Clear>().Set(true, true, true);
+                c.Add<VPRC_ClearByBoundFBO>();
 
                 c.Add<VPRC_DepthTest>().Enable = true;
                 c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.OpaqueDeferredLit;
@@ -146,7 +149,7 @@ public class DefaultRenderPipeline : RenderPipeline
             using (c.AddUsing<VPRC_BindFBOByName>(x => x.FrameBufferName = LightCombineFBOName))
             {
                 c.Add<VPRC_StencilMask>().Set(~0u);
-                c.Add<VPRC_Clear>().Set(true, false, false);
+                c.Add<VPRC_ClearByBoundFBO>();
 
                 c.Add<VPRC_LightCombinePass>().SetOptions(AlbedoOpacityTextureName, NormalTextureName, RMSITextureName, DepthViewTextureName);
             }
@@ -200,7 +203,7 @@ public class DefaultRenderPipeline : RenderPipeline
             using (c.AddUsing<VPRC_BindOutputFBO>())
             {
                 c.Add<VPRC_StencilMask>().Set(~0u);
-                c.Add<VPRC_Clear>().Set(true, true, true);
+                c.Add<VPRC_ClearByBoundFBO>();
 
                 c.Add<VPRC_DepthFunc>().Comp = EComparison.Always;
                 c.Add<VPRC_DepthWrite>().Allow = false;

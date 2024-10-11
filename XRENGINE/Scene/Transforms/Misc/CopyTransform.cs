@@ -28,7 +28,8 @@ namespace XREngine.Scene.Transforms
                 switch (propName)
                 {
                     case nameof(Source):
-                        Source?.WorldMatrixChanged.RemoveListener(OnSourceMatrixChanged);
+                        if (Source is not null)
+                            Source.WorldMatrixChanged -= OnSourceMatrixChanged;
                         break;
                 }
             }
@@ -40,7 +41,8 @@ namespace XREngine.Scene.Transforms
             switch (propName)
             {
                 case nameof(Source):
-                    Source?.WorldMatrixChanged.AddListener(OnSourceMatrixChanged);
+                    if (Source is not null)
+                        Source.WorldMatrixChanged += OnSourceMatrixChanged;
                     break;
             }
         }

@@ -52,7 +52,8 @@ namespace XREngine.Scene.Transforms
                 switch (propName)
                 {
                     case nameof(Target):
-                        Target?.WorldMatrixChanged.RemoveListener(OnTargetMatrixChanged);
+                        if (Target is not null)
+                            Target.WorldMatrixChanged -= OnTargetMatrixChanged;
                         break;
                 }
             }
@@ -67,7 +68,8 @@ namespace XREngine.Scene.Transforms
                     MarkWorldModified();
                     break;
                 case nameof(Target):
-                    Target?.WorldMatrixChanged.AddListener(OnTargetMatrixChanged);
+                    if (Target is not null)
+                        Target.WorldMatrixChanged += OnTargetMatrixChanged;
                     MarkWorldModified();
                     break;
             }

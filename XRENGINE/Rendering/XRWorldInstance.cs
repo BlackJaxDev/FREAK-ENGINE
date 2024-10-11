@@ -87,7 +87,6 @@ namespace XREngine.Rendering
             foreach (SceneNode node in RootNodes)
                 if (node.IsActiveSelf)
                     node.Start();
-            //Task.Run(RecalcTransforms);
             IsPlaying = true;
         }
 
@@ -108,16 +107,11 @@ namespace XREngine.Rendering
             IsPlaying = false;
         }
 
-        private void SwapBuffers()
-        {
-            VisualScene.SwapBuffers();
-        }
-
         private void LinkTimeCallbacks()
         {
             Time.Timer.UpdateFrame += Update;
             Time.Timer.FixedUpdate += FixedUpdate;
-            Time.Timer.SwapBuffers += SwapBuffers;
+            Time.Timer.SwapBuffers += GlobalSwapBuffers;
             Time.Timer.CollectVisible += GlobalCollectVisible;
         }
 
@@ -125,37 +119,48 @@ namespace XREngine.Rendering
         {
             Time.Timer.UpdateFrame -= Update;
             Time.Timer.FixedUpdate -= FixedUpdate;
-            Time.Timer.SwapBuffers -= SwapBuffers;
+            Time.Timer.SwapBuffers -= GlobalSwapBuffers;
             Time.Timer.CollectVisible -= GlobalCollectVisible;
-        }
-
-        public void RecalcTransforms()
-        {
-            while (IsPlaying)
-            {
-                ProcessTransformQueue();
-            }
         }
 
         private void ProcessTransformQueue()
         {
-            //_dataAvailable.WaitOne();
-            var processed = new HashSet<TransformBase>();
-            foreach (var depth in _depthQueues.Keys.OrderBy(d => d).ToArray())
-                if (_depthQueues.TryGetValue(depth, out var queue))
-                    while (queue.TryDequeue(out var transform))
-                        if (processed.Add(transform))
-                            transform.TryParallelDepthRecalculate();
-            //_dataAvailable.Reset();
+            //This method updates transforms in breadth-first order of appearance in the scene.
+            //Right now, it's operating in sequential order and could be subject to never finishing if transforms are added faster than they are processed.
+            //Ideally, we'll want to add transforms to a bucket, then here we can take a snapshot, sort by depth and then process each depth in parallel.
+            //Also, prioritize transforms that are visible according to bounding boxes of meshes that use them.
+
+            List<int> depthKeys = [.. _transformBucketsByDepthRendering.Keys]; //Snapshot of current depths
+            for (int i = 0; i < depthKeys.Count; i++)
+            {
+                int depth = depthKeys[i];
+                if (!_transformBucketsByDepthRendering.TryGetValue(depth, out var bag))
+                    continue;
+
+                Parallel.ForEach(bag, transform =>
+                {
+                    if (!transform.ParallelDepthRecalculate())
+                        return;
+                    
+                    lock (depthKeys)
+                        depthKeys.Add(transform.Depth + 1);
+                });
+            }
         }
 
-        private readonly ConcurrentDictionary<int, ConcurrentQueue<TransformBase>> _depthQueues = new();
-        //private readonly ManualResetEvent _dataAvailable = new(false);
-
-        public void AddDirtyTransform(TransformBase transform)
+        private ConcurrentDictionary<int, ConcurrentBag<TransformBase>> _transformBucketsByDepthUpdating = new();
+        private ConcurrentDictionary<int, ConcurrentBag<TransformBase>> _transformBucketsByDepthRendering = new();
+        
+        public void AddDirtyTransform(TransformBase transform, out bool wasDepthAdded)
         {
-            _depthQueues.GetOrAdd(transform.Depth, new ConcurrentQueue<TransformBase>()).Enqueue(transform);
-            //_dataAvailable.Set();
+            bool added = false;
+            var bag = _transformBucketsByDepthUpdating.GetOrAdd(transform.Depth, x =>
+            {
+                added = true;
+                return [];
+            });
+            bag.Add(transform);
+            wasDepthAdded = added;
         }
 
         private XRWorld? _targetWorld;
@@ -304,7 +309,6 @@ namespace XREngine.Rendering
 #if DEBUG
             ClearMarkers();
 #endif
-            ProcessTransformQueue();
             TickGroup(ETickGroup.Normal);
             TickGroup(ETickGroup.Late);
 #if DEBUG
@@ -331,7 +335,20 @@ namespace XREngine.Rendering
 
         public void GlobalCollectVisible()
         {
+            ProcessTransformQueue();
             VisualScene.GlobalCollectVisible();
+        }
+
+        private void GlobalSwapBuffers()
+        {
+            SwapTransformQueues();
+            VisualScene.GlobalSwapBuffers();
+        }
+
+        private void SwapTransformQueues()
+        {
+            (_transformBucketsByDepthRendering, _transformBucketsByDepthUpdating) = (_transformBucketsByDepthUpdating, _transformBucketsByDepthRendering);
+            _transformBucketsByDepthUpdating.Clear();
         }
 
         /// <summary>

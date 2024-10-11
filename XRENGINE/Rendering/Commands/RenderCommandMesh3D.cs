@@ -46,12 +46,6 @@ namespace XREngine.Data.Rendering
         }
 
         public override void Render(bool shadowPass)
-        {
-            //Don't render points or lines in shadow pass
-            if (shadowPass)
-                return;
-
-            Mesh?.Render(WorldMatrix, MaterialOverride, Instances);
-        }
+            => Mesh?.Render(WorldMatrix, MaterialOverride, Instances);
     }
 }

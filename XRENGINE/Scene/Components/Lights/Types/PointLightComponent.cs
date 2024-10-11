@@ -19,7 +19,7 @@ namespace XREngine.Components.Lights
                 _influenceVolume.Radius = value;
                 foreach (var cam in ShadowCameras)
                     cam.FarZ = value;
-                RecalcLightMatrix();
+                MeshCenterAdjustMatrix = Matrix4x4.CreateScale(Radius);
             }
         }
 
@@ -35,6 +35,11 @@ namespace XREngine.Components.Lights
             get => _brightness;
             set => SetField(ref _brightness, value);
         }
+
+        public static XRMesh GetVolumeMesh()
+            => XRMesh.Shapes.SolidSphere(Vector3.Zero, 1.0f, 32);
+        protected override XRMesh GetWireframeMesh()
+            => XRMesh.Shapes.WireframeSphere(Vector3.Zero, Radius, 32);
 
         public XRCamera[] ShadowCameras { get; }
 
@@ -58,52 +63,50 @@ namespace XREngine.Components.Lights
                 new(  0.0f, 180.0f, 180.0f), //+Z
                 new(  0.0f,   0.0f, 180.0f), //-Z
             ];
-            ShadowCameras.Fill(i => new XRCamera(new Transform(rotations[i]) { Parent = Transform }, new XRPerspectiveCameraParameters(90.0f, 1.0f, 0.01f, radius)));
+
+            PositionOnlyTransform positionTransform = new(Transform);
+            ShadowCameras.Fill(i => new XRCamera(new Transform(rotations[i], positionTransform), new XRPerspectiveCameraParameters(90.0f, 1.0f, 0.01f, radius)));
             ShadowExponentBase = 1.0f;
             ShadowExponent = 2.5f;
             ShadowMinBias = 0.05f;
             ShadowMaxBias = 10.0f;
         }
-        protected override void OnTransformWorldMatrixChanged(TransformBase transform)
-        {
-            _influenceVolume.Center = Transform.WorldTranslation;
-            RecalcLightMatrix();
-            base.OnTransformWorldMatrixChanged(transform);
-        }
-
-        protected override void RecalcLightMatrix()
-        {
-            LightMatrix = Matrix4x4.CreateScale(Radius) * Transform.WorldMatrix;
-        }
 
         protected override void OnTransformChanged()
         {
-            base.OnTransformChanged();
+            PositionOnlyTransform positionTransform = new(Transform);
             foreach (var cam in ShadowCameras)
-                cam.Transform.Parent = Transform;
-            RecalcLightMatrix();
+                cam.Transform.Parent = positionTransform;
+            base.OnTransformChanged();
+        }
+
+        protected override void OnTransformWorldMatrixChanged(TransformBase transform)
+        {
+            _influenceVolume.Center = Transform.WorldTranslation;
+            base.OnTransformWorldMatrixChanged(transform);
         }
 
         protected internal override void OnComponentActivated()
         {
-            if (World?.VisualScene is VisualScene3D scene && Type == ELightType.Dynamic)
-            {
-                scene.Lights.PointLights.Add(this);
-
-                if (ShadowMap is null)
-                    SetShadowMapResolution(1024, 1024);
-            }
             base.OnComponentActivated();
+
+            if (Type != ELightType.Dynamic || World?.VisualScene is not VisualScene3D scene)
+                return;
+            
+            scene.Lights.PointLights.Add(this);
+
+            if (CastsShadows && ShadowMap is null)
+                SetShadowMapResolution(1024u, 1024u);
         }
         protected internal override void OnComponentDeactivated()
         {
-            if (World?.VisualScene is VisualScene3D scene && Type == ELightType.Dynamic)
+            ShadowMap?.Destroy();
+
+            if (Type == ELightType.Dynamic && World?.VisualScene is VisualScene3D scene)
                 scene.Lights.PointLights.Remove(this);
 
             base.OnComponentDeactivated();
         }
-
-        protected override IVolume GetShadowVolume() => _influenceVolume;
 
         /// <summary>
         /// This is to set uniforms in the GBuffer lighting shader 
@@ -131,31 +134,22 @@ namespace XREngine.Components.Lights
         }
         public override void SetShadowMapResolution(uint width, uint height)
         {
-            bool wasNull = ShadowMap is null;
             uint res = Math.Max(width, height);
-
             base.SetShadowMapResolution(res, res);
-
-            if (wasNull && ShadowMap?.Material is not null)
-                ShadowMap.Material.SettingUniforms += SetShadowDepthUniforms;
         }
         /// <summary>
         /// This is to set special uniforms each time any mesh is rendered 
         /// with the shadow depth shader during the shadow pass.
         /// </summary>
-        private void SetShadowDepthUniforms(XRMaterialBase material)
+        private void SetShadowDepthUniforms(XRMaterialBase material, XRRenderProgram program)
         {
-            var p = material.ShaderPipelineProgram;
-            if (p is null)
-                return;
-
-            p.Uniform("FarPlaneDist", Radius);
-            p.Uniform("LightPos", _influenceVolume.Center);
+            program.Uniform("FarPlaneDist", Radius);
+            program.Uniform("LightPos", _influenceVolume.Center);
             for (int i = 0; i < ShadowCameras.Length; ++i)
             {
                 var cam = ShadowCameras[i];
-                p.Uniform($"InverseViewMatrices[{i}]", cam.Transform.WorldMatrix);
-                p.Uniform($"ProjectionMatrices[{i}]", cam.ProjectionMatrix);
+                program.Uniform($"InverseViewMatrices[{i}]", cam.Transform.WorldMatrix);
+                program.Uniform($"ProjectionMatrices[{i}]", cam.ProjectionMatrix);
             }
         }
         public override XRMaterial GetShadowMapMaterial(uint width, uint height, EDepthPrecision precision = EDepthPrecision.Int24)
@@ -163,7 +157,7 @@ namespace XREngine.Components.Lights
             uint cubeExtent = Math.Max(width, height);
             XRTexture[] refs =
             [
-                new XRTextureCube(cubeExtent, GetShadowDepthMapFormat(precision), EPixelFormat.Red, EPixelType.UnsignedByte, false)
+                new XRTextureCube(cubeExtent, GetShadowDepthMapFormat(precision), EPixelFormat.DepthComponent, EPixelType.UnsignedByte, false)
                 {
                     MinFilter = ETexMinFilter.Nearest,
                     MagFilter = ETexMagFilter.Nearest,
@@ -187,7 +181,7 @@ namespace XREngine.Components.Lights
             //This material is used for rendering to the framebuffer.
             XRShader fragShader = XRShader.EngineShader("PointLightShadowDepth.fs", EShaderType.Fragment);
             XRShader geomShader = XRShader.EngineShader("PointLightShadowDepth.gs", EShaderType.Geometry);
-            XRMaterial mat = new([], refs, fragShader, geomShader);
+            XRMaterial mat = new(refs, fragShader, geomShader);
 
             //No culling so if a light exists inside of a mesh it will shadow everything.
             mat.RenderOptions.CullMode = ECulling.None;
@@ -200,7 +194,7 @@ namespace XREngine.Components.Lights
             if (!CastsShadows)
                 return;
 
-            scene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, GetShadowVolume(), null);
+            scene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, _influenceVolume, null);
         }
 
         public override void RenderShadowMap(VisualScene scene, bool collectVisibleNow = false)
@@ -209,10 +203,52 @@ namespace XREngine.Components.Lights
                 return;
 
             if (collectVisibleNow)
-                scene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, GetShadowVolume(), null);
+            {
+                scene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, _influenceVolume, null);
+                _shadowRenderPipeline.MeshRenderCommands.SwapBuffers();
+            }
 
-            scene.SwapBuffers();
             _shadowRenderPipeline.Render(scene, null, null, ShadowMap, null, true, ShadowMap.Material);
+        }
+
+        protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
+        {
+            bool change = base.OnPropertyChanging(propName, field, @new);
+            if (change)
+            {
+                switch (propName)
+                {
+                    case nameof(ShadowMap):
+                        if (ShadowMap?.Material is not null)
+                            ShadowMap.Material.SettingUniforms -= SetShadowDepthUniforms;
+                        break;
+                }
+            }
+            return change;
+        }
+
+        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+        {
+            base.OnPropertyChanged(propName, prev, field);
+            switch (propName)
+            {
+                case nameof(CastsShadows):
+                    if (CastsShadows)
+                        SetShadowMapResolution(1024u, 1024u);
+                    else
+                    {
+                        ShadowMap?.Destroy();
+                        ShadowMap = null;
+                    }
+                    break;
+                case nameof(ShadowMap):
+                    if (ShadowMap?.Material is not null)
+                        ShadowMap.Material.SettingUniforms += SetShadowDepthUniforms;
+                    break;
+                case nameof(Radius):
+                    MeshCenterAdjustMatrix = Matrix4x4.CreateScale(Radius);
+                    break;
+            }
         }
     }
 }
