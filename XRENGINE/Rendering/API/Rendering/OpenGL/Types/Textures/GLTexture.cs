@@ -145,13 +145,18 @@ namespace XREngine.Rendering.OpenGL
             Api.BindTexture(ToGLEnum(TextureTarget), id);
             Renderer.BoundTexture = this;
 
+            VerifySettings();
+        }
+
+        private void VerifySettings()
+        {
             SetParameters();
 
-            if (IsInvalidated && !IsPushing)
-            {
-                IsInvalidated = false;
-                PushData();
-            }
+            if (!IsInvalidated || IsPushing)
+                return;
+            
+            IsInvalidated = false;
+            PushData();
         }
 
         public void Unbind()

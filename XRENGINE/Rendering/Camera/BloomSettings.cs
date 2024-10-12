@@ -8,7 +8,7 @@ namespace XREngine.Rendering
         private float _intensity = 1.0f;
         private float _threshold = 1.0f;
         private float _softKnee = 0.5f;
-        private float _radius = 2.0f;
+        private float _radius = 1.0f;
 
         public BloomSettings()
         {

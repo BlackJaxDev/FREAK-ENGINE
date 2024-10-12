@@ -46,7 +46,7 @@ namespace XREngine.Rendering.Commands
             int pass = item.RenderPass;
             if (!_updatingPasses.TryGetValue(pass, out var set))
             {
-                Debug.Out($"No render pass {pass} found.");
+                //Debug.Out($"No render pass {pass} found.");
                 return;
             }
             set.Add(item);

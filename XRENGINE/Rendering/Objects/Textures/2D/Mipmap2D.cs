@@ -89,21 +89,22 @@ namespace XREngine.Rendering
                 XRTexture.GetFormat(image, false, out EPixelInternalFormat internalFormat, out EPixelFormat format, out EPixelType type);
                 InternalFormat = internalFormat;
                 PixelFormat = format;
-                PixelType = type;
 
-                byte[]? bytes = image.GetPixelsUnsafe().ToByteArray(image.HasAlpha ? PixelMapping.RGBA : PixelMapping.RGB);
-                Data = bytes is null ? null : new DataSource(bytes);
-                //var pixels = image.GetPixelsUnsafe();
-                //var area = pixels.GetReadOnlyArea(0, 0, image.Width, image.Height);
-              
-                //Data = new DataSource((uint)area.Length * 4u);
-                //float* ptr = (float*)Data.Address.Pointer;
-                //for (int i = 0; i < area.Length; i++)
-                //{
-                //    var pixel = area[i];
-                //    *ptr++ = pixel;
-                //}
-                //PixelType = EPixelType.Float;
+                //PixelType = type;
+                //byte[]? bytes = image.GetPixels().ToByteArray(image.HasAlpha ? PixelMapping.RGBA : PixelMapping.RGB);
+                //Data = bytes is null ? null : new DataSource(bytes);
+                
+                var p = image.GetPixels();
+                //uint channels = p.Channels;
+                //uint colors = image.TotalColors;
+                PixelType = EPixelType.Float;
+                float[] pixels = [.. p.GetValues()];
+                //Why does magickimage not have a method to do this normalization? did I miss it?
+                Parallel.For(0, pixels.Length, i =>
+                {
+                    pixels[i] = pixels[i] / ushort.MaxValue;
+                });
+                Data = DataSource.FromArray(pixels);
 
                 Width = image.Width;
                 Height = image.Height;

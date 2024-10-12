@@ -63,6 +63,7 @@ namespace XREngine.Components.Lights
             _shadowVolumeRC.Mesh = new XRMeshRenderer(GetWireframeMesh(), mat);
 
             RenderInfo = RenderInfo3D.New(this, _shadowVolumeRC);
+            RenderInfo.IsVisible = false;
             RenderInfo.VisibleInLightingProbes = false;
             RenderedObjects = [RenderInfo];
             ShadowRenderPipeline = new ShadowRenderPipeline();

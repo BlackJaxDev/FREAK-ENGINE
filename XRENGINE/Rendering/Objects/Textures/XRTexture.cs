@@ -32,7 +32,13 @@ namespace XREngine.Rendering
         public static byte[] AllocateBytes(uint width, uint height, EPixelFormat format, EPixelType type)
             => new byte[width * height * ComponentSize(type) * GetComponentCount(format)];
 
-        public static void GetFormat(MagickImage bmp, bool internalCompression, out EPixelInternalFormat internalPixelFormat, out EPixelFormat pixelFormat, out EPixelType pixelType)
+        public static void GetFormat(
+            MagickImage bmp,
+            bool internalCompression,
+            //out ESizedInternalFormat sizedFormat,
+            out EPixelInternalFormat internalPixelFormat,
+            out EPixelFormat pixelFormat,
+            out EPixelType pixelType)
         {
             //Internal format must match pixel format
             //GL_ALPHA, GL_LUMINANCE, GL_LUMINANCE_ALPHA, GL_RGB, GL_RGBA

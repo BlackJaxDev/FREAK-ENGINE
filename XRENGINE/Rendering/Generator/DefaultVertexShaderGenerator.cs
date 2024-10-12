@@ -10,6 +10,7 @@ namespace XREngine.Rendering.Shaders.Generator
     public class DefaultVertexShaderGenerator(XRMesh mesh) : ShaderGeneratorBase(mesh)
     {
         //Buffers leaving the vertex shader for each vertex
+        public const string FragPosLocalName = "FragPosLocal";
         public const string FragPosName = "FragPos";
         public const string FragNormName = "FragNorm";
         public const string FragTanName = "FragTan";
@@ -227,6 +228,8 @@ namespace XREngine.Rendering.Shaders.Generator
             if (Mesh.ColorBuffers is not null)
                 for (int i = 0; i < Mesh.ColorBuffers.Length.ClampMax(8); ++i)
                     WriteOutVar(12 + i, EShaderVarType._vec4, string.Format(FragColorName, i));
+
+            WriteOutVar(20, EShaderVarType._vec3, FragPosLocalName);
         }
 
         /// <summary>
@@ -437,7 +440,7 @@ namespace XREngine.Rendering.Shaders.Generator
             //    Line("ViewMatrix[3][2] = 0.0f;");
             //    Line("BillboardMatrix[3][2] = 0.0f;");
             //}
-
+            Line($"{FragPosLocalName} = {posName}.xyz;");
             Line($"{FragPosName} = (mvpMatrix * {posName}).xyz;");
             Line($"gl_Position = mvpMatrix * {posName};");
         }

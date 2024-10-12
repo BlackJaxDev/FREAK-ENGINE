@@ -11,10 +11,11 @@ namespace XREngine.Rendering
     {
         public override void Load3rdParty(string filePath)
         {
-            Mipmap2D[] mips = [new Mipmap2D(1, 1, EPixelInternalFormat.Red, EPixelFormat.Red, EPixelType.UnsignedByte, false)];
+            Mipmap2D[] mips = [new Mipmap2D(1, 1, EPixelInternalFormat.Red, EPixelFormat.Red, EPixelType.UnsignedByte, true)];
             //mips = GetMipmapsFromImage(image);
             Mipmaps = mips;
             AutoGenerateMipmaps = true;
+            Resizable = true;
 
             //TODO: load async and ensure the texture is pushed after the black default texture
             Task.Run(() => mips[0].SetFromImage(new MagickImage(filePath)));

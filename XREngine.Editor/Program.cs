@@ -5,6 +5,7 @@ using System.Numerics;
 using XREngine;
 using XREngine.Components;
 using XREngine.Components.Lights;
+using XREngine.Components.Scene.Mesh;
 using XREngine.Data.Colors;
 using XREngine.Data.Core;
 using XREngine.Data.Rendering;
@@ -13,6 +14,7 @@ using XREngine.Native;
 using XREngine.Rendering;
 using XREngine.Rendering.Commands;
 using XREngine.Rendering.Info;
+using XREngine.Rendering.Models;
 using XREngine.Rendering.Models.Materials;
 using XREngine.Scene;
 using XREngine.Scene.Transforms;
@@ -82,43 +84,43 @@ internal class Program
         {
             cameraComp!.Name = "TestCamera";
             cameraComp.LocalPlayerIndex = ELocalPlayerIndex.One;
-            cameraComp.CullWithFrustum = false;
+            cameraComp.CullWithFrustum = true;
 
-            cameraComp.Camera.Parameters = new XRPerspectiveCameraParameters(45.0f, null, 0.1f, 9999.0f);
+            cameraComp.Camera.Parameters = new XRPerspectiveCameraParameters(45.0f, null, 0.1f, 99999.0f);
             cameraComp.Camera.RenderPipeline = new DefaultRenderPipeline();
         }
 
-        //var dirLightNode = new SceneNode(rootNode) { Name = "TestDirectionalLightNode" };
-        //var dirLightTransform = dirLightNode.SetTransform<Transform>();
-        //dirLightTransform.Translation = new Vector3(0.0f, 0.0f, 0.0f);
-        ////Face the light directly down
-        //dirLightTransform.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitX, XRMath.DegToRad(-70.0f));
-        ////dirLightTransform.RegisterAnimationTick<Transform>(t => t.Rotation *= Quaternion.CreateFromAxisAngle(Globals.Backward, Engine.DilatedDelta));
-        //if (dirLightNode.TryAddComponent<DirectionalLightComponent>(out var dirLightComp))
-        //{
-        //    dirLightComp!.Name = "TestDirectionalLight";
-        //    dirLightComp.Color = new Vector3(1.0f, 0.8f, 0.8f);
-        //    dirLightComp.Intensity = 1.0f;
-        //    dirLightComp.Scale = new Vector3(1000.0f, 1000.0f, 1000.0f);
-        //    dirLightComp.CastsShadows = true;
-        //    dirLightComp.SetShadowMapResolution(1024, 1024);
-        //}
-
-        var spotLightNode = new SceneNode(rootNode) { Name = "TestSpotLightNode" };
-        var spotLightTransform = spotLightNode.SetTransform<Transform>();
-        spotLightTransform.Translation = new Vector3(0.0f, 0.0f, 0.0f);
-        spotLightTransform.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitX, XRMath.DegToRad(-90.0f));
-        if (spotLightNode.TryAddComponent<SpotLightComponent>(out var spotLightComp))
+        var dirLightNode = new SceneNode(rootNode) { Name = "TestDirectionalLightNode" };
+        var dirLightTransform = dirLightNode.SetTransform<Transform>();
+        dirLightTransform.Translation = new Vector3(0.0f, 0.0f, 0.0f);
+        //Face the light directly down
+        dirLightTransform.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitX, XRMath.DegToRad(-70.0f));
+        //dirLightTransform.RegisterAnimationTick<Transform>(t => t.Rotation *= Quaternion.CreateFromAxisAngle(Globals.Backward, Engine.DilatedDelta));
+        if (dirLightNode.TryAddComponent<DirectionalLightComponent>(out var dirLightComp))
         {
-            spotLightComp!.Name = "TestSpotLight";
-            spotLightComp.Color = new Vector3(1.0f, 1.0f, 1.0f);
-            spotLightComp.Intensity = 10.0f;
-            spotLightComp.Brightness = 1.0f;
-            spotLightComp.Distance = 4.0f;
-            spotLightComp.SetCutoffs(10, 40);
-            spotLightComp.CastsShadows = true;
-            spotLightComp.SetShadowMapResolution(256, 256);
+            dirLightComp!.Name = "TestDirectionalLight";
+            dirLightComp.Color = new Vector3(0.8f, 0.8f, 0.8f);
+            dirLightComp.Intensity = 0.1f;
+            dirLightComp.Scale = new Vector3(1000.0f, 1000.0f, 1000.0f);
+            dirLightComp.CastsShadows = true;
+            dirLightComp.SetShadowMapResolution(2048, 2048);
         }
+
+        //var spotLightNode = new SceneNode(rootNode) { Name = "TestSpotLightNode" };
+        //var spotLightTransform = spotLightNode.SetTransform<Transform>();
+        //spotLightTransform.Translation = new Vector3(0.0f, 10.0f, 0.0f);
+        //spotLightTransform.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitX, XRMath.DegToRad(-90.0f));
+        //if (spotLightNode.TryAddComponent<SpotLightComponent>(out var spotLightComp))
+        //{
+        //    spotLightComp!.Name = "TestSpotLight";
+        //    spotLightComp.Color = new Vector3(1.0f, 1.0f, 1.0f);
+        //    spotLightComp.Intensity = 10.0f;
+        //    spotLightComp.Brightness = 1.0f;
+        //    spotLightComp.Distance = 40.0f;
+        //    spotLightComp.SetCutoffs(10, 40);
+        //    spotLightComp.CastsShadows = true;
+        //    spotLightComp.SetShadowMapResolution(256, 256);
+        //}
 
         //var dirLightNode2 = new SceneNode(rootNode) { Name = "TestDirectionalLightNode2" };
         //var dirLightTransform2 = dirLightNode2.SetTransform<Transform>();
@@ -172,16 +174,18 @@ internal class Program
         //    soundComp.PlayOnActivate = true;
         //}
 
+        XRTexture2D skyEquirect = Engine.Assets.LoadEngineAsset<XRTexture2D>("Textures", "overcast_soil_puresky_4k.exr");
+
         var probe = new SceneNode(rootNode) { Name = "TestLightProbeNode" };
         var probeTransform = probe.SetTransform<Transform>();
-        probeTransform.Translation = new Vector3(0.0f, 1.0f, 0.0f);
+        probeTransform.Translation = new Vector3(0.0f, 4.0f, 0.0f);
         if (probe.TryAddComponent<LightProbeComponent>(out var probeComp))
         {
             probeComp!.Name = "TestLightProbe";
             probeComp.ColorResolution = 512;
-            probeComp.EnvironmentTextureEquirect = new XRTexture2D(new MagickImage(MagickColor.FromRgb(240, 200, 200), 16, 16));// Engine.Assets.LoadEngineAsset<XRTexture2D>("Textures", "overcast_soil_puresky_4k.hdr");
-            probeComp.GenerateIrradianceMap();
-            probeComp.GeneratePrefilterMap();
+            probeComp.EnvironmentTextureEquirect = skyEquirect;
+            Engine.EnqueueMainThreadTask(probeComp.GenerateIrradianceMap);
+            Engine.EnqueueMainThreadTask(probeComp.GeneratePrefilterMap);
 
             //probeComp.SetCaptureResolution(512, false, 512);
             //probeComp.RealTimeCapture = true;
@@ -194,36 +198,34 @@ internal class Program
             //});
         }
 
-        //var skybox = new SceneNode(rootNode) { Name = "TestSkyboxNode" };
-        //var skyboxTransform = skybox.SetTransform<Transform>();
-        //skyboxTransform.Translation = new Vector3(0.0f, 0.0f, 0.0f);
-        //if (skybox.TryAddComponent<ModelComponent>(out var skyboxComp))
-        //{
-        //    skyboxComp!.Name = "TestSkybox";
-        //    skyboxComp.Model = new Model([new SubMesh(
-        //        XRMesh.Shapes.SolidBox(new Vector3(-1000.0f), new Vector3(1000.0f), true, XRMesh.Shapes.ECubemapTextureUVs.None), 
-        //        new XRMaterial(
-        //            [Engine.Assets.LoadEngineAsset<XRTexture2D>("Textures", "overcast_soil_puresky_4k.hdr")],
-        //            Engine.Assets.LoadEngineAsset<XRShader>("Shaders", "Scene3D", "Skybox.fs"))
-        //        {
-        //            RenderPass = (int)EDefaultRenderPass.Background,
-        //            RenderOptions = new RenderingParameters()
-        //            {
-        //                CullMode = ECulling.None,
-        //                DepthTest = new DepthTest()
-        //                {
-        //                    UpdateDepth = true,
-        //                    Enabled = ERenderParamUsage.Enabled,
-        //                    Function = EComparison.Less,
-        //                },
-        //                AlphaTest = new AlphaTest()
-        //                {
-        //                    Enabled = ERenderParamUsage.Disabled,
-        //                },
-        //                LineWidth = 5.0f,
-        //            }
-        //        })]);
-        //}
+        var skybox = new SceneNode(rootNode) { Name = "TestSkyboxNode" };
+        var skyboxTransform = skybox.SetTransform<Transform>();
+        skyboxTransform.Translation = new Vector3(0.0f, 0.0f, 0.0f);
+        if (skybox.TryAddComponent<ModelComponent>(out var skyboxComp))
+        {
+            skyboxComp!.Name = "TestSkybox";
+            skyboxComp.Model = new Model([new SubMesh(
+                XRMesh.Shapes.SolidBox(new Vector3(-10000), new Vector3(10000), true, XRMesh.Shapes.ECubemapTextureUVs.None),
+                new XRMaterial([skyEquirect], Engine.Assets.LoadEngineAsset<XRShader>("Shaders", "Scene3D", "Equirect.fs"))
+                {
+                    RenderPass = (int)EDefaultRenderPass.Background,
+                    RenderOptions = new RenderingParameters()
+                    {
+                        CullMode = ECulling.None,
+                        DepthTest = new DepthTest()
+                        {
+                            UpdateDepth = true,
+                            Enabled = ERenderParamUsage.Enabled,
+                            Function = EComparison.Less,
+                        },
+                        AlphaTest = new AlphaTest()
+                        {
+                            Enabled = ERenderParamUsage.Disabled,
+                        },
+                        LineWidth = 5.0f,
+                    }
+                })]);
+        }
 
         //Pawn
         //cameraNode.TryAddComponent<PawnComponent>(out var pawnComp);

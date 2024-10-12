@@ -37,6 +37,17 @@ namespace XREngine.Components.Lights
                 _lastUpdateTime = DateTime.Now;
                 Capture();
             }
+
+            if (_generateIrradiance)
+            {
+                _generateIrradiance = false;
+                GenerateIrradianceInternal();
+            }
+            if (_generatePrefilter)
+            {
+                _generatePrefilter = false;
+                GeneratePrefilterInternal();
+            }
         }
 
         public LightProbeComponent() : base()
@@ -44,16 +55,18 @@ namespace XREngine.Components.Lights
             RenderedObjects = 
             [
                 VisualRenderInfo = RenderInfo3D.New(this, _visualRC = new RenderCommandMesh3D((int)EDefaultRenderPass.OpaqueForward)),
-                PreRenderInfo = RenderInfo3D.New(this, _preRenderRC = new RenderCommandMethod3D((int)EDefaultRenderPass.PreRender, EnsureCaptured))
+                PreRenderInfo = RenderInfo3D.New(this, new RenderCommandMethod3D((int)EDefaultRenderPass.PreRender, EnsureCaptured))
             ];
         }
 
         private readonly RenderCommandMesh3D _visualRC;
-        private readonly RenderCommandMethod3D _preRenderRC;
 
         public RenderInfo3D VisualRenderInfo { get; }
         public RenderInfo3D PreRenderInfo { get; }
         public RenderInfo[] RenderedObjects { get; }
+
+        private bool _generateIrradiance = false;
+        private bool _generatePrefilter = false;
 
         private bool _realTime = false;
         /// <summary>
@@ -90,40 +103,46 @@ namespace XREngine.Components.Lights
             get => _prefilterTexture;
             private set => SetField(ref _prefilterTexture, value);
         }
-        public XRMeshRenderer? IrradianceSphere
+        public XRMeshRenderer? PreviewSphere
         {
             get => _irradianceSphere;
             private set => SetField(ref _irradianceSphere, value);
         }
 
-        private bool _showPrefilterTexture = false;
-        public bool ShowPrefilterTexture
+        public enum ERenderPreview
         {
-            get => _showPrefilterTexture;
-            set
-            {
-                SetField(ref _showPrefilterTexture, value);
-                SetDisplayedPreviewTexture();
-            }
+            Environment,
+            Irradiance,
+            Prefilter,
         }
 
-        private void SetDisplayedPreviewTexture()
+        private ERenderPreview _previewDisplay = ERenderPreview.Prefilter;
+        public ERenderPreview PreviewDisplay
         {
-            if (IrradianceSphere?.Material is null)
-                return;
-            
-            var tex = _showPrefilterTexture ? PrefilterTex : IrradianceTexture;
-            if (tex != null)
-                IrradianceSphere.Material.Textures[0] = tex;
+            get => _previewDisplay;
+            set => SetField(ref _previewDisplay, value);
         }
+
+        public XRTexture? GetPreviewTexture()
+            => PreviewDisplay switch
+            {
+                ERenderPreview.Irradiance => IrradianceTexture,
+                ERenderPreview.Prefilter => PrefilterTex,
+                _ => _environmentTextureCubemap as XRTexture ?? _environmentTextureEquirect,
+            };
+
+        public string GetPreviewShaderPath()
+            => PreviewDisplay switch
+            {
+                ERenderPreview.Irradiance or ERenderPreview.Prefilter => "Scene3D\\Cubemap.fs",
+                _ => _environmentTextureCubemap is not null ? "Scene3D\\Cubemap.fs" : "Scene3D\\Equirect.fs",
+            };
 
         protected override void OnTransformWorldMatrixChanged(TransformBase transform)
         {
-            if (_visualRC != null && IrradianceSphere != null)
-            {
-                IrradianceSphere.Parameter<ShaderVector3>(0)!.Value = Transform.WorldTranslation;
+            if (_visualRC != null)
                 _visualRC.WorldMatrix = Transform.WorldMatrix;
-            }
+            
             base.OnTransformWorldMatrixChanged(transform);
         }
 
@@ -198,12 +217,6 @@ namespace XREngine.Components.Lights
 
         public void InitializeStatic()
         {
-            if (_environmentTextureEquirect is not null)
-            {
-                _environmentTextureEquirect.Bind();
-                _environmentTextureEquirect.GenerateMipmapsGPU();
-            }
-
             //Irradiance texture doesn't need to be very high quality, 
             //linear filtering on low resolution will do fine
             IrradianceTexture = new XRTextureCube(64, EPixelInternalFormat.Rgb8, EPixelFormat.Rgb, EPixelType.UnsignedByte, false)
@@ -268,15 +281,25 @@ namespace XREngine.Components.Lights
                     if (EnvironmentTextureEquirect is not null)
                         InitializeStatic();
                     break;
+                case nameof(PreviewDisplay):
+                    CachePreviewSphere();
+                    break;
             }
         }
 
         public void GenerateIrradianceMap()
+            => _generateIrradiance = true;
+
+        private void GenerateIrradianceInternal()
         {
             if (IrradianceTexture is null)
                 return;
 
+            _environmentTextureEquirect?.Bind();
+            _environmentTextureEquirect?.GenerateMipmapsGPU();
+
             uint res = IrradianceTexture.Extent;
+            //AbstractRenderer.Current?.SetRenderArea(new BoundingRectangle(IVector2.Zero, new IVector2((int)res, (int)res)));
             using (Engine.Rendering.State.PipelineState?.PushRenderArea(new BoundingRectangle(IVector2.Zero, new IVector2((int)res, (int)res))))
             {
                 for (int i = 0; i < 6; ++i)
@@ -286,6 +309,7 @@ namespace XREngine.Components.Lights
                     {
                         Engine.Rendering.State.ClearByBoundFBO();
                         Engine.Rendering.State.EnableDepthTest(false);
+                        Engine.Rendering.State.StencilMask(~0u);
                         _irradianceFBO.RenderFullscreen(ECubemapFace.PosX + i);
                     }
                 }
@@ -293,9 +317,15 @@ namespace XREngine.Components.Lights
         }
 
         public void GeneratePrefilterMap()
+            => _generatePrefilter = true;
+
+        private void GeneratePrefilterInternal()
         {
             if (PrefilterTex is null)
                 return;
+
+            _environmentTextureEquirect?.Bind();
+            _environmentTextureEquirect?.GenerateMipmapsGPU();
 
             PrefilterTex.Bind();
             PrefilterTex.GenerateMipmapsGPU();
@@ -310,14 +340,18 @@ namespace XREngine.Components.Lights
 
                 _prefilterFBO.Material.Parameter<ShaderFloat>(0)!.Value = roughness;
 
-                AbstractRenderer.Current?.SetRenderArea(new BoundingRectangle(IVector2.Zero, new IVector2(mipWidth, mipHeight)));
-                for (int i = 0; i < 6; ++i)
+                using (Engine.Rendering.State.PipelineState?.PushRenderArea(new BoundingRectangle(IVector2.Zero, new IVector2(mipWidth, mipHeight))))
                 {
-                    _prefilterFBO.SetRenderTargets((PrefilterTex, EFrameBufferAttachment.ColorAttachment0, mip, i));
-                    using (_prefilterFBO.BindForWriting())
+                    for (int i = 0; i < 6; ++i)
                     {
-                        Engine.Rendering.State.ClearByBoundFBO();
-                        _prefilterFBO.RenderFullscreen(ECubemapFace.PosX + i);
+                        _prefilterFBO.SetRenderTargets((PrefilterTex, EFrameBufferAttachment.ColorAttachment0, mip, i));
+                        using (_prefilterFBO.BindForWriting())
+                        {
+                            Engine.Rendering.State.ClearByBoundFBO();
+                            Engine.Rendering.State.EnableDepthTest(false);
+                            Engine.Rendering.State.StencilMask(~0u);
+                            _prefilterFBO.RenderFullscreen(ECubemapFace.PosX + i);
+                        }
                     }
                 }
             }
@@ -325,17 +359,13 @@ namespace XREngine.Components.Lights
 
         private void CachePreviewSphere()
         {
-            if (IrradianceSphere is not null)
-                return;
+            PreviewSphere?.Destroy();
 
-            XRShader shader = XRShader.EngineShader("CubeMapSphereMesh.fs", EShaderType.Fragment);
-            XRMaterial mat = new([new ShaderVector3(Vector3.Zero, "SphereCenter")], [_showPrefilterTexture ? PrefilterTex! : IrradianceTexture!], shader)
-            {
-                RenderPass = (int)EDefaultRenderPass.OpaqueForward
-            };
-            IrradianceSphere = new XRMeshRenderer(XRMesh.Shapes.SolidSphere(Vector3.Zero, 1.0f, 20u), mat);
-            _visualRC.Mesh = IrradianceSphere;
+            int pass = (int)EDefaultRenderPass.OpaqueForward;
+            PreviewSphere = new XRMeshRenderer(XRMesh.Shapes.SolidSphere(Vector3.Zero, 1.0f, 20u), new([GetPreviewTexture()], XRShader.EngineShader(GetPreviewShaderPath(), EShaderType.Fragment)) { RenderPass = pass });
+            _visualRC.Mesh = PreviewSphere;
             _visualRC.WorldMatrix = Transform.WorldMatrix;
+            _visualRC.RenderPass = pass;
             //VisualRenderInfo.CullingVolume = new Sphere(Vector3.Zero, 1.0f);
         }
 

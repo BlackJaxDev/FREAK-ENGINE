@@ -296,6 +296,7 @@ namespace XREngine.Rendering.OpenGL
             }
 
             //private static object HashLock = new();
+            private static readonly ConcurrentBag<ulong> Failed = [];
             public bool Link()
             {
                 if (IsLinked)
@@ -340,9 +341,10 @@ namespace XREngine.Rendering.OpenGL
                         IsLinked = true;
                         return true;
                     }
+                    else if (Failed.Contains(Hash))
+                        return false;
                     else
                     {
-                        Debug.Out($"Compiling program with hash {Hash}.");
                         _cachedProgram = null;
 
                         foreach (GLShader shader in _shaderCache.Values)
@@ -352,8 +354,13 @@ namespace XREngine.Rendering.OpenGL
                                 shader.Generate();
 
                         if (_shaderCache.Values.Any(x => !x.IsCompiled))
+                        {
+                            Debug.Out($"Failed to compile program with hash {Hash}.");
+                            Failed.Add(Hash);
                             return false;
-
+                        }
+                        
+                        Debug.Out($"Compiled program with hash {Hash}.");
                         var shaderCache = _shaderCache.Values;
                         GLShader?[] attached = new GLShader?[shaderCache.Count];
                         int i = 0;

@@ -116,6 +116,16 @@ namespace XREngine.Data
             return clone;
         }
 
+        public static unsafe DataSource FromStream(Stream s)
+        {
+            s.Seek(0, SeekOrigin.Begin);
+            s.Position = 0;
+            DataSource source = new((uint)s.Length);
+            byte* ptr = (byte*)source.Address;
+            s.Read(new Span<byte>(ptr, (int)source.Length));
+            return source;
+        }
+
         #endregion
     }
 }

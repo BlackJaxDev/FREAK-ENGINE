@@ -108,7 +108,7 @@ namespace XREngine.Rendering.Pipelines.Commands
                 [
                     new ShaderFloat(0.0f, "Ping"),
                     new ShaderInt(0, "LOD"),
-                    new ShaderFloat(2.0f, "Radius")
+                    new ShaderFloat(1.0f, "Radius"),
                 ],
                 [outputTexture],
                 XRShader.EngineShader(Path.Combine(SceneShaderPath, "BloomBlur.fs"), EShaderType.Fragment))
@@ -176,8 +176,7 @@ namespace XREngine.Rendering.Pipelines.Commands
                 inputFBO!.Render();
 
             var tex = Pipeline.GetTexture<XRTexture2D>(BloomOutputTextureName);
-            tex!.Bind();
-            tex.GenerateMipmapsGPU();
+            tex?.GenerateMipmapsGPU();
 
             BloomScaledPass(blur16!, BloomRect16, 4);
             BloomScaledPass(blur8!, BloomRect8, 3);

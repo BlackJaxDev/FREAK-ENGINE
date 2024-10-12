@@ -3,7 +3,7 @@
 layout (location = 0) out vec3 OutColor;
 layout (location = 0) in vec3 FragPos;
 
-uniform sampler2D SceneTex;
+uniform sampler2D Texture0;
 uniform float Roughness = 0.0f;
 uniform int CubemapDim = 512;
 
@@ -99,13 +99,13 @@ void main()
 
             // Convert the direction vector to spherical coordinates
             float phi = atan(L.z, L.x); // Angle around the Y axis
-            float theta = asin(L.y);      // Angle from the Y axis
+            float theta = asin(L.y); // Angle from the Y axis
             // Map spherical coordinates to [0, 1] range for texture sampling
             // phi ranges from -PI to PI, so we map it to [0, 1]
             // theta ranges from -PI/2 to PI/2, so we map it to [0, 1]
-            vec2 uv = vec2((phi / (2.0f * PI)) + 0.5f, (theta / PI) + 0.5f);
+            vec2 uv = vec2((phi / (2.0f * PI)) + 0.5f, 1.0f - ((theta / PI) + 0.5f));
 
-            prefilteredColor += textureLod(SceneTex, uv, mipLevel).rgb * NdotL;
+            prefilteredColor += textureLod(Texture0, uv, mipLevel).rgb * NdotL;
             totalWeight      += NdotL;
         }
     }

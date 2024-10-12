@@ -27,20 +27,11 @@ namespace XREngine.Rendering.Info
             set => SetField(ref _renderCommands, value);
         }
 
+        private bool _isVisible = true;
         public bool IsVisible
         {
-            get => TreeNode != null;
-            set
-            {
-                var tree = WorldInstance?.VisualScene?.RenderablesTree;
-                if (tree is null)
-                    return;
-
-                if (value)
-                    tree.Add(this);
-                else
-                    tree.Remove(this);
-            }
+            get => _isVisible;
+            set => SetField(ref _isVisible, value);
         }
 
         public IRenderable? Owner { get; }
@@ -58,10 +49,19 @@ namespace XREngine.Rendering.Info
             switch (propName)
             {
                 case nameof(WorldInstance):
-                    if (prev is XRWorldInstance prevInstance)
-                        prevInstance.VisualScene?.RemoveRenderable(this);
-                    if (field is XRWorldInstance newInstance)
-                        newInstance.VisualScene?.AddRenderable(this);
+                    if (IsVisible)
+                    {
+                        if (prev is XRWorldInstance prevInstance)
+                            prevInstance.VisualScene?.RemoveRenderable(this);
+                        if (field is XRWorldInstance newInstance)
+                            newInstance.VisualScene?.AddRenderable(this);
+                    }
+                    break;
+                case (nameof(IsVisible)):
+                    if (IsVisible)
+                        WorldInstance?.VisualScene?.AddRenderable(this);
+                    else
+                        WorldInstance?.VisualScene?.RemoveRenderable(this);
                     break;
             }
         }

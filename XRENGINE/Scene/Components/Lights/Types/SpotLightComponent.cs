@@ -242,7 +242,7 @@ namespace XREngine.Components.Lights
             if (ShadowCamera != null)
                 ShadowCamera.FarZ = d;
 
-            MeshCenterAdjustMatrix = Matrix4x4.CreateScale(OuterCone.Radius, OuterCone.Radius, OuterCone.Height) * Matrix4x4.CreateTranslation(Transform.WorldForward * (Distance * 0.5f));
+            MeshCenterAdjustMatrix = Matrix4x4.CreateScale(OuterCone.Radius, OuterCone.Radius, OuterCone.Height) * Matrix4x4.CreateTranslation(Globals.Forward * (Distance * 0.5f));
         }
     }
 }

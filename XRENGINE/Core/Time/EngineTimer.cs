@@ -110,12 +110,12 @@ namespace XREngine.Timers
             _watch.Start();
             Debug.Out($"Started game loop threads.");
 
+            //Stopwatch sw = Stopwatch.StartNew();
             while (runUntilPredicate())
             {
-                Stopwatch sw = Stopwatch.StartNew();
                 RenderThread();
-                sw.Stop();
-                Debug.Out($"Render took {sw.ElapsedMilliseconds}ms.");
+                //Debug.Out($"Render took {sw.ElapsedMilliseconds}ms.");
+                //sw.Restart();
             }
         }
 

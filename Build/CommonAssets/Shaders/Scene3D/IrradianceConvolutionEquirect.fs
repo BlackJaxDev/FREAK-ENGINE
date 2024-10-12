@@ -3,7 +3,7 @@
 layout (location = 0) out vec3 OutColor;
 layout (location = 0) in vec3 FragPos;
 
-uniform sampler2D SceneTex; //Environment map
+uniform sampler2D Texture0;
 
 const float PI = 3.14159265359f;
 
@@ -35,13 +35,13 @@ void main()
             vec3 dir = normalize(sampleVec);
             // Convert the direction vector to spherical coordinates
             float phi = atan(dir.z, dir.x); // Angle around the Y axis
-            float theta = asin(dir.y);      // Angle from the Y axis
+            float theta2 = asin(dir.y); // Angle from the Y axis
             // Map spherical coordinates to [0, 1] range for texture sampling
             // phi ranges from -PI to PI, so we map it to [0, 1]
             // theta ranges from -PI/2 to PI/2, so we map it to [0, 1]
-            vec2 uv = vec2((phi / (2.0f * PI)) + 0.5f, (theta / PI) + 0.5f);
+            vec2 uv = vec2((phi / (2.0f * PI)) + 0.5f, 1.0f - ((theta2 / PI) + 0.5f));
 
-            irradiance += texture(SceneTex, uv).rgb * cos(theta) * sin(theta);
+            irradiance += texture(Texture0, uv).rgb * cos(theta) * sin(theta);
             ++numSamples;
         }
     }

@@ -3,7 +3,7 @@
 layout (location = 0) out vec3 OutColor;
 layout (location = 0) in vec3 FragPos;
 
-uniform samplerCube SceneTex; //Environment map
+uniform samplerCube Texture0;
 
 const float PI = 3.14159265359f;
 
@@ -32,7 +32,7 @@ void main()
             // tangent space to world
             vec3 sampleVec = tanX * right + tanY * up + tanZ * N;
 
-            irradiance += texture(SceneTex, sampleVec).rgb * cos(theta) * sin(theta);
+            irradiance += texture(Texture0, sampleVec).rgb * cos(theta) * sin(theta);
             ++numSamples;
         }
     }
