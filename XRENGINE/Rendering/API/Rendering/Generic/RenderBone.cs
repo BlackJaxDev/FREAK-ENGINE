@@ -13,7 +13,11 @@ namespace XREngine.Rendering
         /// Index of the bone in the shader.
         /// Starts at 1. 0 is reserved for the identity matrix.
         /// </summary>
-        public uint Index { get; set; }
+        public uint Index
+        {
+            get => _index;
+            set => SetField(ref _index, value);
+        }
         public XREvent<RenderBone> TransformChanged = new();
         public TransformBase Transform { get; }
 
@@ -57,6 +61,8 @@ namespace XREngine.Rendering
         }
 
         private List<VertexWeightGroup> _targetWeights = [];
+        private uint _index;
+
         public List<VertexWeightGroup> TargetWeights
         {
             get => _targetWeights;

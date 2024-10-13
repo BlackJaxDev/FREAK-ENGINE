@@ -86,7 +86,7 @@ namespace XREngine.Rendering
             VisualScene.RenderablesTree.Swap();
             foreach (SceneNode node in RootNodes)
                 if (node.IsActiveSelf)
-                    node.Start();
+                    node.OnSceneNodeActivated();
             IsPlaying = true;
         }
 
@@ -103,7 +103,7 @@ namespace XREngine.Rendering
             VisualScene.RenderablesTree.Swap();
             foreach (SceneNode node in RootNodes)
                 if (node.IsActiveSelf)
-                    node.Stop();
+                    node.OnSceneNodeDeactivated();
             IsPlaying = false;
         }
 

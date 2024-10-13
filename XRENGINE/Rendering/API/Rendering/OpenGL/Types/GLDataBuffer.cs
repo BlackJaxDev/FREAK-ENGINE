@@ -1,4 +1,5 @@
 ﻿using Silk.NET.OpenGL;
+using System.Runtime.Intrinsics.X86;
 using XREngine.Data;
 using XREngine.Data.Rendering;
 
@@ -80,18 +81,27 @@ namespace XREngine.Rendering.OpenGL
                     default:
                     case 2:
 
-                        if (Data.Target == EBufferTarget.ArrayBuffer)
+                        switch (Data.Target)
                         {
-                            uint vaoId = renderer.BindingId;
-
-                            Api.EnableVertexArrayAttrib(vaoId, index);
-                            Api.VertexArrayBindingDivisor(vaoId, index, Data.InstanceDivisor);
-                            Api.VertexArrayAttribBinding(vaoId, index, index);
-                            if (integral)
-                                Api.VertexArrayAttribIFormat(vaoId, index, (int)componentCount, GLEnum.Byte + componentType, 0);
-                            else
-                                Api.VertexArrayAttribFormat(vaoId, index, (int)componentCount, GLEnum.Byte + componentType, Data.Normalize, 0);
-                            Api.VertexArrayVertexBuffer(vaoId, index, BindingId, 0, Data.ElementSize);
+                            case EBufferTarget.ArrayBuffer:
+                                {
+                                    uint vaoId = renderer.BindingId;
+                                    Api.EnableVertexArrayAttrib(vaoId, index);
+                                    Api.VertexArrayBindingDivisor(vaoId, index, Data.InstanceDivisor);
+                                    Api.VertexArrayAttribBinding(vaoId, index, index);
+                                    if (integral)
+                                        Api.VertexArrayAttribIFormat(vaoId, index, (int)componentCount, GLEnum.Byte + componentType, 0);
+                                    else
+                                        Api.VertexArrayAttribFormat(vaoId, index, (int)componentCount, GLEnum.Byte + componentType, Data.Normalize, 0);
+                                    Api.VertexArrayVertexBuffer(vaoId, index, BindingId, 0, Data.ElementSize);
+                                }
+                                break;
+                            case EBufferTarget.ShaderStorageBuffer:
+                            case EBufferTarget.UniformBuffer:
+                                Bind();
+                                Api.BindBufferBase(ToGLEnum(Data.Target), index, BindingId);
+                                Unbind();
+                                break;
                         }
 
                         break;
@@ -106,20 +116,35 @@ namespace XREngine.Rendering.OpenGL
             private uint GetBindingLocation(GLMeshRenderer renderer)
             {
                 uint index = 0u;
-                if (Data.Target != EBufferTarget.ArrayBuffer)
-                    return index;
-
                 string bindingName = Data.BindingName;
 
-                if (string.IsNullOrWhiteSpace(bindingName))
-                    Debug.LogWarning($"{GetDescribingName()} has no binding name.");
+                switch (Data.Target)
+                {
+                    case EBufferTarget.ArrayBuffer:
 
-                if (renderer.VertexProgram is null)
-                    Debug.LogWarning($"{GetDescribingName()} has no vertex program.");
+                        if (string.IsNullOrWhiteSpace(bindingName))
+                            Debug.LogWarning($"{GetDescribingName()} has no binding name.");
 
-                int location = renderer.VertexProgram?.GetAttributeLocation(bindingName) ?? -1;
-                if (location >= 0)
-                    index = (uint)location;
+                        if (renderer.VertexProgram is null)
+                            Debug.LogWarning($"{GetDescribingName()} has no vertex program.");
+
+                        int location = renderer.VertexProgram?.GetAttributeLocation(bindingName) ?? -1;
+                        if (location >= 0)
+                            index = (uint)location;
+
+                        break;
+                    case EBufferTarget.ShaderStorageBuffer:
+                    case EBufferTarget.UniformBuffer:
+
+                        if (string.IsNullOrWhiteSpace(bindingName))
+                            Debug.LogWarning($"{GetDescribingName()} has no binding name.");
+
+                        index = Api.GetUniformBlockIndex(BindingId, bindingName);
+
+                        break;
+                    default:
+                        return 0;
+                }
 
                 return index;
             }
@@ -173,11 +198,45 @@ namespace XREngine.Rendering.OpenGL
                 }
             }
 
-            public void MapBufferData(
-                bool read = true,
-                bool write = true,
-                bool persistent = true,
-                bool coherent = true)
+            /// <summary>
+            /// 
+            /// </summary>
+            public enum EBufferMapAccess
+            {
+                Read = 0x0001,
+                Write = 0x0002,
+                ReadWrite = Read | Write,
+                /// <summary>
+                /// The client may request that the server read from or write to the buffer while it is mapped. 
+                /// The client's pointer to the data store remains valid so long as the data store is mapped, even during execution of drawing or dispatch commands.
+                /// If flags contains GL_MAP_PERSISTENT_BIT, it must also contain at least one of GL_MAP_READ_BIT or GL_MAP_WRITE_BIT.
+                /// </summary>
+                Persistent = 0x0040,
+                /// <summary>
+                /// Shared access to buffers that are simultaneously mapped for client access and are used by the server will be coherent, so long as that mapping is performed using glMapBufferRange. 
+                /// That is, data written to the store by either the client or server will be immediately visible to the other with no further action taken by the application.
+                /// In particular,
+                /// If not set and the client performs a write followed by a call to the glMemoryBarrier command with the GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT set, then in subsequent commands the server will see the writes.
+                /// If set and the client performs a write, then in subsequent commands the server will see the writes.
+                /// If not set and the server performs a write, the application must call glMemoryBarrier with the GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT set and then call glFenceSync with GL_SYNC_GPU_COMMANDS_COMPLETE (or glFinish). Then the CPU will see the writes after the sync is complete.
+                /// If set and the server does a write, the app must call glFenceSync with GL_SYNC_GPU_COMMANDS_COMPLETE(or glFinish). Then the CPU will see the writes after the sync is complete.
+                /// If flags contains GL_MAP_COHERENT_BIT, it must also contain GL_MAP_PERSISTENT_BIT.
+                /// </summary>
+                Coherent = 0x0041,
+                /// <summary>
+                /// When all other criteria for the buffer storage allocation are met, 
+                /// this bit may be used by an implementation to determine whether 
+                /// to use storage that is local to the server 
+                /// or to the client to serve as the backing store for the buffer.
+                /// </summary>
+                ClientStorage = 0x0042,
+                InvalidateRange = 0x0004,
+                InvalidateBuffer = 0x0008,
+                FlushExplicit = 0x0010,
+                Unsynchronized = 0x0020,
+            }
+
+            public void MapBufferData()
             {
                 if (Data.ActivelyMapping.Contains(this))
                     return;
@@ -236,7 +295,7 @@ namespace XREngine.Rendering.OpenGL
                     return;
 
                 Bind();
-                Api.BindBufferBase(OpenGLRenderer.ToGLEnum(Data.Target), blockIndex, BindingId);
+                Api.BindBufferBase(ToGLEnum(Data.Target), blockIndex, BindingId);
                 Unbind();
             }
 
@@ -244,9 +303,9 @@ namespace XREngine.Rendering.OpenGL
                 => UnmapBufferData();
 
             public void Bind()
-                => Api.BindBuffer(OpenGLRenderer.ToGLEnum(Data.Target), BindingId);
+                => Api.BindBuffer(ToGLEnum(Data.Target), BindingId);
             public void Unbind()
-                => Api.BindBuffer(OpenGLRenderer.ToGLEnum(Data.Target), 0);
+                => Api.BindBuffer(ToGLEnum(Data.Target), 0);
         }
     }
 }

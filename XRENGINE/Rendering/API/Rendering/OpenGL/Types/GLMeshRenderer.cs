@@ -390,8 +390,11 @@ namespace XREngine.Rendering.OpenGL
 
                 _bufferCache = [];
                 if (Data.Mesh != null)
-                    foreach (var pair in Data.Mesh.Buffers)
+                    foreach (var pair in (IEventDictionary<string, XRDataBuffer>)Data.Mesh.Buffers)
                         _bufferCache.Add(pair.Key, Renderer.GenericToAPI<GLDataBuffer>(pair.Value)!);
+                foreach (var pair in (IEventDictionary<string, XRDataBuffer>)Data.Buffers)
+                    _bufferCache.Add(pair.Key, Renderer.GenericToAPI<GLDataBuffer>(pair.Value)!);
+
 
                 vertexProgram.Data.Link();
 
@@ -468,10 +471,8 @@ namespace XREngine.Rendering.OpenGL
                 
                 if (TriangleIndicesBuffer is not null)
                     Api.VertexArrayElementBuffer(BindingId, TriangleIndicesBuffer.BindingId);
-                
                 if (LineIndicesBuffer is not null)
                     Api.VertexArrayElementBuffer(BindingId, LineIndicesBuffer.BindingId);
-                
                 if (PointIndicesBuffer is not null)
                     Api.VertexArrayElementBuffer(BindingId, PointIndicesBuffer.BindingId);
 

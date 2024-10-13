@@ -1,12 +1,9 @@
 ﻿using System.Collections;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
-using YamlDotNet.Serialization;
 
 namespace XREngine
 {
-    public interface IEventDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, IReadOnlyDictionary<TKey, TValue>, ISerializable, IDeserializationCallback, IReadOnlyEventDictionary<TKey, TValue> where TKey : notnull
+    public interface IEventDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IReadOnlyDictionary<TKey, TValue>, IReadOnlyEventDictionary<TKey, TValue> where TKey : notnull
     {
         //TValue this[TKey key] { get; set; }
         //void Add(TKey key, TValue value);
@@ -83,15 +80,15 @@ namespace XREngine
             return success;
         }
 
-        object? IDictionary.this[object key]
-        {
-            get => key is TKey k ? base[k] : (object?)null;
-            set
-            {
-                if (key is TKey k && value is TValue v)
-                    this[k] = v;
-            }
-        }
+        //object? IDictionary.this[object key]
+        //{
+        //    get => key is TKey k ? base[k] : (object?)null;
+        //    set
+        //    {
+        //        if (key is TKey k && value is TValue v)
+        //            this[k] = v;
+        //    }
+        //}
         TValue IDictionary<TKey, TValue>.this[TKey key]
         {
             get => this[key];
@@ -112,17 +109,17 @@ namespace XREngine
             => Remove(item);
         private bool Remove(KeyValuePair<TKey, TValue> item)
             => TryGetValue(item.Key, out TValue? value) && EqualityComparer<TValue>.Default.Equals(value, item.Value) && Remove(item.Key);
-        void IDictionary.Add(object key, object? value)
-            => Add(key, value);
+        //void IDictionary.Add(object key, object? value)
+        //    => Add(key, value);
         private void Add(object key, object? value)
         {
             if (key is TKey k && value is TValue v)
                 Add(k, v);
         }
-        void IDictionary.Clear()
-            => Clear();
-        void IDictionary.Remove(object key)
-            => Remove(key);
+        //void IDictionary.Clear()
+        //    => Clear();
+        //void IDictionary.Remove(object key)
+        //    => Remove(key);
         private void Remove(object key)
         {
             if (key is TKey k)

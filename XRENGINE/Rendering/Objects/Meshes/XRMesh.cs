@@ -8,8 +8,8 @@ using XREngine.Core.Files;
 using XREngine.Data.Core;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
+using XREngine.Scene;
 using XREngine.Scene.Transforms;
-using XREngine.TriangleConverter;
 using YamlDotNet.Serialization;
 
 namespace XREngine.Rendering
@@ -110,6 +110,22 @@ namespace XREngine.Rendering
             }
         }
 
+        private void MakeFaceIndices(Dictionary<TransformBase, float>[]? weights, int vertexCount)
+        {
+            _faceIndices = new VertexIndices[vertexCount];
+            for (int i = 0; i < vertexCount; ++i)
+            {
+                Dictionary<string, uint> bufferBindings = [];
+                foreach (string bindingName in Buffers.Keys)
+                    bufferBindings.Add(bindingName, (uint)i);
+                _faceIndices[i] = new VertexIndices()
+                {
+                    BufferBindings = bufferBindings,
+                    WeightIndex = weights is null ? -1 : i
+                };
+            }
+        }
+
         public bool HasSkinning => _utilizedBones is not null && _utilizedBones.Length > 0;
 
         //Specific common buffers
@@ -197,11 +213,7 @@ namespace XREngine.Rendering
 
         #endregion
 
-        public EventDictionary<string, XRDataBuffer> Buffers
-        {
-            get => _buffers;
-            set => SetField(ref _buffers, value);
-        }
+        public BufferCollection Buffers { get; private set; } = [];
 
         [Browsable(false)]
         public VertexWeightGroup[] Weights
@@ -698,18 +710,26 @@ namespace XREngine.Rendering
             int boneIndex = 0;
             for (int i = 0; i < weightsPerVertex.Length; i++)
             {
-                //TODO: remap?
                 _faceIndices[i].WeightIndex = i;
                 Dictionary<int, float> weights = [];
 
                 Dictionary<TransformBase, float> w = weightsPerVertex[i];
-                foreach (var pair in w)
+                if (w is not null)
                 {
-                    var bone = pair.Key;
-                    var weight = pair.Value;
-                    if (!boneToIndexTable.ContainsKey(bone))
-                        boneToIndexTable.Add(bone, boneIndex++);
-                    weights.Add(boneToIndexTable[bone], weight);
+                    foreach (var pair in w)
+                    {
+                        var bone = pair.Key;
+                        var weight = pair.Value;
+                        if (!boneToIndexTable.ContainsKey(bone))
+                            boneToIndexTable.Add(bone, boneIndex++);
+                        weights.Add(boneToIndexTable[bone], weight);
+                    }
+                }
+                else
+                {
+                    //No weights for this vertex
+                    //Debug.Out($"No weights for vertex {i}");
+                    weights.Add(0, 1.0f);
                 }
             }
             _utilizedBones = [.. boneToIndexTable.Keys];
@@ -1097,19 +1117,6 @@ namespace XREngine.Rendering
             else
                 firstAppearanceArray = remapper.ImplementationTable!;
 
-            _faceIndices = new VertexIndices[firstAppearanceArray.Length];
-            //for (int i = 0; i < firstAppearanceArray.Length; ++i)
-            //{
-            //    Dictionary<string, uint> bufferBindings = [];
-            //    for (int j = 0; j < Buffers.Count; ++j)
-            //        bufferBindings.Add(Buffers.Keys.ElementAt(j), (uint)j);
-            //    _faceIndices[i] = new VertexIndices()
-            //    {
-            //        BufferBindings = [],
-            //        WeightIndex = weights is null ? -1 : i
-            //    };
-            //}
-
             InitBuffers(
                 ref weights,
                 vertexActions.ContainsKey(0),
@@ -1120,6 +1127,8 @@ namespace XREngine.Rendering
                 firstAppearanceArray.Length);
 
             vertexActions.TryAdd(6, (i, x, vtx) => PositionsBuffer!.SetDataRawAtIndex((uint)i, vtx?.Position ?? Vector3.Zero));
+
+            MakeFaceIndices(weights, firstAppearanceArray.Length);
 
             //Fill the buffers with the vertex data using the command list
             //We can do this in parallel since each vertex is independent
@@ -1136,7 +1145,7 @@ namespace XREngine.Rendering
 #endif
         }
 
-        public unsafe XRMesh(Mesh* mesh, Assimp assimp)
+        public unsafe XRMesh(Mesh* mesh, Assimp assimp, Dictionary<string, SceneNode> nodeCache)
         {
 #if DEBUG
             Stopwatch sw = new();
@@ -1171,8 +1180,11 @@ namespace XREngine.Rendering
                 else
                     bounds.Value.ExpandToInclude(v.Position);
 
-                if (v.Weights is not null && v.Weights.Count > 0 && !vertexActions.ContainsKey(0))
-                    vertexActions.TryAdd(0, (i, x, vtx) => weights![i] = vtx?.Weights ?? []);
+                //if (v.Weights is not null && v.Weights.Count > 0 && !vertexActions.ContainsKey(0))
+                //    vertexActions.TryAdd(0, (i, x, vtx) =>
+                //    {
+                //        weights![i] = vtx?.Weights ?? [];
+                //    });
                 
                 if (v.Normal is not null && !vertexActions.ContainsKey(1))
                     vertexActions.TryAdd(1, (i, x, vtx) => NormalsBuffer!.SetDataRawAtIndex((uint)i, vtx?.Normal ?? Vector3.Zero));
@@ -1249,16 +1261,16 @@ namespace XREngine.Rendering
                 if (numInd > 3)
                 {
                     //Convert ngon to triangles
-                    for (uint j = 0; j < numInd - 2; j++)
+                    for (uint ind = 0; ind < numInd - 2; ind++)
                     {
                         AddVertex(targetList, vertexCache.GetOrAdd(face.MIndices[0], x => Vertex.FromAssimp(mesh, x)));
-                        AddVertex(targetList, vertexCache.GetOrAdd(face.MIndices[j + 1], x => Vertex.FromAssimp(mesh, x)));
-                        AddVertex(targetList, vertexCache.GetOrAdd(face.MIndices[j + 2], x => Vertex.FromAssimp(mesh, x)));
+                        AddVertex(targetList, vertexCache.GetOrAdd(face.MIndices[ind + 1], x => Vertex.FromAssimp(mesh, x)));
+                        AddVertex(targetList, vertexCache.GetOrAdd(face.MIndices[ind + 2], x => Vertex.FromAssimp(mesh, x)));
                     }
                 }
                 else
-                    for (uint j = 0; j < numInd; j++)
-                        AddVertex(targetList, vertexCache.GetOrAdd(face.MIndices[j], x => Vertex.FromAssimp(mesh, x)));
+                    for (uint ind = 0; ind < numInd; ind++)
+                        AddVertex(targetList, vertexCache.GetOrAdd(face.MIndices[ind], x => Vertex.FromAssimp(mesh, x)));
             }//);
 
             _bounds = bounds ?? new AABB(Vector3.Zero, Vector3.Zero);
@@ -1289,22 +1301,10 @@ namespace XREngine.Rendering
                 sourceList = points;
             }
 
-            _faceIndices = new VertexIndices[count];
-            //for (int i = 0; i < count; ++i)
-            //{
-            //    Dictionary<string, uint> bufferBindings = [];
-            //    for (int j = 0; j < Buffers.Count; ++j)
-            //        bufferBindings.Add(Buffers.Keys.ElementAt(j), (uint)j);
-            //    _faceIndices[i] = new VertexIndices()
-            //    {
-            //        BufferBindings = [],
-            //        WeightIndex = weights is null ? -1 : i
-            //    };
-            //}
-
+            uint boneCount = mesh->MNumBones;
             InitBuffers(
                 ref weights,
-                vertexActions.ContainsKey(0),
+                boneCount > 0,
                 vertexActions.ContainsKey(1),
                 vertexActions.ContainsKey(2),
                 maxColorCount,
@@ -1312,6 +1312,31 @@ namespace XREngine.Rendering
                 count);
 
             vertexActions.TryAdd(6, (i, x, vtx) => PositionsBuffer!.SetDataRawAtIndex((uint)i, vtx?.Position ?? Vector3.Zero));
+
+            //Populate weights
+            for (uint i = 0; i < boneCount; ++i)
+            {
+                var bone = mesh->MBones[i];
+                string name = bone->MName.ToString();
+                Matrix4x4 bindMatrix = bone->MOffsetMatrix;
+                TransformBase? transform = null;
+                if (nodeCache.TryGetValue(name, out var sceneNode))
+                    transform = sceneNode.Transform;
+                else
+                {
+                    Debug.Out($"Bone {name} has no corresponding node in the scene graph.");
+                }
+
+                for (uint j = 0; j < bone->MNumWeights; ++j)
+                {
+                    var weight = bone->MWeights[j];
+                    weights![weight.MVertexId] ??= [];
+                    if (transform is not null && !weights[weight.MVertexId].TryGetValue(transform, out float existingWeight))
+                        weights[weight.MVertexId].Add(transform, weight.MWeight);
+                }
+            }
+
+            MakeFaceIndices(weights, count);
 
             //Fill the buffers with the vertex data using the command list
             //We can do this in parallel since each vertex is independent

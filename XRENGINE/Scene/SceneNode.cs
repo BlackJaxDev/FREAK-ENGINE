@@ -1,18 +1,25 @@
 ﻿using System.Collections;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
+using System.Numerics;
 using XREngine.Components;
 using XREngine.Core;
 using XREngine.Core.Attributes;
+using XREngine.Data.Colors;
 using XREngine.Data.Core;
+using XREngine.Data.Rendering;
 using XREngine.Rendering;
+using XREngine.Rendering.Commands;
+using XREngine.Rendering.Info;
 using XREngine.Scene.Transforms;
 
 namespace XREngine.Scene
 {
     [Serializable]
-    public sealed class SceneNode : XRWorldObjectBase, IEventListReadOnly<XRComponent>
+    public sealed class SceneNode : XRWorldObjectBase, IEventListReadOnly<XRComponent>, IRenderable
     {
+        public RenderInfo[] RenderedObjects { get; }
+
         //private static SceneNode? _dummy;
         //internal static SceneNode Dummy => _dummy ??= new SceneNode() { IsDummy = true };
         //internal bool IsDummy { get; private set; } = false;
@@ -30,7 +37,9 @@ namespace XREngine.Scene
 
             Transform.Parent = parent?.Transform;
             Name = name;
+            RenderedObjects = GetDebugRenderInfo();
         }
+
         public SceneNode(SceneNode parent, TransformBase? transform = null)
             : this(parent, DefaultName, transform) { }
         public SceneNode(string name, TransformBase? transform = null)
@@ -40,6 +49,7 @@ namespace XREngine.Scene
 
             Transform.Parent = null;
             Name = name;
+            RenderedObjects = GetDebugRenderInfo();
         }
         public SceneNode(XRScene scene, string name, TransformBase? transform = null)
         {
@@ -48,6 +58,16 @@ namespace XREngine.Scene
 
             scene._rootObjects.Add(this);
             Name = name;
+            RenderedObjects = GetDebugRenderInfo();
+        }
+
+        private RenderInfo[] GetDebugRenderInfo()
+            => [RenderInfo3D.New(this, new RenderCommandMethod3D((int)EDefaultRenderPass.OpaqueForward, RenderDebugLine))];
+
+        private void RenderDebugLine(bool shadowPass)
+        {
+            if (!shadowPass)
+                Engine.Rendering.Debug.RenderLine(Transform.WorldTranslation, Parent?.Transform.WorldTranslation ?? Vector3.Zero, ColorF4.White, false, 7);
         }
 
         private readonly EventList<XRComponent> _components = [];
@@ -102,12 +122,18 @@ namespace XREngine.Scene
             {
                 case nameof(IsActiveSelf):
                     if (IsActiveSelf)
-                        Start();
+                        OnSceneNodeActivated();
                     else
-                        Stop();
+                        OnSceneNodeDeactivated();
                     break;
                 case nameof(World):
                     SetWorldToChildNodes(World);
+                    break;
+                case nameof(Transform):
+                    Transform.Name = Name;
+                    break;
+                case nameof(Name):
+                    Transform.Name = Name;
                     break;
             }
         }
@@ -501,8 +527,11 @@ namespace XREngine.Scene
         /// <summary>
         /// Called when the scene node is added to a world or activated.
         /// </summary>
-        public void Start()
+        public void OnSceneNodeActivated()
         {
+            foreach (var obj in RenderedObjects)
+                obj.WorldInstance = World;
+            
             foreach (XRComponent component in this)
                 if (component.IsActive)
                     component.OnComponentActivated();
@@ -516,15 +545,18 @@ namespace XREngine.Scene
                         continue;
 
                     if (node.IsActiveSelf)
-                        node.Start();
+                        node.OnSceneNodeActivated();
                 }
             }
         }
         /// <summary>
         /// Called when the scene node is removed from a world or deactivated.
         /// </summary>
-        public void Stop()
+        public void OnSceneNodeDeactivated()
         {
+            foreach (var obj in RenderedObjects)
+                obj.WorldInstance = null;
+
             foreach (XRComponent component in this)
                 if (component.IsActive)
                     component.OnComponentDeactivated();
@@ -538,7 +570,7 @@ namespace XREngine.Scene
                         continue;
 
                     if (node.IsActiveSelf)
-                        node.Stop();
+                        node.OnSceneNodeDeactivated();
                 }
             }
         }
@@ -633,7 +665,6 @@ namespace XREngine.Scene
         public bool IsSynchronized => ((ICollection)ComponentsInternal).IsSynchronized;
 
         public object SyncRoot => ((ICollection)ComponentsInternal).SyncRoot;
-
 
         public event EventList<XRComponent>.SingleCancelableHandler PreAnythingAdded
         {
@@ -979,5 +1010,19 @@ namespace XREngine.Scene
         }
 
         #endregion
+
+        public string PrintTree()
+        {
+            string name = Name ?? "<no name>";
+            string depth = new(' ', Transform.Depth * 2);
+            string output = $"{depth}{name}{Environment.NewLine}";
+            lock (Transform.Children)
+            {
+                foreach (var child in Transform.Children)
+                    if (child?.SceneNode is SceneNode node)
+                        output += node.PrintTree();
+            }
+            return output;
+        }
     }
 }

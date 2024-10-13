@@ -359,6 +359,23 @@ namespace XREngine.Rendering.OpenGL
                     _ => throw new ArgumentOutOfRangeException(nameof(sizedInternalFormat), sizedInternalFormat, null),
                 };
 
+            public static GLEnum ToGLEnum(EBufferTarget target)
+                => target switch
+                {
+                    EBufferTarget.ArrayBuffer => GLEnum.ArrayBuffer,
+                    EBufferTarget.ElementArrayBuffer => GLEnum.ElementArrayBuffer,
+                    EBufferTarget.CopyReadBuffer => GLEnum.CopyReadBuffer,
+                    EBufferTarget.CopyWriteBuffer => GLEnum.CopyWriteBuffer,
+                    EBufferTarget.PixelPackBuffer => GLEnum.PixelPackBuffer,
+                    EBufferTarget.PixelUnpackBuffer => GLEnum.PixelUnpackBuffer,
+                    EBufferTarget.TransformFeedbackBuffer => GLEnum.TransformFeedbackBuffer,
+                    EBufferTarget.UniformBuffer => GLEnum.UniformBuffer,
+                    EBufferTarget.TextureBuffer => GLEnum.TextureBuffer,
+                    EBufferTarget.ParameterBuffer => GLEnum.ParameterBuffer,
+                    EBufferTarget.ShaderStorageBuffer => GLEnum.ShaderStorageBuffer,
+                    _ => throw new ArgumentOutOfRangeException(nameof(target), target, null),
+                };
+
             public static GLEnum ToGLEnum(ETextureTarget textureTarget)
                 => textureTarget switch
                 {

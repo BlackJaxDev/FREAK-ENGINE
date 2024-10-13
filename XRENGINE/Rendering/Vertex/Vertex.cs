@@ -159,24 +159,6 @@ namespace XREngine.Data.Rendering
                 v.ColorSets.Add(color);
             }
 
-            ////Weights
-            //uint boneCount = mesh->MNumBones;
-            //for (uint i = 0; i < boneCount; ++i)
-            //{
-            //    var bone = mesh->MBones[i];
-            //    for (uint j = 0; j < bone->MNumWeights; ++j)
-            //    {
-            //        var weight = bone->MWeights[j];
-            //        if (weight.MVertexId == vertexIndex)
-            //        {
-            //            if (v.Weights == null)
-            //                v.Weights = [];
-
-            //            //v.Weights.Add(new TransformBase(bone->MName.ToString()), weight.MWeight);
-            //        }
-            //    }
-            //}
-
             //Blendshapes
             uint blendshapeCount = mesh->MNumAnimMeshes;
             if (blendshapeCount > 0)

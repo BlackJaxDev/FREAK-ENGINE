@@ -1,5 +1,4 @@
-﻿using Google.Cloud.TextToSpeech.V1;
-using ImageMagick;
+﻿using ImageMagick;
 using Silk.NET.Assimp;
 using System.Collections.Concurrent;
 using System.Diagnostics;
@@ -7,14 +6,12 @@ using System.Numerics;
 using System.Text;
 using XREngine.Components.Scene.Mesh;
 using XREngine.Data;
-using XREngine.Data.Colors;
-using XREngine.Data.Rendering;
 using XREngine.Rendering;
 using XREngine.Rendering.Models;
-using XREngine.Rendering.Models.Materials;
 using XREngine.Scene;
 using XREngine.Scene.Transforms;
 using AScene = Silk.NET.Assimp.Scene;
+using AAnimation = Silk.NET.Assimp.Animation;
 
 namespace XREngine
 {
@@ -46,7 +43,8 @@ namespace XREngine
 
         private readonly ConcurrentDictionary<string, TextureInfo> _textureInfoCache = [];
         private readonly ConcurrentDictionary<string, MagickImage?> _textureCache = new();
-
+        private readonly Dictionary<string, SceneNode> _nodeCache = [];
+        
         private readonly ConcurrentBag<XRMesh> _meshes = [];
         private readonly ConcurrentBag<XRMaterial> _materials = [];
 
@@ -108,6 +106,27 @@ namespace XREngine
             SceneNode rootNode = new(Path.GetFileNameWithoutExtension(SourceFilePath));
             ProcessNode(scene->MRootNode, scene, Matrix4x4.Identity, rootNode);
 
+            //Debug.Out(rootNode.PrintTree());
+
+            //for (var i = 0; i < scene->MNumAnimations; i++)
+            //{
+            //    AAnimation* anim = scene->MAnimations[i];
+            //}
+
+            //for (var i = 0; i < scene->MNumSkeletons; i++)
+            //{
+            //    Skeleton* skeleton = scene->MSkeletons[i];
+            //    string name = skeleton->MName.ToString();
+            //    Debug.Out($"Reading skeleton {name}");
+            //    for (var j = 0; j < skeleton->MNumBones; j++)
+            //    {
+            //        SkeletonBone* bone = skeleton->MBones[j];
+            //        int parentIndex = bone->MParent;
+            //        SkeletonBone* parent = parentIndex >= 0 && parentIndex < skeleton->MNumBones ? skeleton->MBones[parentIndex] : null;
+
+            //    }
+            //}
+
 #if DEBUG
             Debug.Out($"Model hierarchy processed in {sw.ElapsedMilliseconds / 1000.0f} sec.");
 #endif
@@ -120,6 +139,7 @@ namespace XREngine
                     sw.Stop();
                     Debug.Out($"Model imported asynchronously in {sw.ElapsedMilliseconds / 1000.0f} sec.");
 #endif
+                    _assimp.FreeScene(scene);
                     _onCompleted?.Invoke();
                 }
                 Task.Run(ProcessMeshesParallel).ContinueWith(Complete);
@@ -131,6 +151,7 @@ namespace XREngine
                 sw.Stop();
                 Debug.Out($"Model imported synchronously in {sw.ElapsedMilliseconds / 1000.0f} sec.");
 #endif
+                _assimp.FreeScene(scene);
                 _onCompleted?.Invoke();
             }
 
@@ -149,20 +170,16 @@ namespace XREngine
 
         private unsafe void ProcessNode(Node* node, AScene* scene, Matrix4x4 parentWorldTransform, SceneNode parentSceneNode)
         {
-            //Debug.Out($"Processing node: {node->MName}");
-
+            string name = node->MName;
+            //Debug.Out($"Processing node: {name}");
             Matrix4x4 localTransform = node->MTransformation;
-            Matrix4x4 worldTransform = localTransform * parentWorldTransform;
-
             Transform tfm = [];
-            tfm.DeriveWorldMatrix(localTransform);
-
-            SceneNode sceneNode = new(parentSceneNode, node->MName, tfm);
-
+            tfm.DeriveLocalMatrix(localTransform);
+            SceneNode sceneNode = new(parentSceneNode, name, tfm);
+            _nodeCache.Add(name, sceneNode);
             EnqueueProcessMeshes(node, scene, parentWorldTransform, sceneNode);
-
             for (var i = 0; i < node->MNumChildren; i++)
-                ProcessNode(node->MChildren[i], scene, worldTransform, sceneNode);
+                ProcessNode(node->MChildren[i], scene, localTransform * parentWorldTransform, sceneNode);
         }
 
         private unsafe void EnqueueProcessMeshes(Node* node, AScene* scene, Matrix4x4 parentWorldTransform, SceneNode sceneNode)
@@ -200,9 +217,12 @@ namespace XREngine
             Matrix4x4 transform)
         {
             //Debug.Out($"Processing mesh: {mesh->MName}");
+            return (new(mesh, _assimp, _nodeCache), ProcessMaterial(mesh, scene));
+        }
 
+        private unsafe XRMaterial ProcessMaterial(Mesh* mesh, AScene* scene)
+        {
             Material* matInfo = scene->MMaterials[mesh->MMaterialIndex];
-
             List<TextureInfo> textures = [];
             for (int i = 0; i < 22; ++i)
             {
@@ -211,12 +231,8 @@ namespace XREngine
                 if (maps.Count > 0)
                     textures.AddRange(maps);
             }
-
             ReadProperties(matInfo, out string name, out TextureFlags flags, out ShadingMode mode, out var propDic);
-
-            XRMaterial mat = _materialFactory(SourceFilePath, name, textures, flags, mode, propDic);
-
-            return (new(mesh, _assimp), mat);
+            return _materialFactory(SourceFilePath, name, textures, flags, mode, propDic);
         }
 
         private static unsafe void ReadProperties(Material* material, out string name, out TextureFlags flags, out ShadingMode shadingMode, out Dictionary<string, List<object>> properties)
@@ -350,13 +366,9 @@ namespace XREngine
     public record struct TextureInfo(string path, TextureMapping mapping, uint uvIndex, TextureOp op, TextureMapMode mapMode, uint flags)
     {
         public static implicit operator (string path, TextureMapping mapping, uint uvIndex, TextureOp op, TextureMapMode mapMode, uint flags)(TextureInfo value)
-        {
-            return (value.path, value.mapping, value.uvIndex, value.op, value.mapMode, value.flags);
-        }
+            => (value.path, value.mapping, value.uvIndex, value.op, value.mapMode, value.flags);
 
         public static implicit operator TextureInfo((string path, TextureMapping mapping, uint uvIndex, TextureOp op, TextureMapMode mapMode, uint flags) value)
-        {
-            return new TextureInfo(value.path, value.mapping, value.uvIndex, value.op, value.mapMode, value.flags);
-        }
+            => new(value.path, value.mapping, value.uvIndex, value.op, value.mapMode, value.flags);
     }
 }

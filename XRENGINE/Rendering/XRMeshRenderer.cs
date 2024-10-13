@@ -1,4 +1,5 @@
 ﻿using Extensions;
+using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using XREngine.Data.Colors;
@@ -7,6 +8,7 @@ using XREngine.Rendering.Models.Materials;
 using XREngine.Rendering.Models.Materials.Shaders.Parameters;
 using XREngine.Rendering.Shaders.Generator;
 using XREngine.Scene.Transforms;
+using static XREngine.Rendering.XRMesh;
 
 namespace XREngine.Rendering
 {
@@ -19,9 +21,7 @@ namespace XREngine.Rendering
         {
             _mesh = mesh;
             _material = material;
-
-            InitializeBones();
-            InitializeBoneMatricesBuffer();
+            ReinitializeBones();
         }
 
         private XRMesh? _mesh;
@@ -42,8 +42,8 @@ namespace XREngine.Rendering
         }
 
         private RenderBone[]? _bones;
-        private Dictionary<uint, Matrix4x4> _modifiedBonesRendering = [];
-        private Dictionary<uint, Matrix4x4> _modifiedBonesUpdating = [];
+        private ConcurrentDictionary<uint, Matrix4x4> _modifiedBonesRendering = [];
+        private ConcurrentDictionary<uint, Matrix4x4> _modifiedBonesUpdating = [];
 
         public string? GenerateVertexShaderSource<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>() where T : ShaderGeneratorBase
         {
@@ -63,27 +63,41 @@ namespace XREngine.Rendering
             private set => SetField(ref _singleBind, value);
         }
 
-        private void InitializeBones()
+        private void ReinitializeBones()
         {
+            Engine.Time.Timer.SwapBuffers -= SwapBuffers;
             _bones = null;
             SingleBind = null;
+            BoneMatricesBuffer?.Destroy();
+            BoneMatricesBuffer = null;
 
             if (Mesh?.UtilizedBones is null)
                 return;
 
             if (Mesh.UtilizedBones.Length == 1)
-            {
                 SingleBind = Mesh.UtilizedBones[0];
-            }
             else if (Mesh.Weights != null && Mesh.Weights.Length > 0)
             {
+                Matrix4x4[] matrices = new Matrix4x4[Mesh.UtilizedBones.Length + 1];
+                matrices[0] = Matrix4x4.Identity;
                 _bones = new RenderBone[Mesh.UtilizedBones.Length];
                 for (int i = 0; i < _bones.Length; ++i)
                 {
                     var rb = new RenderBone(Mesh.UtilizedBones[i], (uint)i + 1u);
                     rb.TransformChanged += BoneTransformUpdated;
                     _bones[i] = rb;
+                    matrices[i + 1] = rb.Transform.WorldMatrix;
                 }
+
+                BoneMatricesBuffer = new XRDataBuffer(EBufferTarget.UniformBuffer, false)
+                {
+                    Mapped = false,
+                    Usage = EBufferUsage.DynamicDraw,
+                };
+
+                BoneMatricesBuffer.SetDataRaw(matrices, false);
+                foreach (RenderBone bone in _bones)
+                    _modifiedBonesUpdating.TryAdd(bone.Index, bone.Transform.WorldMatrix);
 
                 int facePointCount = Mesh.FaceIndices.Length;
                 int[] boneWeightOffsets = new int[facePointCount];
@@ -123,16 +137,18 @@ namespace XREngine.Rendering
                     }
                 }
 
-                Mesh.SetBufferRaw(boneWeightCounts, ECommonBufferType.BoneMatrixCount.ToString(), false, true);
-                Mesh.SetBufferRaw(boneWeightOffsets, ECommonBufferType.BoneMatrixOffset.ToString(), false, true);
+                Buffers.SetBufferRaw(boneWeightCounts, ECommonBufferType.BoneMatrixCount.ToString(), false, true);
+                Buffers.SetBufferRaw(boneWeightOffsets, ECommonBufferType.BoneMatrixOffset.ToString(), false, true);
+                Buffers.SetBufferRaw(boneIndices, ECommonBufferType.BoneMatrixIndices.ToString(), false, true, false, 0, EBufferTarget.ShaderStorageBuffer);
+                Buffers.SetBufferRaw(boneWeights, ECommonBufferType.BoneMatrixWeights.ToString(), false, false, false, 0, EBufferTarget.ShaderStorageBuffer);
+                Engine.Time.Timer.SwapBuffers += SwapBuffers;
             }
         }
+
+        public BufferCollection Buffers { get; private set; } = [];
+
         private void BoneTransformUpdated(RenderBone bone)
-        {
-            Matrix4x4 worldMatrix = bone.Transform.WorldMatrix;
-            if (!_modifiedBonesUpdating.TryAdd(bone.Index, worldMatrix))
-                _modifiedBonesUpdating[bone.Index] = worldMatrix;
-        }
+            => _modifiedBonesUpdating.AddOrUpdate(bone.Index, x => bone.Transform.WorldMatrix, (x, y) => bone.Transform.WorldMatrix);
 
         public void SwapBuffers()
         {
@@ -156,39 +172,6 @@ namespace XREngine.Rendering
         }
 
         /// <summary>
-        /// Creates the streamable buffer for bone world transforms.
-        /// This is used on the GPU for dynamic skinning.
-        /// </summary>
-        private void InitializeBoneMatricesBuffer()
-        {
-            _bones = null;
-            BoneMatricesBuffer?.Dispose();
-            BoneMatricesBuffer = null;
-
-            if (Mesh is null || Mesh?.UtilizedBones is null || Mesh.UtilizedBones.Length == 0)
-                return;
-
-            _bones = new RenderBone[Mesh.UtilizedBones.Length];
-            for (int i = 0; i < _bones.Length; ++i)
-            {
-                var rb = new RenderBone(Mesh.UtilizedBones[i], (uint)i + 1u);
-                rb.TransformChanged += BoneTransformUpdated;
-                _bones[i] = rb;
-            }
-
-            BoneMatricesBuffer = new XRDataBuffer(EBufferTarget.UniformBuffer, false)
-            {
-                Mapped = false,
-                Usage = EBufferUsage.DynamicDraw,
-            };
-            List<Matrix4x4> matrices = _bones.Select(x => x.Transform.WorldMatrix).ToList();
-            matrices.Insert(0, Matrix4x4.Identity);
-            BoneMatricesBuffer.SetDataRaw(matrices, false);
-            foreach (RenderBone bone in _bones)
-                _modifiedBonesUpdating.Add(bone.Index, bone.Transform.WorldMatrix);
-        }
-
-        /// <summary>
         /// All bone matrices for the mesh.
         /// Stream-write buffer.
         /// </summary>
@@ -204,6 +187,17 @@ namespace XREngine.Rendering
         {
             get => _generateAsync;
             set => SetField(ref _generateAsync, value);
+        }
+
+        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+        {
+            base.OnPropertyChanged(propName, prev, field);
+            switch (propName)
+            {
+                case nameof(Mesh):
+                    ReinitializeBones();
+                    break;
+            }
         }
 
         public delegate void DelSetUniforms(XRRenderProgram vertexProgram, XRRenderProgram materialProgram);

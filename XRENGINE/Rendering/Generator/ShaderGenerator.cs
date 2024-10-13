@@ -44,18 +44,19 @@ namespace XREngine.Rendering.Shaders.Generator
             => Line($"layout (location = {layoutLocation}) out {type.ToString()[1..]} {name};");
         public void WriteOutVar(EShaderVarType type, string name)
             => Line($"out {type.ToString()[1..]} {name};");
-        public void WriteUniform(int layoutLocation, EShaderVarType type, string name)
-            => Line($"layout (location = {layoutLocation}) uniform {type.ToString()[1..]} {name};");
 
-        public void WriteUniform(EShaderVarType type, string name)
-            => Line($"{(_inBlock ? string.Empty : "uniform ")}{type.ToString()[1..]} {name};");
+        public void WriteUniform(int layoutLocation, EShaderVarType type, string name, bool array = false)
+            => Line($"layout (location = {layoutLocation}) uniform {type.ToString()[1..]} {name}{(array ? "[]" : "")};");
+
+        public void WriteUniform(EShaderVarType type, string name, bool array = false)
+            => Line($"{(_inBlock ? string.Empty : "uniform ")}{type.ToString()[1..]} {name}{(array ? "[]" : "")};");
 
         public StateObject StartBufferBlock(string bufferName, int binding)
         {
             _inBlock = true;
-            Line($"layout(std430, binding = {binding}) buffer {bufferName}");
+            Line($"layout(binding = {binding}) buffer {bufferName}");
             OpenBracket();
-            return new StateObject(() => EndBufferBlock());
+            return new StateObject(EndBufferBlock);
         }
         public void EndBufferBlock()
         {

@@ -61,6 +61,12 @@ namespace XREngine.Components.Lights
 
         private readonly RenderCommandMesh3D _visualRC;
 
+        public bool PreviewEnabled 
+        {
+            get => VisualRenderInfo.IsVisible;
+            set => VisualRenderInfo.IsVisible = value;
+        }
+
         public RenderInfo3D VisualRenderInfo { get; }
         public RenderInfo3D PreRenderInfo { get; }
         public RenderInfo[] RenderedObjects { get; }

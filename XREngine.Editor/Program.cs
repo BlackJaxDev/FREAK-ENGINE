@@ -5,7 +5,9 @@ using System.Numerics;
 using XREngine;
 using XREngine.Components;
 using XREngine.Components.Lights;
+using XREngine.Components.Scene;
 using XREngine.Components.Scene.Mesh;
+using XREngine.Data;
 using XREngine.Data.Colors;
 using XREngine.Data.Core;
 using XREngine.Data.Rendering;
@@ -18,6 +20,7 @@ using XREngine.Rendering.Models;
 using XREngine.Rendering.Models.Materials;
 using XREngine.Scene;
 using XREngine.Scene.Transforms;
+using static XREngine.Audio.AudioSource;
 
 internal class Program
 {
@@ -76,7 +79,7 @@ internal class Program
         var cameraNode = new SceneNode(rootNode) { Name = "TestCameraNode" };
 
         var orbitTransform = cameraNode.SetTransform<OrbitTransform>();
-        orbitTransform.Radius = 10.0f;
+        orbitTransform.Radius = 7.0f;
         orbitTransform.IgnoreRotation = false;
         orbitTransform.RegisterAnimationTick<OrbitTransform>(t => t.Angle += Engine.DilatedDelta * 0.5f);
 
@@ -178,7 +181,7 @@ internal class Program
 
         var probe = new SceneNode(rootNode) { Name = "TestLightProbeNode" };
         var probeTransform = probe.SetTransform<Transform>();
-        probeTransform.Translation = new Vector3(0.0f, 4.0f, 0.0f);
+        probeTransform.Translation = new Vector3(0.0f, 5.0f, 0.0f);
         if (probe.TryAddComponent<LightProbeComponent>(out var probeComp))
         {
             probeComp!.Name = "TestLightProbe";
@@ -240,8 +243,8 @@ internal class Program
         string fbxPathDesktop = Path.Combine(desktopDir, "test.fbx");
         _ = ModelImporter.ImportAsync(fbxPathDesktop, PostProcessSteps.None, MaterialFactory, rootNode);
 
-        string sponzaPath = Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj");
-        _ = ModelImporter.ImportAsync(sponzaPath, PostProcessSteps.None, MaterialFactory, importedModelsNode);
+        //string sponzaPath = Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj");
+        //_ = ModelImporter.ImportAsync(sponzaPath, PostProcessSteps.None, MaterialFactory, importedModelsNode);
 
         return world;
     }

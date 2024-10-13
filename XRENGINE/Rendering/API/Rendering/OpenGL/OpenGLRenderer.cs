@@ -275,23 +275,6 @@ namespace XREngine.Rendering.OpenGL
             Api.DrawBuffer(att);
         }
 
-        public static GLEnum ToGLEnum(EBufferTarget target)
-            => target switch
-            {
-                EBufferTarget.ArrayBuffer => GLEnum.ArrayBuffer,
-                EBufferTarget.ElementArrayBuffer => GLEnum.ElementArrayBuffer,
-                EBufferTarget.CopyReadBuffer => GLEnum.CopyReadBuffer,
-                EBufferTarget.CopyWriteBuffer => GLEnum.CopyWriteBuffer,
-                EBufferTarget.PixelPackBuffer => GLEnum.PixelPackBuffer,
-                EBufferTarget.PixelUnpackBuffer => GLEnum.PixelUnpackBuffer,
-                EBufferTarget.TransformFeedbackBuffer => GLEnum.TransformFeedbackBuffer,
-                EBufferTarget.UniformBuffer => GLEnum.UniformBuffer,
-                EBufferTarget.TextureBuffer => GLEnum.TextureBuffer,
-                EBufferTarget.ParameterBuffer => GLEnum.ParameterBuffer,
-                EBufferTarget.ShaderStorageBuffer => GLEnum.ShaderStorageBuffer,
-                _ => throw new ArgumentOutOfRangeException(nameof(target), target, null),
-            };
-
         public override void SetRenderArea(BoundingRectangle region)
             => Api.Viewport(region.X, region.Y, (uint)region.Width, (uint)region.Height);
 

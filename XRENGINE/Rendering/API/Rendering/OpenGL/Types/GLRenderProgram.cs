@@ -281,7 +281,6 @@ namespace XREngine.Rendering.OpenGL
                 }
             }
 
-
             public ulong Hash { get; private set; }
             private BinaryProgram? _cachedProgram = null;
             protected override uint CreateObject()

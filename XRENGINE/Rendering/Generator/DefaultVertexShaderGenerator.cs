@@ -175,13 +175,13 @@ namespace XREngine.Rendering.Shaders.Generator
             {
                 //Matrices
                 using (StartBufferBlock(BoneDataBuffer, bindingIndex++))
-                    WriteUniform(EShaderVarType._mat4, $"{ECommonBufferType.BoneMatrices}[]");
+                    WriteUniform(EShaderVarType._mat4, ECommonBufferType.BoneMatrices.ToString(), true);
 
                 //Bone weights and indices into the matrix buffer
                 using (StartBufferBlock(BoneWeightData, bindingIndex++))
                 {
-                    WriteUniform(EShaderVarType._int, ECommonBufferType.BoneMatrixIndices.ToString());
-                    WriteUniform(EShaderVarType._float, ECommonBufferType.BoneMatrixWeights.ToString());
+                    WriteUniform(EShaderVarType._int, ECommonBufferType.BoneMatrixIndices.ToString(), true);
+                    WriteUniform(EShaderVarType._float, ECommonBufferType.BoneMatrixWeights.ToString(), true);
                 }
             }
 
@@ -190,17 +190,17 @@ namespace XREngine.Rendering.Shaders.Generator
                 using (StartBufferBlock(BlendshapeDeltas, bindingIndex++))
                 {
                     if (Mesh.BlendshapePositionDeltasBuffer is not null)
-                        WriteUniform(EShaderVarType._vec3, ECommonBufferType.BlendshapePositionDeltas.ToString());
+                        WriteUniform(EShaderVarType._vec3, ECommonBufferType.BlendshapePositionDeltas.ToString(), true);
                     if (Mesh.BlendshapeNormalDeltasBuffer is not null)
-                        WriteUniform(EShaderVarType._vec3, ECommonBufferType.BlendshapeNormalDeltas.ToString());
+                        WriteUniform(EShaderVarType._vec3, ECommonBufferType.BlendshapeNormalDeltas.ToString(), true);
                     if (Mesh.BlendshapeTangentDeltasBuffer is not null)
-                        WriteUniform(EShaderVarType._vec3, ECommonBufferType.BlendshapeTangentDeltas.ToString());
+                        WriteUniform(EShaderVarType._vec3, ECommonBufferType.BlendshapeTangentDeltas.ToString(), true);
                 }
 
                 using (StartBufferBlock(BlendshapeData, bindingIndex++))
                 {
-                    WriteUniform(EShaderVarType._int, ECommonBufferType.BlendshapeIndices.ToString());
-                    WriteUniform(EShaderVarType._float, ECommonBufferType.BlendshapeWeights.ToString());
+                    WriteUniform(EShaderVarType._int, ECommonBufferType.BlendshapeIndices.ToString(), true);
+                    WriteUniform(EShaderVarType._float, ECommonBufferType.BlendshapeWeights.ToString(), true);
                 }
             }
         }
