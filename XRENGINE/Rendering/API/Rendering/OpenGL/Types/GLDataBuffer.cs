@@ -14,12 +14,14 @@ namespace XREngine.Rendering.OpenGL
                 Data.PushDataRequested -= PushData;
                 Data.PushSubDataRequested -= PushSubData;
                 Data.SetBlockNameRequested -= SetBlockName;
+                Data.SetBlockIndexRequested -= SetBlockIndex;
             }
             protected override void LinkData()
             {
                 Data.PushDataRequested += PushData;
                 Data.PushSubDataRequested += PushSubData;
                 Data.SetBlockNameRequested += SetBlockName;
+                Data.SetBlockIndexRequested += SetBlockIndex;
             }
 
             public override GLObjectType Type => GLObjectType.Buffer;
@@ -118,29 +120,25 @@ namespace XREngine.Rendering.OpenGL
                 uint index = 0u;
                 string bindingName = Data.BindingName;
 
+                if (string.IsNullOrWhiteSpace(bindingName))
+                    Debug.LogWarning($"{GetDescribingName()} has no binding name.");
+
+                var vtx = renderer.VertexProgram;
+
                 switch (Data.Target)
                 {
                     case EBufferTarget.ArrayBuffer:
 
-                        if (string.IsNullOrWhiteSpace(bindingName))
-                            Debug.LogWarning($"{GetDescribingName()} has no binding name.");
-
-                        if (renderer.VertexProgram is null)
-                            Debug.LogWarning($"{GetDescribingName()} has no vertex program.");
-
-                        int location = renderer.VertexProgram?.GetAttributeLocation(bindingName) ?? -1;
+                        int location = vtx.GetAttributeLocation(bindingName);
                         if (location >= 0)
                             index = (uint)location;
 
                         break;
                     case EBufferTarget.ShaderStorageBuffer:
+                        index = Api.GetProgramResourceIndex(vtx.BindingId, GLEnum.ShaderStorageBlock, bindingName);
+                        break;
                     case EBufferTarget.UniformBuffer:
-
-                        if (string.IsNullOrWhiteSpace(bindingName))
-                            Debug.LogWarning($"{GetDescribingName()} has no binding name.");
-
-                        index = Api.GetUniformBlockIndex(BindingId, bindingName);
-
+                        index = Api.GetProgramResourceIndex(vtx.BindingId, GLEnum.UniformBlock, bindingName);
                         break;
                     default:
                         return 0;
@@ -198,44 +196,6 @@ namespace XREngine.Rendering.OpenGL
                 }
             }
 
-            /// <summary>
-            /// 
-            /// </summary>
-            public enum EBufferMapAccess
-            {
-                Read = 0x0001,
-                Write = 0x0002,
-                ReadWrite = Read | Write,
-                /// <summary>
-                /// The client may request that the server read from or write to the buffer while it is mapped. 
-                /// The client's pointer to the data store remains valid so long as the data store is mapped, even during execution of drawing or dispatch commands.
-                /// If flags contains GL_MAP_PERSISTENT_BIT, it must also contain at least one of GL_MAP_READ_BIT or GL_MAP_WRITE_BIT.
-                /// </summary>
-                Persistent = 0x0040,
-                /// <summary>
-                /// Shared access to buffers that are simultaneously mapped for client access and are used by the server will be coherent, so long as that mapping is performed using glMapBufferRange. 
-                /// That is, data written to the store by either the client or server will be immediately visible to the other with no further action taken by the application.
-                /// In particular,
-                /// If not set and the client performs a write followed by a call to the glMemoryBarrier command with the GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT set, then in subsequent commands the server will see the writes.
-                /// If set and the client performs a write, then in subsequent commands the server will see the writes.
-                /// If not set and the server performs a write, the application must call glMemoryBarrier with the GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT set and then call glFenceSync with GL_SYNC_GPU_COMMANDS_COMPLETE (or glFinish). Then the CPU will see the writes after the sync is complete.
-                /// If set and the server does a write, the app must call glFenceSync with GL_SYNC_GPU_COMMANDS_COMPLETE(or glFinish). Then the CPU will see the writes after the sync is complete.
-                /// If flags contains GL_MAP_COHERENT_BIT, it must also contain GL_MAP_PERSISTENT_BIT.
-                /// </summary>
-                Coherent = 0x0041,
-                /// <summary>
-                /// When all other criteria for the buffer storage allocation are met, 
-                /// this bit may be used by an implementation to determine whether 
-                /// to use storage that is local to the server 
-                /// or to the client to serve as the backing store for the buffer.
-                /// </summary>
-                ClientStorage = 0x0042,
-                InvalidateRange = 0x0004,
-                InvalidateBuffer = 0x0008,
-                FlushExplicit = 0x0010,
-                Unsynchronized = 0x0020,
-            }
-
             public void MapBufferData()
             {
                 if (Data.ActivelyMapping.Contains(this))
@@ -244,25 +204,51 @@ namespace XREngine.Rendering.OpenGL
                 uint id = BindingId;
                 uint length = Data.Source!.Length;
 
-                GLEnum bits = 
-                    GLEnum.MapWriteBit |
-                    GLEnum.MapReadBit |
-                    GLEnum.MapPersistentBit |
-                    GLEnum.MapCoherentBit |
-                    GLEnum.ClientStorageBit;
-
                 VoidPtr addr = Data.Source.Address;
-                Api.NamedBufferStorage(id, length, ref addr, (uint)bits);
+                Api.NamedBufferStorage(id, length, ref addr, (uint)ToGLEnum(Data.StorageFlags));
 
                 Data.ActivelyMapping.Add(this);
 
-                bits = GLEnum.MapPersistentBit |
-                    GLEnum.MapCoherentBit |
-                    GLEnum.MapReadBit |
-                    GLEnum.MapWriteBit;
-
                 Data.Source?.Dispose();
-                Data.Source = new DataSource(Api.MapNamedBufferRange(id, IntPtr.Zero, length, (uint)bits), length);
+                Data.Source = new DataSource(Api.MapNamedBufferRange(id, IntPtr.Zero, length, (uint)ToGLEnum(Data.RangeFlags)), length);
+            }
+
+            public static GLEnum ToGLEnum(EBufferMapStorageFlags storageFlags)
+            {
+                GLEnum flags = 0;
+                if (storageFlags.HasFlag(EBufferMapStorageFlags.Read))
+                    flags |= GLEnum.MapReadBit;
+                if (storageFlags.HasFlag(EBufferMapStorageFlags.Write))
+                    flags |= GLEnum.MapWriteBit;
+                if (storageFlags.HasFlag(EBufferMapStorageFlags.Persistent))
+                    flags |= GLEnum.MapPersistentBit;
+                if (storageFlags.HasFlag(EBufferMapStorageFlags.Coherent))
+                    flags |= GLEnum.MapCoherentBit;
+                if (storageFlags.HasFlag(EBufferMapStorageFlags.ClientStorage))
+                    flags |= GLEnum.ClientStorageBit;
+                return flags;
+            }
+
+            public static GLEnum ToGLEnum(EBufferMapRangeFlags rangeFlags)
+            {
+                GLEnum flags = 0;
+                if (rangeFlags.HasFlag(EBufferMapRangeFlags.Read))
+                    flags |= GLEnum.MapReadBit;
+                if (rangeFlags.HasFlag(EBufferMapRangeFlags.Write))
+                    flags |= GLEnum.MapWriteBit;
+                if (rangeFlags.HasFlag(EBufferMapRangeFlags.Persistent))
+                    flags |= GLEnum.MapPersistentBit;
+                if (rangeFlags.HasFlag(EBufferMapRangeFlags.Coherent))
+                    flags |= GLEnum.MapCoherentBit;
+                if (rangeFlags.HasFlag(EBufferMapRangeFlags.InvalidateRange))
+                    flags |= GLEnum.MapInvalidateRangeBit;
+                if (rangeFlags.HasFlag(EBufferMapRangeFlags.InvalidateBuffer))
+                    flags |= GLEnum.MapInvalidateBufferBit;
+                if (rangeFlags.HasFlag(EBufferMapRangeFlags.FlushExplicit))
+                    flags |= GLEnum.MapFlushExplicitBit;
+                if (rangeFlags.HasFlag(EBufferMapRangeFlags.Unsynchronized))
+                    flags |= GLEnum.MapUnsynchronizedBit;
+                return flags;
             }
 
             public void UnmapBufferData()

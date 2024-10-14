@@ -172,6 +172,7 @@ namespace XREngine.Scene.Transforms
         public override void DeriveLocalMatrix(Matrix4x4 value)
         {
             Matrix4x4.Decompose(value, out Vector3 scale, out Quaternion rotation, out Vector3 translation);
+            //Debug.Out($"Scale: {scale}, Rotation: {rotation}, Translation: {translation}");
             Scale = scale;
             Translation = translation;
             Rotation = rotation;

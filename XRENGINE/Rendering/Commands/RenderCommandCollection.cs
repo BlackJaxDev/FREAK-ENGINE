@@ -68,34 +68,17 @@ namespace XREngine.Rendering.Commands
 
             IsShadowPass = shadowPass;
             list.ForEach(x => x.Render(shadowPass));
-            list.Clear();
             IsShadowPass = false;
-        }
-        internal void ClearRendering(int pass)
-        {
-            if (!_renderingPasses.TryGetValue(pass, out var list))
-            {
-                Debug.Out($"No render pass {pass} found.");
-                return;
-            }
-
-            list.Clear();
-        }
-        internal void ClearUpdating(int pass)
-        {
-            if (!_updatingPasses.TryGetValue(pass, out var list))
-            {
-                Debug.Out($"No render pass {pass} found.");
-                return;
-            }
-
-            list.Clear();
-            _numCommandsRecentlyAddedToUpdate = 0;
         }
         public void SwapBuffers()
         {
-            _renderingPasses.ForEach(x => x.Value.Clear());
+            static void Clear(ICollection<RenderCommand> x)
+                => x.Clear();
+
+            //TODO: swap buffers on each render command? how to preserve transform from collect visible to render?
+            _renderingPasses.Values.ForEach(Clear);
             (_updatingPasses, _renderingPasses) = (_renderingPasses, _updatingPasses);
+            _numCommandsRecentlyAddedToUpdate = 0;
         }
 
         public void AddRange(IEnumerable<RenderCommand> renderCommands)

@@ -1,13 +1,10 @@
-﻿using ImageMagick;
-using Silk.NET.Assimp;
+﻿using Silk.NET.Assimp;
 using System.Collections.Concurrent;
 using System.Numerics;
 using XREngine;
 using XREngine.Components;
 using XREngine.Components.Lights;
-using XREngine.Components.Scene;
 using XREngine.Components.Scene.Mesh;
-using XREngine.Data;
 using XREngine.Data.Colors;
 using XREngine.Data.Core;
 using XREngine.Data.Rendering;
@@ -20,7 +17,6 @@ using XREngine.Rendering.Models;
 using XREngine.Rendering.Models.Materials;
 using XREngine.Scene;
 using XREngine.Scene.Transforms;
-using static XREngine.Audio.AudioSource;
 
 internal class Program
 {
@@ -241,14 +237,22 @@ internal class Program
         world.Scenes.Add(scene);
 
         string fbxPathDesktop = Path.Combine(desktopDir, "test.fbx");
-        _ = ModelImporter.ImportAsync(fbxPathDesktop, PostProcessSteps.None, MaterialFactory, rootNode);
+        var flags = PostProcessSteps.None;// PostProcessSteps.OptimizeGraph | PostProcessSteps.Triangulate | PostProcessSteps.OptimizeMeshes | PostProcessSteps.ImproveCacheLocality | PostProcessSteps.ValidateDataStructure;
+        _ = ModelImporter.ImportAsync(fbxPathDesktop, flags, () =>
+        {
+            var knee = rootNode.FindDescendant((string path, string name) => name.Contains("knee", StringComparison.InvariantCultureIgnoreCase));
+            knee?.GetTransformAs<Transform>()?.RegisterAnimationTick<Transform>(KneeTick);
+        }, MaterialFactory, rootNode);
 
         //string sponzaPath = Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj");
         //_ = ModelImporter.ImportAsync(sponzaPath, PostProcessSteps.None, MaterialFactory, importedModelsNode);
 
         return world;
     }
-
+    static void KneeTick(Transform t)
+    {
+        t.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitX, XRMath.DegToRad(90.0f * MathF.Cos(Engine.ElapsedTime)));
+    }
     private static readonly ConcurrentDictionary<string, XRTexture2D> _textureCache = new();
 
     public static XRMaterial MaterialFactory(string modelFilePath, string name, List<TextureInfo> textures, TextureFlags flags, ShadingMode mode, Dictionary<string, List<object>> properties)
@@ -359,7 +363,7 @@ internal class Program
         int w = 1920;
         int h = 1080;
         float update = 60.0f;
-        float render = 0.0f;
+        float render = 90.0f;
 
         int primaryX = NativeMethods.GetSystemMetrics(0);
         int primaryY = NativeMethods.GetSystemMetrics(1);

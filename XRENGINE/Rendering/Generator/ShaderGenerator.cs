@@ -51,10 +51,17 @@ namespace XREngine.Rendering.Shaders.Generator
         public void WriteUniform(EShaderVarType type, string name, bool array = false)
             => Line($"{(_inBlock ? string.Empty : "uniform ")}{type.ToString()[1..]} {name}{(array ? "[]" : "")};");
 
-        public StateObject StartBufferBlock(string bufferName, int binding)
+        public StateObject StartShaderStorageBufferBlock(string bufferName, int binding)
         {
             _inBlock = true;
             Line($"layout(binding = {binding}) buffer {bufferName}");
+            OpenBracket();
+            return new StateObject(EndBufferBlock);
+        }
+        public StateObject StartUniformBufferBlock(string bufferName, int binding)
+        {
+            _inBlock = true;
+            Line($"layout(binding = {binding}) uniform {bufferName}");
             OpenBracket();
             return new StateObject(EndBufferBlock);
         }

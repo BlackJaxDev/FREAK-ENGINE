@@ -11,6 +11,7 @@ using XREngine.Data.Rendering;
 using XREngine.Scene;
 using XREngine.Scene.Transforms;
 using YamlDotNet.Serialization;
+using static XREngine.Data.Kinematics.FABRIK;
 
 namespace XREngine.Rendering
 {
@@ -126,6 +127,25 @@ namespace XREngine.Rendering
             }
         }
 
+        private void UpdateFaceIndices(int dataCount, string bindingName, bool remap, uint instanceDivisor, Remapper? remapper)
+        {
+            if (instanceDivisor != 0)
+                return;
+
+            Func<uint, uint> getter = remap && remapper is not null && remapper.RemapTable is not null && remapper.ImplementationTable is not null
+                ? i => (uint)remapper.ImplementationTable[remapper.RemapTable[i]]
+                : i => i;
+
+            for (uint i = 0; i < dataCount; ++i)
+            {
+                var bindings = _faceIndices[(int)i].BufferBindings;
+                if (bindings.ContainsKey(bindingName))
+                    bindings[bindingName] = getter(i);
+                else
+                    bindings.Add(bindingName, getter(i));
+            }
+        }
+
         public bool HasSkinning => _utilizedBones is not null && _utilizedBones.Length > 0;
 
         //Specific common buffers
@@ -157,59 +177,6 @@ namespace XREngine.Rendering
         /// Number of indices/weights in the blendshape index/weight buffers for each vertex.
         /// </summary>
         public XRDataBuffer? BlendshapeCounts { get; private set; }
-
-        #endregion
-
-        #region Non-Per-Facepoint Buffers
-
-        #region Bone Weighting Buffers
-        //Bone weights
-        /// <summary>
-        /// Indices into the UtilizedBones list for each bone that affects this vertex.
-        /// Static read-only buffer.
-        /// </summary>
-        public XRDataBuffer? BoneWeightIndices { get; private set; }
-        /// <summary>
-        /// Weight values from 0.0 to 1.0 for each bone that affects this vertex.
-        /// Static read-only buffer.
-        /// </summary>
-        public XRDataBuffer? BoneWeightValues { get; private set; }
-        #endregion
-
-        #region Blendshape Buffers
-        //Deltas for each blendshape on this mesh
-        /// <summary>
-        /// Remapped array of position deltas for all blendshapes on this mesh.
-        /// Static read-only buffer.
-        /// </summary>
-        public XRDataBuffer? BlendshapePositionDeltasBuffer { get; private set; }
-        /// <summary>
-        /// Remapped array of normal deltas for all blendshapes on this mesh.
-        /// Static read-only buffer.
-        /// </summary>
-        public XRDataBuffer? BlendshapeNormalDeltasBuffer { get; private set; }
-        /// <summary>
-        /// Remapped array of tangent deltas for all blendshapes on this mesh.
-        /// Static read-only buffer.
-        /// </summary>
-        public XRDataBuffer? BlendshapeTangentDeltasBuffer { get; private set; }
-        /// <summary>
-        /// Remapped array of color deltas for all blendshapes on this mesh.
-        /// Static read-only buffers.
-        /// </summary>
-        public XRDataBuffer[]? BlendshapeColorDeltaBuffers { get; private set; } = [];
-        /// <summary>
-        /// Remapped array of texture coordinate deltas for all blendshapes on this mesh.
-        /// Static read-only buffers.
-        /// </summary>
-        public XRDataBuffer[]? BlendshapeTexCoordDeltaBuffers { get; private set; } = [];
-        //Weights for each blendshape on this mesh
-        /// <summary>
-        /// Indices into the blendshape delta buffers for each blendshape that affects each vertex.
-        /// Static read-only buffer.
-        /// </summary>
-        public XRDataBuffer? BlendshapeIndices { get; private set; }
-        #endregion
 
         #endregion
 
@@ -257,7 +224,7 @@ namespace XREngine.Rendering
             set => SetField(ref _type, value);
         }
 
-        public TransformBase[] UtilizedBones
+        public (TransformBase tfm, Matrix4x4 invBindWorldMtx)[] UtilizedBones
         {
             get => _utilizedBones;
             set => SetField(ref _utilizedBones, value);
@@ -267,16 +234,16 @@ namespace XREngine.Rendering
         public bool IsUnskinned => _utilizedBones is null || _utilizedBones.Length == 0;
         public uint BlendshapeCount { get; set; } = 0u;
 
-        private TransformBase[] _utilizedBones = [];
+        private (TransformBase tfm, Matrix4x4 invBindWorldMtx)[] _utilizedBones = [];
         private VertexWeightGroup[] _weightsPerVertex = [];
         //This is the buffer data that will be passed to the shader.
         //Each buffer may have repeated values, as there must be a value for each remapped face point.
         //The key is the binding name and the value is the buffer.
-        private EventDictionary<string, XRDataBuffer> _buffers = [];
+        //private EventDictionary<string, XRDataBuffer> _buffers = [];
         //Face data last
         //Face points have indices that refer to each buffer.
         //These may contain repeat buffer indices but each point is unique.
-        private VertexIndices[] _faceIndices;
+        private VertexIndices[] _faceIndices = [];
 
         //Each point, line and triangle has indices that refer to the face indices array.
         //These may contain repeat vertex indices but each primitive is unique.
@@ -433,18 +400,6 @@ namespace XREngine.Rendering
 
         //private static bool GetPrimType<T>(out EPrimitiveType type) where T : VertexPrimitive
         //    => PrimTypeDic.TryGetValue(typeof(T), out type);
-
-        public void RemoveBuffer(string name)
-        {
-            if (_buffers is null)
-                return;
-
-            if (_buffers.TryGetValue(name, out XRDataBuffer? buffer))
-            {
-                _buffers.Remove(name);
-                buffer.Dispose();
-            }
-        }
 
         //public VertexTriangle? GetFace(int index)
         //{
@@ -703,7 +658,7 @@ namespace XREngine.Rendering
 
         //    OnBufferInfoChanged();
         //}
-        private void SetBoneWeights(params Dictionary<TransformBase, float>[] weightsPerVertex)
+        private void SetBoneWeights(Dictionary<TransformBase, float>[] weightsPerVertex, Dictionary<TransformBase, Matrix4x4> invBindMatrices, TransformBase baseTransform)
         {
             Dictionary<TransformBase, int> boneToIndexTable = [];
             _weightsPerVertex = new VertexWeightGroup[weightsPerVertex.Length];
@@ -711,132 +666,37 @@ namespace XREngine.Rendering
             for (int i = 0; i < weightsPerVertex.Length; i++)
             {
                 _faceIndices[i].WeightIndex = i;
-                Dictionary<int, float> weights = [];
 
+                Dictionary<int, float> weights = [];
                 Dictionary<TransformBase, float> w = weightsPerVertex[i];
-                if (w is not null)
+                if (w is not null && w.Count > 0)
                 {
                     foreach (var pair in w)
-                    {
-                        var bone = pair.Key;
-                        var weight = pair.Value;
-                        if (!boneToIndexTable.ContainsKey(bone))
-                            boneToIndexTable.Add(bone, boneIndex++);
-                        weights.Add(boneToIndexTable[bone], weight);
-                    }
+                        AddBone(boneToIndexTable, ref boneIndex, weights, pair.Key, pair.Value);
                 }
                 else
                 {
                     //No weights for this vertex
-                    //Debug.Out($"No weights for vertex {i}");
-                    weights.Add(0, 1.0f);
+                    AddBone(boneToIndexTable, ref boneIndex, weights, baseTransform, 1.0f);
+                    if (!invBindMatrices.ContainsKey(baseTransform))
+                        invBindMatrices.Add(baseTransform, baseTransform.InverseWorldMatrix);
                 }
+
+                _weightsPerVertex[i] = new VertexWeightGroup(weights);
             }
-            _utilizedBones = [.. boneToIndexTable.Keys];
-        }
-        
-        #region Buffers
 
-        public XRDataBuffer? this[string bindingName]
+            _utilizedBones = new (TransformBase, Matrix4x4)[boneToIndexTable.Count];
+            int x = 0;
+            foreach (var bone in boneToIndexTable.Keys)
+                _utilizedBones[x++] = (bone, invBindMatrices[bone]);
+        }
+
+        private static void AddBone(Dictionary<TransformBase, int> boneToIndexTable, ref int boneIndex, Dictionary<int, float> weights, TransformBase bone, float weight)
         {
-            get => _buffers.TryGetValue(bindingName, out XRDataBuffer? buffer) ? buffer : null;
-            set
-            {
-                if (value is null)
-                    _buffers.Remove(bindingName);
-                else if (!_buffers.TryAdd(bindingName, value))
-                    _buffers[bindingName] = value;
-            }
+            if (!boneToIndexTable.ContainsKey(bone))
+                boneToIndexTable.Add(bone, boneIndex++);
+            weights.Add(boneToIndexTable[bone], weight);
         }
-
-        public XRDataBuffer SetBufferRaw<T>(
-            IList<T> bufferData,
-            string bindingName,
-            bool remap = false,
-            bool integral = false,
-            bool isMapped = false,
-            uint instanceDivisor = 0,
-            EBufferTarget target = EBufferTarget.ArrayBuffer) where T : struct
-        {
-            XRDataBuffer buffer = new(bindingName, target, integral)
-            {
-                InstanceDivisor = instanceDivisor,
-                Mapped = isMapped,
-            };
-            AddOrUpdateBufferRaw(
-                bufferData,
-                bindingName,
-                remap,
-                instanceDivisor,
-                buffer);
-            return buffer;
-        }
-
-        public XRDataBuffer SetBuffer<T>(
-            IList<T> bufferData,
-            string bindingName,
-            bool remap = false,
-            bool integral = false,
-            bool isMapped = false,
-            uint instanceDivisor = 0,
-            EBufferTarget target = EBufferTarget.ArrayBuffer) where T : unmanaged, IBufferable
-        {
-            _buffers ??= [];
-            XRDataBuffer buffer = new(bindingName, target, integral)
-            {
-                InstanceDivisor = instanceDivisor,
-                Mapped = isMapped
-            };
-            AddOrUpdateBuffer(bufferData, bindingName, remap, instanceDivisor, buffer);
-            return buffer;
-        }
-
-        public Remapper? GetBuffer<T>(string bindingName, out T[]? array, bool remap = false) where T : unmanaged, IBufferable
-        {
-            array = null;
-            return _buffers.TryGetValue(bindingName, out var buffer) ? buffer.GetData(out array, remap) : null;
-        }
-
-        public Remapper? GetBufferRaw<T>(string bindingName, out T[]? array, bool remap = false) where T : struct
-        {
-            array = null;
-            return _buffers.TryGetValue(bindingName, out var buffer) ? buffer.GetDataRaw(out array, remap) : null;
-        }
-
-        private void AddOrUpdateBufferRaw<T>(IList<T> bufferData, string bindingName, bool remap, uint instanceDivisor, XRDataBuffer buffer) where T : struct
-        {
-            if (!_buffers.TryAdd(bindingName, buffer))
-                _buffers[bindingName] = buffer;
-            UpdateFaceIndices(bufferData.Count, bindingName, remap, instanceDivisor, buffer.SetDataRaw(bufferData, remap));
-        }
-
-        private void AddOrUpdateBuffer<T>(IList<T> bufferData, string bindingName, bool remap, uint instanceDivisor, XRDataBuffer buffer) where T : unmanaged, IBufferable
-        {
-            if (!_buffers.TryAdd(bindingName, buffer))
-                _buffers[bindingName] = buffer;
-            UpdateFaceIndices(bufferData.Count, bindingName, remap, instanceDivisor, buffer.SetData(bufferData, remap));
-        }
-
-        private void UpdateFaceIndices(int dataCount, string bindingName, bool remap, uint instanceDivisor, Remapper? remapper)
-        {
-            if (instanceDivisor != 0)
-                return;
-
-            Func<uint, uint> getter = remap && remapper is not null && remapper.RemapTable is not null && remapper.ImplementationTable is not null
-                ? i => (uint)remapper.ImplementationTable[remapper.RemapTable[i]]
-                : i => i;
-
-            for (uint i = 0; i < dataCount; ++i)
-            {
-                var bindings = _faceIndices[(int)i].BufferBindings;
-                if (bindings.ContainsKey(bindingName))
-                    bindings[bindingName] = getter(i);
-                else
-                    bindings.Add(bindingName, getter(i));
-            }
-        }
-
-        #endregion
 
         #region Indices
         public int[] GetIndices()
@@ -936,13 +796,11 @@ namespace XREngine.Rendering
         #endregion
 
         protected override void OnDestroying()
-            => _buffers?.ForEach(x => x.Value.Dispose());
+            => Buffers?.ForEach(x => x.Value.Dispose());
 
         public XRMesh()
         {
-            _utilizedBones = [];
-            _weightsPerVertex = [];
-            _faceIndices = [];
+            Buffers.UpdateFaceIndices += UpdateFaceIndices;
         }
 
         /// <summary>
@@ -951,7 +809,7 @@ namespace XREngine.Rendering
         /// <param name="info"></param>
         /// <param name="primitives"></param>
         /// <param name="type"></param>
-        public XRMesh(IEnumerable<VertexPrimitive> primitives)
+        public XRMesh(IEnumerable<VertexPrimitive> primitives) : this()
         {
 #if DEBUG
             Stopwatch sw = new();
@@ -1134,8 +992,8 @@ namespace XREngine.Rendering
             //We can do this in parallel since each vertex is independent
             PopulateVertexData(vertexActions.Values, sourceList, firstAppearanceArray, true);
 
-            if (weights is not null)
-                SetBoneWeights(weights);
+            //if (weights is not null)
+            //    SetBoneWeights(weights, );
 
 #if DEBUG
             sw.Stop();
@@ -1145,8 +1003,14 @@ namespace XREngine.Rendering
 #endif
         }
 
-        public unsafe XRMesh(Mesh* mesh, Assimp assimp, Dictionary<string, SceneNode> nodeCache)
+        public unsafe XRMesh(TransformBase baseTransform, Mesh* mesh, Assimp assimp, Dictionary<string, List<SceneNode>> nodeCache, Matrix4x4 scaleConvMtx, Matrix4x4 coordConvMtx) : this()
         {
+            Matrix4x4 fullConv = scaleConvMtx * coordConvMtx;
+            Matrix4x4 invFullConv = fullConv.Inverted();
+            ArgumentNullException.ThrowIfNull(mesh);
+            ArgumentNullException.ThrowIfNull(assimp);
+            ArgumentNullException.ThrowIfNull(nodeCache);
+
 #if DEBUG
             Stopwatch sw = new();
             sw.Start();
@@ -1187,10 +1051,10 @@ namespace XREngine.Rendering
                 //    });
                 
                 if (v.Normal is not null && !vertexActions.ContainsKey(1))
-                    vertexActions.TryAdd(1, (i, x, vtx) => NormalsBuffer!.SetDataRawAtIndex((uint)i, vtx?.Normal ?? Vector3.Zero));
+                    vertexActions.TryAdd(1, (i, x, vtx) => NormalsBuffer!.SetDataRawAtIndex((uint)i, Vector3.TransformNormal(vtx?.Normal ?? Vector3.Zero, fullConv).Normalize()));
                 
                 if (v.Tangent is not null && !vertexActions.ContainsKey(2))
-                    vertexActions.TryAdd(2, (i, x, vtx) => TangentsBuffer!.SetDataRawAtIndex((uint)i, vtx?.Tangent ?? Vector3.Zero));
+                    vertexActions.TryAdd(2, (i, x, vtx) => TangentsBuffer!.SetDataRawAtIndex((uint)i, Vector3.TransformNormal(vtx?.Tangent ?? Vector3.Zero, fullConv).Normalize()));
                 
                 Interlocked.Exchange(ref maxTexCoordCount, Math.Max(maxTexCoordCount, v.TextureCoordinateSets.Count));
                 if (v.TextureCoordinateSets is not null && v.TextureCoordinateSets.Count > 0 && !vertexActions.ContainsKey(3))
@@ -1273,7 +1137,7 @@ namespace XREngine.Rendering
                         AddVertex(targetList, vertexCache.GetOrAdd(face.MIndices[ind], x => Vertex.FromAssimp(mesh, x)));
             }//);
 
-            _bounds = bounds ?? new AABB(Vector3.Zero, Vector3.Zero);
+            _bounds = bounds?.Transformed(x => Vector3.Transform(x, fullConv)) ?? new AABB(Vector3.Zero, Vector3.Zero);
 
             SetTriangleIndices(triangles, false);
             SetLineIndices(lines, false);
@@ -1311,30 +1175,45 @@ namespace XREngine.Rendering
                 maxTexCoordCount,
                 count);
 
-            vertexActions.TryAdd(6, (i, x, vtx) => PositionsBuffer!.SetDataRawAtIndex((uint)i, vtx?.Position ?? Vector3.Zero));
+            vertexActions.TryAdd(6, (i, x, vtx) => PositionsBuffer!.SetDataRawAtIndex((uint)i, Vector3.Transform(vtx?.Position ?? Vector3.Zero, fullConv)));
 
             //Populate weights
+            Dictionary<TransformBase, Matrix4x4> invBindMatrices = [];
+            //string output = $"Bone count: {boneCount} / Vertex count: {count}";
             for (uint i = 0; i < boneCount; ++i)
             {
                 var bone = mesh->MBones[i];
                 string name = bone->MName.ToString();
-                Matrix4x4 bindMatrix = bone->MOffsetMatrix;
+                //output += $"{Environment.NewLine}Bone {i}: {name}";
+                Matrix4x4 inverseWorldBindMatrix = invFullConv * bone->MOffsetMatrix.Transposed();
                 TransformBase? transform = null;
-                if (nodeCache.TryGetValue(name, out var sceneNode))
-                    transform = sceneNode.Transform;
-                else
+                if (!nodeCache.TryGetValue(name, out var matchList) || matchList is null || matchList.Count == 0)
                 {
-                    Debug.Out($"Bone {name} has no corresponding node in the scene graph.");
+                    Debug.Out($"{name} has no corresponding node in the heirarchy.");
+                    continue;
                 }
 
-                for (uint j = 0; j < bone->MNumWeights; ++j)
+                if (matchList.Count > 1)
+                    Debug.Out($"{name} has multiple corresponding nodes in the heirarchy. Using the first one.");
+
+                transform = matchList[0].Transform;
+                invBindMatrices.Add(transform, inverseWorldBindMatrix);
+                uint weightCount = bone->MNumWeights;
+                //output += $"{Environment.NewLine}Weights: {weightCount}";
+                for (uint j = 0; j < weightCount; ++j)
                 {
-                    var weight = bone->MWeights[j];
-                    weights![weight.MVertexId] ??= [];
-                    if (transform is not null && !weights[weight.MVertexId].TryGetValue(transform, out float existingWeight))
-                        weights[weight.MVertexId].Add(transform, weight.MWeight);
+                    var vw = bone->MWeights[j];
+                    var id = vw.MVertexId;
+                    var weight = vw.MWeight;
+                    //output += $"{Environment.NewLine}{j} - v{id} : {weight}";
+                    var weightDict = weights![id] ??= [];
+                    if (!weightDict.TryGetValue(transform, out float existingWeight))
+                        weightDict.Add(transform, vw.MWeight);
+                    else if (existingWeight != vw.MWeight)
+                        Debug.Out($"Vertex {id} has multiple different weights for bone {name}.");
                 }
             }
+            //Debug.Out(output);
 
             MakeFaceIndices(weights, count);
 
@@ -1343,7 +1222,7 @@ namespace XREngine.Rendering
             PopulateVertexData(vertexActions.Values, sourceList, count, true);
 
             if (weights is not null)
-                SetBoneWeights(weights);
+                SetBoneWeights(weights, invBindMatrices, baseTransform);
 
 #if DEBUG
             sw.Stop();

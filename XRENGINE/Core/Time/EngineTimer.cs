@@ -46,7 +46,7 @@ namespace XREngine.Timers
         /// </summary>
         public event Action? FixedUpdate;
 
-        private float _lastPreRenderTimestamp;
+        private float _lastCollectVisibleTimestamp;
         private float _lastFixedUpdateTimestamp;
 
         private float _updateTimeDiff = 0.0f; // quantization error for UpdateFrame events
@@ -56,8 +56,8 @@ namespace XREngine.Timers
 
         private ManualResetEventSlim
             _renderDone = new(false),
-            _collectVisibleDone = new(true);
-            //_updatingDone = new(false);
+            _collectVisibleDone = new(true);//,
+            //_updateDone = new(false);
 
         public bool IsRunning => _watch.IsRunning;
 
@@ -121,12 +121,16 @@ namespace XREngine.Timers
 
         /// <summary>
         /// Update is always running game logic as fast as requested.
-        /// No fences here.
         /// </summary>
         private void UpdateThread()
         {
             while (IsRunning)
+            {
+                //_collectVisibleDone.Wait();
+                //_updateDone.Reset();
                 DispatchUpdate();
+                //_updateDone.Set();
+            }
         }
         /// <summary>
         /// This thread waits for the render thread to finish swapping the last frame's prerender buffers, 
@@ -223,8 +227,8 @@ namespace XREngine.Timers
         private void DispatchCollectVisible()
         {
             float timestamp = Time();
-            float elapsed = (timestamp - _lastPreRenderTimestamp).Clamp(0.0f, 1.0f);
-            _lastPreRenderTimestamp = timestamp;
+            float elapsed = (timestamp - _lastCollectVisibleTimestamp).Clamp(0.0f, 1.0f);
+            _lastCollectVisibleTimestamp = timestamp;
             CollectVisible?.Invoke();
         }
         private void DispatchSwapBuffers() => SwapBuffers?.Invoke();

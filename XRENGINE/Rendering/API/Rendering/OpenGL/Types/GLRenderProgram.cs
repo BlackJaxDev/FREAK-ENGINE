@@ -356,6 +356,7 @@ namespace XREngine.Rendering.OpenGL
                         {
                             Debug.Out($"Failed to compile program with hash {Hash}.");
                             Failed.Add(Hash);
+                            //TODO: return invalid material until shaders are compiled
                             return false;
                         }
                         

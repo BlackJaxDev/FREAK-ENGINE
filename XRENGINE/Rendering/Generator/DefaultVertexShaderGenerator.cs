@@ -18,12 +18,6 @@ namespace XREngine.Rendering.Shaders.Generator
         public const string FragColorName = "FragColor{0}";
         public const string FragUVName = "FragUV{0}";
 
-        //SSBO names
-        public const string BoneDataBuffer = "BoneData";
-        public const string BoneWeightData = "BoneWeightData";
-        public const string BlendshapeData = "BlendshapeData";
-        public const string BlendshapeDeltas = "BlendshapeDeltaData";
-
         /// <summary>
         /// Creates the vertex shader to render a typical model.
         /// </summary>
@@ -68,7 +62,7 @@ namespace XREngine.Rendering.Shaders.Generator
             Line();
 
             //Write header uniforms
-            WriteSSBOs();
+            WriteBufferBlocks();
             Line();
 
             //Write header out fields (to fragment shader)
@@ -167,42 +161,39 @@ namespace XREngine.Rendering.Shaders.Generator
         /// <summary>
         /// Shader buffer objects
         /// </summary>
-        private void WriteSSBOs()
+        private void WriteBufferBlocks()
         {
-            int bindingIndex = 0;
-
             if (Mesh.UtilizedBones.Length > 1)
             {
-                //Matrices
-                using (StartBufferBlock(BoneDataBuffer, bindingIndex++))
+                using (StartShaderStorageBufferBlock($"{ECommonBufferType.BoneMatrices}Buffer", 0))
                     WriteUniform(EShaderVarType._mat4, ECommonBufferType.BoneMatrices.ToString(), true);
-
-                //Bone weights and indices into the matrix buffer
-                using (StartBufferBlock(BoneWeightData, bindingIndex++))
-                {
+                using (StartShaderStorageBufferBlock($"{ECommonBufferType.BoneInvBindMatrices}Buffer", 1))
+                    WriteUniform(EShaderVarType._mat4, ECommonBufferType.BoneInvBindMatrices.ToString(), true);
+                
+                using (StartShaderStorageBufferBlock($"{ECommonBufferType.BoneMatrixIndices}Buffer", 2))
                     WriteUniform(EShaderVarType._int, ECommonBufferType.BoneMatrixIndices.ToString(), true);
+                using (StartShaderStorageBufferBlock($"{ECommonBufferType.BoneMatrixWeights}Buffer", 3))
                     WriteUniform(EShaderVarType._float, ECommonBufferType.BoneMatrixWeights.ToString(), true);
-                }
             }
 
-            if (Mesh.BlendshapeCount > 0)
-            {
-                using (StartBufferBlock(BlendshapeDeltas, bindingIndex++))
-                {
-                    if (Mesh.BlendshapePositionDeltasBuffer is not null)
-                        WriteUniform(EShaderVarType._vec3, ECommonBufferType.BlendshapePositionDeltas.ToString(), true);
-                    if (Mesh.BlendshapeNormalDeltasBuffer is not null)
-                        WriteUniform(EShaderVarType._vec3, ECommonBufferType.BlendshapeNormalDeltas.ToString(), true);
-                    if (Mesh.BlendshapeTangentDeltasBuffer is not null)
-                        WriteUniform(EShaderVarType._vec3, ECommonBufferType.BlendshapeTangentDeltas.ToString(), true);
-                }
+            //if (Mesh.BlendshapeCount > 0)
+            //{
+            //    using (StartShaderStorageBufferBlock(BlendshapeDeltas, bindingIndex++))
+            //    {
+            //        if (Mesh.BlendshapePositionDeltasBuffer is not null)
+            //            WriteUniform(EShaderVarType._vec3, ECommonBufferType.BlendshapePositionDeltas.ToString(), true);
+            //        if (Mesh.BlendshapeNormalDeltasBuffer is not null)
+            //            WriteUniform(EShaderVarType._vec3, ECommonBufferType.BlendshapeNormalDeltas.ToString(), true);
+            //        if (Mesh.BlendshapeTangentDeltasBuffer is not null)
+            //            WriteUniform(EShaderVarType._vec3, ECommonBufferType.BlendshapeTangentDeltas.ToString(), true);
+            //    }
 
-                using (StartBufferBlock(BlendshapeData, bindingIndex++))
-                {
-                    WriteUniform(EShaderVarType._int, ECommonBufferType.BlendshapeIndices.ToString(), true);
-                    WriteUniform(EShaderVarType._float, ECommonBufferType.BlendshapeWeights.ToString(), true);
-                }
-            }
+            //    using (StartShaderStorageBufferBlock(BlendshapeData, bindingIndex++))
+            //    {
+            //        WriteUniform(EShaderVarType._int, ECommonBufferType.BlendshapeIndices.ToString(), true);
+            //        WriteUniform(EShaderVarType._float, ECommonBufferType.BlendshapeWeights.ToString(), true);
+            //    }
+            //}
         }
 
         /// <summary>
@@ -267,17 +258,17 @@ namespace XREngine.Rendering.Shaders.Generator
             using (OpenBracketState())
             {
                 Line($"int index = {ECommonBufferType.BoneMatrixOffset} + i;");
-                Line($"int boneIndex = {ECommonBufferType.BoneMatrixIndices}[index]");
+                Line($"int boneIndex = {ECommonBufferType.BoneMatrixIndices}[index];");
                 Line($"float weight = {ECommonBufferType.BoneMatrixWeights}[index];");
 
-                Line("if (weight > 0.0)");
-                using (OpenBracketState())
-                {
-                    Line($"mat4 boneMatrix = {ECommonBufferType.BoneMatrices}[boneIndex];");
+                //Line("if (weight > 0.0)");
+                //using (OpenBracketState())
+                //{
+                    Line($"mat4 boneMatrix = {ECommonBufferType.BoneInvBindMatrices}[boneIndex] * {ECommonBufferType.BoneMatrices}[boneIndex];");
                     Line("finalPosition += (boneMatrix * basePosition) * weight;");
                     Line("finalNormal += (boneMatrix * baseNormal).xyz * weight;");
                     Line("finalTangent += (boneMatrix * baseTangent).xyz * weight;");
-                }
+                //}
             }
 
             Line();

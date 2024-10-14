@@ -9,6 +9,7 @@ namespace XREngine
         public static float SmoothedDelta => Time.Timer.Update.SmoothedDelta;
         public static float SmoothedDilatedDelta => Time.Timer.Update.SmoothedDilatedDelta;
         public static float FixedDelta => Time.Timer.FixedUpdateDelta;
+        public static float ElapsedTime => Time.Timer.Time();
 
         public static class Time
         {

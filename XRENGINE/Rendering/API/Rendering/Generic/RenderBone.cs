@@ -1,4 +1,5 @@
-﻿using XREngine.Data.Core;
+﻿using System.Numerics;
+using XREngine.Data.Core;
 using XREngine.Data.Rendering;
 using XREngine.Scene.Transforms;
 
@@ -20,12 +21,14 @@ namespace XREngine.Rendering
         }
         public XREvent<RenderBone> TransformChanged = new();
         public TransformBase Transform { get; }
+        public Matrix4x4 InvBindMatrix { get; }
 
-        public RenderBone(TransformBase source, uint index)
+        public RenderBone(TransformBase source, Matrix4x4 invBindMtx, uint index)
         {
             Index = index;
             Transform = source;
             Transform.WorldMatrixChanged += OnTransformChanged;
+            InvBindMatrix = invBindMtx;
         }
 
         protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)

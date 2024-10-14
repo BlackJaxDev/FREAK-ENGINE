@@ -13,6 +13,7 @@ namespace XREngine.Rendering.Info
     public abstract class RenderInfo : XRBase, ITreeItem
     {
         public abstract ITreeNode? TreeNode { get; }
+        public IRenderable? Owner { get; }
 
         protected RenderInfo(IRenderable owner, params RenderCommand[] renderCommands)
         {
@@ -28,19 +29,33 @@ namespace XREngine.Rendering.Info
         }
 
         private bool _isVisible = true;
+        /// <summary>
+        /// IsVisible determines if the object exists in the visual scene tree at all.
+        /// </summary>
         public bool IsVisible
         {
             get => _isVisible;
             set => SetField(ref _isVisible, value);
         }
 
-        public IRenderable? Owner { get; }
+        private bool _shouldRender = true;
+        /// <summary>
+        /// ShouldRender determines if the object is rendered. If false, the object still exists in the visual scene tree, but is not rendered.
+        /// </summary>
+        public bool ShouldRender
+        {
+            get => _shouldRender;
+            set => SetField(ref _shouldRender, value);
+        }
 
         private XRWorldInstance? _worldInstance;
+        /// <summary>
+        /// This is the world instance that this render info is part of. It is set automatically when the render info is added to a visual scene.
+        /// </summary>
         public XRWorldInstance? WorldInstance
         {
             get => _worldInstance;
-            set => SetField(ref _worldInstance, value);
+            internal set => SetField(ref _worldInstance, value);
         }
 
         protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
@@ -66,18 +81,18 @@ namespace XREngine.Rendering.Info
             }
         }
 
-        public bool ShouldRender { get; set; } = true;
-
         public delegate void DelAddRenderCommandsCallback(RenderInfo info, RenderCommandCollection passes, XRCamera? camera);
         public DelAddRenderCommandsCallback? PreAddRenderCommandsCallback { get; set; }
 
         public void AddRenderCommands(RenderCommandCollection passes, XRCamera? camera)
         {
             PreAddRenderCommandsCallback?.Invoke(this, passes, camera);
-            if (RenderCommands.Count != 0)
-                passes.AddRange(RenderCommands);
-            //else
-            //    Debug.LogWarning($"RenderInfo for {(Owner?.GetType()?.Name ?? "null")} has no render commands.");
+            for (int i = 0; i < RenderCommands.Count; i++)
+            {
+                RenderCommand cmd = RenderCommands[i];
+                cmd.PreRender(camera);
+                passes.Add(cmd);   
+            }
         }
     }
 }

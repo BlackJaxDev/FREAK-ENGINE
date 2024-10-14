@@ -47,5 +47,11 @@ namespace XREngine.Data.Rendering
 
         public override void Render(bool shadowPass)
             => Mesh?.Render(WorldMatrix, MaterialOverride, Instances);
+
+        public override void PreRender(XRCamera? camera)
+        {
+            if (camera != null)
+                UpdateRenderDistance(WorldMatrix.Translation, camera);
+        }
     }
 }

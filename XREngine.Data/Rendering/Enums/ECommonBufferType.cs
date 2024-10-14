@@ -67,10 +67,15 @@
         BlendshapeIndices,
 
         /// <summary>
-        /// The bone matrices for each bone in the skeleton.
-        /// The first matrix is the identity matrix.
+        /// The animated world matrices for each bone utilized by the mesh.
+        /// The first matrix is identity.
         /// </summary>
         BoneMatrices,
+        /// <summary>
+        /// The bind pose inverse world matrices for each bone utilized by the mesh.
+        /// The first matrix is identity.
+        /// </summary>
+        BoneInvBindMatrices,
 
         /// <summary>
         /// Remapped array of position offsets.

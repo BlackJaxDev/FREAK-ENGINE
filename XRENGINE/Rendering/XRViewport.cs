@@ -122,11 +122,7 @@ namespace XREngine.Rendering
                 return;
 
             var cameraComponent = CameraComponent;
-            IVolume? cullingVolume = (cameraComponent?.CullWithFrustum ?? true) ? camera.WorldFrustum() : cameraComponent.CullingFrustumOverride;
-            if (World?.VisualScene is not null)
-            {
-                World.VisualScene.CollectRenderedItems(_renderPipeline.MeshRenderCommands, cullingVolume, camera);
-            }
+            World?.VisualScene?.CollectRenderedItems(_renderPipeline.MeshRenderCommands, (cameraComponent?.CullWithFrustum ?? true) ? camera.WorldFrustum() : cameraComponent.CullingFrustumOverride, camera);
             //cameraComponent?.UserInterface?.PreRender(this, cameraComponent);
         }
 

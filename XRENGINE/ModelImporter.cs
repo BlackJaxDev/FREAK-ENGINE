@@ -1,4 +1,5 @@
-﻿using ImageMagick;
+﻿using Extensions;
+using ImageMagick;
 using Silk.NET.Assimp;
 using System.Collections.Concurrent;
 using System.Diagnostics;
@@ -6,12 +7,12 @@ using System.Numerics;
 using System.Text;
 using XREngine.Components.Scene.Mesh;
 using XREngine.Data;
+using XREngine.Data.Core;
 using XREngine.Rendering;
 using XREngine.Rendering.Models;
 using XREngine.Scene;
 using XREngine.Scene.Transforms;
 using AScene = Silk.NET.Assimp.Scene;
-using AAnimation = Silk.NET.Assimp.Animation;
 
 namespace XREngine
 {
@@ -43,10 +44,12 @@ namespace XREngine
 
         private readonly ConcurrentDictionary<string, TextureInfo> _textureInfoCache = [];
         private readonly ConcurrentDictionary<string, MagickImage?> _textureCache = new();
-        private readonly Dictionary<string, SceneNode> _nodeCache = [];
+        private readonly Dictionary<string, List<SceneNode>> _nodeCache = [];
         
         private readonly ConcurrentBag<XRMesh> _meshes = [];
         private readonly ConcurrentBag<XRMaterial> _materials = [];
+        public Matrix4x4 ScaleConversionMatrix { get; private set; } = Matrix4x4.Identity;
+        public Matrix4x4 CoordinateConversionMatrix { get; private set; } = Matrix4x4.Identity;
 
         public static SceneNode? Import(
             string path,
@@ -74,12 +77,13 @@ namespace XREngine
         public static async Task<(SceneNode? rootNode, IReadOnlyCollection<XRMaterial> materials, IReadOnlyCollection<XRMesh> meshes)> ImportAsync(
             string path,
             PostProcessSteps options,
+            Action? onCompleted,
             DelMaterialFactory materialFactory,
             SceneNode? parent)
         {
             var result = await Task.Run(() =>
             {
-                SceneNode? node = Import(path, options, out var materials, out var meshes, true, null, materialFactory, parent);
+                SceneNode? node = Import(path, options, out var materials, out var meshes, true, onCompleted, materialFactory, parent);
                 return (node, materials, meshes);
             });
             return result;
@@ -94,6 +98,13 @@ namespace XREngine
             Stopwatch sw = new();
             sw.Start();
 #endif
+            //float inchesToMeters = 0.0254f;
+            //float rotate = -90.0f;
+            float inchesToMeters = 1.0f;
+            float rotate = 0.0f;
+
+            ScaleConversionMatrix = Matrix4x4.CreateScale(inchesToMeters);
+            CoordinateConversionMatrix = Matrix4x4.CreateFromAxisAngle(Vector3.UnitX, XRMath.DegToRad(rotate));
             AScene* scene = _assimp.ImportFile(SourceFilePath, (uint)options);
 
             if (scene is null || scene->MFlags == Assimp.SceneFlagsIncomplete || scene->MRootNode is null)
@@ -104,7 +115,7 @@ namespace XREngine
             }
 
             SceneNode rootNode = new(Path.GetFileNameWithoutExtension(SourceFilePath));
-            ProcessNode(scene->MRootNode, scene, Matrix4x4.Identity, rootNode);
+            ProcessNode(scene->MRootNode, scene, rootNode, true);
 
             //Debug.Out(rootNode.PrintTree());
 
@@ -113,19 +124,19 @@ namespace XREngine
             //    AAnimation* anim = scene->MAnimations[i];
             //}
 
-            //for (var i = 0; i < scene->MNumSkeletons; i++)
-            //{
-            //    Skeleton* skeleton = scene->MSkeletons[i];
-            //    string name = skeleton->MName.ToString();
-            //    Debug.Out($"Reading skeleton {name}");
-            //    for (var j = 0; j < skeleton->MNumBones; j++)
-            //    {
-            //        SkeletonBone* bone = skeleton->MBones[j];
-            //        int parentIndex = bone->MParent;
-            //        SkeletonBone* parent = parentIndex >= 0 && parentIndex < skeleton->MNumBones ? skeleton->MBones[parentIndex] : null;
+            for (var i = 0; i < scene->MNumSkeletons; i++)
+            {
+                Skeleton* skeleton = scene->MSkeletons[i];
+                string name = skeleton->MName.ToString();
+                Debug.Out($"Reading skeleton {name}");
+                for (var j = 0; j < skeleton->MNumBones; j++)
+                {
+                    SkeletonBone* bone = skeleton->MBones[j];
+                    int parentIndex = bone->MParent;
+                    SkeletonBone* parent = parentIndex >= 0 && parentIndex < skeleton->MNumBones ? skeleton->MBones[parentIndex] : null;
 
-            //    }
-            //}
+                }
+            }
 
 #if DEBUG
             Debug.Out($"Model hierarchy processed in {sw.ElapsedMilliseconds / 1000.0f} sec.");
@@ -168,30 +179,34 @@ namespace XREngine
                 action();
         }
 
-        private unsafe void ProcessNode(Node* node, AScene* scene, Matrix4x4 parentWorldTransform, SceneNode parentSceneNode)
+        private unsafe void ProcessNode(Node* node, AScene* scene, SceneNode parentSceneNode, bool root = false)
         {
             string name = node->MName;
             //Debug.Out($"Processing node: {name}");
-            Matrix4x4 localTransform = node->MTransformation;
+            Matrix4x4 localTransform = node->MTransformation.Transposed();
+            if (root)
+                localTransform *= ScaleConversionMatrix * CoordinateConversionMatrix;
             Transform tfm = [];
             tfm.DeriveLocalMatrix(localTransform);
             SceneNode sceneNode = new(parentSceneNode, name, tfm);
-            _nodeCache.Add(name, sceneNode);
-            EnqueueProcessMeshes(node, scene, parentWorldTransform, sceneNode);
+            if (!_nodeCache.TryGetValue(name, out List<SceneNode>? nodes))
+                _nodeCache.Add(name, nodes = []);
+            nodes.Add(sceneNode);
+            EnqueueProcessMeshes(node, scene, sceneNode);
             for (var i = 0; i < node->MNumChildren; i++)
-                ProcessNode(node->MChildren[i], scene, localTransform * parentWorldTransform, sceneNode);
+                ProcessNode(node->MChildren[i], scene, sceneNode);
         }
 
-        private unsafe void EnqueueProcessMeshes(Node* node, AScene* scene, Matrix4x4 parentWorldTransform, SceneNode sceneNode)
+        private unsafe void EnqueueProcessMeshes(Node* node, AScene* scene, SceneNode sceneNode)
         {
             uint count = node->MNumMeshes;
             if (count == 0)
                 return;
 
-            _meshProcessActions.Add(() => ProcessMeshes(node, scene, parentWorldTransform, sceneNode));
+            _meshProcessActions.Add(() => ProcessMeshes(node, scene, sceneNode));
         }
 
-        private unsafe void ProcessMeshes(Node* node, AScene* scene, Matrix4x4 parentWorldTransform, SceneNode sceneNode)
+        private unsafe void ProcessMeshes(Node* node, AScene* scene, SceneNode sceneNode)
         {
             ModelComponent modelComponent = sceneNode.AddComponent<ModelComponent>()!;
             Model model = new();
@@ -201,7 +216,7 @@ namespace XREngine
                 uint meshIndex = node->MMeshes[i];
                 Mesh* mesh = scene->MMeshes[meshIndex];
 
-                (XRMesh xrMesh, XRMaterial xrMaterial) = ProcessSubMesh(mesh, scene, parentWorldTransform);
+                (XRMesh xrMesh, XRMaterial xrMaterial) = ProcessSubMesh(sceneNode.Transform, mesh, scene);
 
                 _meshes.Add(xrMesh);
                 _materials.Add(xrMaterial);
@@ -212,12 +227,12 @@ namespace XREngine
         }
 
         private unsafe (XRMesh mesh, XRMaterial material) ProcessSubMesh(
+            TransformBase transform,
             Mesh* mesh,
-            AScene* scene,
-            Matrix4x4 transform)
+            AScene* scene)
         {
             //Debug.Out($"Processing mesh: {mesh->MName}");
-            return (new(mesh, _assimp, _nodeCache), ProcessMaterial(mesh, scene));
+            return (new(transform, mesh, _assimp, _nodeCache, ScaleConversionMatrix, CoordinateConversionMatrix), ProcessMaterial(mesh, scene));
         }
 
         private unsafe XRMaterial ProcessMaterial(Mesh* mesh, AScene* scene)

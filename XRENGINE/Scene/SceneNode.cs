@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Numerics;
 using XREngine.Components;
 using XREngine.Core;
@@ -1023,6 +1024,25 @@ namespace XREngine.Scene
                         output += node.PrintTree();
             }
             return output;
+        }
+
+        public delegate bool DelFindDescendant(string fullPath, string name);
+        public SceneNode? FindDescendant(DelFindDescendant comparer, string pathSplitter = "/")
+            => FindDescendant(Name ?? string.Empty, comparer, pathSplitter);
+        private SceneNode? FindDescendant(string fullPath, DelFindDescendant comparer, string pathSplitter)
+        {
+            string name = Name ?? string.Empty;
+            if (comparer(fullPath, name))
+                return this;
+            fullPath += $"{pathSplitter}{name}";
+            lock (Transform.Children)
+            {
+                foreach (var child in Transform.Children)
+                    if (child?.SceneNode is SceneNode node)
+                        if (node.FindDescendant(fullPath, comparer, pathSplitter) is SceneNode found)
+                            return found;
+            }
+            return null;
         }
     }
 }

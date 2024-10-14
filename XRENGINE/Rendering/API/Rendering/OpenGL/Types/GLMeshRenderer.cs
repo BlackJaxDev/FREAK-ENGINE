@@ -395,7 +395,6 @@ namespace XREngine.Rendering.OpenGL
                 foreach (var pair in (IEventDictionary<string, XRDataBuffer>)Data.Buffers)
                     _bufferCache.Add(pair.Key, Renderer.GenericToAPI<GLDataBuffer>(pair.Value)!);
 
-
                 vertexProgram.Data.Link();
 
                 if (!Data.GenerateAsync)
@@ -430,28 +429,30 @@ namespace XREngine.Rendering.OpenGL
 
             private void LinkSeparatedVertex()
             {
-                LinkBlocksToProgram(_defaultVertexProgram!.Data);
+                //LinkBlocksToProgram(_defaultVertexProgram!.Data);
                 BindBuffers();
             }
 
             private void LinkCombinedVertex()
             {
-                LinkBlocksToProgram(_combinedProgram!.Data);
+                //LinkBlocksToProgram(_combinedProgram!.Data);
                 BindBuffers();
             }
 
-            private void LinkBlocksToProgram(XRRenderProgram vtxProg)
-            {
-                Data.BoneMatricesBuffer?.SetBlockName(vtxProg, ECommonBufferType.BoneMatrices.ToString());
+            //private void LinkBlocksToProgram(XRRenderProgram vtxProg)
+            //{
+            //    //var mesh = Data.Mesh;
 
-                var mesh = Data.Mesh;
-                if (mesh is null)
-                    return;
-                
-                mesh.BlendshapePositionDeltasBuffer?.SetBlockName(vtxProg, ECommonBufferType.BlendshapePositionDeltas.ToString());
-                mesh.BlendshapeNormalDeltasBuffer?.SetBlockName(vtxProg, ECommonBufferType.BlendshapeNormalDeltas.ToString());
-                mesh.BlendshapeTangentDeltasBuffer?.SetBlockName(vtxProg, ECommonBufferType.BlendshapeTangentDeltas.ToString());
-            }
+            //    //Data.BoneMatricesBuffer?.SetBlockIndex(0);
+            //    //Data.BoneInvBindMatricesBuffer?.SetBlockIndex(1);
+
+            //    //Data.BoneWeightValues?.SetBlockIndex(2);
+            //    //Data.BoneWeightIndices?.SetBlockIndex(3);
+
+            //    //mesh?.BlendshapePositionDeltasBuffer?.SetBlockIndex(vtxProg, ECommonBufferType.BlendshapePositionDeltas.ToString());
+            //    //mesh?.BlendshapeNormalDeltasBuffer?.SetBlockIndex(vtxProg, ECommonBufferType.BlendshapeNormalDeltas.ToString());
+            //    //mesh?.BlendshapeTangentDeltasBuffer?.SetBlockIndex(vtxProg, ECommonBufferType.BlendshapeTangentDeltas.ToString());
+            //}
 
             public bool BuffersBound { get; private set; } = false;
 
