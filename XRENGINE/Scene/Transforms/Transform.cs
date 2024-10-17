@@ -10,6 +10,11 @@ namespace XREngine.Scene.Transforms
     /// </summary>
     public class Transform : TransformBase
     {
+        public override string ToString()
+        {
+            return $"{Name} | T:[{Translation}], R:[{Rotation}], S:[{Scale}]";
+        }
+
         public enum EOrder
         {
             TRS,
@@ -55,22 +60,14 @@ namespace XREngine.Scene.Transforms
         public Vector3 Scale
         {
             get => _scale;
-            set
-            {
-                SetField(ref _scale, value);
-                MarkLocalModified();
-            }
+            set => SetField(ref _scale, value);
         }
 
         private Vector3 _translation;
         public Vector3 Translation
         {
             get => _translation;
-            set
-            {
-                SetField(ref _translation, value);
-                MarkLocalModified();
-            }
+            set => SetField(ref _translation, value);
         }
 
         public Rotator Rotator
@@ -83,39 +80,45 @@ namespace XREngine.Scene.Transforms
         public Quaternion Rotation
         {
             get => _rotation;
-            set
-            {
-                SetField(ref _rotation, value);
-                MarkLocalModified();
-            }
+            set => SetField(ref _rotation, value);
         }
 
         private EOrder _order;
         public EOrder Order
         {
             get => _order;
-            set
+            set => SetField(ref _order, value);
+        }
+
+        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+        {
+            base.OnPropertyChanged(propName, prev, field);
+            switch (propName)
             {
-                SetField(ref _order, value);
-                _localMatrixGen = _order switch
-                {
-                    EOrder.RST => RST,
-                    EOrder.STR => STR,
-                    EOrder.TSR => TSR,
-                    EOrder.SRT => SRT,
-                    EOrder.RTS => RTS,
-                    _ => TRS,
-                };
-                MarkLocalModified();
+                case nameof(Scale):
+                case nameof(Translation):
+                case nameof(Rotation):
+                    MarkLocalModified();
+                    break;
+                case nameof(Order):
+                    _localMatrixGen = _order switch
+                    {
+                        EOrder.RST => RST,
+                        EOrder.STR => STR,
+                        EOrder.TSR => TSR,
+                        EOrder.SRT => SRT,
+                        EOrder.RTS => RTS,
+                        _ => TRS,
+                    };
+                    MarkLocalModified();
+                    break;
             }
         }
 
         public void ApplyRotation(Quaternion rotation)
             => Rotation = Quaternion.Normalize(Rotation * rotation);
-
         public void ApplyTranslation(Vector3 translation)
             => Translation += translation;
-
         public void ApplyScale(Vector3 scale)
             => Scale *= scale;
 
@@ -171,15 +174,17 @@ namespace XREngine.Scene.Transforms
 
         public override void DeriveLocalMatrix(Matrix4x4 value)
         {
-            Matrix4x4.Decompose(value, out Vector3 scale, out Quaternion rotation, out Vector3 translation);
+            Order = EOrder.TRS;
+            if (!Matrix4x4.Decompose(value, out Vector3 scale, out Quaternion rotation, out Vector3 translation))
+                Debug.Out("Failed to decompose matrix.");
             //Debug.Out($"Scale: {scale}, Rotation: {rotation}, Translation: {translation}");
             Scale = scale;
             Translation = translation;
             Rotation = rotation;
+
             //Translation = value.Translation;
             //Scale = new Vector3(value.M11, value.M22, value.M33);
             //Rotation = Quaternion.CreateFromRotationMatrix(value);
-            Order = EOrder.TRS;
         }
     }
 }

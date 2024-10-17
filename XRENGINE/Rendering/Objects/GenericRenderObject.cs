@@ -70,6 +70,8 @@ namespace XREngine.Rendering
         }
         public override void Destroy()
         {
+            //using var timer = Engine.Profiler.Start();
+
             base.Destroy();
 
             lock (_apiWrappers)

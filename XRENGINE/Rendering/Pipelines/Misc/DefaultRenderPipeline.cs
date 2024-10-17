@@ -1,6 +1,4 @@
-﻿using Silk.NET.Assimp;
-using System.Numerics;
-using XREngine.Components.Lights;
+﻿using XREngine.Components.Lights;
 using XREngine.Data.Colors;
 using XREngine.Data.Rendering;
 using XREngine.Rendering.Commands;

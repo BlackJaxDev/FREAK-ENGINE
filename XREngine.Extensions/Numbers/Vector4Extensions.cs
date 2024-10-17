@@ -4,6 +4,12 @@ namespace Extensions
 {
     public static class Vector4Extensions
     {
+        public static Vector4 ToNumerics(this Assimp.Color4D vector)
+            => new(vector.R, vector.G, vector.B, vector.A);
+
+        public static Assimp.Color4D ToAssimp(this Vector4 vector)
+            => new(vector.X, vector.Y, vector.Z, vector.W);
+
         public static Vector4 Clamp(this Vector4 value, Vector4 min, Vector4 max) =>
             new(value.X.Clamp(min.X, max.X), value.Y.Clamp(min.Y, max.Y), value.Z.Clamp(min.Z, max.Z), value.W.Clamp(min.W, max.W));
 

@@ -3,7 +3,6 @@ using Silk.NET.Windowing;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using XREngine.Audio;
-using XREngine.Native;
 using XREngine.Rendering;
 using XREngine.Scene;
 
@@ -24,8 +23,6 @@ namespace XREngine
         {
             UserSettings = new UserSettings();
             GameSettings = new GameStartupSettings();
-            Networking = new NetworkingManager();
-            Assets = new AssetManager();
         }
 
         private static readonly ConcurrentQueue<Action> _asyncTaskQueue = new();
@@ -63,11 +60,11 @@ namespace XREngine
         /// <summary>
         /// All networking-related functions.
         /// </summary>
-        public static NetworkingManager Networking { get; }
+        public static NetworkingManager Networking { get; } = new();
         /// <summary>
         /// Audio manager for playing and streaming sounds and music.
         /// </summary>
-        public static AudioManager Audio { get; } = new AudioManager();
+        public static AudioManager Audio { get; } = new();
         /// <summary>
         /// All active world instances. 
         /// These are separate from the windows to allow for multiple windows to display the same world.
@@ -86,11 +83,15 @@ namespace XREngine
         /// <summary>
         /// Manages all assets loaded into the engine.
         /// </summary>
-        public static AssetManager Assets { get; }
+        public static AssetManager Assets { get; } = new();
         /// <summary>
         /// Easily accessible random number generator.
         /// </summary>
-        public static Random Random { get; } = new Random();
+        public static Random Random { get; } = new();
+        /// <summary>
+        /// This class is used to profile the speed of engine and game code to find performance bottlenecks.
+        /// </summary>
+        public static CodeProfiler Profiler { get; } = new();
 
         /// <summary>
         /// Initializes the engine with settings for the game it will run.
@@ -118,7 +119,7 @@ namespace XREngine
 
             StartingUp = false;
         }
-        private static bool IsApplicationIdle() => NativeMethods.PeekMessage(out _, IntPtr.Zero, 0, 0, 0) == 0;
+
         private static void DequeueAsyncTasks()
         {
             while (_asyncTaskQueue.TryDequeue(out var task))

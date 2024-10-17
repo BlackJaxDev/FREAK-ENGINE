@@ -34,13 +34,16 @@ namespace XREngine.Rendering.Shaders.Generator
             using (StartMain())
             {
                 //Create MVP matrix right away
-                Line($"mat4 mvpMatrix = {EEngineUniform.ProjMatrix} * inverse({EEngineUniform.InverseViewMatrix}) * {EEngineUniform.ModelMatrix};");
+                Line($"mat4 ViewMatrix = inverse({EEngineUniform.InverseViewMatrix});");
+                Line($"mat4 mvMatrix = ViewMatrix * ModelMatrix;");
+                Line($"mat4 mvpMatrix = {EEngineUniform.ProjMatrix} * mvMatrix;");
+                Line($"mat4 vpMatrix = {EEngineUniform.ProjMatrix} * ViewMatrix;");
                 if (Mesh.NormalsBuffer is not null)
-                    Line("mat3 normalMatrix = transpose(inverse(mat3(mvpMatrix)));");
+                    Line("mat3 normalMatrix = transpose(inverse(mat3(mvMatrix)));");
                 Line();
 
                 //Transform position, normals and tangents
-                if (Mesh.UtilizedBones.Length > 1)
+                if (Mesh.HasSkinning)
                     WriteSkinnedMeshInputs();
                 else
                     WriteStaticMeshInputs();
@@ -57,12 +60,12 @@ namespace XREngine.Rendering.Shaders.Generator
             WriteBuffers();
             Line();
 
-            //Write single uniforms
-            WriteUniforms();
-            Line();
-
             //Write header uniforms
             WriteBufferBlocks();
+            Line();
+
+            //Write single uniforms
+            WriteUniforms();
             Line();
 
             //Write header out fields (to fragment shader)
@@ -107,13 +110,7 @@ namespace XREngine.Rendering.Shaders.Generator
 
         private void WriteBuffers()
         {
-            uint blendshapeCount = Mesh.BlendshapeCount;
-            bool weighted = Mesh.UtilizedBones.Length > 1;
-
-            EShaderVarType intVarType = Engine.Rendering.Settings.UseIntegerUniformsInShaders 
-                ? EShaderVarType._int 
-                : EShaderVarType._float;
-
+            //uint blendshapeCount = Mesh.BlendshapeCount;
             uint location = 0u;
 
             WriteInVar(location++, EShaderVarType._vec3, ECommonBufferType.Position.ToString());
@@ -132,17 +129,34 @@ namespace XREngine.Rendering.Shaders.Generator
                 for (uint i = 0; i < Mesh.TexCoordBuffers.Length; ++i)
                     WriteInVar(location++, EShaderVarType._vec2, $"{ECommonBufferType.TexCoord}{i}");
 
-            if (weighted)
+            if (Mesh.HasSkinning)
             {
-                WriteInVar(location++, intVarType, ECommonBufferType.BoneMatrixOffset.ToString());
-                WriteInVar(location++, intVarType, ECommonBufferType.BoneMatrixCount.ToString());
+                bool optimizeTo4Weights = Engine.Rendering.Settings.OptimizeTo4Weights || (Engine.Rendering.Settings.OptimizeWeightsIfPossible && Mesh.MaxWeightCount <= 4);
+                if (optimizeTo4Weights)
+                {
+                    EShaderVarType intVecVarType = Engine.Rendering.Settings.UseIntegerUniformsInShaders
+                        ? EShaderVarType._ivec4
+                        : EShaderVarType._vec4;
+
+                    WriteInVar(location++, intVecVarType, ECommonBufferType.BoneMatrixOffset.ToString());
+                    WriteInVar(location++, EShaderVarType._vec4, ECommonBufferType.BoneMatrixCount.ToString());
+                }
+                else
+                {
+                    EShaderVarType intVarType = Engine.Rendering.Settings.UseIntegerUniformsInShaders
+                        ? EShaderVarType._int
+                        : EShaderVarType._float;
+
+                    WriteInVar(location++, intVarType, ECommonBufferType.BoneMatrixOffset.ToString());
+                    WriteInVar(location++, intVarType, ECommonBufferType.BoneMatrixCount.ToString());
+                }
             }
 
-            if (blendshapeCount > 0)
-            {
-                WriteInVar(location++, intVarType, ECommonBufferType.BlendshapeOffset.ToString());
-                WriteInVar(location++, intVarType, ECommonBufferType.BlendshapeCount.ToString());
-            }
+            //if (blendshapeCount > 0)
+            //{
+            //    WriteInVar(location++, intVarType, ECommonBufferType.BlendshapeOffset.ToString());
+            //    WriteInVar(location++, intVarType, ECommonBufferType.BlendshapeCount.ToString());
+            //}
         }
 
         private void WriteUniforms()
@@ -163,15 +177,21 @@ namespace XREngine.Rendering.Shaders.Generator
         /// </summary>
         private void WriteBufferBlocks()
         {
-            if (Mesh.UtilizedBones.Length > 1)
+            if (Mesh.HasSkinning)
             {
                 using (StartShaderStorageBufferBlock($"{ECommonBufferType.BoneMatrices}Buffer", 0))
                     WriteUniform(EShaderVarType._mat4, ECommonBufferType.BoneMatrices.ToString(), true);
+
                 using (StartShaderStorageBufferBlock($"{ECommonBufferType.BoneInvBindMatrices}Buffer", 1))
                     WriteUniform(EShaderVarType._mat4, ECommonBufferType.BoneInvBindMatrices.ToString(), true);
+
+                bool optimizeTo4Weights = Engine.Rendering.Settings.OptimizeTo4Weights || (Engine.Rendering.Settings.OptimizeWeightsIfPossible && Mesh.MaxWeightCount <= 4);
+                if (optimizeTo4Weights)
+                    return;
                 
                 using (StartShaderStorageBufferBlock($"{ECommonBufferType.BoneMatrixIndices}Buffer", 2))
                     WriteUniform(EShaderVarType._int, ECommonBufferType.BoneMatrixIndices.ToString(), true);
+
                 using (StartShaderStorageBufferBlock($"{ECommonBufferType.BoneMatrixWeights}Buffer", 3))
                     WriteUniform(EShaderVarType._float, ECommonBufferType.BoneMatrixWeights.ToString(), true);
             }
@@ -230,7 +250,7 @@ namespace XREngine.Rendering.Shaders.Generator
         {
             bool hasNormals = Mesh.NormalsBuffer is not null;
             bool hasTangents = Mesh.TangentsBuffer is not null;
-            bool hasNBT = hasNormals || hasTangents;
+            //bool hasNBT = hasNormals || hasTangents;
 
             Line("vec4 finalPosition = vec4(0.0f);");
             Line($"vec4 basePosition = vec4({ECommonBufferType.Position}, 1.0f);");
@@ -253,22 +273,36 @@ namespace XREngine.Rendering.Shaders.Generator
                 //Calculate blendshapes on unskinned mesh
             }
 
-            //Loop over the bone count supplied to this vertex
-            Line($"for (int i = 0; i < {ECommonBufferType.BoneMatrixCount}; i++)");
-            using (OpenBracketState())
+            bool optimizeTo4Weights = Engine.Rendering.Settings.OptimizeTo4Weights || (Engine.Rendering.Settings.OptimizeWeightsIfPossible && Mesh.MaxWeightCount <= 4);
+            if (optimizeTo4Weights)
             {
-                Line($"int index = {ECommonBufferType.BoneMatrixOffset} + i;");
-                Line($"int boneIndex = {ECommonBufferType.BoneMatrixIndices}[index];");
-                Line($"float weight = {ECommonBufferType.BoneMatrixWeights}[index];");
-
-                //Line("if (weight > 0.0)");
-                //using (OpenBracketState())
-                //{
-                    Line($"mat4 boneMatrix = {ECommonBufferType.BoneInvBindMatrices}[boneIndex] * {ECommonBufferType.BoneMatrices}[boneIndex];");
+                //Loop over the bone count supplied to this vertex
+                //Perform a min with 100 so the compiler can optimize the loop
+                Line($"for (int i = 0; i < 4; i++)");
+                using (OpenBracketState())
+                {
+                    Line($"int boneIndex = {ECommonBufferType.BoneMatrixOffset}[i];");
+                    Line($"float weight = {ECommonBufferType.BoneMatrixCount}[i];");
+                    Line($"mat4 boneMatrix = {ECommonBufferType.BoneMatrices}[boneIndex] * {ECommonBufferType.BoneInvBindMatrices}[boneIndex];");
                     Line("finalPosition += (boneMatrix * basePosition) * weight;");
                     Line("finalNormal += (boneMatrix * baseNormal).xyz * weight;");
                     Line("finalTangent += (boneMatrix * baseTangent).xyz * weight;");
-                //}
+                }
+            }
+            else
+            {
+                //Loop over the bone count supplied to this vertex
+                Line($"for (int i = 0; i < {ECommonBufferType.BoneMatrixCount}; i++)");
+                using (OpenBracketState())
+                {
+                    Line($"int index = {ECommonBufferType.BoneMatrixOffset} + i;");
+                    Line($"int boneIndex = {ECommonBufferType.BoneMatrixIndices}[index];");
+                    Line($"float weight = {ECommonBufferType.BoneMatrixWeights}[index];");
+                    Line($"mat4 boneMatrix = {ECommonBufferType.BoneMatrices}[boneIndex] * {ECommonBufferType.BoneInvBindMatrices}[boneIndex];");
+                    Line("finalPosition += (boneMatrix * basePosition) * weight;");
+                    Line("finalNormal += (boneMatrix * baseNormal).xyz * weight;");
+                    Line("finalTangent += (boneMatrix * baseTangent).xyz * weight;");
+                }
             }
 
             Line();

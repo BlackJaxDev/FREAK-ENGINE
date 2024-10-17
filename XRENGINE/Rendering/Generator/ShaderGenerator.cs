@@ -54,7 +54,7 @@ namespace XREngine.Rendering.Shaders.Generator
         public StateObject StartShaderStorageBufferBlock(string bufferName, int binding)
         {
             _inBlock = true;
-            Line($"layout(binding = {binding}) buffer {bufferName}");
+            Line($"layout(std430, binding = {binding}) buffer {bufferName}");
             OpenBracket();
             return new StateObject(EndBufferBlock);
         }
@@ -109,6 +109,7 @@ namespace XREngine.Rendering.Shaders.Generator
         {
             string s = _shaderCode;
             Reset();
+            //Debug.Out(s);
             return s;
         }
         public enum EGLVertexShaderInput

@@ -377,6 +377,12 @@ namespace XREngine.Rendering
             if (_clientSideSource != null)
                 Marshal.StructureToPtr(value, _clientSideSource.Address[index, ElementSize], true);
         }
+        
+        public void SetByOffset<T>(uint offset, T value) where T : struct
+        {
+            if (_clientSideSource != null)
+                Marshal.StructureToPtr(value, _clientSideSource.Address + offset, true);
+        }
 
         public void SetDataPointer(VoidPtr data)
         {

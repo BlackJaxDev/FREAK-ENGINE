@@ -1,5 +1,6 @@
 ﻿using Extensions;
 using Silk.NET.OpenGL;
+using System;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
@@ -175,12 +176,12 @@ namespace XREngine.Rendering.OpenGL
 
                 buffer = Renderer.GenericToAPI<GLDataBuffer>(new XRDataBuffer(EBufferTarget.ElementArrayBuffer, true) { BindingName = type.ToString() })!;
                 //TODO: primitive restart will use MaxValue for restart id
-                if (mesh.FaceIndices.Length < byte.MaxValue)
+                if (mesh.VertexCount < byte.MaxValue)
                 {
                     bufferElementSize = IndexSize.Byte;
                     buffer.Data.SetDataRaw(indices?.Select(x => (byte)x)?.ToList() ?? []);
                 }
-                else if (mesh.FaceIndices.Length < short.MaxValue)
+                else if (mesh.VertexCount < short.MaxValue)
                 {
                     bufferElementSize = IndexSize.TwoBytes;
                     buffer.Data.SetDataRaw(indices?.Select(x => (ushort)x)?.ToList() ?? []);
@@ -235,19 +236,33 @@ namespace XREngine.Rendering.OpenGL
                     if (!BuffersBound)
                         return;
 
-                    if (Data.SingleBind != null)
-                        modelMatrix *= Data.SingleBind.WorldMatrix;
+                    //if (Data.SingleBind != null)
+                    //    modelMatrix *= Data.SingleBind.WorldMatrix;
 
                     Data.PushBoneMatricesToGPU();
                     SetMeshUniforms(modelMatrix, vertexProgram!);
                     material.SetUniforms(materialProgram);
                     OnSettingUniforms(vertexProgram!, materialProgram!);
-
+                    BindBuffers(vertexProgram!);
                     Renderer.RenderMesh(this, false, instances);
                 }
                 else
                 {
                     //Debug.LogWarning("Failed to get programs for mesh renderer.");
+                }
+            }
+
+            private void BindBuffers(GLRenderProgram vertexProgram)
+            {
+                //TODO: make a more efficient way to bind these right before rendering (because apparently re-bufferbase-ing is important?)
+                foreach (var buffer in _bufferCache.Where(x => x.Value.Data.Target == EBufferTarget.ShaderStorageBuffer))
+                {
+                    var b = buffer.Value;
+                    b.Bind();
+                    uint resourceIndex = Api.GetProgramResourceIndex(vertexProgram!.BindingId, GLEnum.ShaderStorageBlock, b.Data.BindingName);
+                    Api.BindBufferBase(ToGLEnum(EBufferTarget.ShaderStorageBuffer), resourceIndex, b.BindingId);
+                    //b.PushSubData();
+                    b.Unbind();
                 }
             }
 
@@ -354,13 +369,8 @@ namespace XREngine.Rendering.OpenGL
                 GLRenderProgram vertexProgram;
                 if (Engine.Rendering.Settings.AllowShaderPipelines)
                 {
-                    string vertexShaderSource = Data.VertexShaderSource!;
-
-                    var shader = new XRShader(EShaderType.Vertex, vertexShaderSource);
-                    var program = new XRRenderProgram(false, shader);
-
                     _combinedProgram = null;
-                    _defaultVertexProgram = Renderer.GenericToAPI<GLRenderProgram>(program)!;
+                    _defaultVertexProgram = Renderer.GenericToAPI<GLRenderProgram>(new XRRenderProgram(false, new XRShader(EShaderType.Vertex, Data.VertexShaderSource!)))!;
                     _defaultVertexProgram.PropertyChanged += SeparatedProgramPropertyChanged;
 
                     vertexProgram = _defaultVertexProgram;
@@ -438,21 +448,6 @@ namespace XREngine.Rendering.OpenGL
                 //LinkBlocksToProgram(_combinedProgram!.Data);
                 BindBuffers();
             }
-
-            //private void LinkBlocksToProgram(XRRenderProgram vtxProg)
-            //{
-            //    //var mesh = Data.Mesh;
-
-            //    //Data.BoneMatricesBuffer?.SetBlockIndex(0);
-            //    //Data.BoneInvBindMatricesBuffer?.SetBlockIndex(1);
-
-            //    //Data.BoneWeightValues?.SetBlockIndex(2);
-            //    //Data.BoneWeightIndices?.SetBlockIndex(3);
-
-            //    //mesh?.BlendshapePositionDeltasBuffer?.SetBlockIndex(vtxProg, ECommonBufferType.BlendshapePositionDeltas.ToString());
-            //    //mesh?.BlendshapeNormalDeltasBuffer?.SetBlockIndex(vtxProg, ECommonBufferType.BlendshapeNormalDeltas.ToString());
-            //    //mesh?.BlendshapeTangentDeltasBuffer?.SetBlockIndex(vtxProg, ECommonBufferType.BlendshapeTangentDeltas.ToString());
-            //}
 
             public bool BuffersBound { get; private set; } = false;
 
@@ -548,6 +543,8 @@ namespace XREngine.Rendering.OpenGL
                 Api.DrawElements(GLEnum.Points, points, ToGLEnum(ActiveMeshRenderer.PointIndicesElementType), null);
                 //Api.DrawElementsInstancedBaseInstance(GLEnum.Points, points, ToGLEnum(ActiveMeshRenderer.PointIndicesElementType), null, instances, 0);
             }
+
+            //Api.MemoryBarrier(MemoryBarrierMask.ShaderStorageBarrierBit | MemoryBarrierMask.ClientMappedBufferBarrierBit);
         }
 
         public IGLTexture? BoundTexture { get; set; }

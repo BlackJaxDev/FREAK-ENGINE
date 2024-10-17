@@ -34,6 +34,11 @@
 
   <ItemGroup>
     <PackageReference Include="SkiaSharp" Version="2.88.8" />
+    <PackageReference Include="StirlingLabs.Assimp.Net" Version="23.4.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="StirlingLabs.assimp.native.win-x64" Version="5.2.5.4" />
   </ItemGroup>
 
 </Project>

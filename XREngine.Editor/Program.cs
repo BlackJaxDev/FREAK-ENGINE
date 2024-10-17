@@ -1,4 +1,4 @@
-﻿using Silk.NET.Assimp;
+﻿using Assimp;
 using System.Collections.Concurrent;
 using System.Numerics;
 using XREngine;
@@ -17,6 +17,7 @@ using XREngine.Rendering.Models;
 using XREngine.Rendering.Models.Materials;
 using XREngine.Scene;
 using XREngine.Scene.Transforms;
+using Quaternion = System.Numerics.Quaternion;
 
 internal class Program
 {
@@ -75,7 +76,7 @@ internal class Program
         var cameraNode = new SceneNode(rootNode) { Name = "TestCameraNode" };
 
         var orbitTransform = cameraNode.SetTransform<OrbitTransform>();
-        orbitTransform.Radius = 7.0f;
+        orbitTransform.Radius = 5.0f;
         orbitTransform.IgnoreRotation = false;
         orbitTransform.RegisterAnimationTick<OrbitTransform>(t => t.Angle += Engine.DilatedDelta * 0.5f);
 
@@ -177,7 +178,7 @@ internal class Program
 
         var probe = new SceneNode(rootNode) { Name = "TestLightProbeNode" };
         var probeTransform = probe.SetTransform<Transform>();
-        probeTransform.Translation = new Vector3(0.0f, 5.0f, 0.0f);
+        probeTransform.Translation = new Vector3(0.0f, 4.0f, 0.0f);
         if (probe.TryAddComponent<LightProbeComponent>(out var probeComp))
         {
             probeComp!.Name = "TestLightProbe";
@@ -221,7 +222,7 @@ internal class Program
                         {
                             Enabled = ERenderParamUsage.Disabled,
                         },
-                        LineWidth = 5.0f,
+                        LineWidth = 1.0f,
                     }
                 })]);
         }
@@ -232,30 +233,41 @@ internal class Program
         //pawnComp!.CurrentCameraComponent = cameraComp;
 
         var importedModelsNode = new SceneNode(rootNode) { Name = "TestImportedModelsNode" };
-        importedModelsNode.GetTransformAs<Transform>()?.ApplyScale(new Vector3(0.1f));
+        //importedModelsNode.GetTransformAs<Transform>()?.ApplyScale(new Vector3(0.1f));
+
+        //var orbitTransform2 = importedModelsNode.SetTransform<OrbitTransform>();
+        //orbitTransform2.Radius = 0.0f;
+        //orbitTransform2.IgnoreRotation = false;
+        //orbitTransform2.RegisterAnimationTick<OrbitTransform>(t => t.Angle += Engine.DilatedDelta * 0.5f);
 
         world.Scenes.Add(scene);
 
         string fbxPathDesktop = Path.Combine(desktopDir, "test.fbx");
-        var flags = PostProcessSteps.None;// PostProcessSteps.OptimizeGraph | PostProcessSteps.Triangulate | PostProcessSteps.OptimizeMeshes | PostProcessSteps.ImproveCacheLocality | PostProcessSteps.ValidateDataStructure;
+
+        var flags =
+            PostProcessSteps.Triangulate |
+            PostProcessSteps.JoinIdenticalVertices |
+            PostProcessSteps.CalculateTangentSpace;
+
         _ = ModelImporter.ImportAsync(fbxPathDesktop, flags, () =>
         {
-            var knee = rootNode.FindDescendant((string path, string name) => name.Contains("knee", StringComparison.InvariantCultureIgnoreCase));
+            Debug.Out(importedModelsNode.PrintTree());
+            var knee = rootNode.FindDescendant((string path, string name) => name.Contains("Head", StringComparison.InvariantCultureIgnoreCase));
             knee?.GetTransformAs<Transform>()?.RegisterAnimationTick<Transform>(KneeTick);
-        }, MaterialFactory, rootNode);
+        }, MaterialFactory, importedModelsNode, 1.0f, false);
 
         //string sponzaPath = Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj");
-        //_ = ModelImporter.ImportAsync(sponzaPath, PostProcessSteps.None, MaterialFactory, importedModelsNode);
+        //_ = ModelImporter.ImportAsync(sponzaPath, flags, null, MaterialFactory, importedModelsNode);
 
         return world;
     }
     static void KneeTick(Transform t)
     {
-        t.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitX, XRMath.DegToRad(90.0f * MathF.Cos(Engine.ElapsedTime)));
+        t.Rotation = Quaternion.CreateFromAxisAngle(Globals.Right, XRMath.DegToRad(90.0f * MathF.Cos(Engine.ElapsedTime)));
     }
     private static readonly ConcurrentDictionary<string, XRTexture2D> _textureCache = new();
 
-    public static XRMaterial MaterialFactory(string modelFilePath, string name, List<TextureInfo> textures, TextureFlags flags, ShadingMode mode, Dictionary<string, List<object>> properties)
+    public static XRMaterial MaterialFactory(string modelFilePath, string name, List<TextureSlot> textures, TextureFlags flags, ShadingMode mode, Dictionary<string, List<MaterialProperty>> properties)
     {
         //Random r = new();
 
@@ -301,9 +313,9 @@ internal class Program
         return mat;
     }
 
-    private static void LoadTexture(string modelFilePath, List<TextureInfo> textures, XRMaterial mat, int i)
+    private static void LoadTexture(string modelFilePath, List<TextureSlot> textures, XRMaterial mat, int i)
     {
-        string path = textures[i].path;
+        string path = textures[i].FilePath;
         if (path is null)
             return;
 

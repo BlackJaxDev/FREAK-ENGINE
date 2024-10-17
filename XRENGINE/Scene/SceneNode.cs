@@ -1,7 +1,6 @@
 ﻿using System.Collections;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
-using System.IO;
 using System.Numerics;
 using XREngine.Components;
 using XREngine.Core;
@@ -17,10 +16,8 @@ using XREngine.Scene.Transforms;
 namespace XREngine.Scene
 {
     [Serializable]
-    public sealed class SceneNode : XRWorldObjectBase, IEventListReadOnly<XRComponent>, IRenderable
+    public sealed class SceneNode : XRWorldObjectBase, IEventListReadOnly<XRComponent>
     {
-        public RenderInfo[] RenderedObjects { get; }
-
         //private static SceneNode? _dummy;
         //internal static SceneNode Dummy => _dummy ??= new SceneNode() { IsDummy = true };
         //internal bool IsDummy { get; private set; } = false;
@@ -38,7 +35,6 @@ namespace XREngine.Scene
 
             Transform.Parent = parent?.Transform;
             Name = name;
-            RenderedObjects = GetDebugRenderInfo();
         }
 
         public SceneNode(SceneNode parent, TransformBase? transform = null)
@@ -50,7 +46,6 @@ namespace XREngine.Scene
 
             Transform.Parent = null;
             Name = name;
-            RenderedObjects = GetDebugRenderInfo();
         }
         public SceneNode(XRScene scene, string name, TransformBase? transform = null)
         {
@@ -59,16 +54,6 @@ namespace XREngine.Scene
 
             scene._rootObjects.Add(this);
             Name = name;
-            RenderedObjects = GetDebugRenderInfo();
-        }
-
-        private RenderInfo[] GetDebugRenderInfo()
-            => [RenderInfo3D.New(this, new RenderCommandMethod3D((int)EDefaultRenderPass.OpaqueForward, RenderDebugLine))];
-
-        private void RenderDebugLine(bool shadowPass)
-        {
-            if (!shadowPass)
-                Engine.Rendering.Debug.RenderLine(Transform.WorldTranslation, Parent?.Transform.WorldTranslation ?? Vector3.Zero, ColorF4.White, false, 7);
         }
 
         private readonly EventList<XRComponent> _components = [];
@@ -253,6 +238,7 @@ namespace XREngine.Scene
             set => Transform.Parent = value?.Transform;
         }
 
+        // TODO: set and unset world to transform and components when enabled and disabled
         private void SetWorldToChildNodes(XRWorldInstance? value)
         {
             Transform.World = World;
@@ -530,8 +516,8 @@ namespace XREngine.Scene
         /// </summary>
         public void OnSceneNodeActivated()
         {
-            foreach (var obj in RenderedObjects)
-                obj.WorldInstance = World;
+            //foreach (var item in Transform.RenderedObjects)
+            //    item.WorldInstance = World;
             
             foreach (XRComponent component in this)
                 if (component.IsActive)
@@ -555,9 +541,6 @@ namespace XREngine.Scene
         /// </summary>
         public void OnSceneNodeDeactivated()
         {
-            foreach (var obj in RenderedObjects)
-                obj.WorldInstance = null;
-
             foreach (XRComponent component in this)
                 if (component.IsActive)
                     component.OnComponentDeactivated();
@@ -1016,7 +999,7 @@ namespace XREngine.Scene
         {
             string name = Name ?? "<no name>";
             string depth = new(' ', Transform.Depth * 2);
-            string output = $"{depth}{name}{Environment.NewLine}";
+            string output = $"{depth}{Transform}{Environment.NewLine}";
             lock (Transform.Children)
             {
                 foreach (var child in Transform.Children)

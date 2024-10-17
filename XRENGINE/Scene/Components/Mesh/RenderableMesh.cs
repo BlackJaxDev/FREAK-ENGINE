@@ -3,6 +3,7 @@ using XREngine.Rendering.Commands;
 using XREngine.Rendering;
 using XREngine.Rendering.Models;
 using XREngine.Rendering.Info;
+using System.Numerics;
 
 namespace XREngine.Components.Scene.Mesh
 {

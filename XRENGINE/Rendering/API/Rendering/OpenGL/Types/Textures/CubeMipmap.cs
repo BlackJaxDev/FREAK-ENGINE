@@ -1,6 +1,5 @@
 ﻿using Extensions;
 using ImageMagick;
-using Silk.NET.Assimp;
 using XREngine.Data.Core;
 using XREngine.Data.Rendering;
 

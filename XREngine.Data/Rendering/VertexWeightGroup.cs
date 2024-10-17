@@ -1,4 +1,6 @@
-﻿using XREngine.Data.Core;
+﻿using Extensions;
+using System.Diagnostics;
+using XREngine.Data.Core;
 
 namespace XREngine.Data.Rendering
 {
@@ -10,9 +12,9 @@ namespace XREngine.Data.Rendering
     {
         //TODO: use event dictionary. bone index -> weight
 
-        private int _weightLimit = 0;
-        private EventDictionary<int, float> _weights;
-        private List<int>? _locked = null;
+        private int _weightLimit = -1;
+        private Dictionary<int, float> _weights;
+        private List<int>? _lockedIndices = null;
 
         /// <summary>
         /// The maximum number of weights that can be applied to a vertex.
@@ -28,7 +30,7 @@ namespace XREngine.Data.Rendering
         /// The list of bone weights that affect the vertex.
         /// Key is bone index (into UtilizedBones list), value is the weight.
         /// </summary>
-        public EventDictionary<int, float> Weights
+        public Dictionary<int, float> Weights
         {
             get => _weights;
             set => SetField(ref _weights, value);
@@ -39,8 +41,8 @@ namespace XREngine.Data.Rendering
         /// </summary>
         public List<int>? Locked
         {
-            get => _locked;
-            set => SetField(ref _locked, value);
+            get => _lockedIndices;
+            set => SetField(ref _lockedIndices, value);
         }
 
         public VertexWeightGroup(int boneIndex, int weightLimit = -1)
@@ -58,95 +60,181 @@ namespace XREngine.Data.Rendering
         /// <summary>
         /// Locks a weight at the specified index so it cannot be modified.
         /// </summary>
-        /// <param name="index"></param>
-        public void Lock(int index)
+        /// <param name="boneIndex"></param>
+        public void Lock(int boneIndex)
         {
-            _locked ??= [];
-            _locked.Add(index);
+            _lockedIndices ??= [];
+            _lockedIndices.Add(boneIndex);
         }
 
         /// <summary>
         /// Unlocks a weight at the specified index so it can be modified.
         /// </summary>
-        /// <param name="index"></param>
-        public void Unlock(int index)
+        /// <param name="boneIndex"></param>
+        public void Unlock(int boneIndex)
         {
-            if (_locked is null)
+            if (_lockedIndices is null)
                 return;
 
-            _locked.Remove(index);
-            if (_locked.Count == 0)
-                _locked = null;
+            _lockedIndices.Remove(boneIndex);
+            if (_lockedIndices.Count == 0)
+                _lockedIndices = null;
         }
 
         /// <summary>
         /// Checks if a weight at the specified index is locked.
         /// </summary>
-        /// <param name="index"></param>
+        /// <param name="boneIndex"></param>
         /// <returns></returns>
-        public bool IsLocked(int index)
-            => _locked?.Contains(index) ?? false;
+        public bool IsLocked(int boneIndex)
+            => _lockedIndices?.Contains(boneIndex) ?? false;
 
-        ///// <summary>
-        ///// Reduces the number of weights down to the weight limit by removing the smallest weights and normalizing the rest.
-        ///// </summary>
-        //public void Optimize()
-        //{
-        //    if (WeightLimit < 0)
-        //        return;
+        /// <summary>
+        /// Reduces the number of weights down to the weight limit by removing the smallest weights and normalizing the rest.
+        /// </summary>
+        public void Optimize()
+        {
+            RemoveWeights(false);
+            Normalize();
+        }
 
-        //    if (Weights.Count > WeightLimit)
-        //    {
-        //        int[] toRemove = new int[Weights.Count - WeightLimit];
-        //        for (int i = 0; i < toRemove.Length; ++i)
-        //            for (int j = 0; j < Weights.Count; ++j)
-        //                if (!toRemove.Contains(j + 1) &&
-        //                    (toRemove[i] == 0 || Weights[j].Weight < Weights[toRemove[i] - 1].Weight))
-        //                    toRemove[i] = j + 1;
+        private bool RemoveWeights(bool normalizeHere = true)
+        {
+            if (WeightLimit < 0 || Weights.Count <= WeightLimit)
+                return false;
 
-        //        //TODO: update locked list with new indices
-        //        foreach (int k in toRemove)
-        //            Weights.RemoveAt(k - 1);
-        //    }
+            int[] keysToRemove = new int[Weights.Count - WeightLimit];
+            keysToRemove.Fill(-1);
 
-        //    int count = Math.Min(Weights.Count, WeightLimit);
-        //    BoneWeight[] optimized = new BoneWeight[count];
-        //    for (int i = 0; i < Weights.Count; ++i)
-        //        optimized[i] = Weights[i];
+            var boneIndices = Weights.Keys.ToList();
+            //Collect the indices of the smallest weights in order of most to least small
+            for (int i = 0; i < keysToRemove.Length; ++i)
+            {
+                float minWeight = float.MaxValue;
+                int minIndex = -1;
+                for (int j = 0; j < boneIndices.Count; ++j)
+                {
+                    var boneIndex = boneIndices[j];
 
-        //    Normalize();
-        //}
+                    if (IsLocked(boneIndex))
+                        continue;
 
-        ///// <summary>
-        ///// Makes sure all weights add up to 1.0f.
-        ///// Does not modify any locked weights.
-        ///// </summary>
-        //public void Normalize(int weightDecimalPlaces = 7)
-        //{
-        //    float denom = 0.0f, num = 1.0f;
-        //    for (int i = 0; i < Weights.Count; i++)
-        //    {
-        //        float bw = Weights[i].Weight;
-        //        if (IsLocked(i))
-        //            num -= bw;
-        //        else
-        //            denom += bw;
-        //    }
+                    if (Weights[boneIndex] <= minWeight && !keysToRemove.Contains(j))
+                    {
+                        minWeight = Weights[boneIndex];
+                        minIndex = j;
+                    }
+                }
+                keysToRemove[i] = minIndex;
+            }
 
-        //    //Don't do anything if all weights are locked
-        //    if (denom <= 0.0f || num <= 0.0f)
-        //        return;
+            foreach (int index in keysToRemove)
+                Weights.Remove(boneIndices[index]);
 
-        //    for (int i = 0; i < Weights.Count; i++)
-        //    {
-        //        //Only normalize unlocked weights used in the calculation
-        //        if (IsLocked(i))
-        //            continue;
+            if (normalizeHere)
+                Normalize();
 
-        //        BoneWeight b = Weights[i];
-        //        Weights[i] = new BoneWeight(b.BoneIndex, MathF.Round(b.Weight / denom * num, weightDecimalPlaces));
-        //    }
-        //}
+            return true;
+        }
+
+        public static bool Optimize<T>(IDictionary<T, float> weights, int maxWeightCount) where T : notnull
+        {
+            var boneIndices = weights.Keys.ToList();
+            for (int i = 0; i < boneIndices.Count; i++)
+            {
+                T? boneIndex = boneIndices[i];
+                float weight = MathF.Round(weights[boneIndex], 3);
+                if (weight < 0.001f)
+                {
+                    weights.Remove(boneIndex);
+                    boneIndices.RemoveAt(i);
+                }
+                else
+                    weights[boneIndex] = weight;
+            }
+
+            if (maxWeightCount < weights.Count && maxWeightCount >= 0)
+            {
+                int[] keysToRemove = new int[weights.Count - maxWeightCount];
+                keysToRemove.Fill(-1);
+
+                //Collect the indices of the smallest weights in order of most to least small
+                for (int i = 0; i < keysToRemove.Length; ++i)
+                {
+                    float minWeight = float.MaxValue;
+                    int minIndex = -1;
+                    for (int j = 0; j < boneIndices.Count; ++j)
+                    {
+                        var boneIndex = boneIndices[j];
+
+                        if (weights[boneIndex] <= minWeight && !keysToRemove.Contains(j))
+                        {
+                            minWeight = weights[boneIndex];
+                            minIndex = j;
+                        }
+                    }
+                    keysToRemove[i] = minIndex;
+                }
+
+                foreach (int index in keysToRemove)
+                    weights.Remove(boneIndices[index]);
+            }
+
+            Normalize(weights);
+
+            return true;
+        }
+
+        public static void Normalize<T>(IDictionary<T, float> weights, int weightDecimalPlaces = 6) where T : notnull
+        {
+            if (weights.Count == 0)
+                return;
+
+            float denom = 0.0f, num = 1.0f;
+            foreach (T boneIndex in weights.Keys)
+                denom += weights[boneIndex];
+            
+            //Don't do anything if all weights are locked
+            if (denom <= 0.0f || num <= 0.0f)
+                return;
+
+            foreach (T boneIndex in weights.Keys)
+                weights[boneIndex] = MathF.Round(weights[boneIndex] / denom * num, weightDecimalPlaces);
+            
+            //if (weights.Any(w => float.IsNaN(w.Value) || float.IsInfinity(w.Value)))
+            //    throw new InvalidOperationException("Vertex weight normalization resulted in NaN or Infinity.");
+
+        }
+
+        /// <summary>
+        /// Makes sure all weights add up to 1.0f.
+        /// Does not modify any locked weights.
+        /// </summary>
+        public void Normalize(int weightDecimalPlaces = 6)
+        {
+            float denom = 0.0f, num = 1.0f;
+            foreach (int boneIndex in Weights.Keys)
+            {
+                float bw = Weights[boneIndex];
+                if (IsLocked(boneIndex))
+                    num -= bw;
+                else
+                    denom += bw;
+            }
+
+            //Don't do anything if all weights are locked
+            if (denom <= 0.0f || num <= 0.0f)
+                return;
+
+            foreach (int boneIndex in Weights.Keys)
+            {
+                //Only normalize unlocked weights used in the calculation
+                if (IsLocked(boneIndex))
+                    continue;
+
+                Weights[boneIndex] = MathF.Round(Weights[boneIndex] / denom * num, weightDecimalPlaces);
+            }
+        }
 
         public static bool operator ==(VertexWeightGroup left, VertexWeightGroup right)
         {

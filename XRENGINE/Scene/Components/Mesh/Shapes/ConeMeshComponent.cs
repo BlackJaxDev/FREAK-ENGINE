@@ -1,8 +1,5 @@
-﻿using Silk.NET.Assimp;
-using System.Numerics;
+﻿using System.Numerics;
 using XREngine.Data.Geometry;
-using XREngine.Physics;
-using XREngine.Rendering;
 
 namespace XREngine.Scene.Components.Mesh.Shapes
 {

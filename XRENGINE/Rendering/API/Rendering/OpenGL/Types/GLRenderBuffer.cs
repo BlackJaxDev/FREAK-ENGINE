@@ -1,5 +1,4 @@
-﻿using Silk.NET.Assimp;
-using Silk.NET.OpenGL;
+﻿using Silk.NET.OpenGL;
 using XREngine.Data.Rendering;
 using static XREngine.Rendering.OpenGL.OpenGLRenderer;
 

@@ -1,5 +1,4 @@
 ﻿using Silk.NET.OpenGL;
-using System.Runtime.Intrinsics.X86;
 using XREngine.Data;
 using XREngine.Data.Rendering;
 
@@ -13,14 +12,14 @@ namespace XREngine.Rendering.OpenGL
             {
                 Data.PushDataRequested -= PushData;
                 Data.PushSubDataRequested -= PushSubData;
-                Data.SetBlockNameRequested -= SetBlockName;
+                Data.SetBlockNameRequested -= SetUniformBlockName;
                 Data.SetBlockIndexRequested -= SetBlockIndex;
             }
             protected override void LinkData()
             {
                 Data.PushDataRequested += PushData;
                 Data.PushSubDataRequested += PushSubData;
-                Data.SetBlockNameRequested += SetBlockName;
+                Data.SetBlockNameRequested += SetUniformBlockName;
                 Data.SetBlockIndexRequested += SetBlockIndex;
             }
 
@@ -101,6 +100,7 @@ namespace XREngine.Rendering.OpenGL
                             case EBufferTarget.ShaderStorageBuffer:
                             case EBufferTarget.UniformBuffer:
                                 Bind();
+                                //Api.BufferData(ToGLEnum(Data.Target), Data.Length, Data.Address.Pointer, ToGLEnum(Data.Usage));
                                 Api.BindBufferBase(ToGLEnum(Data.Target), index, BindingId);
                                 Unbind();
                                 break;
@@ -260,7 +260,7 @@ namespace XREngine.Rendering.OpenGL
                 Data.ActivelyMapping.Remove(this);
             }
 
-            public void SetBlockName(XRRenderProgram program, string blockName)
+            public void SetUniformBlockName(XRRenderProgram program, string blockName)
             {
                 var apiProgram = Renderer.GenericToAPI<GLRenderProgram>(program);
                 if (apiProgram is null)

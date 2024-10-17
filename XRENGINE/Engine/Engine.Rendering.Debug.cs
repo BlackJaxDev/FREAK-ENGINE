@@ -61,9 +61,9 @@ namespace XREngine
                     SetOptions(depthTestEnabled, lineWidth, null, renderer);
                     renderer.SetParameter(0, color);
                     renderer.Render(
-                        Matrix4x4.CreateTranslation(start) *
-                        XRMath.LookatAngles(start, end).GetMatrix() *
-                        Matrix4x4.CreateScale((end - start).Length()));
+                        Matrix4x4.CreateScale((end - start).Length()) *
+                        Matrix4x4.CreateLookTo(Vector3.Zero, start - end, Globals.Up) *
+                        Matrix4x4.CreateTranslation(start));
                 }
 
                 public static void RenderCircle(
@@ -79,9 +79,9 @@ namespace XREngine
                     SetOptions(depthTestEnabled, lineWidth, null, renderer);
                     renderer.SetParameter(0, color);
                     renderer.Render(
-                        Matrix4x4.CreateTranslation(centerTranslation) *
+                        Matrix4x4.CreateScale(radius, 1.0f, radius) *
                         rotation.GetMatrix() *
-                        Matrix4x4.CreateScale(radius, 1.0f, radius));
+                        Matrix4x4.CreateTranslation(centerTranslation));
                 }
 
                 public static void RenderQuad(
@@ -96,7 +96,10 @@ namespace XREngine
                     var renderer = GetDebugPrimitive(solid ? EDebugPrimitiveType.SolidQuad : EDebugPrimitiveType.WireQuad);
                     SetOptions(depthTestEnabled, lineWidth, null, renderer);
                     renderer.SetParameter(0, color);
-                    renderer.Render(Matrix4x4.CreateTranslation(centerTranslation) * rotation.GetMatrix() * Matrix4x4.CreateScale(extents.X, 1.0f, extents.Y));
+                    renderer.Render(
+                        Matrix4x4.CreateScale(extents.X, 1.0f, extents.Y) *
+                        rotation.GetMatrix() *
+                        Matrix4x4.CreateTranslation(centerTranslation));
                 }
 
                 public static void RenderSphere(
@@ -111,7 +114,9 @@ namespace XREngine
                     SetOptions(depthTestEnabled, lineWidth, null, renderer);
                     renderer.SetParameter(0, color);
                     //radius doesn't need to be multiplied by 2.0f; the sphere is already 2.0f in diameter
-                    renderer.Render(Matrix4x4.CreateTranslation(center) * Matrix4x4.CreateScale(radius));
+                    renderer.Render(
+                        Matrix4x4.CreateScale(radius) * 
+                        Matrix4x4.CreateTranslation(center));
                 }
 
                 public static void RenderAABB(
@@ -141,7 +146,9 @@ namespace XREngine
                     SetOptions(depthTestEnabled, lineWidth, null, renderer);
                     renderer.SetParameter(0, color);
                     //halfExtents doesn't need to be multiplied by 2.0f; the box is already 1.0f in each direction of each dimension (2.0f extents)
-                    renderer.Render(transform * Matrix4x4.CreateScale(halfExtents));
+                    renderer.Render(
+                        Matrix4x4.CreateScale(halfExtents) *
+                        transform);
                 }
 
                 public static void RenderCapsule(
@@ -258,7 +265,7 @@ namespace XREngine
                     => type switch
                     {
                         EDebugPrimitiveType.Point => XRMesh.CreatePoints(Vector3.Zero),
-                        EDebugPrimitiveType.Line => XRMesh.CreateLines(Vector3.Zero, Globals.Forward),
+                        EDebugPrimitiveType.Line => XRMesh.CreateLines(Vector3.Zero, Globals.Backward),
                         EDebugPrimitiveType.WireSphere => XRMesh.Shapes.WireframeSphere(Vector3.Zero, 1.0f, 60),//Diameter is set to 2.0f on purpose
                         EDebugPrimitiveType.SolidSphere => XRMesh.Shapes.SolidSphere(Vector3.Zero, 1.0f, 30),//Diameter is set to 2.0f on purpose
                         EDebugPrimitiveType.WireBox => XRMesh.Shapes.WireframeBox(new Vector3(-1.0f), new Vector3(1.0f)),

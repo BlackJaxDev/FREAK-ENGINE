@@ -1,4 +1,5 @@
-﻿using Silk.NET.Assimp;
+﻿using Assimp;
+using Extensions;
 using System.Numerics;
 using XREngine.Scene.Transforms;
 
@@ -98,18 +99,18 @@ namespace XREngine.Data.Rendering
                 Blendshapes = Blendshapes is null ? null : new Dictionary<string, VertexData>(Blendshapes),
             };
 
-        public static unsafe Vertex FromAssimp(Mesh* mesh, uint vertexIndex)
+        public static unsafe Vertex FromAssimp(Mesh mesh, int vertexIndex)
         {
-            Vector3 pos = mesh->MVertices[vertexIndex];
-            Vector3? normal = mesh->MNormals == null ? null : mesh->MNormals[vertexIndex];
-            Vector3? tangent = mesh->MTangents == null ? null : mesh->MTangents[vertexIndex];
-            Vector3? bitangent = mesh->MBitangents == null ? null : mesh->MBitangents[vertexIndex];
+            Vector3D pos = mesh.Vertices[vertexIndex];
+            Vector3D? normal = (mesh.Normals?.TryGet(vertexIndex, out var temp1) ?? false) ? temp1 : null;
+            Vector3D? tangent = (mesh.Tangents?.TryGet(vertexIndex, out var temp2) ?? false) ? temp2 : null;
+            Vector3D? bitangent = (mesh.BiTangents?.TryGet(vertexIndex, out var temp3) ?? false) ? temp3 : null;
 
             //If two of the three vectors are zero, the normal is calculated from the cross product of the other two.
             if (normal == null)
             {
                 if (tangent != null && bitangent != null)
-                    normal = Vector3.Cross(tangent.Value, bitangent.Value);
+                    normal = Vector3D.Cross(tangent.Value, bitangent.Value);
                 //else if (tangent != null)
                 //    normal = Vector3.Cross(tangent.Value, pos);
                 //else if (bitangent != null)
@@ -118,7 +119,7 @@ namespace XREngine.Data.Rendering
             if (tangent == null)
             {
                 if (normal != null && bitangent != null)
-                    tangent = Vector3.Cross(normal.Value, bitangent.Value);
+                    tangent = Vector3D.Cross(normal.Value, bitangent.Value);
                 //else if (normal != null)
                 //    tangent = Vector3.Cross(normal.Value, pos);
                 //else if (bitangent != null)
@@ -137,68 +138,70 @@ namespace XREngine.Data.Rendering
 
             Vertex v = new()
             {
-                Position = pos,
-                Normal = normal,
-                Tangent = tangent
+                Position = pos.ToNumerics(),
+                Normal = normal?.ToNumerics(),
+                Tangent = tangent?.ToNumerics()
             };
 
-            for (int i = 0; i < 8; ++i)
+            for (int i = 0; i < mesh.TextureCoordinateChannelCount; ++i)
             {
-                if (mesh->MTextureCoords[i] == null)
+                var channel = mesh.TextureCoordinateChannels[i];
+                if (channel is null || vertexIndex >= channel.Count)
                     break;
 
-                Vector3 uv = mesh->MTextureCoords[i][vertexIndex];
+                Vector3D uv = channel[vertexIndex];
                 v.TextureCoordinateSets.Add(new Vector2(uv.X, uv.Y));
             }
-            for (int i = 0; i < 8; ++i)
+
+            for (int i = 0; i < mesh.VertexColorChannelCount; ++i)
             {
-                if (mesh->MColors[i] == null)
+                var channel = mesh.VertexColorChannels[i];
+                if (channel is null || vertexIndex >= channel.Count)
                     break;
 
-                Vector4 color = mesh->MColors[i][vertexIndex];
-                v.ColorSets.Add(color);
+                v.ColorSets.Add(channel[vertexIndex].ToNumerics());
             }
 
             //Blendshapes
-            uint blendshapeCount = mesh->MNumAnimMeshes;
+            int blendshapeCount = mesh.MeshAnimationAttachmentCount;
             if (blendshapeCount > 0)
             {
                 v.Blendshapes = [];
-                for (uint i = 0; i < blendshapeCount; ++i)
+                for (int i = 0; i < blendshapeCount; ++i)
                 {
-                    var blendshape = mesh->MAnimMeshes[i];
-                    if (blendshape->MVertices == null)
+                    var blendshape = mesh.MeshAnimationAttachments[i];
+                    if (blendshape.VertexCount == 0)
                         continue;
 
                     VertexData data = new()
                     {
-                        Position = blendshape->MVertices[vertexIndex]
+                        Position = blendshape.Vertices[vertexIndex].ToNumerics()
                     };
 
-                    if (blendshape->MNormals != null)
-                        data.Normal = blendshape->MNormals[vertexIndex];
+                    if (blendshape.Normals != null)
+                        data.Normal = blendshape.Normals[vertexIndex].ToNumerics();
 
-                    if (blendshape->MTangents != null)
-                        data.Tangent = blendshape->MTangents[vertexIndex];
+                    if (blendshape.Tangents != null)
+                        data.Tangent = blendshape.Tangents[vertexIndex].ToNumerics();
 
-                    for (int j = 0; j < 8; ++j)
+                    for (int j = 0; j < blendshape.TextureCoordinateChannelCount; ++j)
                     {
-                        if (blendshape->MTextureCoords[j] == null)
+                        if (blendshape.TextureCoordinateChannels[j] == null)
                             break;
 
-                        Vector3 uv = blendshape->MTextureCoords[j][vertexIndex];
+                        Vector3D uv = blendshape.TextureCoordinateChannels[j][vertexIndex];
                         data.TextureCoordinateSets.Add(new Vector2(uv.X, uv.Y));
                     }
-                    for (int j = 0; j < 8; ++j)
+                    for (int j = 0; j < blendshape.VertexColorChannelCount; ++j)
                     {
-                        if (blendshape->MColors[j] == null)
+                        if (blendshape.VertexColorChannels[j] == null)
                             break;
 
-                        Vector4 color = blendshape->MColors[j][vertexIndex];
-                        data.ColorSets.Add(color);
+                        Color4D color = blendshape.VertexColorChannels[j][vertexIndex];
+                        data.ColorSets.Add(color.ToNumerics());
                     }
 
-                    string shapeName = blendshape->MName.ToString();
+                    string shapeName = blendshape.Name;
                     if (v.Blendshapes.ContainsKey(shapeName))
                         shapeName += $"_{i}";
                     v.Blendshapes.Add(shapeName, data);

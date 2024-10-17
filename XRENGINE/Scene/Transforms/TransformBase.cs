@@ -1,9 +1,13 @@
-﻿using System.Collections;
+﻿using Extensions;
+using System.Collections;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Reflection;
-using XREngine.Data.Core;
+using XREngine.Data.Colors;
+using XREngine.Data.Rendering;
+using XREngine.Rendering.Commands;
+using XREngine.Rendering.Info;
 using XREngine.Rendering.UI;
 
 namespace XREngine.Scene.Transforms
@@ -13,8 +17,13 @@ namespace XREngine.Scene.Transforms
     /// Inherit from this class to create custom transformation implementations, or use the Transform class for default functionality.
     /// This class is thread-safe.
     /// </summary>
-    public abstract partial class TransformBase : XRWorldObjectBase, IList, IList<TransformBase>, IEnumerable<TransformBase>
+    public abstract partial class TransformBase : XRWorldObjectBase, IList, IList<TransformBase>, IEnumerable<TransformBase>, IRenderable
     {
+        public RenderInfo[] RenderedObjects { get; }
+
+        public override string ToString()
+            => $"{GetType().GetFriendlyName()} ({SceneNode?.Name ?? Name ?? "<no name>"})";
+
         public event Action<TransformBase>? LocalMatrixChanged;
         public event Action<TransformBase>? InverseLocalMatrixChanged;
         public event Action<TransformBase>? WorldMatrixChanged;
@@ -34,6 +43,17 @@ namespace XREngine.Scene.Transforms
             _worldMatrix = new MatrixInfo { NeedsRecalc = true };
             _inverseLocalMatrix = new MatrixInfo { NeedsRecalc = true };
             _inverseWorldMatrix = new MatrixInfo { NeedsRecalc = true };
+
+            RenderedObjects = GetDebugRenderInfo();
+        }
+
+        protected virtual RenderInfo[] GetDebugRenderInfo()
+            => [RenderInfo3D.New(this, new RenderCommandMethod3D((int)EDefaultRenderPass.OpaqueForward, RenderDebugLineToParent))];
+
+        protected virtual void RenderDebugLineToParent(bool shadowPass)
+        {
+            if (!shadowPass)
+                Engine.Rendering.Debug.RenderLine(Parent?.WorldTranslation ?? Vector3.Zero, WorldTranslation, ColorF4.White, false, 1);
         }
 
         private void ChildAdded(TransformBase e)
@@ -109,6 +129,11 @@ namespace XREngine.Scene.Transforms
                     break;
                 case nameof(SceneNode):
                     World = SceneNode?.World;
+                    break;
+                case nameof(World):
+                    //World = SceneNode?.World;
+                    foreach (var obj in RenderedObjects)
+                        obj.WorldInstance = World;
                     break;
             }
         }
@@ -214,12 +239,17 @@ namespace XREngine.Scene.Transforms
         {
             get
             {
-                VerifyLocal();
+                VerifyLocalMatrix();
                 return _localMatrix.Matrix;
             }
         }
 
-        private void VerifyLocal()
+        /// <summary>
+        /// Ensures that the world matrix is up-to-date.
+        /// If this is not called after values are changed and the matrix is invalidated,
+        /// the matrix will not be recalculated until swap buffers is called or the matrix is specifically requested.
+        /// </summary>
+        public void VerifyLocalMatrix()
         {
             if (!_localMatrix.NeedsRecalc)
                 return;
@@ -248,12 +278,17 @@ namespace XREngine.Scene.Transforms
         {
             get
             {
-                VerifyWorld();
+                VerifyWorldMatrix();
                 return _worldMatrix.Matrix;
             }
         }
 
-        private void VerifyWorld()
+        /// <summary>
+        /// Ensures that the world matrix is up-to-date.
+        /// If this is not called after values are changed and the matrix is invalidated,
+        /// the matrix will not be recalculated until swap buffers is called or the matrix is specifically requested.
+        /// </summary>
+        public void VerifyWorldMatrix()
         {
             if (!_worldMatrix.NeedsRecalc)
                 return;
@@ -301,7 +336,7 @@ namespace XREngine.Scene.Transforms
 
         private void VerifyLocalInv()
         {
-            VerifyLocal();
+            VerifyLocalMatrix();
 
             if (!_inverseLocalMatrix.NeedsRecalc)
                 return;
@@ -341,7 +376,7 @@ namespace XREngine.Scene.Transforms
 
         private void VerifyWorldInv()
         {
-            VerifyWorld();
+            VerifyWorldMatrix();
 
             if (!_inverseWorldMatrix.NeedsRecalc)
                 return;
