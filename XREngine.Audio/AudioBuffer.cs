@@ -9,13 +9,13 @@ namespace XREngine.Audio
     public sealed class AudioBuffer : XRBase, IDisposable, IPoolable
     {
         public ListenerContext ParentListener { get; }
-        public AL Api => ParentListener.Api;
+        public static AL Api => ListenerContext.Api;
         public uint Handle { get; private set; }
 
         internal AudioBuffer(ListenerContext parentListener)
         {
             ParentListener = parentListener;
-            Handle = ParentListener.Api.GenBuffer();
+            Handle = ListenerContext.Api.GenBuffer();
             ParentListener.VerifyError();
         }
 
@@ -68,7 +68,7 @@ namespace XREngine.Audio
 
         void IPoolable.OnPoolableReset()
         {
-            Handle = ParentListener.Api.GenBuffer();
+            Handle = ListenerContext.Api.GenBuffer();
             //The user should call SetData to set the data for the buffer after taking it from the pool.
         }
 

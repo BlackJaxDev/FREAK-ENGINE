@@ -1,9 +1,16 @@
-﻿using System.Numerics;
+﻿using Extensions;
+using System.Numerics;
 
 namespace XREngine.Scene.Transforms
 {
     public abstract partial class TransformBase
     {
+        public float DistanceTo(TransformBase other)
+            => WorldTranslation.Distance(other.WorldTranslation);
+
+        public float DistanceToParent()
+            => WorldTranslation.Distance(Parent?.WorldTranslation ?? Vector3.Zero);
+
         private class MatrixInfo
         {
             private readonly ReaderWriterLockSlim _modifiedLock = new();

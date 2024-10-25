@@ -32,7 +32,7 @@ namespace XREngine.Animation
     public class IntKeyframe : VectorKeyframe<int>
     {
         public IntKeyframe()
-            : this(0.0f, 0, 0, EVectorInterpType.CubicBezier) { }
+            : this(0.0f, 0, 0, EVectorInterpType.Smooth) { }
         public IntKeyframe(int frameIndex, float FPS, int inValue, int outValue, int inTangent, int outTangent, EVectorInterpType type)
             : this(frameIndex / FPS, inValue, outValue, inTangent, outTangent, type) { }
         public IntKeyframe(int frameIndex, float FPS, int inoutValue, int inoutTangent, EVectorInterpType type)

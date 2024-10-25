@@ -4,6 +4,7 @@ using System.Numerics;
 using XREngine;
 using XREngine.Components;
 using XREngine.Components.Lights;
+using XREngine.Components.Scene;
 using XREngine.Components.Scene.Mesh;
 using XREngine.Data.Colors;
 using XREngine.Data.Core;
@@ -27,6 +28,11 @@ internal class Program
     static EditorRenderInfo3D RenderInfo3DConstructor(IRenderable owner, RenderCommand[] commands)
         => new(owner, commands);
 
+    /// <summary>
+    /// This project serves as a hardcoded game client for development purposes.
+    /// This editor will autogenerate the client exe csproj to compile production games.
+    /// </summary>
+    /// <param name="args"></param>
     private static void Main(string[] args)
     {
         RenderInfo2D.ConstructorOverride = RenderInfo2DConstructor;
@@ -149,11 +155,11 @@ internal class Program
         //    pointLightComp.SetShadowMapResolution(256, 256);
         //}
 
-        //var listener = new SceneNode(cameraNode) { Name = "TestListenerNode" };
-        //var listenerTransform = listener.SetTransform<Transform>();
-        //listenerTransform.Translation = new Vector3(0.0f, 0.0f, 0.0f);
-        //if (listener.TryAddComponent<AudioListenerComponent>(out var listenerComp))
-        //    listenerComp!.Name = "TestListener";
+        var listener = new SceneNode(cameraNode) { Name = "TestListenerNode" };
+        var listenerTransform = listener.SetTransform<Transform>();
+        listenerTransform.Translation = new Vector3(0.0f, 0.0f, 0.0f);
+        if (listener.TryAddComponent<AudioListenerComponent>(out var listenerComp))
+            listenerComp!.Name = "TestListener";
 
         //var sound = new SceneNode(rootNode) { Name = "TestSoundNode" };
         //var soundTransform = sound.SetTransform<Transform>();
@@ -251,10 +257,10 @@ internal class Program
 
         _ = ModelImporter.ImportAsync(fbxPathDesktop, flags, () =>
         {
-            Debug.Out(importedModelsNode.PrintTree());
-            var knee = rootNode.FindDescendant((string path, string name) => name.Contains("Head", StringComparison.InvariantCultureIgnoreCase));
+            //Debug.Out(importedModelsNode.PrintTree());
+            var knee = rootNode.FindDescendant((string path, string name) => name.Contains("Knee", StringComparison.InvariantCultureIgnoreCase));
             knee?.GetTransformAs<Transform>()?.RegisterAnimationTick<Transform>(KneeTick);
-        }, MaterialFactory, importedModelsNode, 1.0f, false);
+        }, MaterialFactory, importedModelsNode, 0.0254f, true);
 
         //string sponzaPath = Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj");
         //_ = ModelImporter.ImportAsync(sponzaPath, flags, null, MaterialFactory, importedModelsNode);
@@ -387,7 +393,7 @@ internal class Program
             [
                 new()
                 {
-                    WindowTitle = "XREngine Editor",
+                    WindowTitle = "XRE Editor",
                     TargetWorld = targetWorld ?? new XRWorld(),
                     WindowState = EWindowState.Windowed,
                     X = primaryX / 2 - w / 2,
@@ -397,7 +403,6 @@ internal class Program
                 }
             ],
             OutputVerbosity = EOutputVerbosity.Verbose,
-            UseIntegerWeightingIds = true,
             DefaultUserSettings = new UserSettings()
             {
                 TargetFramesPerSecond = render,

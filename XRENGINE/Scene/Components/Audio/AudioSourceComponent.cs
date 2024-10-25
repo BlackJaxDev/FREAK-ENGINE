@@ -1,5 +1,4 @@
-﻿using Silk.NET.OpenAL;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Numerics;
 using XREngine.Audio;
 using XREngine.Data;

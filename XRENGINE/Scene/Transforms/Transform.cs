@@ -57,6 +57,7 @@ namespace XREngine.Scene.Transforms
             : this(Quaternion.Identity, parent, order) { }
 
         private Vector3 _scale;
+        [ReplicateOnChange(true)]
         public Vector3 Scale
         {
             get => _scale;

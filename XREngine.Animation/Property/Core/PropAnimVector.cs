@@ -425,7 +425,7 @@ namespace XREngine.Animation
                 inComps = GetComponents(velocity ? next.InTangent : next.InValue);
                 outComps = GetComponents(velocity ? kf.OutTangent : kf.OutValue);
 
-                bool cubic = kf.InterpolationType == EVectorInterpType.CubicBezier;
+                bool cubic = kf.InterpolationType == EVectorInterpType.Smooth;
                 if (cubic)
                 {
                     inTanComps = GetComponents(next.InTangent);

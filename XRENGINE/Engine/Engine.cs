@@ -112,7 +112,13 @@ namespace XREngine
 
             CreateWindows(startupSettings.StartupWindows);
 
-            //VRState.Initialize();
+            if (startupSettings.IsVR && startupSettings.VRManifest is not null && startupSettings.VRActionManifest is not null)
+                VRState.Initialize(startupSettings.VRActionManifest, startupSettings.VRManifest);
+
+            if (startupSettings.IsServer)
+                Networking.StartServer();
+            if (startupSettings.IsClient)
+                Networking.StartClient();
 
             Time.Timer.SwapBuffers += DequeueAsyncTasks;
             Time.Timer.RenderFrame += DequeueMainThreadTasks;

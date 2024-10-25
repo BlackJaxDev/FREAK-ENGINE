@@ -10,12 +10,12 @@ namespace XREngine.Audio
         internal AudioSource(ListenerContext parentListener)
         {
             ParentListener = parentListener;
-            Handle = ParentListener.Api.GenSource();
+            Handle = ListenerContext.Api.GenSource();
             ParentListener.VerifyError();
         }
 
         public ListenerContext ParentListener { get; }
-        public AL Api => ParentListener.Api;
+        public static AL Api => ListenerContext.Api;
         public uint Handle { get; private set; }
 
         public void Dispose()
@@ -790,7 +790,7 @@ namespace XREngine.Audio
 
         void IPoolable.OnPoolableReset()
         {
-            Handle = ParentListener.Api.GenSource();
+            Handle = ListenerContext.Api.GenSource();
             ParentListener.VerifyError();
         }
 

@@ -7,7 +7,7 @@ namespace XREngine.Animation
     public class FloatKeyframe : VectorKeyframe<float>
     {
         public FloatKeyframe()
-            : this(0.0f, 0.0f, 0.0f, EVectorInterpType.CubicBezier) { }
+            : this(0.0f, 0.0f, 0.0f, EVectorInterpType.Smooth) { }
         public FloatKeyframe(int frameIndex, float FPS, float inValue, float outValue, float inTangent, float outTangent, EVectorInterpType type)
             : this(frameIndex / FPS, inValue, outValue, inTangent, outTangent, type) { }
         public FloatKeyframe(int frameIndex, float FPS, float inoutValue, float inoutTangent, EVectorInterpType type)
@@ -40,7 +40,7 @@ namespace XREngine.Animation
             {
                 EVectorInterpType.Step => string.Format("[F:{0} : {3}] V:({1} {2})", Second, InValue.ToString(), OutValue.ToString(), InterpolationType),
                 EVectorInterpType.Linear => string.Format("[F:{0} : {3}] V:({1} {2})", Second, InValue.ToString(), OutValue.ToString(), InterpolationType),
-                EVectorInterpType.CubicBezier => string.Format("[F:{0} : {5}] V:({1} {2}) T:({3} {4})", Second, InValue.ToString(), OutValue.ToString(), InTangent.ToString(), OutTangent.ToString(), InterpolationType),
+                EVectorInterpType.Smooth => string.Format("[F:{0} : {5}] V:({1} {2}) T:({3} {4})", Second, InValue.ToString(), OutValue.ToString(), InTangent.ToString(), OutTangent.ToString(), InterpolationType),
                 _ => string.Format("[F:{0} : {5}] V:({1} {2}) T:({3} {4})", Second, InValue.ToString(), OutValue.ToString(), InTangent.ToString(), OutTangent.ToString(), InterpolationType),
             };
         }

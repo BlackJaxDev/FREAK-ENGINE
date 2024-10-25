@@ -1,8 +1,9 @@
 ﻿using Silk.NET.OpenAL;
 using Silk.NET.OpenAL.Extensions.Creative;
+using Silk.NET.OpenAL.Extensions.Enumeration;
 using Silk.NET.OpenAL.Extensions.EXT;
+using System.Diagnostics;
 using System.Numerics;
-using XREngine.Audio.Effects;
 using XREngine.Core;
 
 namespace XREngine.Audio
@@ -13,8 +14,9 @@ namespace XREngine.Audio
         //destroy sources with lower priority first to make room for higher priority sources.
         //0 is the lowest priority, 255 is the highest priority.
 
-        internal AL Api { get; } = AL.GetApi();
-        internal ALContext Context { get; }
+        public static AL Api { get; } = AL.GetApi();
+        public static ALContext Context { get; } = ALContext.GetApi(true);
+
         internal Device* DeviceHandle { get; }
         internal Context* ContextHandle { get; }
 
@@ -28,6 +30,8 @@ namespace XREngine.Audio
         public FloatFormat? FloatFormat { get; } = null;
         public MCFormats? MCFormats { get; } = null;
         public ALAWFormat? ALawFormat { get; } = null;
+
+        public Capture? Capture { get; } = null;
 
         public EventDictionary<uint, AudioSource> Sources { get; } = [];
         public EventDictionary<uint, AudioBuffer> Buffers { get; } = [];
@@ -59,15 +63,42 @@ namespace XREngine.Audio
             if (Api.TryGetExtension<XRam>(out var xram))
                 XRam = xram;
 
-            Context = ALContext.GetApi(true);
+            string deviceSpecifier = "";
+            if (Context.TryGetExtension<Enumeration>(null, out var e))
+            {
+                var stringList = e.GetStringList(GetEnumerationContextStringList.DeviceSpecifiers);
+                foreach (var device in stringList)
+                {
+                    Debug.WriteLine($"Found audio device \"{device}\"");
+                    deviceSpecifier = device;
+                }
+                e.Dispose();
+            }
+
             DeviceHandle = Context.OpenDevice(null);
             ContextHandle = Context.CreateContext(DeviceHandle, null);
-            Context.MakeContextCurrent(ContextHandle);
+            if (Context.TryGetExtension<Capture>(DeviceHandle, out var captureExtension))
+                Capture = captureExtension;
+            MakeCurrent();
             VerifyError();
+        }
+
+        public static ListenerContext? CurrentContext { get; private set; }
+
+        public void MakeCurrent()
+        {
+            if (CurrentContext == this)
+                return;
+
+            CurrentContext = this;
+            Context.MakeContextCurrent(ContextHandle);
         }
 
         public void VerifyError()
         {
+            if (CurrentContext != this)
+                return;
+
             var error = Api.GetError();
             if (error != AudioError.NoError)
                 throw new Exception($"{error}");
@@ -189,23 +220,27 @@ namespace XREngine.Audio
 
         private void SetPosition(Vector3 position)
         {
+            MakeCurrent();
             Api.SetListenerProperty(ListenerVector3.Position, position);
             VerifyError();
         }
         private void SetVelocity(Vector3 velocity)
         {
+            MakeCurrent();
             Api.SetListenerProperty(ListenerVector3.Velocity, velocity);
             VerifyError();
         }
 
         private Vector3 GetPosition()
         {
+            MakeCurrent();
             Api.GetListenerProperty(ListenerVector3.Position, out Vector3 position);
             VerifyError();
             return position;
         }
         private Vector3 GetVelocity()
         {
+            MakeCurrent();
             Api.GetListenerProperty(ListenerVector3.Velocity, out Vector3 velocity);
             VerifyError();
             return velocity;
@@ -218,6 +253,7 @@ namespace XREngine.Audio
         /// <param name="up"></param>
         public unsafe void SetOrientation(Vector3 forward, Vector3 up)
         {
+            MakeCurrent();
             float[] orientation = [forward.X, forward.Y, forward.Z, up.X, up.Y, up.Z];
             fixed (float* pOrientation = orientation)
                 Api.SetListenerProperty(ListenerFloatArray.Orientation, pOrientation);
@@ -231,6 +267,7 @@ namespace XREngine.Audio
         /// <param name="up"></param>
         public unsafe void GetOrientation(out Vector3 forward, out Vector3 up)
         {
+            MakeCurrent();
             float[] orientation = new float[6];
             fixed (float* pOrientation = orientation)
                 Api.GetListenerProperty(ListenerFloatArray.Orientation, pOrientation);
@@ -241,11 +278,13 @@ namespace XREngine.Audio
 
         private void SetGain(float gain)
         {
+            MakeCurrent();
             Api.SetListenerProperty(ListenerFloat.Gain, gain);
             VerifyError();
         }
         private float GetGain()
         {
+            MakeCurrent();
             Api.GetListenerProperty(ListenerFloat.Gain, out float gain);
             VerifyError();
             return gain;
@@ -253,18 +292,21 @@ namespace XREngine.Audio
 
         private float GetDopplerFactor()
         {
+            MakeCurrent();
             var factor = Api.GetStateProperty(StateFloat.DopplerFactor);
             VerifyError();
             return factor;
         }
         private float GetSpeedOfSound()
         {
+            MakeCurrent();
             var speed = Api.GetStateProperty(StateFloat.SpeedOfSound);
             VerifyError();
             return speed;
         }
         private DistanceModel GetDistanceModel()
         {
+            MakeCurrent();
             var model = (DistanceModel)Api.GetStateProperty(StateInteger.DistanceModel);
             VerifyError();
             return model;
@@ -272,16 +314,19 @@ namespace XREngine.Audio
 
         private void SetDopplerFactor(float factor)
         {
+            MakeCurrent();
             Api.DopplerFactor(factor);
             VerifyError();
         }
         private void SetSpeedOfSound(float speed)
         {
+            MakeCurrent();
             Api.SpeedOfSound(speed);
             VerifyError();
         }
         private void SetDistanceModel(DistanceModel model)
         {
+            MakeCurrent();
             Api.DistanceModel(model);
             VerifyError();
             _calcGainDistModelFunc = model switch

@@ -202,9 +202,17 @@ namespace XREngine.Components
             {
                 case nameof(IsActive):
                     if (IsActive)
+                    {
+                        VerifyInterfacesOnStart();
                         OnComponentActivated();
+                    }
                     else
+                    {
                         OnComponentDeactivated();
+                        VerifyInterfacesOnStop();
+                        if (UnregisterTicksOnStop)
+                            ClearTicks();
+                    }
                     break;
             }
         }
@@ -218,7 +226,9 @@ namespace XREngine.Components
         /// This is where ticks should register and connections to the world should be established.
         /// </summary>
         protected internal virtual void OnComponentActivated()
-            => VerifyInterfacesOnStart();
+        {
+
+        }
 
         /// <summary>
         /// If true, all registered ticks will be unregistered when the component is set to inactive.
@@ -236,16 +246,14 @@ namespace XREngine.Components
         /// </summary>
         protected internal virtual void OnComponentDeactivated()
         {
-            VerifyInterfacesOnStop();
-            if (UnregisterTicksOnStop)
-                ClearTicks();
+
         }
 
         /// <summary>
         /// This method is called when the component is set to active in the world.
         /// It will check for known engine interfaces set by the user and apply engine data to them.
         /// </summary>
-        private void VerifyInterfacesOnStart()
+        internal void VerifyInterfacesOnStart()
         {
             if (this is IRenderable rend)
             {
@@ -260,7 +268,7 @@ namespace XREngine.Components
         /// This method is called when the component is set to inactive in the world.
         /// It will check for known engine interfaces set by the user and clear engine data from them.
         /// </summary>
-        private void VerifyInterfacesOnStop()
+        internal void VerifyInterfacesOnStop()
         {
             if (this is IRenderable rend)
             {

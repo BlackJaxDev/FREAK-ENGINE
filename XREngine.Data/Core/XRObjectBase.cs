@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using XREngine.Core;
 using YamlDotNet.Serialization;
 
 namespace XREngine.Data.Core
@@ -7,7 +8,7 @@ namespace XREngine.Data.Core
     /// This base class is for any object that is managed by the engine, has a unique ID, and should be destroyed after use.
     /// </summary>
     [Serializable]
-    public abstract class XRObjectBase : XRBase, IDisposable
+    public abstract class XRObjectBase : XRBase, IDisposable, IPoolable
     {
         public Guid ID { get; internal set; } = Guid.NewGuid();
         
@@ -29,6 +30,18 @@ namespace XREngine.Data.Core
 
         public XRObjectBase()
         {
+            Generate();
+        }
+        ~XRObjectBase()
+        {
+            Destroy();
+        }
+
+        public void Generate()
+        {
+            ID = Guid.NewGuid();
+            IsDestroyed = false;
+
             int tries = 0;
             while (ObjectsCacheInternal.ContainsKey(ID))
             {
@@ -38,10 +51,6 @@ namespace XREngine.Data.Core
                     throw new Exception("Failed to generate a unique ID for an object."); //Highly unlikely
             }
             ObjectsCacheInternal.TryAdd(ID, this);
-        }
-        ~XRObjectBase()
-        {
-            Destroy();
         }
 
         /// <summary>
@@ -90,6 +99,21 @@ namespace XREngine.Data.Core
         {
             Destroy();
             GC.SuppressFinalize(this);
+        }
+
+        public virtual void OnPoolableReset()
+        {
+            Generate();
+        }
+
+        public virtual void OnPoolableReleased()
+        {
+            Destroy();
+        }
+
+        public virtual void OnPoolableDestroyed()
+        {
+            Destroy();
         }
     }
 }

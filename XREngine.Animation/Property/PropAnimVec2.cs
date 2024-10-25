@@ -27,7 +27,7 @@ namespace XREngine.Animation
     public class Vector2Keyframe(float second, Vector2 inValue, Vector2 outValue, Vector2 inTangent, Vector2 outTangent, EVectorInterpType type) : VectorKeyframe<Vector2>(second, inValue, outValue, inTangent, outTangent, type)
     {
         public Vector2Keyframe()
-            : this(0.0f, Vector2.Zero, Vector2.Zero, EVectorInterpType.CubicBezier) { }
+            : this(0.0f, Vector2.Zero, Vector2.Zero, EVectorInterpType.Smooth) { }
         public Vector2Keyframe(int frameIndex, float FPS, Vector2 inValue, Vector2 outValue, Vector2 inTangent, Vector2 outTangent, EVectorInterpType type)
             : this(frameIndex / FPS, inValue, outValue, inTangent, outTangent, type) { }
         public Vector2Keyframe(int frameIndex, float FPS, Vector2 inoutValue, Vector2 inoutTangent, EVectorInterpType type)

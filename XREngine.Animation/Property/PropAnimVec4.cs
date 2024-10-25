@@ -65,7 +65,7 @@ namespace XREngine.Animation
     public class Vector4Keyframe : VectorKeyframe<Vector4>
     {
         public Vector4Keyframe()
-          : this(0.0f, Vector4.Zero, Vector4.Zero, EVectorInterpType.CubicBezier) { }
+          : this(0.0f, Vector4.Zero, Vector4.Zero, EVectorInterpType.Smooth) { }
         public Vector4Keyframe(int frameIndex, float FPS, Vector4 inValue, Vector4 outValue, Vector4 inTangent, Vector4 outTangent, EVectorInterpType type)
             : this(frameIndex / FPS, inValue, outValue, inTangent, outTangent, type) { }
         public Vector4Keyframe(int frameIndex, float FPS, Vector4 inoutValue, Vector4 inoutTangent, EVectorInterpType type)

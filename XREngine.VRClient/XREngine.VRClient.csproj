@@ -9,4 +9,19 @@
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\XREngine.Animation\XREngine.Animation.csproj" />
+    <ProjectReference Include="..\XREngine.Audio\XREngine.Audio.csproj" />
+    <ProjectReference Include="..\XREngine.Data\XREngine.Data.csproj" />
+    <ProjectReference Include="..\XREngine.Extensions\XREngine.Extensions.csproj" />
+    <ProjectReference Include="..\XREngine.Input\XREngine.Input.csproj" />
+    <ProjectReference Include="..\XREngine\XREngine.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="OpenVR.NET">
+      <HintPath>..\..\OpenVR.NET\OpenVR.NET\bin\Debug\net6.0\OpenVR.NET.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
 </Project>

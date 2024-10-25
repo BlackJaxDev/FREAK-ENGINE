@@ -383,13 +383,13 @@ namespace XREngine
 #endif
         }
         
-        private static readonly ISerializer Serializer = new SerializerBuilder()
+        public static readonly ISerializer Serializer = new SerializerBuilder()
             .WithEventEmitter(nextEmitter => new DepthTrackingEventEmitter(nextEmitter))
             .WithTypeConverter(new XRAssetYamlConverter())
             .WithTypeConverter(new DataSourceYamlTypeConverter())
             .Build();
 
-        private static readonly IDeserializer Deserializer = new DeserializerBuilder()
+        public static readonly IDeserializer Deserializer = new DeserializerBuilder()
             .WithNodeDeserializer(
                 inner => new DepthTrackingNodeDeserializer(inner),
                 s => s.InsteadOf<ObjectNodeDeserializer>())

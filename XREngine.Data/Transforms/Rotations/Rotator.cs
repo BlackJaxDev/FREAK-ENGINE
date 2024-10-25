@@ -538,5 +538,22 @@ namespace XREngine.Data.Transforms.Rotations
                 XRMath.DegToRad(euler.X),
                 XRMath.DegToRad(euler.Z));
         }
+
+        public void NormalizeRotations180()
+        {
+            Yaw = NormalizeAngle180(Yaw);
+            Pitch = NormalizeAngle180(Pitch);
+            Roll = NormalizeAngle180(Roll);
+        }
+
+        public static float NormalizeAngle180(float angle)
+        {
+            angle = angle % 360;
+            if (angle > 180)
+                angle -= 360;
+            if (angle < -180)
+                angle += 360;
+            return angle;
+        }
     }
 }

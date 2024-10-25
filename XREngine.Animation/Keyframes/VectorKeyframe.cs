@@ -14,7 +14,7 @@ namespace XREngine.Animation
         public float TrackLength => OwningTrack?.LengthInSeconds ?? 0.0f;
 
         public VectorKeyframe()
-            : this(0.0f, new T(), new T(), EVectorInterpType.CubicBezier) { }
+            : this(0.0f, new T(), new T(), EVectorInterpType.Smooth) { }
         public VectorKeyframe(int frameIndex, float FPS, T inValue, T outValue, T inTangent, T outTangent, EVectorInterpType type)
             : this(frameIndex / FPS, inValue, outValue, inTangent, outTangent, type) { }
         public VectorKeyframe(int frameIndex, float FPS, T inoutValue, T inoutTangent, EVectorInterpType type)
@@ -191,7 +191,7 @@ namespace XREngine.Animation
                         _interpolateVelocity = LerpVelocity;
                         _interpolateAcceleration = LerpAcceleration;
                         break;
-                    case EVectorInterpType.CubicBezier:
+                    case EVectorInterpType.Smooth:
                         _interpolate = CubicBezier;
                         _interpolateVelocity = CubicBezierVelocity;
                         _interpolateAcceleration = CubicBezierAcceleration;

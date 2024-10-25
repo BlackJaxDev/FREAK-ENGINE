@@ -115,7 +115,7 @@ namespace XREngine
                 return null;
             
             SceneNode rootNode = new(Path.GetFileNameWithoutExtension(SourceFilePath));
-            ProcessNode(scene.RootNode, scene, rootNode, true);
+            ProcessNode(scene.RootNode, scene, rootNode);
             //Debug.Out(rootNode.PrintTree());
 
             //Debug.Out(rootNode.PrintTree());
@@ -172,30 +172,44 @@ namespace XREngine
                 action();
         }
 
-        private void ProcessNode(Node node, AScene scene, SceneNode parentSceneNode, bool root = false)
+        private void ProcessNode(Node node, AScene scene, SceneNode parentSceneNode, Matrix4x4? fbxMatrixParent = null)
         {
+            SceneNode sceneNode;
+            Matrix4x4? fbxMatrix = null;
             string name = node.Name;
-            //Debug.Out($"Processing node: {name}");
+            //int assimpFBXMagic = name.IndexOf("__$AssimpFbx$");
+            //bool assimpFBXNode = assimpFBXMagic != -1;
+            //if (assimpFBXNode)
+            //{
+            //    name = name[..assimpFBXMagic];
+            //    sceneNode = parentSceneNode;
+            //    fbxMatrix = node.Transform.ToNumerics().Transposed();
+            //    if (fbxMatrixParent.HasValue)
+            //        fbxMatrix *= fbxMatrixParent.Value;
+            //}
+            //else
+            //{
+                //Debug.Out($"Processing node: {name}");
 
-            Matrix4x4 localTransform = node.Transform.ToNumerics().Transposed();
-            if (root)
-                localTransform *= ScaleConversionMatrix * CoordinateConversionMatrix;
+                Matrix4x4 localTransform = node.Transform.ToNumerics().Transposed();
+                //if (fbxMatrixParent.HasValue)
+                //    localTransform *= fbxMatrixParent.Value;
+                sceneNode = new(parentSceneNode, name);
+                sceneNode.Transform.DeriveLocalMatrix(localTransform);
+                //sceneNode.Transform.VerifyLocalMatrix();
+                //sceneNode.Transform.VerifyWorldMatrix();
 
-            SceneNode sceneNode = new(parentSceneNode, name);
-            sceneNode.Transform.DeriveLocalMatrix(localTransform);
-            //sceneNode.Transform.VerifyLocalMatrix();
-            //sceneNode.Transform.VerifyWorldMatrix();
-
-            if (_nodeCache.TryGetValue(name, out List<SceneNode>? nodes))
-                nodes.Add(sceneNode);
-            else
-                _nodeCache.Add(name, [sceneNode]);
+                if (_nodeCache.TryGetValue(name, out List<SceneNode>? nodes))
+                    nodes.Add(sceneNode);
+                else
+                    _nodeCache.Add(name, [sceneNode]);
+            //}
 
             if (node.MeshCount > 0)
                 Debug.Out($"Node {name} has {node.MeshCount} meshes");
 
             for (var i = 0; i < node.ChildCount; i++)
-                ProcessNode(node.Children[i], scene, sceneNode);
+                ProcessNode(node.Children[i], scene, sceneNode, fbxMatrix);
 
             EnqueueProcessMeshes(node, scene, sceneNode);
         }

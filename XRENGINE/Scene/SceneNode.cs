@@ -190,8 +190,8 @@ namespace XREngine.Scene
             }
         }
 
-        public T? GetTransformAs<T>() where T : TransformBase
-            => Transform is T t ? t : null;
+        public T? GetTransformAs<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(bool forceConvert = false) where T : TransformBase, new()
+            => !forceConvert ? Transform as T : Transform is T value ? value : SetTransform<T>();
 
         public bool TryGetTransformAs<T>([MaybeNullWhen(false)] out T? transform) where T : TransformBase
         {
@@ -518,10 +518,13 @@ namespace XREngine.Scene
         {
             //foreach (var item in Transform.RenderedObjects)
             //    item.WorldInstance = World;
-            
+
             foreach (XRComponent component in this)
                 if (component.IsActive)
+                {
+                    component.VerifyInterfacesOnStart();
                     component.OnComponentActivated();
+                }
 
             lock (Transform.Children)
             {
@@ -543,7 +546,12 @@ namespace XREngine.Scene
         {
             foreach (XRComponent component in this)
                 if (component.IsActive)
+                {
                     component.OnComponentDeactivated();
+                    component.VerifyInterfacesOnStop();
+                    if (component.UnregisterTicksOnStop)
+                        ClearTicks();
+                }
 
             lock (Transform.Children)
             {

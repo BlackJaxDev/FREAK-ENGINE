@@ -1,6 +1,10 @@
 ﻿using Extensions;
 using Silk.NET.OpenGL;
+using Silk.NET.OpenGLES.Extensions.EXT;
+using System.Diagnostics;
+using System.IO.Pipes;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using XREngine.Data.Colors;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
@@ -11,6 +15,14 @@ namespace XREngine.Rendering.OpenGL
 {
     public unsafe partial class OpenGLRenderer : AbstractRenderer<GL>
     {
+        public Silk.NET.OpenGLES.GL ESApi { get; }
+        public ExtMemoryObject? EXTMemoryObject { get; }
+        public ExtSemaphore? EXTSemaphore { get; }
+        public ExtMemoryObjectWin32? EXTMemoryObjectWin32 { get; }
+        public ExtSemaphoreWin32? EXTSemaphoreWin32 { get; }
+        public ExtSemaphoreFd? EXTSemaphoreFd { get; }
+        public ExtMemoryObjectFd? EXTMemoryObjectFd { get; }
+
         public OpenGLRenderer(XRWindow window) : base(window)
         {
             Api.Enable(EnableCap.Multisample);
@@ -34,6 +46,14 @@ namespace XREngine.Rendering.OpenGL
             uint[] ids = [];
             fixed (uint* ptr = ids)
                 Api.DebugMessageControl(GLEnum.DontCare, GLEnum.DontCare, GLEnum.DontCare, 0, ptr, true);
+
+            ESApi = Silk.NET.OpenGLES.GL.GetApi(Window.GLContext);
+            EXTMemoryObject = ESApi.TryGetExtension<ExtMemoryObject>(out var ext) ? ext : null;
+            EXTSemaphore = ESApi.TryGetExtension<ExtSemaphore>(out var ext2) ? ext2 : null;
+            EXTMemoryObjectWin32 = ESApi.TryGetExtension<ExtMemoryObjectWin32>(out var ext3) ? ext3 : null;
+            EXTSemaphoreWin32 = ESApi.TryGetExtension<ExtSemaphoreWin32>(out var ext4) ? ext4 : null;
+            EXTMemoryObjectFd = ESApi.TryGetExtension<ExtMemoryObjectFd>(out var ext5) ? ext5 : null;
+            EXTSemaphoreFd = ESApi.TryGetExtension<ExtSemaphoreFd>(out var ext6) ? ext6 : null;
         }
 
         private int[] _ignoredMessageIds =
@@ -624,5 +644,129 @@ namespace XREngine.Rendering.OpenGL
                     => GLObjectType.Material,
                 _ => throw new InvalidOperationException($"Type {typeof(T)} is not a valid GLObjectBase type."),
             };
+
+        public uint CreateMemoryObject()
+            => EXTMemoryObject?.CreateMemoryObject() ?? 0;
+
+        public uint CreateSemaphore()
+            => EXTSemaphore?.GenSemaphore() ?? 0;
+
+        public void ExportAndSendHandles()
+        {
+            uint memoryObject = CreateMemoryObject();
+            uint semaphore = CreateSemaphore();
+            
+            IntPtr memoryHandle = GetMemoryObjectHandle(memoryObject);
+            IntPtr semaphoreHandle = GetSemaphoreHandle(semaphore);
+
+            IntPtr duplicatedMemoryHandle = DuplicateHandleForIPC(memoryHandle);
+            IntPtr duplicatedSemaphoreHandle = DuplicateHandleForIPC(semaphoreHandle);
+
+            SendHandlesViaNamedPipe(duplicatedMemoryHandle, duplicatedSemaphoreHandle);
+        }
+
+        private IntPtr DuplicateHandleForIPC(IntPtr handle)
+        {
+            IntPtr currentProcess = Process.GetCurrentProcess().Handle;
+            IntPtr targetProcess = GetTargetProcessHandle();
+
+            bool success = DuplicateHandle(
+                currentProcess,
+                handle,
+                targetProcess,
+                out nint duplicatedHandle,
+                0,
+                false,
+                DUPLICATE_SAME_ACCESS
+            );
+
+            if (!success)
+            {
+                throw new Exception("Failed to duplicate handle.");
+            }
+
+            return duplicatedHandle;
+        }
+
+        private nint GetTargetProcessHandle()
+        {
+            //Get VRClient process
+            Process[] processes = Process.GetProcessesByName("vrclient");
+            if (processes.Length == 0)
+                throw new Exception("VRClient process not found.");
+            return processes[0].Handle;
+        }
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern bool DuplicateHandle(
+            IntPtr hSourceProcessHandle,
+            IntPtr hSourceHandle,
+            IntPtr hTargetProcessHandle,
+            out IntPtr lpTargetHandle,
+            uint dwDesiredAccess,
+            bool bInheritHandle,
+            uint dwOptions);
+
+        public const uint DUPLICATE_SAME_ACCESS = 0x00000002;
+
+        private void SendHandlesViaNamedPipe(IntPtr memoryHandle, IntPtr semaphoreHandle)
+        {
+            using NamedPipeServerStream pipeServer = new("HandlePipe", PipeDirection.Out);
+            Console.WriteLine("Waiting for connection...");
+            pipeServer.WaitForConnection();
+
+            using BinaryWriter writer = new(pipeServer);
+            writer.Write(memoryHandle.ToInt64());
+            writer.Write(semaphoreHandle.ToInt64());
+        }
+
+        public IntPtr GetMemoryObjectHandle(uint memoryObject)
+        {
+            if (EXTMemoryObject is null)
+                return IntPtr.Zero;
+            EXTMemoryObject.GetMemoryObjectParameter(memoryObject, EXT.HandleTypeOpaqueWin32Ext, out int handle);
+            return (IntPtr)handle;
+        }
+
+        public IntPtr GetSemaphoreHandle(uint semaphore)
+        {
+            if (EXTSemaphore is null)
+                return IntPtr.Zero;
+            EXTSemaphore.GetSemaphoreParameter(semaphore, EXT.HandleTypeOpaqueWin32Ext, out ulong handle);
+            return (IntPtr)handle;
+        }
+
+        public void SetMemoryObjectHandle(uint memoryObject, void* memoryObjectHandle)
+            => EXTMemoryObjectWin32?.ImportMemoryWin32Handle(memoryObject, 0, EXT.HandleTypeOpaqueWin32Ext, memoryObjectHandle);
+
+        public void SetSemaphoreHandle(uint semaphore, void* semaphoreHandle)
+            => EXTSemaphoreWin32?.ImportSemaphoreWin32Handle(semaphore, EXT.HandleTypeOpaqueWin32Ext, semaphoreHandle);
+
+        public void ReceiveAndImportHandles()
+        {
+            if (EXTMemoryObject is null || EXTSemaphore is null)
+                return;
+
+            ReceiveHandlesViaNamedPipe(out nint memoryHandle, out nint semaphoreHandle);
+
+            uint sem = EXTSemaphore.GenSemaphore();
+            uint mem = EXTMemoryObject.CreateMemoryObject();
+            SetMemoryObjectHandle(mem, (void*)memoryHandle);
+            SetSemaphoreHandle(sem, (void*)semaphoreHandle);
+        }
+
+        private void ReceiveHandlesViaNamedPipe(out IntPtr memoryHandle, out IntPtr semaphoreHandle)
+        {
+            using NamedPipeClientStream pipeClient = new(".", "HandlePipe", PipeDirection.In);
+            Console.WriteLine("Connecting to server...");
+            pipeClient.Connect();
+
+            using BinaryReader reader = new(pipeClient);
+            long memoryHandleValue = reader.ReadInt64();
+            long semaphoreHandleValue = reader.ReadInt64();
+
+            memoryHandle = new IntPtr(memoryHandleValue);
+            semaphoreHandle = new IntPtr(semaphoreHandleValue);
+        }
     }
 }

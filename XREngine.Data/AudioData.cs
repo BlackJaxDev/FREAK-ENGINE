@@ -1,11 +1,12 @@
 ﻿using NAudio.Wave;
 using NVorbis;
+using XREngine.Core;
 using XREngine.Core.Files;
 
 namespace XREngine.Data
 {
     [XR3rdPartyExtensions("wav", "ogg", "mp3", "flac")]
-    public class AudioData : XRAsset
+    public class AudioData : XRAsset, IPoolable
     {
         private DataSource? _data;
         private int _frequency;
@@ -299,6 +300,17 @@ namespace XREngine.Data
             }
 
             return floatSamples;
+        }
+
+        protected override void OnDestroying()
+        {
+            base.OnDestroying();
+
+            _data?.Dispose();
+            _data = null;
+            _frequency = 44100;
+            _channelCount = 1;
+            _type = EPCMType.Byte;
         }
     }
 }

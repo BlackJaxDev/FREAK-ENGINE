@@ -235,12 +235,13 @@ namespace XREngine.Rendering
             set => SetField(ref _utilizedBones, value);
         }
 
-        public bool IsSingleBound => _utilizedBones is not null && _utilizedBones.Length == 1;
-        public bool IsUnskinned => _utilizedBones is null || _utilizedBones.Length == 0;
+        public bool IsSingleBound => UtilizedBones.Length == 1;
+        public bool IsUnskinned => UtilizedBones.Length == 0;
         public uint BlendshapeCount { get; set; } = 0u;
+        public bool HasBlendshapes => BlendshapeCount > 0;
 
         private (TransformBase tfm, Matrix4x4 invBindWorldMtx)[] _utilizedBones = [];
-        private VertexWeightGroup[] _weightsPerVertex = [];
+        //private VertexWeightGroup[] _weightsPerVertex = [];
         //This is the buffer data that will be passed to the shader.
         //Each buffer may have repeated values, as there must be a value for each remapped face point.
         //The key is the binding name and the value is the buffer.
@@ -1327,7 +1328,7 @@ namespace XREngine.Rendering
                     continue;
                 }
 
-                invBindMatrices.Add(transform!, transform.InverseWorldMatrix);//bone.OffsetMatrix.ToNumerics().Transposed());
+                invBindMatrices.Add(transform!, bone.OffsetMatrix.ToNumerics().Transposed());
 
                 int weightCount = bone.VertexWeightCount;
                 for (int j = 0; j < weightCount; j++)
@@ -1354,17 +1355,21 @@ namespace XREngine.Rendering
                     boneToIndexTable.Add(transform!, boneIndex++);
             }
 
-            _utilizedBones = new (TransformBase, Matrix4x4)[boneToIndexTable.Count];
+            var utilizedBones = new (TransformBase, Matrix4x4)[boneToIndexTable.Count];
             foreach (var pair in boneToIndexTable)
-                _utilizedBones[pair.Value] = (pair.Key, invBindMatrices[pair.Key]);
+                utilizedBones[pair.Value] = (pair.Key, invBindMatrices[pair.Key]);
+            UtilizedBones = utilizedBones;
 
-            if (boneToIndexTable.Count < boneCount)
-                Debug.Out($"{boneCount - boneToIndexTable.Count} unweighted bones were removed.");
+            //if (boneToIndexTable.Count < boneCount)
+            //    Debug.Out($"{boneCount - boneToIndexTable.Count} unweighted bones were removed.");
 
             if (weightsPerVertex is not null && weightsPerVertex.Length > 0)
                 PopulateSkinningBuffers(boneToIndexTable, weightsPerVertex);
         }
 
+        /// <summary>
+        /// This is the maximum number of weights used for one or more vertices.
+        /// </summary>
         public int MaxWeightCount { get; private set; } = 0;
 
         private void PopulateSkinningBuffers(Dictionary<TransformBase, int> boneToIndexTable, Dictionary<TransformBase, float>?[] weightsPerVertex)

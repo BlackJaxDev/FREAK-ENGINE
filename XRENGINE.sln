@@ -17,11 +17,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "XREngine.Audio", "XREngine.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "XREngine.Input", "XREngine.Input\XREngine.Input.csproj", "{9CFBCE2F-5C63-4BD8-9026-12966808CABB}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "XREngine.Networking", "XREngine.Server\XREngine.Networking.csproj", "{CF6C19D9-90EC-40A0-B10D-04078FF908C6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "XREngine.Server", "XREngine.Server\XREngine.Server.csproj", "{CF6C19D9-90EC-40A0-B10D-04078FF908C6}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "XREngine.Animation", "XREngine.Animation\XREngine.Animation.csproj", "{4C68FA01-E656-4760-9C3B-5AA78D7D916E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XREngine.VRClient", "XREngine.VRClient\XREngine.VRClient.csproj", "{F44A248A-266B-4FB3-94A4-F7FAB53DBF65}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "XREngine.VRClient", "XREngine.VRClient\XREngine.VRClient.csproj", "{F44A248A-266B-4FB3-94A4-F7FAB53DBF65}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

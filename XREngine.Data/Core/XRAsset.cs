@@ -1,11 +1,6 @@
 ﻿using Extensions;
-using System.Diagnostics.CodeAnalysis;
 using System.IO.MemoryMappedFiles;
-using XREngine.Data;
 using XREngine.Data.Core;
-using YamlDotNet.Core;
-using YamlDotNet.Core.Events;
-using YamlDotNet.Serialization;
 
 namespace XREngine.Core.Files
 {
