@@ -73,7 +73,7 @@ namespace XREngine.Core.Memory
         
         private readonly float[] _pData;
 
-        public float[] QuantTable { get; } =
+        public static float[] QuantTable { get; } =
         [
             (float)(1 << 0),
             (float)(1 << 1),

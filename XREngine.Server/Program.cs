@@ -1,7 +1,10 @@
-﻿using XREngine.Native;
-using XREngine.Networking.Commands;
-using XREngine.Networking.LoadBalance.Balancers;
+﻿using System.Diagnostics;
+using XREngine.Components;
+using XREngine.Native;
+using XREngine.Rendering;
+using XREngine.Rendering.UI;
 using XREngine.Scene;
+using static XREngine.GameStartupSettings;
 
 namespace XREngine.Networking
 {
@@ -33,11 +36,34 @@ namespace XREngine.Networking
 
         private static void Main(string[] args)
         {
-            Engine.Initialize(GetEngineSettings(), GetGameState());
-            Engine.Run();
-            Engine.ShutDown();
+            Engine.Run(GetEngineSettings(CreateServerDebugWorld()), GetGameState());
         }
 
+        static XRWorld CreateServerDebugWorld()
+        {
+            string desktopDir = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+
+            var world = new XRWorld() { Name = "ServerWorld" };
+            var scene = new XRScene() { Name = "ServerScene" };
+            var rootNode = new SceneNode(scene) { Name = "ServerRootNode" };
+
+            var cameraNode = new SceneNode(scene) { Name = "ServerCameraNode" };
+            var cameraComp = cameraNode.AddComponent<CameraComponent>();
+            cameraComp!.Camera.Parameters = new XROrthographicCameraParameters(1920, 1080, -0.5f, 0.5f);
+            var uiCanvas = cameraNode.AddComponent<UICanvasComponent>();
+            uiCanvas!.CameraDrawSpaceDistance = 0.0f;
+            uiCanvas.DrawSpace = ECanvasDrawSpace.Screen;
+
+            var outputLogNode = new SceneNode(scene) { Name = "ServerOutputLogNode" };
+            var outputLogComp = outputLogNode.AddComponent<VirtualizedListUIComponent>();
+            var tfm = outputLogNode.SetTransform<UIBoundableTransform>();
+            tfm.Width = 400;
+            //tfm.Height = 100 %;
+
+            Trace.Listeners.Add(new OutputLogListener(outputLogComp!));
+
+            return world;
+        }
 
         static GameState GetGameState()
         {
@@ -65,7 +91,7 @@ namespace XREngine.Networking
                     new()
                     {
                         WindowTitle = "XRE Server",
-                        TargetWorld = null,
+                        TargetWorld = targetWorld ?? new XRWorld(),
                         WindowState = EWindowState.Windowed,
                         X = primaryX / 2 - w / 2,
                         Y = primaryY / 2 - h / 2,
@@ -74,7 +100,7 @@ namespace XREngine.Networking
                     }
                 ],
                 OutputVerbosity = EOutputVerbosity.Verbose,
-                IsServer = true,
+                AppType = EAppType.Server,
                 DefaultUserSettings = new UserSettings()
                 {
                     TargetFramesPerSecond = render,

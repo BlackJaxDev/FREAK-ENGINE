@@ -16,6 +16,12 @@ namespace XREngine.Scene.Components.Animation
             RegisterTick(ETickGroup.PrePhysics, ETickOrder.Scene, SolveFullBodyIK);
         }
 
+        protected internal override void AddedToSceneNode(SceneNode sceneNode)
+        {
+            base.AddedToSceneNode(sceneNode);
+            SetFromNode();
+        }
+
         public HumanoidComponent() { }
 
         public class BoneDef : XRBase
@@ -140,6 +146,7 @@ namespace XREngine.Scene.Components.Animation
             => _rightShoulderToWristChain ??= [Right.Shoulder, Right.Arm, Right.Elbow, Right.Wrist];
 
         public TransformBase? HeadTarget => Head.Node?.Transform;
+        public TransformBase? HipsTarget => Hips.Node?.Transform;
 
         public TransformBase? LeftHandTarget => Left.Wrist.Node?.Transform;
         public TransformBase? RightHandTarget => Right.Wrist.Node?.Transform;
@@ -160,8 +167,8 @@ namespace XREngine.Scene.Components.Animation
             int maxIterations = 5;
             for (int i = 0; i < maxIterations; i++)
             {
-                if (HeadTarget is not null)
-                    SolveFABRIK(GetHipToHeadChain(), HeadTarget.WorldTranslation);
+                if (HeadTarget is not null && HipsTarget is not null)
+                    SolveFABRIKWithFixedEnds(GetHipToHeadChain(), HipsTarget?.WorldTranslation ?? Vector3.Zero, HeadTarget?.WorldTranslation ?? Vector3.Zero);
 
                 if (LeftHandTarget is not null)
                     SolveFABRIK(GetLeftShoulderToWristChain(), LeftHandTarget.WorldTranslation);
@@ -281,7 +288,11 @@ namespace XREngine.Scene.Components.Animation
                 set => SetField(ref _localAxis, value);
             }
         }
-        public static void SolveFABRIK(BoneChainItem[] chain, Vector3 targetPosition, float tolerance = 0.001f, int maxIterations = 10)
+        public static void SolveFABRIK(
+            BoneChainItem[] chain,
+            Vector3 targetPosition,
+            float tolerance = 0.001f,
+            int maxIterations = 10)
         {
             // Check if the chain has movable roots
             bool hasMovableRoot = chain[0].Def.IsMovable;
@@ -340,7 +351,12 @@ namespace XREngine.Scene.Components.Animation
 
             UpdateBoneRotations(chain);
         }
-        public void SolveFABRIKWithFixedEnds(BoneChainItem[] chain, Vector3 startPosition, Vector3 endPosition, float tolerance = 0.001f, int maxIterations = 10)
+        public static void SolveFABRIKWithFixedEnds(
+            BoneChainItem[] chain,
+            Vector3 startPosition,
+            Vector3 endPosition,
+            float tolerance = 0.001f,
+            int maxIterations = 10)
         {
             int numBones = chain.Length;
             if (numBones < 2)
@@ -459,5 +475,189 @@ namespace XREngine.Scene.Components.Animation
         }
         public static Vector3 ApplyDistanceCurve(Vector3 originalPosition, Vector3 currentPosition, float maxDistance, AnimationCurve curve)
             => originalPosition + (currentPosition - originalPosition) * curve.Evaluate(Vector3.Distance(originalPosition, currentPosition) / maxDistance);
+
+        public void SetFromNode()
+        {
+            Debug.Out(SceneNode.PrintTree());
+
+            //Start at the hips
+            Hips.Node = SceneNode.FindDescendantByName("Hips", StringComparison.InvariantCultureIgnoreCase);
+
+            //Find middle bones
+            FindChildren(Hips, [
+                (Spine, ByName("Spine")),
+                (Chest, ByName("Chest")),
+                (Left.Leg, ByPosition("Leg", x => x.X > 0.0f)),
+                (Right.Leg, ByPosition("Leg", x => x.X < 0.0f)),
+            ]);
+
+            if (Spine.Node is not null && Chest.Node is null)
+                FindChildren(Spine, [
+                    (Chest, ByName("Chest")),
+                ]);
+
+            if (Chest.Node is not null)
+                FindChildren(Chest, [
+                    (Neck, ByName("Neck")),
+                    (Head, ByName("Head")),
+                    (Left.Shoulder, ByPosition("Shoulder", x => x.X > 0.0f)),
+                    (Right.Shoulder, ByPosition("Shoulder", x => x.X < 0.0f)),
+                ]);
+
+            if (Neck.Node is not null && Head.Node is null)
+                FindChildren(Neck, [
+                    (Head, ByName("Head")),
+                ]);
+
+            //Find shoulder bones
+            if (Left.Shoulder.Node is not null)
+                FindChildren(Left.Shoulder, [
+                    (Left.Arm, ByName("Arm")),
+                    (Left.Elbow, ByName("Elbow")),
+                    (Left.Wrist, ByName("Wrist")),
+                ]);
+
+            if (Right.Shoulder.Node is not null)
+                FindChildren(Right.Shoulder, [
+                    (Right.Arm, ByName("Arm")),
+                    (Right.Elbow, ByName("Elbow")),
+                    (Right.Wrist, ByName("Wrist")),
+                ]);
+
+            if (Left.Arm.Node is not null && Left.Elbow.Node is null)
+                FindChildren(Left.Arm, [
+                    (Left.Elbow, ByName("Elbow")),
+                    (Left.Wrist, ByName("Wrist")),
+                ]);
+
+            if (Right.Arm.Node is not null && Right.Elbow.Node is null)
+                FindChildren(Right.Arm, [
+                    (Right.Elbow, ByName("Elbow")),
+                    (Right.Wrist, ByName("Wrist")),
+                ]);
+
+            if (Left.Elbow.Node is not null && Left.Wrist.Node is null)
+                FindChildren(Left.Elbow, [
+                    (Left.Wrist, ByName("Wrist")),
+                ]);
+
+            if (Right.Elbow.Node is not null && Right.Wrist.Node is null)
+                FindChildren(Right.Elbow, [
+                    (Right.Wrist, ByName("Wrist")),
+                ]);
+
+            //Find finger bones
+            if (Left.Wrist.Node is not null)
+                FindChildren(Left.Wrist, [
+                    (Left.Hand.Pinky.Proximal, ByNameContainsAll("pinky", "1")),
+                    (Left.Hand.Pinky.Intermediate, ByNameContainsAll("pinky", "2")),
+                    (Left.Hand.Pinky.Distal, ByNameContainsAll("pinky", "3")),
+                    (Left.Hand.Ring.Proximal, ByNameContainsAll("ring", "1")),
+                    (Left.Hand.Ring.Intermediate, ByNameContainsAll("ring", "2")),
+                    (Left.Hand.Ring.Distal, ByNameContainsAll("ring", "3")),
+                    (Left.Hand.Middle.Proximal, ByNameContainsAll("middle", "1")),
+                    (Left.Hand.Middle.Intermediate, ByNameContainsAll("middle", "2")),
+                    (Left.Hand.Middle.Distal, ByNameContainsAll("middle", "3")),
+                    (Left.Hand.Index.Proximal, ByNameContainsAll("index", "1")),
+                    (Left.Hand.Index.Intermediate, ByNameContainsAll("index", "2")),
+                    (Left.Hand.Index.Distal, ByNameContainsAll("index", "3")),
+                    (Left.Hand.Thumb.Proximal, ByNameContainsAll("thumb", "1")),
+                    (Left.Hand.Thumb.Intermediate, ByNameContainsAll("thumb", "2")),
+                    (Left.Hand.Thumb.Distal, ByNameContainsAll("thumb", "3")),
+                ]);
+
+            if (Right.Wrist.Node is not null)
+                FindChildren(Right.Wrist, [
+                    (Right.Hand.Pinky.Proximal, ByNameContainsAll("pinky", "1")),
+                    (Right.Hand.Pinky.Intermediate, ByNameContainsAll("pinky", "2")),
+                    (Right.Hand.Pinky.Distal, ByNameContainsAll("pinky", "3")),
+                    (Right.Hand.Ring.Proximal, ByNameContainsAll("ring", "1")),
+                    (Right.Hand.Ring.Intermediate, ByNameContainsAll("ring", "2")),
+                    (Right.Hand.Ring.Distal, ByNameContainsAll("ring", "3")),
+                    (Right.Hand.Middle.Proximal, ByNameContainsAll("middle", "1")),
+                    (Right.Hand.Middle.Intermediate, ByNameContainsAll("middle", "2")),
+                    (Right.Hand.Middle.Distal, ByNameContainsAll("middle", "3")),
+                    (Right.Hand.Index.Proximal, ByNameContainsAll("index", "1")),
+                    (Right.Hand.Index.Intermediate, ByNameContainsAll("index", "2")),
+                    (Right.Hand.Index.Distal, ByNameContainsAll("index", "3")),
+                    (Right.Hand.Thumb.Proximal, ByNameContainsAll("thumb", "1")),
+                    (Right.Hand.Thumb.Intermediate, ByNameContainsAll("thumb", "2")),
+                    (Right.Hand.Thumb.Distal, ByNameContainsAll("thumb", "3")),
+                ]);
+
+            //Find leg bones
+            if (Left.Leg.Node is not null)
+                FindChildren(Left.Leg, [
+                    (Left.Knee, ByName("Knee")),
+                    (Left.Ankle, ByName("Ankle")),
+                    (Left.Toes, ByName("Toes")),
+                ]);
+
+            if (Right.Leg.Node is not null)
+                FindChildren(Right.Leg, [
+                    (Right.Knee, ByName("Knee")),
+                    (Right.Ankle, ByName("Ankle")),
+                    (Right.Toes, ByName("Toes")),
+                ]);
+
+            if (Left.Knee.Node is not null && Left.Ankle.Node is null)
+                FindChildren(Left.Knee, [
+                    (Left.Ankle, ByName("Ankle")),
+                    (Left.Toes, ByName("Toes")),
+                ]);
+
+            if (Right.Knee.Node is not null && Right.Ankle.Node is null)
+                FindChildren(Right.Knee, [
+                    (Right.Ankle, ByName("Ankle")),
+                    (Right.Toes, ByName("Toes")),
+                ]);
+
+            if (Left.Ankle.Node is not null && Left.Toes.Node is null)
+                FindChildren(Left.Ankle, [
+                    (Left.Toes, ByName("Toes")),
+                ]);
+
+            if (Right.Ankle.Node is not null && Right.Toes.Node is null)
+                FindChildren(Right.Ankle, [
+                    (Right.Toes, ByName("Toes")),
+                ]);
+        }
+
+        private static Func<SceneNode, bool> ByNameContainsAny(params string[] names)
+            => node => names.Any(name => node.Name?.Contains(name, StringComparison.InvariantCultureIgnoreCase) ?? false);
+
+        private static Func<SceneNode, bool> ByNameContainsAll(params string[] names)
+            => node => names.Any(name => node.Name?.Contains(name, StringComparison.InvariantCultureIgnoreCase) ?? false);
+
+        private static Func<SceneNode, bool> ByNameContainsAny(StringComparison comp, params string[] names)
+            => node => names.Any(name => node.Name?.Contains(name, comp) ?? false);
+
+        private static Func<SceneNode, bool> ByNameContainsAll(StringComparison comp, params string[] names)
+            => node => names.Any(name => node.Name?.Contains(name, comp) ?? false);
+        
+        private static Func<SceneNode, bool> ByPosition(string nameContains, Func<Vector3, bool> posMatch, StringComparison comp = StringComparison.InvariantCultureIgnoreCase)
+            => node => (nameContains is null || (node.Name?.Contains(nameContains, comp) ?? false)) && posMatch(node.Transform.WorldTranslation);
+
+        private static Func<SceneNode, bool> ByName(string name, StringComparison comp = StringComparison.InvariantCultureIgnoreCase)
+            => node => node.Name?.Equals(name, comp) ?? false;
+
+        private static void FindChildren(BoneDef def, (BoneDef, Func<SceneNode, bool>)[] childSearch)
+        {
+            var children = def?.Node?.Transform.Children;
+            if (children is not null)
+                foreach (TransformBase child in children)
+                    SetNodeRefs(child, childSearch);
+        }
+
+        private static void SetNodeRefs(TransformBase child, (BoneDef, Func<SceneNode, bool>)[] values)
+        {
+            var node = child.SceneNode;
+            if (node is null)
+                return;
+
+            foreach ((BoneDef def, var func) in values)
+                if (func(node))
+                    def.Node = node;
+        }
     }
 }

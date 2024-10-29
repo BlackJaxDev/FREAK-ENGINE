@@ -30,19 +30,38 @@ namespace XREngine.Components
             set => SetField(ref _localPlayerIndex, value);
         }
 
-        public UICanvasComponent? _userInterface;
-        public UICanvasComponent? UserInterface
+        public UICanvasComponent? _userInterfaceOverlay;
+        /// <summary>
+        /// Provides the option for the user to manually set a canvas to render on top of the camera.
+        /// </summary>
+        public UICanvasComponent? UserInterfaceOverlay
         {
-            get => _userInterface;
+            get => _userInterfaceOverlay;
             set
             {
-                SetField(ref _userInterface, value);
+                SetField(ref _userInterfaceOverlay, value);
 
-                //TODO: resize based on if located on top, in camera, or in world
-                //_hud?.Resize(Region.Extents);
+                //TODO: resize based on if located on top, in camera, or in world.
+                //If this camera is being rendered to multiple viewports, the ui will need to be sized to each viewport.
+                //_userInterface?.Resize(Camera.Viewports[0].Region.Extents);
 
-                Debug.Out($"Set camera user interface: {_userInterface?.GetType()?.GetFriendlyName() ?? "null"}");
+                Debug.Out($"Set camera user interface: {_userInterfaceOverlay?.GetType()?.GetFriendlyName() ?? "null"}");
             }
+        }
+
+        /// <summary>
+        /// Retrieves the user interface overlay for this camera, either from the UserInterfaceOverlay property or from a sibling component.
+        /// </summary>
+        /// <returns></returns>
+        public UICanvasComponent? GetUserInterfaceOverlay()
+        {
+            if (_userInterfaceOverlay is not null)
+                return _userInterfaceOverlay;
+
+            if (GetSiblingComponent<UICanvasComponent>() is UICanvasComponent ui)
+                return ui;
+
+            return null;
         }
 
         private bool _cullWithFrustum = true;

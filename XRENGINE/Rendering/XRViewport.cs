@@ -191,7 +191,7 @@ namespace XREngine.Rendering
                 SwapBuffers();
             }
 
-            _renderPipeline.Render(scene, camera, this, targetFbo, CameraComponent?.UserInterface);
+            _renderPipeline.Render(scene, camera, this, targetFbo, CameraComponent?.UserInterfaceOverlay);
         }
 
         private readonly XRRenderPipelineInstance _renderPipeline = new();
@@ -293,7 +293,7 @@ namespace XREngine.Rendering
         }
 
         private void ResizeCameraComponentUI()
-            => CameraComponent?.UserInterface?.Resize(_region.Extents);
+            => CameraComponent?.UserInterfaceOverlay?.Resize(_region.Extents);
 
         /// <summary>
         /// This is texture dimensions that the camera will render at, which will be scaled up to the actual resolution of the viewport.
@@ -437,7 +437,7 @@ namespace XREngine.Rendering
         {
             if (testHud)
             {
-                UIComponent? hudComp = CameraComponent?.UserInterface?.FindDeepestComponent(viewportPoint);
+                UIComponent? hudComp = CameraComponent?.UserInterfaceOverlay?.FindDeepestComponent(viewportPoint);
                 bool hasHit = hudComp?.IsVisible ?? false;
                 bool hitValidated = !interactableHudOnly || hudComp is UIInteractableComponent;
                 if (hasHit && hitValidated)

@@ -34,7 +34,7 @@ namespace XREngine.Components
 
         //TODO: figure out how to disallow users from constructing xrcomponents
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-        internal XRComponent() { }
+        internal protected XRComponent() { }
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
         internal static T New<T>(SceneNode node) where T : XRComponent 
@@ -288,6 +288,16 @@ namespace XREngine.Components
         {
             base.OnDestroying();
             ComponentDestroyed.Invoke(this);
+        }
+
+        internal protected virtual void RemovedFromSceneNode(SceneNode sceneNode)
+        {
+
+        }
+
+        internal protected virtual void AddedToSceneNode(SceneNode sceneNode)
+        {
+
         }
     }
     public enum ETickGroup

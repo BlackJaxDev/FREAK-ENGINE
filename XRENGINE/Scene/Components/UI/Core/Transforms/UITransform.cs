@@ -17,16 +17,17 @@ namespace XREngine.Rendering.UI
         protected float _z = 0.0f;
         protected Vector3 _scale = Vector3.One;
         private UIInputComponent? _owningUserInterface;
-        public RenderCommandMethod2D _rc;
-        private bool _renderTransformation = true;
+        public RenderCommandMethod2D _debugRC;
         private UIChildPlacementInfo? _placementInfo = null;
 
         public UITransform() : this(null) { }
         public UITransform(TransformBase? parent) : base(parent)
         {
-            _rc = new RenderCommandMethod2D(0, RenderVisualGuides);
+            _debugRC = new RenderCommandMethod2D(0, RenderVisualGuides);
             Children.PostAnythingAdded += OnChildAdded;
             Children.PostAnythingRemoved += OnChildRemoved;
+            RenderInfo2D = RenderInfo2D.New(this);
+            RenderInfo3D = RenderInfo3D.New(this);
         }
         ~UITransform()
         {
@@ -71,11 +72,7 @@ namespace XREngine.Rendering.UI
         public virtual Vector2 Translation
         {
             get => _translation;
-            set
-            {
-                SetField(ref _translation, value);
-                MarkLocalModified();
-            }
+            set => SetField(ref _translation, value);
         }
 
         /// <summary>
@@ -90,21 +87,13 @@ namespace XREngine.Rendering.UI
         public virtual float DepthTranslation
         {
             get => _z;
-            set
-            {
-                SetField(ref _z, value);
-                MarkLocalModified();
-            }
+            set => SetField(ref _z, value);
         }
 
         public virtual Vector3 Scale
         {
             get => _scale;
-            set
-            {
-                SetField(ref _scale, value);
-                MarkLocalModified();
-            }
+            set => SetField(ref _scale, value);
         }
 
         protected override Matrix4x4 CreateLocalMatrix()
@@ -113,18 +102,17 @@ namespace XREngine.Rendering.UI
         /// <summary>
         /// Scale and translate in/out to/from a specific point.
         /// </summary>
-        /// <param name="amount"></param>
+        /// <param name="delta"></param>
         /// <param name="worldScreenPoint"></param>
         /// <param name="minScale"></param>
         /// <param name="maxScale"></param>
-        public void Zoom(float amount, Vector2 worldScreenPoint, Vector2? minScale, Vector2? maxScale)
+        public void Zoom(float delta, Vector2 worldScreenPoint, Vector2? minScale, Vector2? maxScale)
         {
-            if (Math.Abs(amount) < 0.0001f)
+            if (Math.Abs(delta) < 0.0001f)
                 return;
 
             Vector2 scale = new(_scale.X, _scale.Y);
-            Vector2 multiplier = Vector2.One / scale * amount;
-            Vector2 newScale = scale - new Vector2(amount);
+            Vector2 newScale = scale - new Vector2(delta);
 
             if (minScale != null)
             {
@@ -147,12 +135,8 @@ namespace XREngine.Rendering.UI
             if (Vector2.Distance(scale, newScale) < 0.0001f)
                 return;
             
-            Vector2 worldPoint = new(WorldTranslation.X, WorldTranslation.Y);
-            Vector2 offset = (worldScreenPoint - worldPoint) * multiplier;
-            _translation = Translation + offset;
-            _scale = new Vector3(newScale, _scale.Z);
-            MarkLocalModified();
-            //InvalidateLayout();
+            Translation += (worldScreenPoint - new Vector2(WorldTranslation.X, WorldTranslation.Y)) * Vector2.One / scale * delta;
+            Scale = new Vector3(newScale, Scale.Z);
         }
 
         public void InvalidateLayout()
@@ -167,7 +151,6 @@ namespace XREngine.Rendering.UI
 
         }
 
-        protected EVisibility _visibility = EVisibility.Collapsed;
         private Vector2 _actualTranslation = new();
 
         public RenderInfo2D RenderInfo2D { get; private set; }
@@ -187,21 +170,22 @@ namespace XREngine.Rendering.UI
             }
         }
 
-        public bool CollapseOnHide { get; set; } = true;
+        private bool _collapseOnHide = true;
+        public bool CollapseOnHide
+        {
+            get => _collapseOnHide;
+            set => SetField(ref _collapseOnHide, value);
 
+        }
+        protected EVisibility _visibility = EVisibility.Collapsed;
         public virtual EVisibility Visibility
         {
             get => _visibility;
-            set => SetField(ref _visibility, value, null, VisibilityChanged);
+            set => SetField(ref _visibility, value);
         }
 
-        private void VisibilityChanged(EVisibility v)
-        {
-            RenderInfo2D.IsVisible = IsVisible;
-            RenderInfo3D.IsVisible = IsVisible;
-        }
-
-        public bool RenderTransformation
+        private bool _renderTransformation = true;
+        public bool DebugRender
         {
             get => _renderTransformation;
             set => SetField(ref _renderTransformation, value);
@@ -296,38 +280,6 @@ namespace XREngine.Rendering.UI
         public Vector2 LocalToScreen(Vector2 coordinate)
             => Vector2.Transform(coordinate, OwningUserInterface?.Transform.WorldMatrix ?? Matrix4x4.Identity);
 
-        public virtual void AddRenderables(RenderCommandCollection passes, XRCamera camera)
-        {
-            //#if EDITOR
-            //if (!Engine.EditorState.InEditMode)
-            //    return;
-            //#endif
-
-            if (!RenderTransformation)
-                return;
-
-            passes.Add(_rc);
-        }
-
-        /// <summary>
-        /// Helper method for rendering transforms, bounds, rotations, etc in the editor.
-        /// </summary>
-        protected virtual void RenderVisualGuides()
-        {
-            Vector3 startPoint = (Parent?.WorldMatrix.Translation ?? Vector3.Zero) + Engine.Rendering.Debug.UIPositionBias;
-            Vector3 endPoint = WorldTranslation + Engine.Rendering.Debug.UIPositionBias;
-
-            Engine.Rendering.Debug.RenderLine(startPoint, endPoint, ColorF4.White);
-            Engine.Rendering.Debug.RenderPoint(endPoint, ColorF4.White);
-
-            //Vector3 scale = WorldMatrix.Scale;
-            Vector3 up = WorldUp * 50.0f;
-            Vector3 right = WorldRight * 50.0f;
-
-            Engine.Rendering.Debug.RenderLine(endPoint, endPoint + up, Color.Green);
-            Engine.Rendering.Debug.RenderLine(endPoint, endPoint + right, Color.Red);
-        }
-
         public virtual float CalcAutoWidth() => 0.0f;
         public virtual float CalcAutoHeight() => 0.0f;
 
@@ -361,6 +313,58 @@ namespace XREngine.Rendering.UI
         protected virtual void OnResizeActual(BoundingRectangleF parentBounds)
         {
             ActualTranslation = Translation;
+        }
+
+        public override byte[] EncodeToBytes(bool delta)
+        {
+            return [];
+        }
+
+        public override void DecodeFromBytes(byte[] arr)
+        {
+
+        }
+
+        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+        {
+            base.OnPropertyChanged(propName, prev, field);
+            switch (propName)
+            {
+                case nameof(Translation):
+                case nameof(DepthTranslation):
+                case nameof(Scale):
+                    MarkLocalModified();
+                    break;
+                case nameof(Visibility):
+                    RenderInfo2D.IsVisible = IsVisible;
+                    RenderInfo3D.IsVisible = IsVisible;
+                    break;
+            }
+        }
+
+        public virtual void AddRenderables(RenderCommandCollection passes, XRCamera camera)
+        {
+            if (DebugRender)
+                passes.Add(_debugRC);
+        }
+
+        /// <summary>
+        /// Helper method for rendering transforms, bounds, rotations, etc in the editor.
+        /// </summary>
+        protected virtual void RenderVisualGuides()
+        {
+            Vector3 startPoint = (Parent?.WorldMatrix.Translation ?? Vector3.Zero) + Engine.Rendering.Debug.UIPositionBias;
+            Vector3 endPoint = WorldTranslation + Engine.Rendering.Debug.UIPositionBias;
+
+            Engine.Rendering.Debug.RenderLine(startPoint, endPoint, ColorF4.White);
+            Engine.Rendering.Debug.RenderPoint(endPoint, ColorF4.White);
+
+            //Vector3 scale = WorldMatrix.Scale;
+            Vector3 up = WorldUp * 50.0f;
+            Vector3 right = WorldRight * 50.0f;
+
+            Engine.Rendering.Debug.RenderLine(endPoint, endPoint + up, Color.Green);
+            Engine.Rendering.Debug.RenderLine(endPoint, endPoint + right, Color.Red);
         }
     }
 }

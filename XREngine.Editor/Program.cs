@@ -17,6 +17,7 @@ using XREngine.Rendering.Info;
 using XREngine.Rendering.Models;
 using XREngine.Rendering.Models.Materials;
 using XREngine.Scene;
+using XREngine.Scene.Components.Animation;
 using XREngine.Scene.Transforms;
 using Quaternion = System.Numerics.Quaternion;
 
@@ -24,7 +25,6 @@ internal class Program
 {
     static EditorRenderInfo2D RenderInfo2DConstructor(IRenderable owner, RenderCommand[] commands)
         => new(owner, commands);
-
     static EditorRenderInfo3D RenderInfo3DConstructor(IRenderable owner, RenderCommand[] commands)
         => new(owner, commands);
 
@@ -38,9 +38,7 @@ internal class Program
         RenderInfo2D.ConstructorOverride = RenderInfo2DConstructor;
         RenderInfo3D.ConstructorOverride = RenderInfo3DConstructor;
 
-        Engine.Initialize(GetEngineSettings(CreateTestWorld()), GetGameState());
-        Engine.Run();
-        Engine.ShutDown();
+        Engine.Run(GetEngineSettings(CreateTestWorld()), GetGameState());
     }
 
     static XRWorld CreateTestWorld()
@@ -255,17 +253,27 @@ internal class Program
             PostProcessSteps.JoinIdenticalVertices |
             PostProcessSteps.CalculateTangentSpace;
 
-        _ = ModelImporter.ImportAsync(fbxPathDesktop, flags, () =>
-        {
-            //Debug.Out(importedModelsNode.PrintTree());
-            var knee = rootNode.FindDescendant((string path, string name) => name.Contains("Knee", StringComparison.InvariantCultureIgnoreCase));
-            knee?.GetTransformAs<Transform>()?.RegisterAnimationTick<Transform>(KneeTick);
-        }, MaterialFactory, importedModelsNode, 0.0254f, true);
+        ModelImporter.ImportAsync(fbxPathDesktop, flags, null, MaterialFactory, importedModelsNode, 0.0254f, true).ContinueWith(OnFinished);
 
         //string sponzaPath = Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj");
         //_ = ModelImporter.ImportAsync(sponzaPath, flags, null, MaterialFactory, importedModelsNode);
 
         return world;
+    }
+
+    private static void OnFinished(Task<(SceneNode? rootNode, IReadOnlyCollection<XRMaterial> materials, IReadOnlyCollection<XRMesh> meshes)> x)
+    {
+        (SceneNode? rootNode, IReadOnlyCollection<XRMaterial> materials, IReadOnlyCollection<XRMesh> meshes) = x.Result;
+        OnFinishedImporting(rootNode, materials, meshes);
+    }
+    static void OnFinishedImporting(SceneNode? rootNode, IReadOnlyCollection<XRMaterial> materials, IReadOnlyCollection<XRMesh> meshes)
+    {
+        if (rootNode is null)
+            return;
+
+        var comp = rootNode.AddComponent<HumanoidComponent>();
+        //comp!.SetFromNode();
+        comp!.Left.Knee?.Node?.GetTransformAs<Transform>()?.RegisterAnimationTick<Transform>(KneeTick);
     }
     static void KneeTick(Transform t)
     {

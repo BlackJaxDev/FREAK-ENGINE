@@ -235,13 +235,13 @@ namespace XREngine.Rendering.OpenGL
 
             static GLRenderProgram()
             {
-                ReadBins();
+                ReadBinaryShaderCache();
             }
 
             //TODO: serialize this cache and load on startup
             private static readonly ConcurrentDictionary<ulong, BinaryProgram> _binaryCache = new();
 
-            private void WriteBin(BinaryProgram binary)
+            private void WriteToBinaryShaderCache(BinaryProgram binary)
             {
                 string dir = Environment.CurrentDirectory;
                 string path = Path.Combine(dir, "ShaderCache");
@@ -250,7 +250,8 @@ namespace XREngine.Rendering.OpenGL
                 path = Path.Combine(path, $"{Hash}-{binary.Format}.bin");
                 File.WriteAllBytes(path, binary.Binary);
             }
-            private static void ReadBins()
+
+            public static void ReadBinaryShaderCache()
             {
                 string dir = Environment.CurrentDirectory;
                 string path = Path.Combine(dir, "ShaderCache");
@@ -279,6 +280,18 @@ namespace XREngine.Rendering.OpenGL
 
                     }
                 }
+            }
+
+            public static void DeleteFromBinaryShaderCache(ulong hash, GLEnum format)
+            {
+                _binaryCache.TryRemove(hash, out _);
+                //Delete the file
+                string dir = Environment.CurrentDirectory;
+                string path = Path.Combine(dir, "ShaderCache");
+                string fileName = $"{hash}-{format}.bin";
+                path = Path.Combine(path, fileName);
+                if (File.Exists(path))
+                    File.Delete(path);
             }
 
             public ulong Hash { get; private set; }
@@ -335,12 +348,23 @@ namespace XREngine.Rendering.OpenGL
                     {
                         //Debug.Out($"Using cached program binary with hash {Hash}.");
                         _cachedProgram = binProg;
-                        fixed (byte* ptr = _cachedProgram!.Value.Binary)
-                            Api.ProgramBinary(bindingId, _cachedProgram.Value.Format, ptr, _cachedProgram.Value.Length);
-                        IsLinked = true;
-                        return true;
+                        GLEnum format = binProg.Format;
+                        fixed (byte* ptr = binProg.Binary)
+                            Api.ProgramBinary(bindingId, format, ptr, binProg.Length);
+                        var error = Api.GetError();
+                        if (error != GLEnum.NoError)
+                        {
+                            Debug.LogWarning($"Failed to load cached program binary with format {format} and hash {Hash}: {error}. Deleting from cache.");
+                            DeleteFromBinaryShaderCache(Hash, format);
+                        }
+                        else
+                        {
+                            IsLinked = true;
+                            return true;
+                        }
                     }
-                    else if (Failed.Contains(Hash))
+
+                    if (Failed.Contains(Hash))
                         return false;
                     else
                     {
@@ -454,7 +478,7 @@ namespace XREngine.Rendering.OpenGL
                 }
                 BinaryProgram bin = (binary, format, binaryLength);
                 _binaryCache.TryAdd(Hash, bin);
-                WriteBin(bin);
+                WriteToBinaryShaderCache(bin);
             }
 
             private static ulong CalcHash(IEnumerable<string> enumerable)

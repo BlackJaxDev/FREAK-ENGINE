@@ -7,9 +7,38 @@ namespace XREngine.Scene.Transforms
     {
         public float DistanceTo(TransformBase other)
             => WorldTranslation.Distance(other.WorldTranslation);
-
         public float DistanceToParent()
             => WorldTranslation.Distance(Parent?.WorldTranslation ?? Vector3.Zero);
+
+        private float _replicationKeyframeIntervalSec = 5.0f;
+        public float ReplicationKeyframeIntervalSec
+        {
+            get => _replicationKeyframeIntervalSec;
+            set => SetField(ref _replicationKeyframeIntervalSec, value);
+        }
+
+        public float TimeSinceLastKeyframeReplicated => _timeSinceLastKeyframe;
+
+        private float _timeSinceLastKeyframe = 0;
+        public byte[] EncodeToBytes()
+        {
+            _timeSinceLastKeyframe += Engine.Time.Timer.Collect.Delta;
+            if (_timeSinceLastKeyframe > ReplicationKeyframeIntervalSec)
+            {
+                _timeSinceLastKeyframe = 0;
+                return EncodeToBytes(false);
+            }
+            else
+                return EncodeToBytes(true);
+        }
+        public virtual byte[] EncodeToBytes(bool delta)
+        {
+            return [];
+        }
+        public virtual void DecodeFromBytes(byte[] arr)
+        {
+            
+        }
 
         private class MatrixInfo
         {

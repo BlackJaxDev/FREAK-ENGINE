@@ -5,7 +5,7 @@ using XREngine.Scene.Transforms;
 
 namespace XREngine.Rendering.UI
 {
-    public abstract class UIBoundableTransform : UITransform
+    public class UIBoundableTransform : UITransform
     {
         public UIBoundableTransform() : base(null)
         {
@@ -18,28 +18,29 @@ namespace XREngine.Rendering.UI
             _verticalAlign = EVerticalAlign.Positional;
             _horizontalAlign = EHorizontalAlign.Positional;
         }
-
-        private Vector2 _originPercent = Vector2.Zero;
-        private Vector2 _size;
-        private Vector2 _minSize;
-        private Vector2 _maxSize;
-        private Vector4 _margins;
-        private Vector4 _padding;
         
-        private EHorizontalAlign _horizontalAlign = EHorizontalAlign.Positional;
-        private EVerticalAlign _verticalAlign = EVerticalAlign.Positional;
         protected Vector2 _actualSize = new();
-        private Vector2 _parentPaddingOffset = Vector2.Zero;
-
+        /// <summary>
+        /// This is the size of the component after layout has been applied.
+        /// </summary>
         public Vector2 ActualSize
         {
             get => _actualSize;
-            set => SetField(ref _actualSize, value);
+            protected set => SetField(ref _actualSize, value);
         }
-
+        /// <summary>
+        /// The width of the component after layout has been applied.
+        /// </summary>
         public float ActualWidth => ActualSize.X;
+        /// <summary>
+        /// The height of the component after layout has been applied.
+        /// </summary>
         public float ActualHeight => ActualSize.Y;
 
+        private EVerticalAlign _verticalAlign = EVerticalAlign.Positional;
+        /// <summary>
+        /// How to vertically align this component within its parent.
+        /// </summary>
         public EVerticalAlign VerticalAlignment
         {
             get => _verticalAlign;
@@ -49,6 +50,11 @@ namespace XREngine.Rendering.UI
                 InvalidateLayout();
             }
         }
+
+        private EHorizontalAlign _horizontalAlign = EHorizontalAlign.Positional;
+        /// <summary>
+        /// How to horizontally align this component within its parent.
+        /// </summary>
         public EHorizontalAlign HorizontalAlignment
         {
             get => _horizontalAlign;
@@ -57,6 +63,112 @@ namespace XREngine.Rendering.UI
                 SetField(ref _horizontalAlign, value);
                 InvalidateLayout();
             }
+        }
+
+        private Vector2 _size;
+        /// <summary>
+        /// The requested width and height of this component before layouting.
+        /// </summary>
+        public Vector2 Size
+        {
+            get => _size;
+            set => SetField(ref _size, value);
+        }
+        /// <summary>
+        /// The requested width of this component before layouting.
+        /// </summary>
+        public float Width
+        {
+            get => Size.X;
+            set => Size = new Vector2(value, Size.Y);
+        }
+        /// <summary>
+        /// The requested height of this component before layouting.
+        /// </summary>
+        public float Height
+        {
+            get => Size.Y;
+            set => Size = new Vector2(Size.X, value);
+        }
+
+        private Vector2 _minSize;
+        /// <summary>
+        /// The minimum width and height of this component.
+        /// </summary>
+        public Vector2 MinSize
+        {
+            get => _minSize;
+            set => SetField(ref _minSize, value);
+        }
+
+        private Vector2 _maxSize;
+        /// <summary>
+        /// The maximum width and height of this component.
+        /// </summary>
+        public Vector2 MaxSize
+        {
+            get => _maxSize;
+            set => SetField(ref _maxSize, value);
+        }
+
+        private Vector2 _originPercent = Vector2.Zero;
+        /// <summary>
+        /// The origin of this component as a percentage of its size.
+        /// </summary>
+        public Vector2 OriginPercent
+        {
+            get => _originPercent;
+            set => SetField(ref _originPercent, value);
+        }
+        /// <summary>
+        /// This is the origin of the component after layouting.
+        /// </summary>
+        public Vector2 OriginTranslation
+        {
+            get => OriginPercent * ActualSize;
+            set
+            {
+                float x = ActualSize.X.IsZero() ? 0.0f : value.X / ActualSize.X;
+                float y = ActualSize.Y.IsZero() ? 0.0f : value.Y / ActualSize.Y;
+                OriginPercent = new(x, y);
+            }
+        }
+        public float OriginTranslationX
+        {
+            get => OriginPercent.X * ActualWidth;
+            set => OriginPercent = new Vector2(ActualWidth.IsZero() ? 0.0f : value / ActualWidth, OriginPercent.Y);
+        }
+        public float OriginTranslationY
+        {
+            get => OriginPercent.Y * ActualHeight;
+            set => OriginPercent = new Vector2(OriginPercent.X, ActualHeight.IsZero() ? 0.0f : value / ActualHeight);
+        }
+
+        private Vector4 _margins;
+        /// <summary>
+        /// The outside margins of this component. X = left, Y = bottom, Z = right, W = top.
+        /// </summary>
+        public virtual Vector4 Margins
+        {
+            get => _margins;
+            set => SetField(ref _margins, value);
+        }
+
+        private Vector4 _padding;
+        /// <summary>
+        /// The inside padding of this component. X = left, Y = bottom, Z = right, W = top.
+        /// </summary>
+        public virtual Vector4 Padding
+        {
+            get => _padding;
+            set => SetField(ref _padding, value);
+        }
+
+        private Vector2 _parentPaddingOffset = Vector2.Zero;
+        private Vector2 ParentPaddingOffset
+        {
+            get => _parentPaddingOffset;
+            set => SetField(ref _parentPaddingOffset, value);
         }
 
         protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
@@ -76,101 +188,9 @@ namespace XREngine.Rendering.UI
             }
         }
 
-        /// <summary>
-        /// The width and height of this component.
-        /// </summary>
-        public Vector2 Size
-        {
-            get => _size;
-            set => SetField(ref _size, value);
-        }
-
-        public float Width
-        {
-            get => Size.X;
-            set => Size = new Vector2(value, Size.Y);
-        }
-
-        public float Height
-        {
-            get => Size.Y;
-            set => Size = new Vector2(Size.X, value);
-        }
-
-        /// <summary>
-        /// The minimum width and height of this component.
-        /// </summary>
-        public Vector2 MinSize
-        {
-            get => _minSize;
-            set => SetField(ref _minSize, value);
-        }
-
-        /// <summary>
-        /// The maximum width and height of this component.
-        /// </summary>
-        public Vector2 MaxSize
-        {
-            get => _maxSize;
-            set => SetField(ref _maxSize, value);
-        }
-
-        /// <summary>
-        /// The origin of this component as a percentage of its size.
-        /// </summary>
-        public Vector2 OriginPercent
-        {
-            get => _originPercent;
-            set => SetField(ref _originPercent, value);
-        }
-
-        /// <summary>
-        /// The outside margins of this component. X = left, Y = bottom, Z = right, W = top.
-        /// </summary>
-        public virtual Vector4 Margins
-        {
-            get => _margins;
-            set => SetField(ref _margins, value);
-        }
-
-        /// <summary>
-        /// The inside padding of this component. X = left, Y = bottom, Z = right, W = top.
-        /// </summary>
-        public virtual Vector4 Padding
-        {
-            get => _padding;
-            set => SetField(ref _padding, value);
-        }
-
-        public virtual float OriginTranslationX
-        {
-            get => OriginPercent.X * ActualWidth;
-            set => OriginPercent = new Vector2(ActualWidth.IsZero() ? 0.0f : value / ActualWidth, OriginPercent.Y);
-        }
-        public virtual float OriginTranslationY
-        {
-            get => OriginPercent.Y * ActualHeight;
-            set => OriginPercent = new Vector2(OriginPercent.X, ActualHeight.IsZero() ? 0.0f : value / ActualHeight);
-        }
-        public Vector2 OriginTranslation
-        {
-            get => OriginPercent * ActualSize;
-            set
-            {
-                float x = ActualSize.X.IsZero() ? 0.0f : value.X / ActualSize.X;
-                float y = ActualSize.Y.IsZero() ? 0.0f : value.Y / ActualSize.Y;
-                OriginPercent = new(x, y);
-            }
-        }
-
-        private Vector2 ParentPaddingOffset
-        {
-            get => _parentPaddingOffset;
-            set => SetField(ref _parentPaddingOffset, value);
-        }
-
         protected override Matrix4x4 CreateLocalMatrix()
             => base.CreateLocalMatrix() * Matrix4x4.CreateTranslation(ParentPaddingOffset.X - OriginTranslationX, ParentPaddingOffset.Y - OriginTranslationY, 0.0f);
+        
         protected override void OnResizeActual(BoundingRectangleF parentBounds)
         {
             switch (HorizontalAlignment)
@@ -231,19 +251,22 @@ namespace XREngine.Rendering.UI
             //}
         }
 
+        private BoundingRectangleF _bounds = new();
+
         public override void FitLayout(BoundingRectangleF parentBounds)
         {
+            //Set the bounds to the parent bounds.
+            //This will be adjusted by the padding after the local matrix is recalculated.
             _bounds = parentBounds;
             ParentPaddingOffset = parentBounds.Translation;
             OnResizeActual(parentBounds);
             MarkLocalModified();
         }
 
-        private BoundingRectangleF _bounds = new();
-
         protected override void OnLocalMatrixChanged()
         {
             base.OnLocalMatrixChanged();
+            //Update the bounds to account for the padding.
             ApplyPadding(ref _bounds);
             OnResizeChildComponents(_bounds);
             RemakeAxisAlignedRegion();

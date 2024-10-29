@@ -46,9 +46,6 @@ namespace XREngine.Timers
         /// </summary>
         public event Action? FixedUpdate;
 
-        private float _lastCollectVisibleTimestamp;
-        private float _lastFixedUpdateTimestamp;
-
         private float _updateTimeDiff = 0.0f; // quantization error for UpdateFrame events
         private bool _isRunningSlowly; // true, when UpdatePeriod cannot reach TargetUpdatePeriod
 
@@ -63,6 +60,8 @@ namespace XREngine.Timers
 
         public DeltaManager Render { get; } = new();
         public DeltaManager Update { get; } = new();
+        public DeltaManager Collect { get; } = new();
+        public DeltaManager FixedUpdateManager { get; } = new();
 
         private CancellationTokenSource? _cancelRenderTokenSource = null;
 
@@ -157,11 +156,14 @@ namespace XREngine.Timers
             while (IsRunning)
             {
                 float timestamp = Time();
-                float elapsed = (timestamp - _lastFixedUpdateTimestamp).Clamp(0.0f, 1.0f);
+                float elapsed = (timestamp - FixedUpdateManager.LastTimestamp).Clamp(0.0f, 1.0f);
                 if (elapsed >= FixedUpdateDelta)
                 {
+                    FixedUpdateManager.Delta = elapsed;
+                    FixedUpdateManager.LastTimestamp = timestamp;
                     FixedUpdate?.Invoke();
-                    _lastFixedUpdateTimestamp = timestamp;
+                    timestamp = Time();
+                    FixedUpdateManager.ElapsedTime = timestamp - FixedUpdateManager.LastTimestamp;
                 }
             }
         }
@@ -227,9 +229,12 @@ namespace XREngine.Timers
         private void DispatchCollectVisible()
         {
             float timestamp = Time();
-            float elapsed = (timestamp - _lastCollectVisibleTimestamp).Clamp(0.0f, 1.0f);
-            _lastCollectVisibleTimestamp = timestamp;
+            float elapsed = (timestamp - Collect.LastTimestamp).Clamp(0.0f, 1.0f);
+            Collect.Delta = elapsed;
+            Collect.LastTimestamp = timestamp;
             CollectVisible?.Invoke();
+            timestamp = Time();
+            Collect.ElapsedTime = timestamp - Collect.LastTimestamp;
         }
         private void DispatchSwapBuffers() => SwapBuffers?.Invoke();
         private void DispatchFixedUpdate() => FixedUpdate?.Invoke();

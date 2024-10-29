@@ -1,17 +1,13 @@
-﻿using Extensions;
+﻿using Assimp;
+using Extensions;
 using ImageMagick;
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Numerics;
-using System.Text;
 using XREngine.Components.Scene.Mesh;
-using XREngine.Data;
-using XREngine.Data.Core;
 using XREngine.Rendering;
 using XREngine.Rendering.Models;
 using XREngine.Scene;
 using XREngine.Scene.Transforms;
-using Assimp;
 using AScene = Assimp.Scene;
 using Matrix4x4 = System.Numerics.Matrix4x4;
 
@@ -85,14 +81,11 @@ namespace XREngine
             SceneNode? parent,
             float scaleConversion = 1.0f,
             bool zUp = false)
-        {
-            var result = await Task.Run(() =>
+            => await Task.Run(() =>
             {
                 SceneNode? node = Import(path, options, out var materials, out var meshes, true, onCompleted, materialFactory, parent, scaleConversion, zUp);
                 return (node, materials, meshes);
             });
-            return result;
-        }
 
         private readonly ConcurrentBag<Action> _meshProcessActions = [];
 
@@ -115,7 +108,7 @@ namespace XREngine
                 return null;
             
             SceneNode rootNode = new(Path.GetFileNameWithoutExtension(SourceFilePath));
-            ProcessNode(scene.RootNode, scene, rootNode);
+            ProcessNode(scene.RootNode, scene, rootNode, null, true);
             //Debug.Out(rootNode.PrintTree());
 
             //Debug.Out(rootNode.PrintTree());
@@ -147,7 +140,7 @@ namespace XREngine
 #endif
                     _onCompleted?.Invoke();
                 }
-                Task.Run(ProcessMeshesSequential).ContinueWith(CompleteSequential);
+                Task.Run(ProcessMeshesParallel).ContinueWith(Complete);
             }
             else
             {
@@ -172,46 +165,66 @@ namespace XREngine
                 action();
         }
 
-        private void ProcessNode(Node node, AScene scene, SceneNode parentSceneNode, Matrix4x4? fbxMatrixParent = null)
+        private void ProcessNode(Node node, AScene scene, SceneNode parentSceneNode, Matrix4x4? fbxMatrixParent = null, bool removeAssimpFBXNodes = true)
         {
             SceneNode sceneNode;
             Matrix4x4? fbxMatrix = null;
             string name = node.Name;
-            //int assimpFBXMagic = name.IndexOf("__$AssimpFbx$");
-            //bool assimpFBXNode = assimpFBXMagic != -1;
-            //if (assimpFBXNode)
-            //{
-            //    name = name[..assimpFBXMagic];
-            //    sceneNode = parentSceneNode;
-            //    fbxMatrix = node.Transform.ToNumerics().Transposed();
-            //    if (fbxMatrixParent.HasValue)
-            //        fbxMatrix *= fbxMatrixParent.Value;
-            //}
-            //else
-            //{
-                //Debug.Out($"Processing node: {name}");
 
-                Matrix4x4 localTransform = node.Transform.ToNumerics().Transposed();
-                //if (fbxMatrixParent.HasValue)
-                //    localTransform *= fbxMatrixParent.Value;
-                sceneNode = new(parentSceneNode, name);
-                sceneNode.Transform.DeriveLocalMatrix(localTransform);
-                //sceneNode.Transform.VerifyLocalMatrix();
-                //sceneNode.Transform.VerifyWorldMatrix();
-
-                if (_nodeCache.TryGetValue(name, out List<SceneNode>? nodes))
-                    nodes.Add(sceneNode);
+            if (removeAssimpFBXNodes)
+            {
+                int assimpFBXMagic = name.IndexOf("_$AssimpFbx$");
+                bool assimpFBXNode = assimpFBXMagic != -1;
+                if (assimpFBXNode)
+                {
+                    name = name[..assimpFBXMagic];
+                    bool affectsParent = parentSceneNode.Name?.StartsWith(name, StringComparison.InvariantCulture) ?? false;
+                    if (affectsParent)
+                    {
+                        //Update parent transform
+                        parentSceneNode.Transform.DeriveLocalMatrix(node.Transform.ToNumerics().Transposed() * parentSceneNode.Transform.LocalMatrix);
+                    }
+                    else
+                    {
+                        fbxMatrix = node.Transform.ToNumerics().Transposed();
+                        if (fbxMatrixParent.HasValue)
+                            fbxMatrix *= fbxMatrixParent.Value;
+                    }
+                    sceneNode = parentSceneNode;
+                }
                 else
-                    _nodeCache.Add(name, [sceneNode]);
-            //}
-
+                    sceneNode = CreateNode(node, parentSceneNode, fbxMatrixParent, true, name);
+            }
+            else
+                sceneNode = CreateNode(node, parentSceneNode, fbxMatrixParent, false, name);
+            
             if (node.MeshCount > 0)
                 Debug.Out($"Node {name} has {node.MeshCount} meshes");
 
             for (var i = 0; i < node.ChildCount; i++)
-                ProcessNode(node.Children[i], scene, sceneNode, fbxMatrix);
+                ProcessNode(node.Children[i], scene, sceneNode, fbxMatrix, removeAssimpFBXNodes);
 
             EnqueueProcessMeshes(node, scene, sceneNode);
+        }
+
+        private SceneNode CreateNode(Node node, SceneNode parentSceneNode, Matrix4x4? fbxMatrixParent, bool removeAssimpFBXNodes, string name)
+        {
+            //Debug.Out($"Processing node: {name}");
+
+            Matrix4x4 localTransform = node.Transform.ToNumerics().Transposed();
+
+            if (removeAssimpFBXNodes && fbxMatrixParent.HasValue)
+                localTransform *= fbxMatrixParent.Value;
+
+            SceneNode sceneNode = new(parentSceneNode, name);
+            sceneNode.Transform.DeriveLocalMatrix(localTransform);
+
+            if (_nodeCache.TryGetValue(name, out List<SceneNode>? nodes))
+                nodes.Add(sceneNode);
+            else
+                _nodeCache.Add(name, [sceneNode]);
+
+            return sceneNode;
         }
 
         private unsafe void EnqueueProcessMeshes(Node node, AScene scene, SceneNode sceneNode)

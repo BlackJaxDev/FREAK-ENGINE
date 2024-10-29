@@ -138,16 +138,30 @@ namespace XREngine
         public void BroadcastData(string id, object data, bool udp)
             => Engine.Networking.BroadcastData(this, data, id, udp);
 
+        /// <summary>
+        /// Called by data replication to receive generic data from the network.
+        /// </summary>
+        /// <param name="id"></param>
+        /// <param name="data"></param>
         public virtual void ReceiveData(string id, object data)
         {
 
         }
 
+        /// <summary>
+        /// Called by full replication to copy all properties from the replicated object.
+        /// </summary>
+        /// <param name="newObj"></param>
         public virtual void CopyFrom(XRWorldObjectBase newObj)
         {
 
         }
 
+        /// <summary>
+        /// Called by property replication to set a specific property from the network.
+        /// </summary>
+        /// <param name="propName"></param>
+        /// <param name="value"></param>
         public void SetReplicatedProperty(string propName, object value)
         {
             if (_replicateOnChangeProperties.TryGetValue(propName, out var pair) && pair.prop.PropertyType.IsAssignableFrom(value.GetType()))

@@ -88,19 +88,19 @@ namespace XREngine.Rendering
         {
             if (ShouldBeRendering())
             {
-                if (!IsTickLinked)
-                {
-                    IsTickLinked = true;
-                    BeginTick();
-                }
+                if (IsTickLinked)
+                    return;
+                
+                IsTickLinked = true;
+                BeginTick();
             }
             else
             {
-                if (IsTickLinked)
-                {
-                    IsTickLinked = false;
-                    EndTick();
-                }
+                if (!IsTickLinked)
+                    return;
+                
+                IsTickLinked = false;
+                EndTick();
             }
         }
 

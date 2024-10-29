@@ -2,6 +2,7 @@
 using Silk.NET.Windowing;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Net;
 using XREngine.Audio;
 using XREngine.Rendering;
 using XREngine.Scene;
@@ -94,6 +95,19 @@ namespace XREngine
         public static CodeProfiler Profiler { get; } = new();
 
         /// <summary>
+        /// The sole method needed to run the engine.
+        /// Calls Initialize, Run, and ShutDown in order.
+        /// </summary>
+        /// <param name="startupSettings"></param>
+        /// <param name="state"></param>
+        public static void Run(GameStartupSettings startupSettings, GameState state)
+        {
+            Initialize(startupSettings, state);
+            Run();
+            ShutDown();
+        }
+
+        /// <summary>
         /// Initializes the engine with settings for the game it will run.
         /// </summary>
         public static void Initialize(
@@ -115,10 +129,23 @@ namespace XREngine
             if (startupSettings.IsVR && startupSettings.VRManifest is not null && startupSettings.VRActionManifest is not null)
                 VRState.Initialize(startupSettings.VRActionManifest, startupSettings.VRManifest);
 
-            if (startupSettings.IsServer)
-                Networking.StartServer();
-            if (startupSettings.IsClient)
-                Networking.StartClient();
+            var appType = startupSettings.AppType;
+
+            if (appType == GameStartupSettings.EAppType.Server ||
+                appType == GameStartupSettings.EAppType.P2PClient)
+                Networking.StartServer(
+                    startupSettings.UdpMulticastGroupIP,
+                    startupSettings.UdpMulticastServerPort,
+                    startupSettings.TcpListenerIP,
+                    startupSettings.TcpListenerPort);
+
+            if (appType == GameStartupSettings.EAppType.Client ||
+                appType == GameStartupSettings.EAppType.P2PClient)
+                Networking.StartClient(
+                    startupSettings.UdpMulticastGroupIP,
+                    startupSettings.ServerIP,
+                    startupSettings.UdpMulticastServerPort,
+                    startupSettings.TcpListenerPort);
 
             Time.Timer.SwapBuffers += DequeueAsyncTasks;
             Time.Timer.RenderFrame += DequeueMainThreadTasks;

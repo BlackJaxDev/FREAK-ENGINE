@@ -278,9 +278,9 @@ namespace XREngine.Components
             throw new NotImplementedException();
         }
 
-        internal void Resize(IVector2 extents)
+        public void Resize(IVector2 extents)
         {
-            throw new NotImplementedException();
+
         }
     }
 }

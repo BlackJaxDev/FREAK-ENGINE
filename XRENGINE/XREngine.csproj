@@ -55,6 +55,7 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="NVorbis" Version="0.10.5" />
     <PackageReference Include="RestSharp" Version="112.1.0" />
+    <PackageReference Include="SharpFont.NetStandard" Version="1.0.5" />
     <PackageReference Include="Silk.NET" Version="2.21.0" />
     <PackageReference Include="Silk.NET.Core" Version="2.21.0" />
     <PackageReference Include="Silk.NET.Core.Win32Extras" Version="2.21.0" />
@@ -107,6 +108,7 @@
     <PackageReference Include="Silk.NET.Windowing.Sdl" Version="2.21.0" />
     <PackageReference Include="Silk.NET.XInput" Version="2.21.0" />
     <PackageReference Include="SkiaSharp" Version="2.88.8" />
+    <PackageReference Include="Steamworks.NET" Version="2024.8.0" />
     <PackageReference Include="StirlingLabs.Assimp.Net" Version="23.4.1" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.1.2" />
     <PackageReference Include="Vecc.YamlDotNet.Analyzers.StaticGenerator" Version="16.1.3" />

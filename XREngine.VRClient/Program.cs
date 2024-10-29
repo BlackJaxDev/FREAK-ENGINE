@@ -1,4 +1,5 @@
 ﻿using OpenVR.NET.Manifest;
+using System.Text.Json;
 using XREngine.Native;
 using XREngine.Scene;
 
@@ -19,9 +20,7 @@ namespace XREngine.VRClient
                 WindowsPath = Environment.ProcessPath,
                 WindowsArguments = "",
             });
-            Engine.Initialize(GetEngineSettings(), GetGameState());
-            Engine.Run();
-            Engine.ShutDown();
+            Engine.Run(GetEngineSettings(), GetGameState());
         }
 
         private static void GetActions()

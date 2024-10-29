@@ -7,48 +7,57 @@ namespace XREngine.Scene.Transforms
     /// </summary>
     public class RectTransform : Transform
     {
-        private Vector2 anchoredPosition;
-        private Vector2 anchorMin;
-        private Vector2 anchorMax;
-        private Vector2 offsetMin;
-        private Vector2 offsetMax;
-        private Vector2 pivot;
-        private Vector2 sizeDelta;
-
+        private Vector2 _anchoredPosition;
         public Vector2 AnchoredPosition
         {
-            get => anchoredPosition;
-            set => SetField(ref anchoredPosition, value);
+            get => _anchoredPosition;
+            set => SetField(ref _anchoredPosition, value);
         }
+        private Vector2 _anchorMin;
         public Vector2 AnchorMin
         {
-            get => anchorMin;
-            set => SetField(ref anchorMin, value);
+            get => _anchorMin;
+            set => SetField(ref _anchorMin, value);
         }
+        private Vector2 _anchorMax;
         public Vector2 AnchorMax
         {
-            get => anchorMax;
-            set => SetField(ref anchorMax, value);
+            get => _anchorMax;
+            set => SetField(ref _anchorMax, value);
         }
+        private Vector2 _offsetMin;
         public Vector2 OffsetMin
         {
-            get => offsetMin;
-            set => SetField(ref offsetMin, value);
+            get => _offsetMin;
+            set => SetField(ref _offsetMin, value);
         }
+        private Vector2 _offsetMax;
         public Vector2 OffsetMax
         {
-            get => offsetMax;
-            set => SetField(ref offsetMax, value);
+            get => _offsetMax;
+            set => SetField(ref _offsetMax, value);
         }
+        private Vector2 _pivot;
         public Vector2 Pivot
         {
-            get => pivot;
-            set => SetField(ref pivot, value);
+            get => _pivot;
+            set => SetField(ref _pivot, value);
         }
+        private Vector2 _sizeDelta;
         public Vector2 SizeDelta
         {
-            get => sizeDelta;
-            set => SetField(ref sizeDelta, value);
+            get => _sizeDelta;
+            set => SetField(ref _sizeDelta, value);
+        }
+        public float Width
+        {
+            get => SizeDelta.X;
+            set => SizeDelta = new Vector2(value, SizeDelta.Y);
+        }
+        public float Height
+        {
+            get => SizeDelta.Y;
+            set => SizeDelta = new Vector2(SizeDelta.X, value);
         }
 
         public RectTransform() : this(null) { }
@@ -61,18 +70,6 @@ namespace XREngine.Scene.Transforms
             OffsetMax = Vector2.Zero;
             Pivot = new Vector2(0.5f, 0.5f);
             SizeDelta = Vector2.Zero;
-        }
-
-        public float Width
-        {
-            get => SizeDelta.X;
-            set => SizeDelta = new Vector2(value, SizeDelta.Y);
-        }
-
-        public float Height
-        {
-            get => SizeDelta.Y;
-            set => SizeDelta = new Vector2(SizeDelta.X, value);
         }
 
         public Vector3[] GetWorldCorners()

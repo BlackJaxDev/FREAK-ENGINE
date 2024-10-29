@@ -46,6 +46,8 @@ namespace XREngine.Scene
 
             Transform.Parent = null;
             Name = name;
+            ComponentsInternal.PostAnythingAdded += ComponentAdded;
+            ComponentsInternal.PostAnythingRemoved += ComponentRemoved;
         }
         public SceneNode(XRScene scene, string name, TransformBase? transform = null)
         {
@@ -54,7 +56,14 @@ namespace XREngine.Scene
 
             scene._rootObjects.Add(this);
             Name = name;
+            ComponentsInternal.PostAnythingAdded += ComponentAdded;
+            ComponentsInternal.PostAnythingRemoved += ComponentRemoved;
         }
+
+        private void ComponentRemoved(XRComponent item)
+            => item.RemovedFromSceneNode(this);
+        private void ComponentAdded(XRComponent item)
+            => item.AddedToSceneNode(this);
 
         private readonly EventList<XRComponent> _components = [];
         private EventList<XRComponent> ComponentsInternal => _components;
@@ -1017,7 +1026,11 @@ namespace XREngine.Scene
             return output;
         }
 
-        public delegate bool DelFindDescendant(string fullPath, string name);
+        public delegate bool DelFindDescendant(string fullPath, string nodeName);
+        public SceneNode? FindDescendantByName(string name, StringComparison comp = StringComparison.Ordinal)
+            => FindDescendant((fullPath, nodeName) => string.Equals(name, nodeName, comp));
+        public SceneNode? FindDescendant(string path, string pathSplitter = "/")
+            => FindDescendant(path, (fullPath, nodeName) => fullPath == nodeName, pathSplitter);
         public SceneNode? FindDescendant(DelFindDescendant comparer, string pathSplitter = "/")
             => FindDescendant(Name ?? string.Empty, comparer, pathSplitter);
         private SceneNode? FindDescendant(string fullPath, DelFindDescendant comparer, string pathSplitter)

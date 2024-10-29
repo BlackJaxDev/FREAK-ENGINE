@@ -1,9 +1,9 @@
 ﻿using System.Collections;
-using System.ComponentModel;
 using System.Numerics;
 using XREngine.Input.Devices;
 using XREngine.Rendering.Commands;
 using XREngine.Rendering.Info;
+using XREngine.Scene.Transforms;
 
 namespace XREngine.Rendering.UI
 {
@@ -11,10 +11,10 @@ namespace XREngine.Rendering.UI
     {
         public UICanvasTransform()
         {
-            //ScreenSpaceCamera = new OrthographicCamera(Vector3.One, Vector3.Zero, Rotator.GetZero(), Vector2.Zero, -0.5f, 0.5f);
-            //ScreenSpaceCamera.SetOriginBottomLeft();
-            //ScreenSpaceCamera.Resize(1, 1);
-
+            ScreenSpaceCamera = new XRCamera(new Transform());
+            var param = new XROrthographicCameraParameters(1.0f, 1.0f, -0.5f, 0.5f);
+            param.SetOriginBottomLeft();
+            ScreenSpaceCamera.Parameters = param;
             ScreenSpaceUIScene = new XRWorldInstance();
 
             RenderInfo3D.IsVisible = false;
@@ -27,27 +27,7 @@ namespace XREngine.Rendering.UI
         public ECanvasDrawSpace DrawSpace
         {
             get => _drawSpace;
-            set
-            {
-                if (!SetField(ref _drawSpace, value))
-                    return;
-                
-                switch (_drawSpace)
-                {
-                    case ECanvasDrawSpace.Camera:
-                        RenderInfo3D.IsVisible = true;
-                        RenderInfo2D.IsVisible = true;
-                        break;
-                    case ECanvasDrawSpace.Screen:
-                        RenderInfo3D.IsVisible = false;
-                        RenderInfo2D.IsVisible = false;
-                        break;
-                    case ECanvasDrawSpace.World:
-                        RenderInfo3D.IsVisible = true;
-                        RenderInfo2D.IsVisible = true;
-                        break;
-                }
-            }
+            set => SetField(ref _drawSpace, value);
         }
 
         private float _cameraDrawSpaceDistance = 0.1f;
@@ -232,5 +212,33 @@ namespace XREngine.Rendering.UI
         //    XRViewport? v = controller?.Viewport;
         //    return v?.ScreenToWorld(v.CursorPosition, 0.0f).XY() ?? Vector2.Zero;
         //}
+
+        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+        {
+            base.OnPropertyChanged(propName, prev, field);
+            switch (propName)
+            {
+                case nameof(DrawSpace):
+                    switch (_drawSpace)
+                    {
+                        case ECanvasDrawSpace.Camera:
+                            RenderInfo3D.IsVisible = true;
+                            RenderInfo2D.IsVisible = true;
+                            break;
+                        case ECanvasDrawSpace.Screen:
+                            RenderInfo3D.IsVisible = false;
+                            RenderInfo2D.IsVisible = false;
+                            break;
+                        case ECanvasDrawSpace.World:
+                            RenderInfo3D.IsVisible = true;
+                            RenderInfo2D.IsVisible = true;
+                            break;
+                    }
+                    break;
+                case nameof(CameraDrawSpaceDistance):
+                    //ScreenSpaceCamera.Transform.LocalTranslation = new Vector3(0, 0, CameraDrawSpaceDistance);
+                    break;
+            }
+        }
     }
 }

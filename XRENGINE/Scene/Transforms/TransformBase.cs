@@ -122,7 +122,6 @@ namespace XREngine.Scene.Transforms
                     }
                     else
                         Depth = 0;
-                    //TODO: world is not set here
                     if (SceneNode is not null)
                         SceneNode.World = World;
                     MarkWorldModified();
@@ -131,7 +130,6 @@ namespace XREngine.Scene.Transforms
                     World = SceneNode?.World;
                     break;
                 case nameof(World):
-                    //World = SceneNode?.World;
                     foreach (var obj in RenderedObjects)
                         obj.WorldInstance = World;
                     break;
@@ -159,6 +157,8 @@ namespace XREngine.Scene.Transforms
                 _localMatrix.NeedsRecalc = false;
                 RecalcLocal();
                 _worldMatrix.NeedsRecalc = true;
+
+                Engine.Networking.ReplicateTransform(this);
             }
 
             if (!_worldMatrix.NeedsRecalc)

@@ -1,9 +1,13 @@
 ﻿using OpenVR.NET;
 using OpenVR.NET.Devices;
 using OpenVR.NET.Manifest;
+using System.IO;
 using System.Numerics;
+using System.Text.Json.Serialization;
+using System.Text.Json;
 using Valve.VR;
 using XREngine.Data.Core;
+using System.Diagnostics.CodeAnalysis;
 
 namespace XREngine
 {
@@ -15,26 +19,54 @@ namespace XREngine
             public static VR Api => _api ??= new VR();
 
             public static ETrackingUniverseOrigin Origin { get; set; } = ETrackingUniverseOrigin.TrackingUniverseStanding;
-            
-            public static VR Initialize(IActionManifest actionManifest, VrManifest vrManifest)
+
+            [RequiresDynamicCode("")]
+            [RequiresUnreferencedCode("")]
+            public static bool Initialize(IActionManifest actionManifest, VrManifest vrManifest)
             {
-                var vr = new VR();
+                var vr = Api;
                 vr.DeviceDetected += OnDeviceDetected;
-                vr.TryStart(EVRApplicationType.VRApplication_Scene);
-                vr.InstallApp(vrManifest);
+                if (!vr.TryStart(EVRApplicationType.VRApplication_Scene))
+                {
+                    Debug.LogWarning("Failed to start VR application");
+                    return false;
+                }
+                InstallApp(vrManifest);
                 vr.SetActionManifest(actionManifest);
                 foreach (var actionSet in actionManifest.ActionSets)
                 {
                     var actions = actionManifest.ActionsForSet(actionSet);
                     foreach (var action in actions)
-                    {
                         action.CreateAction(vr, null);
-                    }
                 }
                 Time.Timer.UpdateFrame += Update;
                 Time.Timer.RenderFrame += Render;
-                return vr;
+                return true;
             }
+
+            [RequiresDynamicCode("Calls System.Text.Json.JsonSerializer.Serialize<TValue>(TValue, JsonSerializerOptions)")]
+            [RequiresUnreferencedCode("Calls System.Text.Json.JsonSerializer.Serialize<TValue>(TValue, JsonSerializerOptions)")]
+            private static void InstallApp(VrManifest vrManifest)
+            {
+                string path = Path.Combine(Directory.GetCurrentDirectory(), ".vrmanifest");
+                File.WriteAllText(path, JsonSerializer.Serialize(new
+                {
+                    source = "builtin",
+                    applications = new VrManifest[] { vrManifest }
+                }, JSonOpts));
+
+                //Valve.VR.OpenVR.Applications.RemoveApplicationManifest( path );
+                var error = Valve.VR.OpenVR.Applications?.AddApplicationManifest(path, false);
+                if (error != EVRApplicationError.None)
+                    Debug.LogWarning($"Error installing app manifest: {error}");
+            }
+
+            private static readonly JsonSerializerOptions JSonOpts = new()
+            {
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+                WriteIndented = true,
+                IncludeFields = true
+            };
 
             private static void Update()
             {

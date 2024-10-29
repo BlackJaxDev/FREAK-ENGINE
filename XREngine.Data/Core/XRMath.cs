@@ -1103,5 +1103,11 @@ namespace XREngine.Data.Core
 
         public static bool Approx(Vector4 value1, Vector4 value2, float tolerance = 0.0001f)
             => Approx(value1.X, value2.X, tolerance) && Approx(value1.Y, value2.Y, tolerance) && Approx(value1.Z, value2.Z, tolerance) && Approx(value1.W, value2.W, tolerance);
+
+        public static bool IsApproximatelyIdentity(Quaternion r, float tolerance) =>
+            Approx(r.X, 0.0f, tolerance) &&
+            Approx(r.Y, 0.0f, tolerance) &&
+            Approx(r.Z, 0.0f, tolerance) &&
+            Approx(r.W, 1.0f, tolerance);
     }
 }

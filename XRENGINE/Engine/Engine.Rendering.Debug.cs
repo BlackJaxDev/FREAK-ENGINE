@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using Extensions;
+using System.Numerics;
 using XREngine.Data.Colors;
 using XREngine.Data.Core;
 using XREngine.Data.Rendering;
@@ -62,7 +63,7 @@ namespace XREngine
                     renderer.SetParameter(0, color);
                     renderer.Render(
                         Matrix4x4.CreateScale((end - start).Length()) *
-                        Matrix4x4.CreateLookTo(Vector3.Zero, start - end, Globals.Up) *
+                        Matrix4x4.CreateFromQuaternion(XRMath.RotationBetweenVectors(Globals.Backward, (end - start).Normalize())) *
                         Matrix4x4.CreateTranslation(start));
                 }
 

@@ -24,10 +24,10 @@
 
         public abstract Server? GetNextServer();
 
-        public IEnumerable<Guid> GetAvailableInstances()
-        {
-            return _servers.SelectMany(s => s.Instances.Where(r => r.CurrentPlayers < r.MaxPlayers));
-        }
+        //public IEnumerable<Guid> GetAvailableInstances()
+        //{
+        //    return _servers.SelectMany(s => s.Instances.Where(r => r.CurrentPlayers < r.MaxPlayers));
+        //}
 
         public (Server? server, Guid? instance) RequestInstanceServer(Guid roomId)
         {
