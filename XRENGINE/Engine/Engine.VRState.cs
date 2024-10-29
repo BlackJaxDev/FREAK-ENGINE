@@ -1,13 +1,12 @@
 ﻿using OpenVR.NET;
 using OpenVR.NET.Devices;
 using OpenVR.NET.Manifest;
-using System.IO;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
-using System.Text.Json.Serialization;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Valve.VR;
 using XREngine.Data.Core;
-using System.Diagnostics.CodeAnalysis;
 
 namespace XREngine
 {
@@ -22,8 +21,9 @@ namespace XREngine
 
             [RequiresDynamicCode("")]
             [RequiresUnreferencedCode("")]
-            public static bool Initialize(IActionManifest actionManifest, VrManifest vrManifest)
+            public static bool Initialize(IActionManifest actionManifest, VrManifest vrManifest, Func<nint> getEyeTextureHandleFunc)
             {
+                GetEyeTextureHandle = getEyeTextureHandleFunc;
                 var vr = Api;
                 vr.DeviceDetected += OnDeviceDetected;
                 if (!vr.TryStart(EVRApplicationType.VRApplication_Scene))
@@ -76,9 +76,12 @@ namespace XREngine
             private static void Render()
             {
                 var drawContext = Api.UpdateDraw(Origin);
-                //nint handle = GetEyeTexHandle();
-                //SubmitRender(handle);
+                nint? handle = GetEyeTextureHandle?.Invoke();
+                if (handle is not null)
+                    SubmitRender(handle.Value);
             }
+
+            public static Func<nint>? GetEyeTextureHandle { get; set; }
 
             private static void OnDeviceDetected(VrDevice device)
             {
@@ -201,11 +204,6 @@ namespace XREngine
                 return hasError;
             }
 
-            internal static void Initialize(object vRActionManifest, object vRManifest)
-            {
-                throw new NotImplementedException();
-            }
-
             public class DevicePoseInfo : XRBase
             {
                 public event Action<DevicePoseInfo>? ValidPoseChanged;
@@ -251,13 +249,5 @@ namespace XREngine
                 }
             }
         }
-        //public enum GameAction
-        //{
-
-        //}
-        //public enum ActionCategory
-        //{
-
-        //}
     }
 }

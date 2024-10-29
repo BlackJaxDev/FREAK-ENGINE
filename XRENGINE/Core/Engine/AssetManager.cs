@@ -257,6 +257,7 @@ namespace XREngine
             }
             catch (Exception e)
             {
+                Debug.LogException(e, $"An error occurred while loading the asset at '{filePath}'.");
                 return null;
             }
 #endif
@@ -281,6 +282,7 @@ namespace XREngine
             }
             catch (Exception e)
             {
+                Debug.LogException(e, $"An error occurred while loading the asset at '{filePath}'.");
                 return null;
             }
 #endif
@@ -304,7 +306,7 @@ namespace XREngine
             }
             catch (Exception e)
             {
-
+                Debug.LogException(e, $"An error occurred while saving the asset at '{asset.FilePath}'.");
             }
 #endif
         }
@@ -326,15 +328,15 @@ namespace XREngine
             }
             catch (Exception e)
             {
-
+                Debug.LogException(e, $"An error occurred while saving the asset at '{asset.FilePath}'.");
             }
 #endif
         }
 
-        private string VerifyAssetPath(XRAsset asset, string directory)
+        public static string VerifyAssetPath(XRAsset asset, string directory)
         {
             VerifyDirectoryExists(directory);
-            string name = string.IsNullOrWhiteSpace(asset.Name) ? GetType().Name : asset.Name;
+            string name = string.IsNullOrWhiteSpace(asset.Name) ? asset.GetType().Name : asset.Name;
             string fileName = $"{name}.{AssetExtension}";
             string path = Path.Combine(directory, fileName);
             return path;
@@ -349,6 +351,10 @@ namespace XREngine
             {
 #endif
             string path = VerifyAssetPath(asset, directory);
+
+            if (!(AllowOverwriteCallback?.Invoke(path) ?? true))
+                path = GetUniqueAssetPath(path);
+
             File.WriteAllText(path, Serializer.Serialize(asset));
             asset.FilePath = path;
             PostSaved(asset, true);
@@ -356,9 +362,31 @@ namespace XREngine
             }
             catch (Exception e)
             {
-
+                Debug.LogException(e, $"An error occurred while saving the asset to '{directory}'.");
             }
 #endif
+        }
+
+        public Func<string, bool>? AllowOverwriteCallback { get; set; } = path => false;
+
+        public static string GetUniqueAssetPath(string path)
+        {
+            if (!File.Exists(path))
+                return path;
+
+            string? dir = Path.GetDirectoryName(path);
+            if (dir is null)
+                return path;
+
+            string name = Path.GetFileNameWithoutExtension(path);
+            string ext = Path.GetExtension(path);
+            int i = 1;
+            string newPath;
+            do
+            {
+                newPath = Path.Combine(dir, $"{name} ({i++}){ext}");
+            } while (File.Exists(newPath));
+            return newPath;
         }
 
         public Task SaveToAsync(XRAsset asset, Environment.SpecialFolder folder, params string[] folderNames)
@@ -378,11 +406,16 @@ namespace XREngine
             }
             catch (Exception e)
             {
-
+                Debug.LogException(e, $"An error occurred while saving the asset to '{directory}'.");
             }
 #endif
         }
-        
+
+        public Task SaveGameAssetToAsync(XRAsset asset, params string[] folderNames)
+            => SaveToAsync(asset, Path.Combine(GameAssetsPath, Path.Combine(folderNames)));
+        public void SaveGameAssetTo(XRAsset asset, params string[] folderNames)
+            => SaveTo(asset, Path.Combine(GameAssetsPath, Path.Combine(folderNames)));
+
         public static readonly ISerializer Serializer = new SerializerBuilder()
             .WithEventEmitter(nextEmitter => new DepthTrackingEventEmitter(nextEmitter))
             .WithTypeConverter(new XRAssetYamlConverter())

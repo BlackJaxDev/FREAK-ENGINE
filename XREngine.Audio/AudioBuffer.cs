@@ -1,5 +1,9 @@
-﻿using Silk.NET.OpenAL;
+﻿using MathNet.Numerics.IntegralTransforms;
+using NAudio.Wave;
+using SevenZip.Buffer;
+using Silk.NET.OpenAL;
 using Silk.NET.OpenAL.Extensions.EXT;
+using System.Numerics;
 using XREngine.Core;
 using XREngine.Data;
 using XREngine.Data.Core;
@@ -57,6 +61,125 @@ namespace XREngine.Audio
                     break;
             }
             ParentListener.VerifyError();
+        }
+
+        /// <summary>
+        /// How magnitude values are accumulated for each frequency band.
+        /// This will affect how the strengths of each band appear.
+        /// </summary>
+        public enum EMagAccumMethod
+        {
+            Max,
+            Average,
+            Sum
+        }
+
+        /// <summary>
+        /// Calculates the strength of the bass, mids, and treble frequencies in the audio buffer.
+        /// </summary>
+        /// <param name="samples"></param>
+        /// <param name="sampleRate"></param>
+        /// <param name="bass"></param>
+        /// <param name="mids"></param>
+        /// <param name="treble"></param>
+        /// <returns></returns>
+        public static (float bass, float mids, float treble) FastFourier(
+            float[] samples,
+            int sampleRate,
+            (float upperRange, EMagAccumMethod accum) bass,
+            (float upperRange, EMagAccumMethod accum) mids,
+            (float upperRange, EMagAccumMethod accum) treble)
+        {
+            int sampleCount = samples.Length;
+            Complex[] complexBuffer = samples.Select(x => new Complex(x, 0.0)).ToArray();
+            Fourier.Forward(complexBuffer, FourierOptions.Matlab);
+
+            // Analyze the frequency bands
+            float bassStrength = 0;
+            float midsStrength = 0;
+            float trebleStrength = 0;
+            int bassCount = 0;
+            int midsCount = 0;
+            int trebleCount = 0;
+            float maxBass = 0;
+            float maxMids = 0;
+            float maxTreble = 0;
+
+            // FFT output gives us frequency bins, we need to find which bins correspond to bass, mids, treble
+            float binSize = (float)sampleRate / sampleCount;
+
+            for (int i = 0; i < complexBuffer.Length / 2; i++)
+            {
+                float magnitude = (float)complexBuffer[i].Magnitude;
+                float frequency = i * binSize;
+                if (frequency <= bass.upperRange)
+                {
+                    if (bass.accum != EMagAccumMethod.Max)
+                    {
+                        bassStrength += magnitude;
+                        if (bass.accum == EMagAccumMethod.Average)
+                            bassCount++;
+                    }
+                    else
+                        bassStrength = Math.Max(bassStrength, magnitude);
+                }
+                else if (frequency <= mids.upperRange)
+                {
+                    if (mids.accum != EMagAccumMethod.Max)
+                    {
+                        midsStrength += magnitude;
+                        if (mids.accum == EMagAccumMethod.Average)
+                            midsCount++;
+                    }
+                    else
+                        midsStrength = Math.Max(midsStrength, magnitude);
+                }
+                else if (frequency <= treble.upperRange)
+                {
+                    if (treble.accum != EMagAccumMethod.Max)
+                    {
+                        trebleStrength += magnitude;
+                        if (treble.accum == EMagAccumMethod.Average)
+                            trebleCount++;
+                    }
+                    else
+                        trebleStrength = Math.Max(trebleStrength, magnitude);
+                }
+            }
+            switch (bass.accum)
+            {
+                case EMagAccumMethod.Average:
+                    bassStrength /= bassCount;
+                    break;
+                case EMagAccumMethod.Sum:
+                    break;
+                case EMagAccumMethod.Max:
+                    bassStrength = maxBass;
+                    break;
+            }
+            switch (mids.accum)
+            {
+                case EMagAccumMethod.Average:
+                    midsStrength /= midsCount;
+                    break;
+                case EMagAccumMethod.Sum:
+                    break;
+                case EMagAccumMethod.Max:
+                    midsStrength = maxMids;
+                    break;
+            }
+            switch (treble.accum)
+            {
+                case EMagAccumMethod.Average:
+                    trebleStrength /= trebleCount;
+                    break;
+                case EMagAccumMethod.Sum:
+                    break;
+                case EMagAccumMethod.Max:
+                    trebleStrength = maxTreble;
+                    break;
+            }
+            return (bassStrength, midsStrength, trebleStrength);
         }
 
         public void Dispose()

@@ -38,7 +38,9 @@ internal class Program
         RenderInfo2D.ConstructorOverride = RenderInfo2DConstructor;
         RenderInfo3D.ConstructorOverride = RenderInfo3DConstructor;
 
-        Engine.Run(GetEngineSettings(CreateTestWorld()), GetGameState());
+        Engine.Run(
+            Engine.LoadOrGenerateGameSettings(() => GetEngineSettings(CreateTestWorld())),
+            Engine.LoadOrGenerateGameState());
     }
 
     static XRWorld CreateTestWorld()
@@ -384,7 +386,7 @@ internal class Program
         };
     }
 
-    static GameStartupSettings GetEngineSettings(XRWorld? targetWorld = null)
+    static GameStartupSettings GetEngineSettings(XRWorld targetWorld)
     {
         int w = 1920;
         int h = 1080;
@@ -394,7 +396,6 @@ internal class Program
         int primaryX = NativeMethods.GetSystemMetrics(0);
         int primaryY = NativeMethods.GetSystemMetrics(1);
 
-        //TODO: read from init file if it exists
         return new GameStartupSettings()
         {
             StartupWindows =
@@ -402,7 +403,7 @@ internal class Program
                 new()
                 {
                     WindowTitle = "XRE Editor",
-                    TargetWorld = targetWorld ?? new XRWorld(),
+                    TargetWorld = targetWorld,
                     WindowState = EWindowState.Windowed,
                     X = primaryX / 2 - w / 2,
                     Y = primaryY / 2 - h / 2,

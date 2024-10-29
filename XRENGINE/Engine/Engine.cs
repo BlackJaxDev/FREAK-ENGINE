@@ -126,24 +126,22 @@ namespace XREngine
 
             CreateWindows(startupSettings.StartupWindows);
 
-            if (startupSettings.IsVR && startupSettings.VRManifest is not null && startupSettings.VRActionManifest is not null)
-                VRState.Initialize(startupSettings.VRActionManifest, startupSettings.VRManifest);
-
             var appType = startupSettings.AppType;
 
-            if (appType == GameStartupSettings.EAppType.Server ||
-                appType == GameStartupSettings.EAppType.P2PClient)
+            bool p2p = appType == GameStartupSettings.EAppType.P2PClient;
+            Networking.PeerToPeer = p2p;
+
+            if (appType == GameStartupSettings.EAppType.Server || p2p)
                 Networking.StartServer(
-                    startupSettings.UdpMulticastGroupIP,
+                    IPAddress.Parse(startupSettings.UdpMulticastGroupIP),
                     startupSettings.UdpMulticastServerPort,
-                    startupSettings.TcpListenerIP,
+                    IPAddress.Parse(startupSettings.TcpListenerIP),
                     startupSettings.TcpListenerPort);
 
-            if (appType == GameStartupSettings.EAppType.Client ||
-                appType == GameStartupSettings.EAppType.P2PClient)
+            if (appType == GameStartupSettings.EAppType.Client || p2p)
                 Networking.StartClient(
-                    startupSettings.UdpMulticastGroupIP,
-                    startupSettings.ServerIP,
+                    IPAddress.Parse(startupSettings.UdpMulticastGroupIP),
+                    IPAddress.Parse(startupSettings.ServerIP),
                     startupSettings.UdpMulticastServerPort,
                     startupSettings.TcpListenerPort);
 

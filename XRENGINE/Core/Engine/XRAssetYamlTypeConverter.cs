@@ -1,6 +1,4 @@
-﻿using SevenZip.CommandLineParser;
-using System.Diagnostics.CodeAnalysis;
-using XREngine.Core.Files;
+﻿using XREngine.Core.Files;
 using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
 using YamlDotNet.Serialization;
@@ -105,6 +103,11 @@ namespace XREngine
         [ThreadStatic]
         private static int _depth;
 
+        public override void Emit(AliasEventInfo eventInfo, IEmitter emitter)
+        {
+            base.Emit(eventInfo, emitter);
+        }
+
         public override void Emit(ScalarEventInfo eventInfo, IEmitter emitter)
         {
             base.Emit(eventInfo, emitter);
@@ -141,24 +144,24 @@ namespace XREngine
     public class XRAssetYamlConverter : IYamlTypeConverter
     {
         public bool Accepts(Type type) =>
-            type.IsSubclassOf(typeof(XRAsset));
+            type.IsSubclassOf(typeof(XRAsset)) && DepthTrackingEventEmitter.CurrentDepth > 1;
 
         public object? ReadYaml(IParser parser, Type type, ObjectDeserializer rootDeserializer)
             => throw new NotImplementedException("Deserialization is handled by the custom deserializer.");
 
         public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer serializer)
         {
-            switch (DepthTrackingEventEmitter.CurrentDepth)
-            {
-                case 0:
-                    // At root, use default serialization
-                    serializer(value);
-                    break;
-                default:
-                    // Nested, apply custom serialization
+            //switch (DepthTrackingEventEmitter.CurrentDepth)
+            //{
+            //    case 0:
+            //        // At root, use default serialization
+            //        serializer(value);
+            //        break;
+            //    default:
+            //        // Nested, apply custom serialization
                     WriteAsset(emitter, value as XRAsset);
-                    break;
-            }
+            //        break;
+            //}
         }
 
         private static void WriteAsset(IEmitter emitter, XRAsset? asset)

@@ -231,7 +231,7 @@ namespace XREngine
 
             private ConcurrentQueue<byte[]> UdpSendQueue { get; } = new ConcurrentQueue<byte[]>();
             private ConcurrentQueue<byte[]> TcpSendQueue { get; } = new ConcurrentQueue<byte[]>();
-            public bool PeerToPeer { get; private set; } = false;
+            public bool PeerToPeer { get; set; } = false;
 
             private void EnqueueBroadcast(byte[] bytes, bool udp)
             {

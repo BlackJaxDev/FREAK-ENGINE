@@ -1,25 +1,29 @@
 ﻿using OpenVR.NET.Manifest;
 using System.Net;
-using XREngine.Data.Core;
+using XREngine.Core.Files;
 using XREngine.Data.Rendering;
-using XREngine.Rendering;
 
 namespace XREngine
 {
-    public class GameStartupSettings : XRBase
+    public class GameStartupSettings : XRAsset
     {
+        private EAppType _appType = EAppType.Client;
         private List<GameWindowStartupSettings> _startupWindows = [];
+        private ETwoPlayerPreference _twoPlayerViewportPreference;
+        private EThreePlayerPreference _threePlayerViewportPreference;
         private EOutputVerbosity _outputVerbosity = EOutputVerbosity.Verbose;
         private bool _useIntegerWeightingIds = true;
         private UserSettings _defaultUserSettings = new();
-        private ETwoPlayerPreference _twoPlayerViewportPreference;
-        private EThreePlayerPreference _threePlayerViewportPreference;
         private string _texturesFolder = "";
-        private EAppType _appType = EAppType.Client;
-        private bool _isClient = true;
-        private bool _isVR = false;
+
         private IActionManifest? _vrActionManifest;
         private VrManifest? _vrManifest;
+
+        private string _udpMulticastGroupIP = "239.0.0.222";
+        private int _udpMulticastServerPort = 5000;
+        private string _tcpListenerIP = "0.0.0.0";
+        private int _tcpListenerPort = 5001;
+        private string _serverIP = "127.0.0.1";
 
         public List<GameWindowStartupSettings> StartupWindows
         {
@@ -68,30 +72,30 @@ namespace XREngine
             get => _appType;
             set => SetField(ref _appType, value);
         }
-        public bool IsVR
+        public string UdpMulticastGroupIP
         {
-            get => _isVR;
-            set => SetField(ref _isVR, value);
+            get => _udpMulticastGroupIP;
+            set => SetField(ref _udpMulticastGroupIP, value);
         }
-        public IActionManifest? VRActionManifest
+        public int UdpMulticastServerPort
         {
-            get => _vrActionManifest;
-            set => SetField(ref _vrActionManifest, value);
+            get => _udpMulticastServerPort;
+            set => SetField(ref _udpMulticastServerPort, value);
         }
-        public VrManifest? VRManifest
+        public string TcpListenerIP
         {
-            get => _vrManifest;
-            set => SetField(ref _vrManifest, value);
+            get => _tcpListenerIP;
+            set => SetField(ref _tcpListenerIP, value);
         }
-        public IPAddress UdpMulticastGroupIP { get; set; } = IPAddress.Parse("239.0.0.222");
-        public int UdpMulticastServerPort { get; set; } = 5000;
-        public IPAddress TcpListenerIP { get; set; } = IPAddress.Any;
-        public int TcpListenerPort { get; set; } = 5001;
-        public IPAddress ServerIP { get; set; } = IPAddress.Parse("127.0.0.1");
-    }
-    public class GameState
-    {
-        public List<GameWindowStartupSettings>? Windows { get; set; } = [];
-        public List<XRWorldInstance>? Worlds { get; set; } = [];
+        public int TcpListenerPort
+        {
+            get => _tcpListenerPort;
+            set => SetField(ref _tcpListenerPort, value);
+        }
+        public string ServerIP
+        {
+            get => _serverIP;
+            set => SetField(ref _serverIP, value);
+        }
     }
 }

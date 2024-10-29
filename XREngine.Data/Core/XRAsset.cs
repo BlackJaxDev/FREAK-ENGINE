@@ -12,10 +12,15 @@ namespace XREngine.Core.Files
         public XRAsset() { }
         public XRAsset(string name) => Name = name;
 
+        private EventList<XRAsset> _embeddedAssets = [];
         /// <summary>
         /// List of sub-assets contained in this file.
         /// </summary>
-        public EventList<XRAsset> EmbeddedAssets { get; } = [];
+        public EventList<XRAsset> EmbeddedAssets
+        {
+            get => _embeddedAssets; 
+            private set => _embeddedAssets = value;
+        }
 
         private string? _filePath;
         /// <summary>

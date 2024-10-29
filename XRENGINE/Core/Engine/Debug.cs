@@ -100,6 +100,7 @@ namespace XREngine
             //    XDebug.Print(message);
             //else
             Trace.WriteLine(message);
+            Console.WriteLine(message);
 #endif
         }
 
