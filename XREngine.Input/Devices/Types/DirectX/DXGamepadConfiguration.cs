@@ -12,8 +12,8 @@ namespace XREngine.Input.Devices.DirectX
         public float Map(EGamePadAxis axis, Gamepad state)
             => AxisMethods[(int)AxisMap[axis]](state);
         
-        private static readonly Func<Gamepad, bool>[] ButtonMethods = new Func<Gamepad, bool>[]
-        {
+        private static readonly Func<Gamepad, bool>[] ButtonMethods =
+        [
             state => state.Buttons.HasFlag(GamepadButtonFlags.DPadUp),
             state => state.Buttons.HasFlag(GamepadButtonFlags.DPadDown),
             state => state.Buttons.HasFlag(GamepadButtonFlags.DPadLeft),
@@ -32,9 +32,9 @@ namespace XREngine.Input.Devices.DirectX
 
             state => state.Buttons.HasFlag(GamepadButtonFlags.LeftShoulder),
             state => state.Buttons.HasFlag(GamepadButtonFlags.RightShoulder),
-        };
-        private static readonly Func<Gamepad, float>[] AxisMethods = new Func<Gamepad, float>[]
-        {
+        ];
+        private static readonly Func<Gamepad, float>[] AxisMethods =
+        [
             state => state.LeftTrigger * ByteDiv,
             state => state.RightTrigger * ByteDiv,
 
@@ -43,6 +43,6 @@ namespace XREngine.Input.Devices.DirectX
 
             state => state.RightThumbX * ShortDiv,
             state => state.RightThumbY * ShortDiv,
-        };
+        ];
     }
 }

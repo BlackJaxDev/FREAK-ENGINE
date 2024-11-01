@@ -206,14 +206,14 @@ namespace XREngine
 
             private void SendDirectTcp()
             {
-                if (TcpReceiver is not null)
+                if (TcpReceiver is null)
+                    return;
+                
+                NetworkStream stream = TcpReceiver.GetStream();
+                while (TcpSendQueue.TryDequeue(out byte[]? bytes))
                 {
-                    NetworkStream stream = TcpReceiver.GetStream();
-                    while (TcpSendQueue.TryDequeue(out byte[]? bytes))
-                    {
-                        stream.Write(bytes, 0, bytes.Length);
-                        stream.Flush();
-                    }
+                    stream.Write(bytes, 0, bytes.Length);
+                    stream.Flush();
                 }
             }
 
@@ -308,6 +308,9 @@ namespace XREngine
 
             public void Broadcast(XRWorldObjectBase obj, bool udp, bool compress = true)
             {
+                if (!obj.HasAuthority)
+                    return;
+
                 bool connected = udp ? UDPServerConnectionEstablished : TCPConnectionEstablished;
                 if (!connected)
                     return;
@@ -321,6 +324,9 @@ namespace XREngine
 
             public void BroadcastData(XRWorldObjectBase obj, object value, string idStr, bool udp, bool compress = true)
             {
+                if (!obj.HasAuthority)
+                    return;
+
                 bool connected = udp ? UDPServerConnectionEstablished : TCPConnectionEstablished;
                 if (!connected)
                     return;
@@ -334,6 +340,9 @@ namespace XREngine
 
             public void BroadcastPropertyUpdated<T>(XRWorldObjectBase obj, string? propName, T? value, bool udp, bool compress = true)
             {
+                if (!obj.HasAuthority)
+                    return;
+
                 bool connected = udp ? UDPServerConnectionEstablished : TCPConnectionEstablished;
                 if (!connected)
                     return;

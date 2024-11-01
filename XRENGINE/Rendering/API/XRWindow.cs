@@ -3,6 +3,7 @@ using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
 using XREngine.Data.Core;
+using XREngine.Input.Devices;
 using XREngine.Rendering.OpenGL;
 using XREngine.Rendering.Vulkan;
 
@@ -23,7 +24,7 @@ namespace XREngine.Rendering
         /// </summary>
         public AbstractRenderer Renderer { get; }
 
-        //public IInputContext? Input { get; private set; }
+        public IInputContext? Input { get; private set; }
 
         public XRWindow(WindowOptions options)
         {
@@ -41,7 +42,24 @@ namespace XREngine.Rendering
 
         private void Window_Load()
         {
-            //Input = Window.CreateInput();
+            Input = Window.CreateInput();
+            Input.ConnectionChanged += Input_ConnectionChanged;
+        }
+
+        private void Input_ConnectionChanged(IInputDevice device, bool connected)
+        {
+            switch (device)
+            {
+                case IKeyboard keyboard:
+                    
+                    break;
+                case IMouse mouse:
+
+                    break;
+                case IGamepad gamepad:
+
+                    break;
+            }
         }
 
         private void Window_Closing()

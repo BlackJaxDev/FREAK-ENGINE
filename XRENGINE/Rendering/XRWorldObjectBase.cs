@@ -26,6 +26,12 @@ namespace XREngine
         private static readonly Dictionary<string, (PropertyInfo prop, bool udp)> _replicateOnChangeProperties = [];
         private static readonly Dictionary<string, (PropertyInfo prop, bool udp)> _replicateOnTickProperties = [];
 
+        /// <summary>
+        /// If true, this object has authority over its properties and will replicate them to the network.
+        /// If false, this object will not replicate its properties to the network and will only receive updates.
+        /// </summary>
+        public bool HasAuthority { get; internal set; } = true;
+
         static XRWorldObjectBase()
         {
             //Collect all properties with replicate attributes

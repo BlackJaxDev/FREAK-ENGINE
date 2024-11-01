@@ -121,9 +121,14 @@ namespace XREngine.Rendering
             if (camera is null)
                 return;
 
-            var cameraComponent = CameraComponent;
-            World?.VisualScene?.CollectRenderedItems(_renderPipeline.MeshRenderCommands, (cameraComponent?.CullWithFrustum ?? true) ? camera.WorldFrustum() : cameraComponent.CullingFrustumOverride, camera);
+            World?.VisualScene?.CollectRenderedItems(_renderPipeline.MeshRenderCommands, GetCollectionVolume(camera), camera);
             //cameraComponent?.UserInterface?.PreRender(this, cameraComponent);
+        }
+
+        private IVolume? GetCollectionVolume(XRCamera? camera)
+        {
+            var cameraComponent = CameraComponent;
+            return (cameraComponent?.CullWithFrustum ?? true) ? cameraComponent?.CullingFrustumOverride?.Invoke() ?? camera?.WorldFrustum() : null;
         }
 
         private void SwapBuffers()

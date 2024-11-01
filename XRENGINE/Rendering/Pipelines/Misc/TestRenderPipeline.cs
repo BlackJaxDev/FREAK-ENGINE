@@ -79,8 +79,6 @@ public class TestRenderPipeline : RenderPipeline
     }
 
     const string UserInterfaceFBOName = "UserInterfaceFBO";
-    public override string GetUserInterfaceFBOName()
-        => UserInterfaceFBOName;
 
     private const string InternalResFBOName = "InternalResFBO";
     private const string HDRSceneTextureName = "HDRSceneTex";

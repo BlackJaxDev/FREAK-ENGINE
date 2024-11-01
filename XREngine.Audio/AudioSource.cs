@@ -51,6 +51,10 @@ namespace XREngine.Audio
                     SetBufferHandle(0);
             }
         }
+
+        private List<AudioBuffer> _currentStreamingBuffers = [];
+        public IReadOnlyList<AudioBuffer> CurrentStreamingBuffers => _currentStreamingBuffers;
+
         public unsafe void QueueBuffers(params AudioBuffer[] buffers)
         {
             uint[] handles = new uint[buffers.Length];
@@ -66,6 +70,25 @@ namespace XREngine.Audio
                 handles[i] = buffers[i].Handle;
             fixed (uint* pBuffers = handles)
                 Api.SourceUnqueueBuffers(Handle, buffers.Length, pBuffers);
+        }
+        public unsafe AudioBuffer[]? UnqueueConsumedBuffers(int requestedCount = 0)
+        {
+            int count = requestedCount <= 0 ? BuffersProcessed : Math.Min(BuffersProcessed, requestedCount);
+            if (count == 0)
+                return null;
+
+            AudioBuffer[] buffers = new AudioBuffer[count];
+            uint[] handles = new uint[count];
+            for (int i = 0; i < count; i++)
+            {
+                var buf = _currentStreamingBuffers[0];
+                buffers[i] = buf;
+                handles[i] = buf.Handle;
+                _currentStreamingBuffers.RemoveAt(0);
+            }
+            fixed (uint* pBuffers = handles)
+                Api.SourceUnqueueBuffers(Handle, count, pBuffers);
+            return buffers;
         }
         #endregion
 

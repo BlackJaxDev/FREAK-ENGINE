@@ -1,4 +1,6 @@
-﻿using XREngine.Data.Geometry;
+﻿using XREngine.Components;
+using XREngine.Data.Geometry;
+using XREngine.Rendering.UI;
 using XREngine.Scene;
 
 namespace XREngine.Rendering;
@@ -31,8 +33,16 @@ public sealed partial class XRRenderPipelineInstance
         /// </summary>
         public bool ShadowPass { get; private set; } = false;
         public XRMaterial? GlobalMaterialOverride { get; set; }
+        public UICanvasComponent? UserInterface { get; private set; }
 
-        public StateObject PushMainAttributes(XRViewport? viewport, VisualScene? scene, XRCamera? camera, XRFrameBuffer? target, bool shadowPass, XRMaterial? shadowMaterial)
+        public StateObject PushMainAttributes(
+            XRViewport? viewport,
+            VisualScene? scene,
+            XRCamera? camera,
+            XRFrameBuffer? target,
+            bool shadowPass,
+            XRMaterial? shadowMaterial,
+            UICanvasComponent? userInterface)
         {
             WindowViewport = viewport;
             MainScene = scene;
@@ -40,6 +50,7 @@ public sealed partial class XRRenderPipelineInstance
             OutputFBO = target;
             ShadowPass = shadowPass;
             GlobalMaterialOverride = shadowMaterial;
+            UserInterface = userInterface?.DrawSpace == ECanvasDrawSpace.Screen ? userInterface : null;
 
             if (WindowViewport is not null)
                 _renderingViewports.Push(WindowViewport);
@@ -70,6 +81,7 @@ public sealed partial class XRRenderPipelineInstance
             OutputFBO = null;
             ShadowPass = false;
             GlobalMaterialOverride = null;
+            UserInterface = null;
         }
 
         public XRCamera? RenderingCamera

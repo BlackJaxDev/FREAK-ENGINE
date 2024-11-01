@@ -137,14 +137,18 @@ namespace XREngine.Rendering
                 if (!_transformBucketsByDepthRendering.TryGetValue(depth, out var bag))
                     continue;
 
-                Parallel.ForEach(bag, transform =>
-                {
-                    if (!transform.ParallelDepthRecalculate())
-                        return;
+                //Parallel.ForEach(bag, transform =>
+                //{
+                //    if (!transform.ParallelDepthRecalculate())
+                //        return;
                     
-                    lock (depthKeys)
+                //    lock (depthKeys)
+                //        depthKeys.Add(transform.Depth + 1);
+                //});
+
+                foreach (var transform in bag)
+                    if (transform.ParallelDepthRecalculate())
                         depthKeys.Add(transform.Depth + 1);
-                });
             }
         }
 

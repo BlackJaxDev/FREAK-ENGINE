@@ -91,6 +91,7 @@ namespace XREngine.Audio
                 default:
                     return false;
             }
+            buffers.Enqueue(buffer);
             return true;
         }
     }

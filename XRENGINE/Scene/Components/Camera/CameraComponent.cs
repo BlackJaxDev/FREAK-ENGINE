@@ -23,12 +23,12 @@ namespace XREngine.Components
             set => SetField(ref _defaultRenderTarget, value);
         }
 
-        private ELocalPlayerIndex? _localPlayerIndex = null;
-        public ELocalPlayerIndex? LocalPlayerIndex
-        {
-            get => _localPlayerIndex;
-            set => SetField(ref _localPlayerIndex, value);
-        }
+        //private ELocalPlayerIndex? _localPlayerIndex = null;
+        //public ELocalPlayerIndex? LocalPlayerIndex
+        //{
+        //    get => _localPlayerIndex;
+        //    set => SetField(ref _localPlayerIndex, value);
+        //}
 
         public UICanvasComponent? _userInterfaceOverlay;
         /// <summary>
@@ -66,7 +66,8 @@ namespace XREngine.Components
 
         private bool _cullWithFrustum = true;
         /// <summary>
-        /// This should always be true, but can be set to false for debug purposes.
+        /// If true, the camera will cull objects that are not within the camera's frustum.
+        /// This should always be true in production, but can be set to false for debug purposes.
         /// </summary>
         public bool CullWithFrustum
         {
@@ -74,11 +75,11 @@ namespace XREngine.Components
             set => SetField(ref _cullWithFrustum, value);
         }
 
-        private IVolume? _cullingFrustumOverride = null;
+        private Func<IVolume>? _cullingFrustumOverride = null;
         /// <summary>
-        /// When CullWithFrustum is false 
+        /// When CullWithFrustum is true and this property is not null, this method retrieves the frustum to cull with.
         /// </summary>
-        public IVolume? CullingFrustumOverride
+        public Func<IVolume>? CullingFrustumOverride
         {
             get => _cullingFrustumOverride;
             set => SetField(ref _cullingFrustumOverride, value);
@@ -87,18 +88,18 @@ namespace XREngine.Components
         public CameraComponent() : base()
         {
             _camera = new(() => new XRCamera(Transform), true);
-            Engine.State.LocalPlayerAdded += LocalPlayerAdded;
+            //Engine.State.LocalPlayerAdded += LocalPlayerAdded;
         }
         ~CameraComponent()
         {
-            Engine.State.LocalPlayerAdded -= LocalPlayerAdded;
+            //Engine.State.LocalPlayerAdded -= LocalPlayerAdded;
         }
 
-        private void LocalPlayerAdded(LocalPlayerController controller)
-        {
-            if (controller.LocalPlayerIndex == LocalPlayerIndex)
-                controller.Cameras.Add(this);
-        }
+        //private void LocalPlayerAdded(LocalPlayerController controller)
+        //{
+        //    if (controller.LocalPlayerIndex == LocalPlayerIndex)
+        //        controller.Cameras.Add(this);
+        //}
 
         protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
         {
@@ -107,10 +108,10 @@ namespace XREngine.Components
             {
                 switch (propName)
                 {
-                    case nameof(LocalPlayerIndex):
-                        if (LocalPlayerIndex is not null)
-                            Engine.State.GetLocalPlayer(LocalPlayerIndex.Value)?.Cameras.Remove(this);
-                        break;
+                    //case nameof(LocalPlayerIndex):
+                    //    if (LocalPlayerIndex is not null)
+                    //        Engine.State.GetLocalPlayer(LocalPlayerIndex.Value)?.Cameras.Remove(this);
+                    //    break;
                     case nameof(DefaultRenderTarget):
                         if (DefaultRenderTarget is not null && World is not null)
                             World.FramebufferCameras.Remove(this);
@@ -128,10 +129,10 @@ namespace XREngine.Components
             base.OnPropertyChanged(propName, prev, field);
             switch (propName)
             {
-                case nameof(LocalPlayerIndex):
-                    if (LocalPlayerIndex is not null)
-                        Engine.State.GetLocalPlayer(LocalPlayerIndex.Value)?.Cameras.Add(this);
-                    break;
+                //case nameof(LocalPlayerIndex):
+                //    if (LocalPlayerIndex is not null)
+                //        Engine.State.GetLocalPlayer(LocalPlayerIndex.Value)?.Cameras.Add(this);
+                //    break;
                 //case nameof(RenderPipeline):
                 //    if (_fboRenderPipeline is not null)
                 //        _fboRenderPipeline.Pipeline = RenderPipeline;

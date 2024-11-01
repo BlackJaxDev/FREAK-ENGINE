@@ -25,12 +25,12 @@ namespace XREngine.Input
             }
         }
 
-        private List<CameraComponent> _cameras = [];
-        public List<CameraComponent> Cameras
-        {
-            get => _cameras;
-            set => SetField(ref _cameras, value);
-        }
+        //private List<CameraComponent> _cameras = [];
+        //public List<CameraComponent> Cameras
+        //{
+        //    get => _cameras;
+        //    set => SetField(ref _cameras, value);
+        //}
 
         public override PawnComponent? ControlledPawn
         {
@@ -50,11 +50,11 @@ namespace XREngine.Input
         {
             if (_viewport is not null)
             {
-                _viewport.CameraComponent = _controlledPawn?.CurrentCameraComponent ?? (Cameras.Count > 0 ? Cameras[0] : null);
-                //Input.UpdateDevices(_viewport.Window?.Input);
+                _viewport.CameraComponent = _controlledPawn?.Camera;
+                Input.UpdateDevices(_viewport.Window?.Input);
             }
-            //else
-            //    Input.UpdateDevices(null);
+            else
+                Input.UpdateDevices(null);
         }
         protected override void RegisterInput(InputInterface input)
         {

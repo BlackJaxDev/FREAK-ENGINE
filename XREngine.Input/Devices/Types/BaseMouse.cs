@@ -1,21 +1,21 @@
-﻿namespace XREngine.Input.Devices
+﻿using System.Drawing;
+
+namespace XREngine.Input.Devices
 {
     [Serializable]
-    public abstract class BaseMouse : InputDevice
+    public abstract class BaseMouse(int index) : InputDevice(index)
     {
-        public BaseMouse(int index) : base(index) { }
-
         /// <summary>
-        /// Determines if the mouse cursor will jump to the other side of the Cursor.Clip rectangle.
+        /// If set, the mouse cursor will jump to the other side of the bounds.
         /// </summary>
-        public bool WrapCursorWithinClip
-        {
-            get => _cursor.WrapCursorWithinClip;
-            set => _cursor.WrapCursorWithinClip = value;
-        }
+        //public Rectangle? WrapBounds
+        //{
+        //    get => _cursor.WrapBounds;
+        //    set => _cursor.WrapBounds = value;
+        //}
 
-        protected CursorManager _cursor = new CursorManager();
-        protected ScrollWheelManager _wheel = new ScrollWheelManager();
+        protected CursorManager _cursor = new();
+        protected ScrollWheelManager _wheel = new();
 
         public abstract void SetCursorPosition(float x, float y);
 

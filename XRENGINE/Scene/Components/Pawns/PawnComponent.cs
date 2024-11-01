@@ -6,7 +6,8 @@ using XREngine.Rendering;
 namespace XREngine.Components
 {
     /// <summary>
-    /// A pawn is an actor that can be controlled by either a player or AI.
+    /// A pawn is an actor that can be controlled by either a local player, remote player, or AI.
+    /// This serves as only way for a player to perceive and interact with the game world.
     /// </summary>
     public class PawnComponent : XRComponent
     {
@@ -15,8 +16,7 @@ namespace XREngine.Components
         public XREvent<PawnComponent> PreUnpossessed;
         public XREvent<PawnComponent> PostUnpossessed;
 
-        private UIInputComponent? _hud = null;
-
+        private PawnController? _controller;
         /// <summary>
         /// The interface that is managing and providing input to this pawn.
         /// </summary>
@@ -89,18 +89,17 @@ namespace XREngine.Components
         /// </summary>
         public XRViewport? Viewport => LocalPlayerController?.Viewport;
 
-        private CameraComponent? _currentCameraComponent;
-        private PawnController? _controller;
-
+        private CameraComponent? _camera;
         /// <summary>
         /// Dictates the component controlling the view of this pawn's controller.
         /// </summary>
-        public CameraComponent? CurrentCameraComponent
+        public CameraComponent? Camera
         {
-            get => _currentCameraComponent;
-            set => SetField(ref _currentCameraComponent, value);
+            get => _camera;
+            set => SetField(ref _camera, value);
         }
 
+        private UIInputComponent? _hud = null;
         public UIInputComponent? HUD
         {
             get => _hud;
@@ -108,5 +107,19 @@ namespace XREngine.Components
         }
 
         public virtual void RegisterInput(InputInterface input) { }
+
+        /// <summary>
+        /// Enqueues this pawn for possession by the local player with the given index.
+        /// If the currently possessed pawn is null, possesses this pawn immediately.
+        /// </summary>
+        /// <param name="one"></param>
+        public void EnqueuePossessionByLocalPlayer(ELocalPlayerIndex one)
+            => Engine.State.GetOrCreateLocalPlayer(one).EnqueuePosession(this);
+        /// <summary>
+        /// Sets the controlled pawn of the local player with the given index to this pawn.
+        /// </summary>
+        /// <param name="one"></param>
+        public void PossessByLocalPlayer(ELocalPlayerIndex one)
+            => Engine.State.GetOrCreateLocalPlayer(one).ControlledPawn = this;
     }
 }

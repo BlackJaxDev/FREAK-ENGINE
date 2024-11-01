@@ -30,6 +30,14 @@ namespace XREngine.Data
             Address = Marshal.AllocHGlobal(data.Length);
             Marshal.Copy(data, 0, Address, data.Length);
         }
+        public DataSource(byte[] data, int offset, int length)
+        {
+            External = false;
+            int len = Math.Min(data.Length, length);
+            Length = (uint)len;
+            Address = Marshal.AllocHGlobal(data.Length);
+            Marshal.Copy(data, offset, Address, len);
+        }
         public DataSource(VoidPtr address, uint length, bool copyInternal = false)
         {
             Length = length;

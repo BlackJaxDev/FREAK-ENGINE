@@ -1,8 +1,11 @@
-﻿using OpenVR.NET;
+﻿using MagicPhysX;
+using OpenVR.NET;
 using OpenVR.NET.Devices;
 using OpenVR.NET.Manifest;
 using System.Diagnostics.CodeAnalysis;
+using System.IO.Pipes;
 using System.Numerics;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Valve.VR;
@@ -17,11 +20,35 @@ namespace XREngine
             private static VR? _api = null;
             public static VR Api => _api ??= new VR();
 
+            public enum VRMode
+            {
+                /// <summary>
+                /// This mode indicates the VR system is awaiting inputs from a client and will send rendered frames to the client.
+                /// </summary>
+                Server,
+                /// <summary>
+                /// This mode indicates the VR system is sending inputs to a server and will receive rendered fr.
+                /// </summary>
+                Client,
+                Local,
+            }
+
             public static ETrackingUniverseOrigin Origin { get; set; } = ETrackingUniverseOrigin.TrackingUniverseStanding;
 
+            /// <summary>
+            /// This method initializes the VR system in local mode.
+            /// All VR input and rendering will be handled by this process.
+            /// </summary>
+            /// <param name="actionManifest"></param>
+            /// <param name="vrManifest"></param>
+            /// <param name="getEyeTextureHandleFunc"></param>
+            /// <returns></returns>
             [RequiresDynamicCode("")]
             [RequiresUnreferencedCode("")]
-            public static bool Initialize(IActionManifest actionManifest, VrManifest vrManifest, Func<nint> getEyeTextureHandleFunc)
+            public static bool InitializeLocal(
+                IActionManifest actionManifest,
+                VrManifest vrManifest,
+                Func<nint> getEyeTextureHandleFunc)
             {
                 GetEyeTextureHandle = getEyeTextureHandleFunc;
                 var vr = Api;
@@ -42,6 +69,24 @@ namespace XREngine
                 Time.Timer.UpdateFrame += Update;
                 Time.Timer.RenderFrame += Render;
                 return true;
+            }
+            /// <summary>
+            /// This method initializes the VR system in client mode.
+            /// All VR input will be send to and handled by the server process and rendered frames will be sent to this process.
+            /// </summary>
+            /// <returns></returns>
+            public static bool IninitializeClient()
+            {
+                return false;
+            }
+            /// <summary>
+            /// This method initializes the VR system in server mode.
+            /// VR input is sent to this process and rendered frames are sent to the client process to submit to OpenVR.
+            /// </summary>
+            /// <returns></returns>
+            public static bool InitializeServer()
+            {
+                return false;
             }
 
             [RequiresDynamicCode("Calls System.Text.Json.JsonSerializer.Serialize<TValue>(TValue, JsonSerializerOptions)")]
@@ -204,50 +249,130 @@ namespace XREngine
                 return hasError;
             }
 
-            public class DevicePoseInfo : XRBase
+            public static NamedPipeServerStream? PipeServer { get; private set; } = new("VRInputPipe", PipeDirection.In, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+            public static NamedPipeClientStream? PipeClient { get; private set; } = new(".", "VRInputPipe", PipeDirection.Out, PipeOptions.Asynchronous);
+            public static void StartInputClient()
             {
-                public event Action<DevicePoseInfo>? ValidPoseChanged;
-                public event Action<DevicePoseInfo>? IsConnectedChanged;
-                public event Action<DevicePoseInfo>? Updated;
+                PipeClient = new(".", "VRInputPipe", PipeDirection.Out, PipeOptions.Asynchronous);
+                PipeClient.Connect();
+            }
+            private static void ProcessInputData(VRInputData? inputData)
+            {
+                if (inputData is null)
+                    return;
 
-                public ETrackingResult State { get; private set; }
-                public Matrix4x4 DeviceToWorldMatrix { get; private set; }
+                // Update the latest input data
+                _latestInputData = inputData;
+            }
+            public static void StopInputServer()
+            {
+                if (PipeServer is null)
+                    return;
 
-                public Vector3 Velocity { get; private set; }
-                public Vector3 LastVelocity { get; private set; }
+                if (PipeServer.IsConnected)
+                    PipeServer.Disconnect();
+                
+                PipeServer.Close();
+                PipeServer.Dispose();
+            }
+            
+            [RequiresUnreferencedCode("")]
+            [RequiresDynamicCode("")]
+            public static async Task SendInputs()
+            {
+                if (PipeClient is null)
+                    return;
 
-                public Vector3 AngularVelocity { get; private set; }
-                public Vector3 LastAngularVelocity { get; private set; }
-
-                public bool ValidPose { get; private set; }
-                public bool IsConnected { get; private set; }
-
-                public void Update(TrackedDevicePose_t pose)
+                try
                 {
-                    State = pose.eTrackingResult;
-                    DeviceToWorldMatrix = pose.mDeviceToAbsoluteTracking.ToNumerics();
-
-                    LastVelocity = Velocity;
-                    Velocity = pose.vVelocity.ToNumerics();
-
-                    LastAngularVelocity = AngularVelocity;
-                    AngularVelocity = pose.vAngularVelocity.ToNumerics();
-
-                    bool validChanged = ValidPose != pose.bPoseIsValid;
-                    ValidPose = pose.bPoseIsValid;
-
-                    bool isConnectedChanged = IsConnected != pose.bDeviceIsConnected;
-                    IsConnected = pose.bDeviceIsConnected;
-
-                    if (validChanged)
-                        ValidPoseChanged?.Invoke(this);
-
-                    if (isConnectedChanged)
-                        IsConnectedChanged?.Invoke(this);
-
-                    Updated?.Invoke(this);
+                    CaptureVRInputData();
+                    await PipeClient.WriteAsync(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(_data)));
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogException(ex, $"Error sending input data: {ex.Message}");
                 }
             }
+
+            private static VRInputData _data = new();
+
+            private static void CaptureVRInputData()
+            {
+
+            }
+
+            public struct VRInputData
+            {
+                public ETrackedDeviceClass DeviceClass;
+                public ETrackingResult TrackingResult;
+                public bool Connected;
+                public bool PoseValid;
+                public Quaternion Rotation;
+                public Vector3 Position;
+                public Vector3 Velocity;
+                public Vector3 AngularVelocity;
+                public Quaternion RenderRotation;
+                public Vector3 RenderPosition;
+                public uint unPacketNum;
+                public ulong ulButtonPressed;
+                public ulong ulButtonTouched;
+                public VRControllerAxis_t rAxis0; //VRControllerAxis_t[5]
+                public VRControllerAxis_t rAxis1;
+                public VRControllerAxis_t rAxis2;
+                public VRControllerAxis_t rAxis3;
+                public VRControllerAxis_t rAxis4;
+            }
+
+            private static StreamReader? _reader = null;
+            private static StreamWriter? _writer = null;
+            private static bool _waitingForInput = false;
+
+            [RequiresUnreferencedCode("Calls System.Text.Json.JsonSerializer.Deserialize<TValue>(String, JsonSerializerOptions)")]
+            [RequiresDynamicCode("Calls System.Text.Json.JsonSerializer.Deserialize<TValue>(String, JsonSerializerOptions)")]
+            private static async Task InputListenerAsync()
+            {
+                Debug.Out("Waiting for VR input connection...");
+                try
+                {
+                    _waitingForInput = true;
+                    await PipeServer!.WaitForConnectionAsync();
+                    _waitingForInput = false;
+                    Debug.Out("VR input connection established.");
+                    _reader = new(PipeServer);
+                }
+                catch (Exception ex)
+                {
+                    _waitingForInput = false;
+                    Debug.LogException(ex, $"Error accepting VR input connection: {ex.Message}");
+                }
+            }
+
+            private static DateTime _lastInputRead = DateTime.MinValue;
+
+            [RequiresUnreferencedCode("Calls System.Text.Json.JsonSerializer.Deserialize<TValue>(String, JsonSerializerOptions)")]
+            [RequiresDynamicCode("Calls System.Text.Json.JsonSerializer.Deserialize<TValue>(String, JsonSerializerOptions)")]
+            private static async Task ReadVRInput()
+            {
+                if (_reader is null)
+                    return;
+
+                // Read input data from the pipe asynchronously
+                string? jsonData = await _reader.ReadLineAsync();
+                if (jsonData is null)
+                {
+                    if ((DateTime.Now - _lastInputRead).Seconds > 1)
+                    {
+                        Debug.Out("VR input client disconnected.");
+                        _reader.Dispose();
+                        _reader = null;
+                    }
+                    return;
+                }
+                _lastInputRead = DateTime.Now;
+                ProcessInputData(JsonSerializer.Deserialize<VRInputData?>(jsonData));
+            }
+
+            private static VRInputData? _latestInputData = null;
         }
     }
 }

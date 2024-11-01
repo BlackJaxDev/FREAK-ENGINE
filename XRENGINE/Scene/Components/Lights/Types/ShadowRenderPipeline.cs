@@ -13,11 +13,6 @@ namespace XREngine.Components.Lights
             return XRMaterial.CreateColorMaterialDeferred();
         }
 
-        public override string GetUserInterfaceFBOName()
-        {
-            return "";
-        }
-
         protected override ViewportRenderCommandContainer GenerateCommandChain()
         {
             return DefaultRenderPipeline.CreateFBOTargetCommands();

@@ -75,19 +75,6 @@ namespace XREngine.Components
         //    //base.OnResizeLayout(parentRegion);
         //}
 
-        //public void PreRender(CameraComponent camera)
-        //{
-
-        //}
-        //public void SwapBuffers()
-        //{
-
-        //}
-        //public void PreRender(XRViewport viewport, CameraComponent camera)
-        //{
-
-        //}
-
         public void RenderScreenSpace(XRViewport viewport, XRQuadFrameBuffer fbo)
         {
             //ScreenSpaceWorld?.VisualScene.Render(viewport, ScreenSpaceCamera, fbo);

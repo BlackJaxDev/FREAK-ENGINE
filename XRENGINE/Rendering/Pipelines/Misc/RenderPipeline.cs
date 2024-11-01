@@ -18,8 +18,6 @@ public abstract class RenderPipeline : XRBase
     public XRMaterial InvalidMaterial 
         => InvalidMaterialFactory.Value;
 
-    public abstract string GetUserInterfaceFBOName();
-
     private bool _isShadowPass;
     public bool IsShadowPass
     {

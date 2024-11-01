@@ -1,17 +1,15 @@
 ﻿namespace XREngine.Input.Devices
 {
     [Serializable]
-    public abstract class BaseKeyboard : InputDevice
+    public abstract class BaseKeyboard(int index) : InputDevice(index)
     {
-        public BaseKeyboard(int index) : base(index) { }
-
         protected List<EKey> _registeredKeys = new(132);
 
         protected override int GetAxisCount() => 0;
         protected override int GetButtonCount() => 132;
         public override EInputDeviceType DeviceType => EInputDeviceType.Keyboard;
 
-        private ButtonManager FindOrCacheKey(EKey key)
+        private ButtonManager? FindOrCacheKey(EKey key)
         {
             int index = (int)key;
             if (_buttonStates[index] is null)
@@ -43,7 +41,7 @@
         public void RegisterKeyEvent(EKey key, EButtonInputType type, Action func, bool unregister)
             => RegisterButtonEvent(unregister ? _buttonStates[(int)key] : FindOrCacheKey(key), type, func, unregister);
         public bool GetKeyState(EKey key, EButtonInputType type)
-            => FindOrCacheKey(key).GetState(type);
+            => FindOrCacheKey(key)?.GetState(type) ?? false;
     }
     public enum EKey
     {
@@ -108,7 +106,7 @@
         Escape          = 050,
         Space           = 051,
         Tab             = 052,
-        BackSpace       = 053,
+        Backspace       = 053,
         Back            = 053,
         Insert          = 054,
         Delete          = 055,
@@ -181,13 +179,13 @@
         Tilde           = 119,
         Grave           = 119,
         Minus           = 120,
-        Plus            = 121,
+        Equal           = 121,
         BracketLeft     = 122,
         LBracket        = 122,
         BracketRight    = 123,
         RBracket        = 123,
         Semicolon       = 124,
-        Quote           = 125,
+        Apostrophe           = 125,
         Comma           = 126,
         Period          = 127,
         Slash           = 128,

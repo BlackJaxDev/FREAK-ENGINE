@@ -4,7 +4,7 @@ namespace XREngine.Input.Devices
 {
     public delegate void DelMouseScroll(bool down);
     [Serializable]
-    public class ScrollWheelManager : InputManager
+    public class ScrollWheelManager : InputManagerBase
     {
         private readonly List<DelMouseScroll> _onUpdate = [];
 

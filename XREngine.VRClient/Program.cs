@@ -44,13 +44,12 @@ namespace XREngine.VRClient
             }
 
             //Initialize VR
-            Engine.VRState.Initialize(settings.ActionManifest, settings.VRManifest, GetEyeTextureHandle);
+            Engine.VRState.InitializeLocal(settings.ActionManifest, settings.VRManifest, GetEyeTextureHandle);
 
             //Run the game
             //We don't need to load a game state because this app only sends inputs to the game and receives renders
             Engine.Run(settings, new GameState());
         }
-
         private static nint GetEyeTextureHandle()
         {
             return 0;

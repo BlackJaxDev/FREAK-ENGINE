@@ -6,7 +6,7 @@ namespace XREngine.Input.Devices
     public delegate void DelSendButtonAction(int buttonIndex, EButtonInputType inputType);
     public delegate void DelButtonState(bool pressed);
     [Serializable]
-    public class ButtonManager : InputManager
+    public class ButtonManager : InputManagerBase
     {
         private const float TimerMax = 0.5f;
 

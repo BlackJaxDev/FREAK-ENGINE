@@ -1,58 +1,16 @@
 ﻿using System.Drawing;
+using System.Numerics;
 
 namespace XREngine.Input.Devices
 {
     public delegate void DelCursorUpdate(float x, float y);
     [Serializable]
-    public class CursorManager : InputManager
+    public class CursorManager : InputManagerBase
     {
-        /// <summary>
-        /// Determines if the mouse cursor will jump to the other side of the Cursor.Clip rectangle.
-        /// Affects all cursors.
-        /// </summary>
-        public static bool GlobalWrapCursorWithinClip { get; set; } = false;
-        /// <summary>
-        /// Determines if the mouse cursor will jump to the other side of the Cursor.Clip rectangle.
-        /// Affects only this cursor.
-        /// </summary>
-        public bool WrapCursorWithinClip { get; set; } = false;
+        //private float _lastX, _lastY;
 
-        private float _lastX, _lastY;
-
-        //relative, absolute, unbounded
-        private readonly List<DelCursorUpdate?>?[] _onCursorUpdate = new List<DelCursorUpdate?>?[3];
-
-        internal void Tick(float xPos, float yPos, float delta)
-        {
-            OnUnbounded(xPos, yPos);
-
-            //Point absPt = Cursor.Position;
-            //Rectangle bounds = Cursor.Clip;
-            //float relX, relY;
-
-            //if (GlobalWrapCursorWithinClip || WrapCursorWithinClip)
-            //{
-            //    absPt = WrapCursor(absPt, bounds, out relX, out relY);
-            //    Cursor.Position = absPt;
-            //}
-            //else
-            //{
-            //    relX = absPt.X - _lastX;
-            //    relY = _lastY - absPt.Y;
-            //}
-
-            //_lastX = absPt.X;
-            //_lastY = absPt.Y;
-            //OnRelative(relX, relY);
-
-            //RenderContext pnl = RenderContext.Hovered;
-            //if (pnl != null)
-            //    absPt = pnl.PointToClient(absPt);
-
-            //xPos = absPt.X;
-            //yPos = absPt.Y;
-            //OnAbsolute(xPos, yPos);
-        }
+        //relative, absolute
+        private readonly List<DelCursorUpdate?>?[] _onCursorUpdate = new List<DelCursorUpdate?>?[2];
 
         public void Register(DelCursorUpdate func, EMouseMoveType type, bool unregister)
         {
@@ -75,12 +33,45 @@ namespace XREngine.Input.Devices
                     _onCursorUpdate[index]?.Add(func);
             }
         }
-        private void OnAbsolute(float x, float y)
-            => PerformAction(EMouseMoveType.Absolute, x, y);
-        private void OnRelative(float x, float y)
-            => PerformAction(EMouseMoveType.Relative, x, y);
-        private void OnUnbounded(float x, float y)
-            => PerformAction(EMouseMoveType.Unbounded, x, y);
+        //public Rectangle? WrapBounds { get; set; } = null;
+        protected internal void SetAbsolute(float x, float y)
+        {
+            //float dX, dY;
+            //if (WrapBounds is not null)
+            //{
+            //    Vector2 position = new(x, y);
+            //    Vector2 lastPosition = new(_lastX, _lastY);
+            //    position = Wrap(position, lastPosition, WrapBounds.Value, out dX, out dY);
+            //    x = position.X;
+            //    y = position.Y;
+            //}
+            //else
+            //{
+            //    dX = x - _lastX;
+            //    dY = y - _lastY;
+            //}
+            PerformAction(EMouseMoveType.Absolute, x, y);
+            //PerformAction(EMouseMoveType.Relative, dX, dY);
+            //_lastX = x;
+            //_lastY = y;
+        }
+        protected internal void MoveRelative(float dX, float dY)
+        {
+            //float x = _lastX + dX;
+            //float y = _lastY + dY;
+            //if (WrapBounds is not null)
+            //{
+            //    Vector2 position = new(x, y);
+            //    Vector2 lastPosition = new(_lastX, _lastY);
+            //    position = Wrap(position, lastPosition, WrapBounds.Value, out dX, out dY);
+            //    x = position.X;
+            //    y = position.Y;
+            //}
+            //PerformAction(EMouseMoveType.Absolute, x, y);
+            PerformAction(EMouseMoveType.Relative, dX, dY);
+            //_lastX = x;
+            //_lastY = y;
+        }
         protected void PerformAction(EMouseMoveType type, float x, float y)
         {
             int index = (int)type;
@@ -104,53 +95,53 @@ namespace XREngine.Input.Devices
             }
         }
 
-        private Point WrapCursor(Point absPt, Rectangle bounds, out float relX, out float relY)
+        public static Vector2 Wrap(Vector2 position, Vector2 lastPosition, Rectangle bounds, out float relX, out float relY)
         {
             //Wrap the X-coord of the cursor
-            if (absPt.X >= bounds.Right - 1)
+            if (position.X >= bounds.Right - 1)
             {
-                while (absPt.X >= bounds.Right - 1)
-                    absPt.X -= bounds.Width;
+                while (position.X >= bounds.Right - 1)
+                    position.X -= bounds.Width;
 
-                absPt.X += 1;
-                relX = (absPt.X - bounds.Left) + (bounds.Right - 1 - _lastX);
+                position.X += 1;
+                relX = (position.X - bounds.Left) + (bounds.Right - 1 - lastPosition.X);
             }
-            else if (absPt.X <= bounds.Left)
+            else if (position.X <= bounds.Left)
             {
-                while (absPt.X <= bounds.Left)
-                    absPt.X += bounds.Width;
+                while (position.X <= bounds.Left)
+                    position.X += bounds.Width;
 
-                absPt.X -= 1;
-                relX = (absPt.X - (bounds.Right - 1)) + (bounds.Left - _lastX);
+                position.X -= 1;
+                relX = (position.X - (bounds.Right - 1)) + (bounds.Left - lastPosition.X);
             }
             else
             {
-                relX = absPt.X - _lastX;
+                relX = position.X - lastPosition.X;
             }
 
             //Wrap the Y-coord of the cursor
-            if (absPt.Y >= bounds.Bottom - 1)
+            if (position.Y >= bounds.Bottom - 1)
             {
-                while (absPt.Y >= bounds.Bottom - 1)
-                    absPt.Y -= bounds.Height;
+                while (position.Y >= bounds.Bottom - 1)
+                    position.Y -= bounds.Height;
 
-                absPt.Y += 1;
-                relY = (absPt.Y - bounds.Top) + (bounds.Bottom - 1 - _lastY);
+                position.Y += 1;
+                relY = (position.Y - bounds.Top) + (bounds.Bottom - 1 - lastPosition.Y);
             }
-            else if (absPt.Y <= bounds.Top)
+            else if (position.Y <= bounds.Top)
             {
-                while (absPt.Y <= bounds.Top)
-                    absPt.Y += bounds.Height;
+                while (position.Y <= bounds.Top)
+                    position.Y += bounds.Height;
 
-                absPt.Y -= 1;
-                relY = (absPt.Y - (bounds.Bottom - 1)) + (bounds.Top - _lastY);
+                position.Y -= 1;
+                relY = (position.Y - (bounds.Bottom - 1)) + (bounds.Top - lastPosition.Y);
             }
             else
             {
-                relY = _lastY - absPt.Y;
+                relY = lastPosition.Y - position.Y;
             }
 
-            return absPt;
+            return position;
         }
     }
 }

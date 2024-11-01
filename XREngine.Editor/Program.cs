@@ -89,7 +89,7 @@ internal class Program
         if (cameraNode.TryAddComponent<CameraComponent>(out var cameraComp))
         {
             cameraComp!.Name = "TestCamera";
-            cameraComp.LocalPlayerIndex = ELocalPlayerIndex.One;
+            //cameraComp.LocalPlayerIndex = ELocalPlayerIndex.One;
             cameraComp.CullWithFrustum = true;
 
             cameraComp.Camera.Parameters = new XRPerspectiveCameraParameters(45.0f, null, 0.1f, 99999.0f);
@@ -234,9 +234,10 @@ internal class Program
         }
 
         //Pawn
-        //cameraNode.TryAddComponent<PawnComponent>(out var pawnComp);
-        //pawnComp!.Name = "TestPawn";
-        //pawnComp!.CurrentCameraComponent = cameraComp;
+        cameraNode.TryAddComponent<PawnComponent>(out var pawnComp);
+        pawnComp!.Name = "TestPawn";
+        pawnComp!.Camera = cameraComp;
+        pawnComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
 
         var importedModelsNode = new SceneNode(rootNode) { Name = "TestImportedModelsNode" };
         //importedModelsNode.GetTransformAs<Transform>()?.ApplyScale(new Vector3(0.1f));

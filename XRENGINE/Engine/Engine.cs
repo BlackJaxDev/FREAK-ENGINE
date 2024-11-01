@@ -231,7 +231,7 @@ namespace XREngine
             }
 
             return new(
-                isVisible: true,
+                true,
                 position,
                 size,
                 0.0,
@@ -242,9 +242,11 @@ namespace XREngine
                 windowSettings.WindowTitle ?? string.Empty,
                 windowState,
                 windowBorder,
-                isVSync: windowSettings.VSync,
-                shouldSwapAutomatically: true,
-                VideoMode.Default);
+                windowSettings.VSync,
+                true,
+                VideoMode.Default,
+                24,
+                8);
         }
 
         public static XRWorldInstance GetOrInitWorld(XRWorld targetWorld)

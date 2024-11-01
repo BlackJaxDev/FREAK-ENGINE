@@ -3,73 +3,60 @@
 namespace XREngine.Input.Devices.DirectX
 {
     [Serializable]
-    public class DXGamepad : BaseGamePad
+    public class DXGamepad(int index) : BaseGamePad(index)
     {
-        private Controller _controller;
+        private readonly Controller _controller = new(UserIndex.One + (byte)index);
 
         public static DXGamepadConfiguration Config { get; set; } = new DXGamepadConfiguration();
 
-        public DXGamepad(int index) : base(index)
-        {
-            _controller = new Controller(UserIndex.One + (byte)index);
-        }
-
         public override void Vibrate(float lowFreq, float highFreq)
         {
-            Vibration v = new Vibration()
+            Vibration v = new()
             {
                 LeftMotorSpeed = (ushort)(lowFreq * ushort.MaxValue),
                 RightMotorSpeed = (ushort)(highFreq * ushort.MaxValue)
             };
             _controller.SetVibration(v);
         }
-        private bool AxistExists(EGamePadAxis axis, Capabilities c)
-        {
-            switch (axis)
+        private static bool AxistExists(EGamePadAxis axis, Capabilities c)
+            => axis switch
             {
-                case EGamePadAxis.LeftTrigger: return c.Gamepad.LeftTrigger != 0;
-                case EGamePadAxis.RightTrigger: return c.Gamepad.RightTrigger != 0;
-                case EGamePadAxis.LeftThumbstickX: return c.Gamepad.LeftThumbX != 0;
-                case EGamePadAxis.LeftThumbstickY: return c.Gamepad.LeftThumbY != 0;
-                case EGamePadAxis.RightThumbstickX: return c.Gamepad.RightThumbX != 0;
-                case EGamePadAxis.RightThumbstickY: return c.Gamepad.RightThumbY != 0;
-            }
-            return false;
-        }
+                EGamePadAxis.LeftTrigger => c.Gamepad.LeftTrigger != 0,
+                EGamePadAxis.RightTrigger => c.Gamepad.RightTrigger != 0,
+                EGamePadAxis.LeftThumbstickX => c.Gamepad.LeftThumbX != 0,
+                EGamePadAxis.LeftThumbstickY => c.Gamepad.LeftThumbY != 0,
+                EGamePadAxis.RightThumbstickX => c.Gamepad.RightThumbX != 0,
+                EGamePadAxis.RightThumbstickY => c.Gamepad.RightThumbY != 0,
+                _ => false,
+            };
         protected override bool AxisExists(EGamePadAxis axis)
-        {
-            return AxistExists(axis, _controller.GetCapabilities(DeviceQueryType.Gamepad));
-        }
+            => AxistExists(axis, _controller.GetCapabilities(DeviceQueryType.Gamepad));
         protected override List<bool> AxesExist(IEnumerable<EGamePadAxis> axes)
         {
             Capabilities c = _controller.GetCapabilities(DeviceQueryType.Gamepad);
             return axes.Select(x => AxistExists(x, c)).ToList();
         }
-        private bool ButtonExists(EGamePadButton button, Capabilities c)
-        {
-            switch (button)
+        private static bool ButtonExists(EGamePadButton button, Capabilities c)
+            => button switch
             {
-                case EGamePadButton.FaceDown: return c.Gamepad.Buttons.HasFlag(GamepadButtonFlags.A);
-                case EGamePadButton.FaceRight: return c.Gamepad.Buttons.HasFlag(GamepadButtonFlags.B);
-                case EGamePadButton.FaceLeft: return c.Gamepad.Buttons.HasFlag(GamepadButtonFlags.X);
-                case EGamePadButton.FaceUp: return c.Gamepad.Buttons.HasFlag(GamepadButtonFlags.Y);
-                case EGamePadButton.DPadDown: return c.Gamepad.Buttons.HasFlag(GamepadButtonFlags.DPadDown);
-                case EGamePadButton.DPadRight: return c.Gamepad.Buttons.HasFlag(GamepadButtonFlags.DPadRight);
-                case EGamePadButton.DPadLeft: return c.Gamepad.Buttons.HasFlag(GamepadButtonFlags.DPadLeft);
-                case EGamePadButton.DPadUp: return c.Gamepad.Buttons.HasFlag(GamepadButtonFlags.DPadUp);
-                case EGamePadButton.LeftBumper: return c.Gamepad.Buttons.HasFlag(GamepadButtonFlags.LeftShoulder);
-                case EGamePadButton.RightBumper: return c.Gamepad.Buttons.HasFlag(GamepadButtonFlags.RightShoulder);
-                case EGamePadButton.LeftStick: return c.Gamepad.Buttons.HasFlag(GamepadButtonFlags.LeftThumb);
-                case EGamePadButton.RightStick: return c.Gamepad.Buttons.HasFlag(GamepadButtonFlags.RightThumb);
-                case EGamePadButton.SpecialLeft: return c.Gamepad.Buttons.HasFlag(GamepadButtonFlags.Back);
-                case EGamePadButton.SpecialRight: return c.Gamepad.Buttons.HasFlag(GamepadButtonFlags.Start);
-            }
-            return false;
-        }
+                EGamePadButton.FaceDown => c.Gamepad.Buttons.HasFlag(GamepadButtonFlags.A),
+                EGamePadButton.FaceRight => c.Gamepad.Buttons.HasFlag(GamepadButtonFlags.B),
+                EGamePadButton.FaceLeft => c.Gamepad.Buttons.HasFlag(GamepadButtonFlags.X),
+                EGamePadButton.FaceUp => c.Gamepad.Buttons.HasFlag(GamepadButtonFlags.Y),
+                EGamePadButton.DPadDown => c.Gamepad.Buttons.HasFlag(GamepadButtonFlags.DPadDown),
+                EGamePadButton.DPadRight => c.Gamepad.Buttons.HasFlag(GamepadButtonFlags.DPadRight),
+                EGamePadButton.DPadLeft => c.Gamepad.Buttons.HasFlag(GamepadButtonFlags.DPadLeft),
+                EGamePadButton.DPadUp => c.Gamepad.Buttons.HasFlag(GamepadButtonFlags.DPadUp),
+                EGamePadButton.LeftBumper => c.Gamepad.Buttons.HasFlag(GamepadButtonFlags.LeftShoulder),
+                EGamePadButton.RightBumper => c.Gamepad.Buttons.HasFlag(GamepadButtonFlags.RightShoulder),
+                EGamePadButton.LeftStick => c.Gamepad.Buttons.HasFlag(GamepadButtonFlags.LeftThumb),
+                EGamePadButton.RightStick => c.Gamepad.Buttons.HasFlag(GamepadButtonFlags.RightThumb),
+                EGamePadButton.SpecialLeft => c.Gamepad.Buttons.HasFlag(GamepadButtonFlags.Back),
+                EGamePadButton.SpecialRight => c.Gamepad.Buttons.HasFlag(GamepadButtonFlags.Start),
+                _ => false,
+            };
         protected override bool ButtonExists(EGamePadButton button)
-        {
-            return ButtonExists(button, _controller.GetCapabilities(DeviceQueryType.Gamepad));
-        }
+            => ButtonExists(button, _controller.GetCapabilities(DeviceQueryType.Gamepad));
         protected override List<bool> ButtonsExist(IEnumerable<EGamePadButton> buttons)
         {
             Capabilities c = _controller.GetCapabilities(DeviceQueryType.Gamepad);
@@ -81,10 +68,8 @@ namespace XREngine.Input.Devices.DirectX
                 return;
 
             State state = _controller.GetState();
-
             for (int i = 0; i < 14; ++i)
                 _buttonStates[i]?.Tick(Config.Map((EGamePadButton)i, state.Gamepad), delta);
-
             for (int i = 0; i < 6; ++i)
                 _axisStates[i]?.Tick(Config.Map((EGamePadAxis)i, state.Gamepad), delta);
         }

@@ -162,7 +162,6 @@ namespace XREngine.Input.Devices
         public override float GetAxisValue(EGamePadAxis axis)
             => Gamepad?.GetAxisValue(axis) ?? 0.0f;
 
-
         public void UpdateDevices(IInputContext? input)
         {
             TryUnregisterInput();
@@ -176,24 +175,24 @@ namespace XREngine.Input.Devices
             if (context is null)
                 return;
 
-            //context.ConnectionChanged += ConnectionChanged;
+            context.ConnectionChanged += ConnectionChanged;
 
-            //InputDevice[] gamepads = InputDevice.CurrentDevices[EInputDeviceType.Gamepad];
-            //InputDevice[] keyboards = InputDevice.CurrentDevices[EInputDeviceType.Keyboard];
-            //InputDevice[] mice = InputDevice.CurrentDevices[EInputDeviceType.Mouse];
+            var gamepads = InputDevice.CurrentDevices[EInputDeviceType.Gamepad];
+            var keyboards = InputDevice.CurrentDevices[EInputDeviceType.Keyboard];
+            var mice = InputDevice.CurrentDevices[EInputDeviceType.Mouse];
 
-            //if (_playerIndex >= 0 && _playerIndex < gamepads.Length)
-            //    Gamepad = gamepads[_playerIndex] as BaseGamePad;
+            if (_playerIndex >= 0 && _playerIndex < gamepads.Count)
+                Gamepad = gamepads[_playerIndex] as BaseGamePad;
 
-            ////Keyboard and mouse are reserved for the first player only
-            ////TODO: support multiple mice and keyboard? Could get difficult with laptops and trackpads and whatnot. Probably no-go.
-            ////TODO: support input from ALL keyboards and mice for first player. Not just the first found keyboard and mouse.
+            //Keyboard and mouse are reserved for the first player only
+            //TODO: support multiple mice and keyboard? Could get difficult with laptops and trackpads and whatnot. Probably no-go.
+            //TODO: support input from ALL keyboards and mice for first player. Not just the first found keyboard and mouse.
 
-            //if (keyboards.Length > 0 && _playerIndex == 0)
-            //    Keyboard = keyboards[0] as BaseKeyboard;
+            if (keyboards.Count > 0 && _playerIndex == 0)
+                Keyboard = keyboards[0] as BaseKeyboard;
 
-            //if (mice.Length > 0 && _playerIndex == 0)
-            //    Mouse = mice[0] as BaseMouse;
+            if (mice.Count > 0 && _playerIndex == 0)
+                Mouse = mice[0] as BaseMouse;
 
             AttachInterfaceToDevices(true);
         }

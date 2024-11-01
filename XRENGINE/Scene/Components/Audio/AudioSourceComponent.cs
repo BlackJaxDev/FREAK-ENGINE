@@ -217,17 +217,6 @@ namespace XREngine.Components.Scene
             }
         }
 
-        private ConcurrentQueue<AudioData> StreamingBuffers { get; } = new();
-
-        public void QueueStreamingBuffers(params AudioData[] buffers)
-        {
-            if (_type != ESourceType.Streaming)
-                throw new InvalidOperationException("Cannot queue streaming buffers on a static source.");
-
-            foreach (var buffer in buffers)
-                StreamingBuffers.Enqueue(buffer);
-        }
-
         public void SetStaticBuffer(AudioBuffer buffer)
         {
             if (_type != ESourceType.Static)
@@ -239,7 +228,8 @@ namespace XREngine.Components.Scene
                     source.Buffer = buffer;
             }
         }
-        public void QueueStreamingBuffers(params AudioBuffer[] buffers)
+
+        public void EnqueueStreamingBuffers(int frequency, bool stereo, params float[][] buffers)
         {
             if (_type != ESourceType.Streaming)
                 throw new InvalidOperationException("Cannot queue streaming buffers on a static source.");
@@ -247,18 +237,88 @@ namespace XREngine.Components.Scene
             lock (ActiveListeners)
             {
                 foreach (var source in ActiveListeners.Values)
-                    source.QueueBuffers(buffers);
+                {
+                    foreach (var buffer in buffers)
+                    {
+                        var audioBuffer = source.ParentListener.TakeBuffer();
+                        audioBuffer.SetData(buffer, frequency, stereo);
+                        source.QueueBuffers(audioBuffer);
+                    }
+                }
             }
         }
-        public void UnqueueStreamingBuffers(params AudioBuffer[] buffers)
+        public void EnqueueStreamingBuffers(int frequency, bool stereo, params short[][] buffers)
         {
             if (_type != ESourceType.Streaming)
-                throw new InvalidOperationException("Cannot unqueue streaming buffers on a static source.");
+                throw new InvalidOperationException("Cannot queue streaming buffers on a static source.");
 
             lock (ActiveListeners)
             {
                 foreach (var source in ActiveListeners.Values)
-                    source.UnqueueBuffers(buffers);
+                {
+                    foreach (var buffer in buffers)
+                    {
+                        var audioBuffer = source.ParentListener.TakeBuffer();
+                        audioBuffer.SetData(buffer, frequency, stereo);
+                        source.QueueBuffers(audioBuffer);
+                    }
+                }
+            }
+        }
+        public void EnqueueStreamingBuffers(int frequency, bool stereo, params byte[][] buffers)
+        {
+            if (_type != ESourceType.Streaming)
+                throw new InvalidOperationException("Cannot queue streaming buffers on a static source.");
+
+            lock (ActiveListeners)
+            {
+                foreach (var source in ActiveListeners.Values)
+                {
+                    foreach (var buffer in buffers)
+                    {
+                        var audioBuffer = source.ParentListener.TakeBuffer();
+                        audioBuffer.SetData(buffer, frequency, stereo);
+                        source.QueueBuffers(audioBuffer);
+                    }
+                }
+            }
+        }
+        public void EnqueueStreamingBuffers(params AudioData[] buffers)
+        {
+            if (_type != ESourceType.Streaming)
+                throw new InvalidOperationException("Cannot queue streaming buffers on a static source.");
+
+            lock (ActiveListeners)
+            {
+                foreach (var source in ActiveListeners.Values)
+                {
+                    foreach (var buffer in buffers)
+                    {
+                        var audioBuffer = source.ParentListener.TakeBuffer();
+                        audioBuffer.SetData(buffer);
+                        source.QueueBuffers(audioBuffer);
+                    }
+                }
+            }
+        }
+        public void UnqueueConsumedBuffers()
+        {
+            if (_type != ESourceType.Streaming)
+                throw new InvalidOperationException("Cannot unqueue consumed buffers on a static source.");
+
+            lock (ActiveListeners)
+            {
+                int min = ActiveListeners.Values.Min(x => x.BuffersProcessed);
+                if (min == 0)
+                    return;
+
+                foreach (var source in ActiveListeners.Values)
+                {
+                    var buffers = source.UnqueueConsumedBuffers(min);
+                    if (buffers != null)
+                        foreach (var buffer in buffers)
+                            source.ParentListener.ReleaseBuffer(buffer);
+                }
             }
         }
 

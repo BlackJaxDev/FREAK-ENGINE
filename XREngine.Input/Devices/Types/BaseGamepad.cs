@@ -39,10 +39,8 @@ namespace XREngine.Input.Devices
     /// Input for local
     /// </summary>
     [Serializable]
-    public abstract class BaseGamePad : InputDevice
+    public abstract class BaseGamePad(int index) : InputDevice(index)
     {
-        public BaseGamePad(int index) : base(index) { }
-
         public static BaseGamePad NewInstance(int index, EInputType type)
             => type switch
             {
@@ -76,13 +74,11 @@ namespace XREngine.Input.Devices
         }
 
         public void RegisterButtonEvent(EGamePadButton button, EButtonInputType type, Action func, bool unregister)
-        {
-            RegisterButtonEvent(unregister ? _buttonStates[(int)button] : FindOrCacheButton(button), type, func, unregister);
-        }
+            => RegisterButtonEvent(unregister ? _buttonStates[(int)button] : FindOrCacheButton(button), type, func, unregister);
+
         public void RegisterButtonEvent(EGamePadAxis axis, EButtonInputType type, Action func, bool unregister)
-        {
-            RegisterButtonEvent(unregister ? _axisStates[(int)axis] : FindOrCacheAxis(axis), type, func, unregister);
-        }
+            => RegisterButtonEvent(unregister ? _axisStates[(int)axis] : FindOrCacheAxis(axis), type, func, unregister);
+
         public void RegisterButtonState(EGamePadButton button, DelButtonState func, bool unregister)
         {
             if (unregister)
@@ -90,6 +86,7 @@ namespace XREngine.Input.Devices
             else
                 FindOrCacheButton(button)?.RegisterPressedState(func, false);
         }
+
         public void RegisterButtonState(EGamePadAxis axis, DelButtonState func, bool unregister)
         {
             if (unregister)
@@ -97,6 +94,7 @@ namespace XREngine.Input.Devices
             else
                 FindOrCacheAxis(axis)?.RegisterPressedState(func, false);
         }
+
         public void RegisterAxisUpdate(EGamePadAxis axis, DelAxisValue func, bool continuousUpdate, bool unregister)
         {
             if (unregister)

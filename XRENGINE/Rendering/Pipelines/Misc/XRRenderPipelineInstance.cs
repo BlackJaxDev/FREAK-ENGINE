@@ -76,17 +76,9 @@ public sealed partial class XRRenderPipelineInstance : XRBase
 
         using (PushPipeline(this))
         {
-            using (State.PushMainAttributes(viewport, visualScene, camera, targetFBO, shadowPass, shadowMaterial))
+            using (State.PushMainAttributes(viewport, visualScene, camera, targetFBO, shadowPass, shadowMaterial, userInterface))
             {
                 Pipeline.CommandChain.Execute();
-
-                //hud may sample scene colors, render it after scene
-                if (userInterface is not null && viewport is not null && userInterface.DrawSpace == ECanvasDrawSpace.Screen)
-                {
-                    var fbo = GetFBO<XRQuadFrameBuffer>(Pipeline.GetUserInterfaceFBOName());
-                    if (fbo is not null)
-                        userInterface?.RenderScreenSpace(viewport, fbo);
-                }
             }
         }
     }

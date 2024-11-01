@@ -45,9 +45,6 @@ public class DefaultRenderPipeline : RenderPipeline
     const string PostProcessFBOName = "PostProcessFBO";
     const string UserInterfaceFBOName = "UserInterfaceFBO";
 
-    public override string GetUserInterfaceFBOName()
-        => UserInterfaceFBOName;
-
     //Textures
     const string SSAONoiseTextureName = "SSAONoiseTexture";
     const string SSAOIntensityTextureName = "SSAOIntensityTexture";
@@ -207,6 +204,7 @@ public class DefaultRenderPipeline : RenderPipeline
                 c.Add<VPRC_DepthWrite>().Allow = false;
 
                 c.Add<VPRC_RenderQuadFBO>().FrameBufferName = PostProcessFBOName;
+                c.Add<VPRC_RenderUI>().UserInterfaceFBOName = UserInterfaceFBOName;
             }
         }
         return c;

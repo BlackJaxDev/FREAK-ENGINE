@@ -4,8 +4,8 @@
     {
         public BaseGamepadConfiguration()
         {
-            ButtonMap = new Dictionary<EGamePadButton, EGamePadButton>();
-            AxisMap = new Dictionary<EGamePadAxis, EGamePadAxis>();
+            ButtonMap = [];
+            AxisMap = [];
 
             for (int i = 0; i < 14; ++i)
                 ButtonMap.Add((EGamePadButton)i, (EGamePadButton)i);

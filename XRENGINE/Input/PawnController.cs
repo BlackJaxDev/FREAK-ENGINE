@@ -16,13 +16,7 @@ namespace XREngine.Input
         public virtual PawnComponent? ControlledPawn
         {
             get => _controlledPawn;
-            set
-            {
-                SetField(ref _controlledPawn, value);
-
-                if (ControlledPawn is null && _pawnPossessionQueue.Count > 0)
-                    ControlledPawn = _pawnPossessionQueue.Dequeue();
-            }
+            set => SetField(ref _controlledPawn, value is null && _pawnPossessionQueue.Count > 0 ? _pawnPossessionQueue.Dequeue() : value);
         }
 
         protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)

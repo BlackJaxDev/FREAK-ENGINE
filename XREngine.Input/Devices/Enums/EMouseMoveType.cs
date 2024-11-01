@@ -4,6 +4,5 @@
     {
         Relative,
         Absolute,
-        Unbounded,
     }
 }
