@@ -3,10 +3,8 @@ using XREngine.Input.Devices;
 
 namespace XREngine.Components
 {
-    public abstract class FlyingCameraPawnBase : PawnComponent
+    public abstract class FlyingCameraPawnBaseComponent : PawnComponent
     {
-        public CameraComponent? Camera => SceneNode.GetOrAddComponent<CameraComponent>(out _);
-
         protected float
             _incRight = 0.0f,
             _incForward = 0.0f,

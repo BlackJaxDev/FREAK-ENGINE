@@ -163,7 +163,7 @@ namespace XREngine.Components
         //    public int Compare(object x, object y)
         //        => Compare((IRenderable)x, (IRenderable)y);
         //}
-        public UIInteractableComponent FocusedComponent
+        public UIInteractableComponent? FocusedComponent
         {
             get => _focusedComponent;
             set
@@ -257,17 +257,23 @@ namespace XREngine.Components
 
         internal void InvalidateLayout()
         {
-            throw new NotImplementedException();
+
         }
 
         internal UIComponent? FindDeepestComponent(Vector2 viewportPoint)
         {
-            throw new NotImplementedException();
+            return null;
         }
 
         public void Resize(IVector2 extents)
         {
 
+        }
+
+        public void CollectVisible(XRViewport viewport)
+        {
+            var scene = ScreenSpaceWorld?.VisualScene;
+            //scene?.CollectRenderedItems(commands, null, CameraComponent?.UserInterfaceOverlay?.ScreenSpaceCamera);
         }
     }
 }

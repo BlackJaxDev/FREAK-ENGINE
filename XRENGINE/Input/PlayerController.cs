@@ -29,6 +29,10 @@ namespace XREngine.Input
                     case nameof(Input):
                         _input.InputRegistration -= RegisterInput;
                         break;
+                    case nameof(ControlledPawn):
+                        if (_controlledPawn is not null)
+                            UnregisterController(_controlledPawn);
+                        break;
                 }
             }
             return change;
@@ -41,30 +45,12 @@ namespace XREngine.Input
                 case nameof(Input):
                     _input.InputRegistration += RegisterInput;
                     break;
+                case nameof(ControlledPawn):
+                    if (_controlledPawn is not null)
+                        RegisterController(_controlledPawn);
+                    break;
             }
             base.OnPropertyChanged(propName, prev, field);
-        }
-
-        public override PawnComponent? ControlledPawn
-        {
-            get => base.ControlledPawn;
-            set
-            {
-                var c = base.ControlledPawn;
-
-                if (c == value)
-                    return;
-
-                if (c != null)
-                    UnregisterController(c);
-
-                base.ControlledPawn = value;
-
-                c = value;
-
-                if (c != null)
-                    RegisterController(c);
-            }
         }
 
         protected virtual void RegisterController(PawnComponent c)
@@ -72,11 +58,14 @@ namespace XREngine.Input
             if (Input is null)
                 return;
 
+            //Tell this controller to register input for the controlled pawn
             Input.InputRegistration += c.RegisterInput;
-            if (c.HUD != null && c != c.HUD)
-                Input.InputRegistration += c.HUD.RegisterInput;
 
-            //c.OnPossessed(this);
+            //If the controlled pawn has a user interface input, register input for that as well
+            if (c.UserInterfaceInput != null && c != c.UserInterfaceInput)
+                Input.InputRegistration += c.UserInterfaceInput.RegisterInput;
+
+            //Run registration for the input interface
             Input.TryRegisterInput();
             
             if (PlayerInfo.LocalIndex is not null)
@@ -90,11 +79,15 @@ namespace XREngine.Input
             if (Input is null)
                 return;
 
+            //Unregister inputs for the controlled pawn
             Input.TryUnregisterInput();
+
+            //Unregister inputs for the controlled pawn
             Input.InputRegistration -= c.RegisterInput;
 
-            if (c.HUD != null && c != c.HUD)
-                Input.InputRegistration -= c.HUD.RegisterInput;
+            //If the controlled pawn has a user interface input, unregister input for that as well
+            if (c.UserInterfaceInput != null && c != c.UserInterfaceInput)
+                Input.InputRegistration -= c.UserInterfaceInput.RegisterInput;
 
             if (PlayerInfo.LocalIndex is not null)
                 Debug.Out($"Local player {PlayerInfo.LocalIndex} is releasing control of {_controlledPawn}");

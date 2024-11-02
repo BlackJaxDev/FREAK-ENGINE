@@ -38,9 +38,11 @@ internal class Program
         RenderInfo2D.ConstructorOverride = RenderInfo2DConstructor;
         RenderInfo3D.ConstructorOverride = RenderInfo3DConstructor;
 
-        Engine.Run(
-            Engine.LoadOrGenerateGameSettings(() => GetEngineSettings(CreateTestWorld())),
-            Engine.LoadOrGenerateGameState());
+        var startup = Engine.LoadOrGenerateGameSettings(() => GetEngineSettings(new XRWorld()));
+        var world = CreateTestWorld();
+        startup.StartupWindows[0].TargetWorld = world;
+
+        Engine.Run(startup, Engine.LoadOrGenerateGameState());
     }
 
     static XRWorld CreateTestWorld()
@@ -49,7 +51,36 @@ internal class Program
 
         var world = new XRWorld() { Name = "TestWorld" };
         var scene = new XRScene() { Name = "TestScene" };
+        world.Scenes.Add(scene);
         var rootNode = new SceneNode(scene) { Name = "TestRootNode" };
+
+        //Create the camera
+        var cameraNode = new SceneNode(rootNode) { Name = "TestCameraNode" };
+
+        //var orbitTransform = cameraNode.SetTransform<OrbitTransform>();
+        //orbitTransform.Radius = 5.0f;
+        //orbitTransform.IgnoreRotation = false;
+        //orbitTransform.RegisterAnimationTick<OrbitTransform>(t => t.Angle += Engine.DilatedDelta * 0.5f);
+        cameraNode.GetTransformAs<Transform>()!.Translation = new Vector3(0.0f, 0.0f, 5.0f);
+
+        if (cameraNode.TryAddComponent<CameraComponent>(out var cameraComp))
+        {
+            cameraComp!.Name = "TestCamera";
+            cameraComp.Camera.Parameters = new XRPerspectiveCameraParameters(80.0f, null, 0.1f, 99999.0f);
+            cameraComp.Camera.RenderPipeline = new DefaultRenderPipeline();
+        }
+
+        //Pawn
+        cameraNode.TryAddComponent<FlyingCameraPawnComponent>(out var pawnComp);
+        pawnComp!.Name = "TestPawn";
+        //pawnComp!.Camera = cameraComp;
+        pawnComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
+
+        var listener = new SceneNode(cameraNode) { Name = "TestListenerNode" };
+        var listenerTransform = listener.SetTransform<Transform>();
+        listenerTransform.Translation = new Vector3(0.0f, 0.0f, 0.0f);
+        if (listener.TryAddComponent<AudioListenerComponent>(out var listenerComp))
+            listenerComp!.Name = "TestListener";
 
         ////Create a test cube
         //var modelNode = new SceneNode(rootNode) { Name = "TestModelNode" };
@@ -77,24 +108,6 @@ internal class Program
         //    //Engine.Assets.SaveTo(mesh, desktopDir);
         //    modelComp!.Model = new Model([new SubMesh(mesh, mat)]);
         //}
-
-        //Create the camera
-        var cameraNode = new SceneNode(rootNode) { Name = "TestCameraNode" };
-
-        var orbitTransform = cameraNode.SetTransform<OrbitTransform>();
-        orbitTransform.Radius = 5.0f;
-        orbitTransform.IgnoreRotation = false;
-        orbitTransform.RegisterAnimationTick<OrbitTransform>(t => t.Angle += Engine.DilatedDelta * 0.5f);
-
-        if (cameraNode.TryAddComponent<CameraComponent>(out var cameraComp))
-        {
-            cameraComp!.Name = "TestCamera";
-            //cameraComp.LocalPlayerIndex = ELocalPlayerIndex.One;
-            cameraComp.CullWithFrustum = true;
-
-            cameraComp.Camera.Parameters = new XRPerspectiveCameraParameters(45.0f, null, 0.1f, 99999.0f);
-            cameraComp.Camera.RenderPipeline = new DefaultRenderPipeline();
-        }
 
         var dirLightNode = new SceneNode(rootNode) { Name = "TestDirectionalLightNode" };
         var dirLightTransform = dirLightNode.SetTransform<Transform>();
@@ -154,12 +167,6 @@ internal class Program
         //    pointLightComp.CastsShadows = true;
         //    pointLightComp.SetShadowMapResolution(256, 256);
         //}
-
-        var listener = new SceneNode(cameraNode) { Name = "TestListenerNode" };
-        var listenerTransform = listener.SetTransform<Transform>();
-        listenerTransform.Translation = new Vector3(0.0f, 0.0f, 0.0f);
-        if (listener.TryAddComponent<AudioListenerComponent>(out var listenerComp))
-            listenerComp!.Name = "TestListener";
 
         //var sound = new SceneNode(rootNode) { Name = "TestSoundNode" };
         //var soundTransform = sound.SetTransform<Transform>();
@@ -233,12 +240,6 @@ internal class Program
                 })]);
         }
 
-        //Pawn
-        cameraNode.TryAddComponent<PawnComponent>(out var pawnComp);
-        pawnComp!.Name = "TestPawn";
-        pawnComp!.Camera = cameraComp;
-        pawnComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
-
         var importedModelsNode = new SceneNode(rootNode) { Name = "TestImportedModelsNode" };
         //importedModelsNode.GetTransformAs<Transform>()?.ApplyScale(new Vector3(0.1f));
 
@@ -246,8 +247,6 @@ internal class Program
         //orbitTransform2.Radius = 0.0f;
         //orbitTransform2.IgnoreRotation = false;
         //orbitTransform2.RegisterAnimationTick<OrbitTransform>(t => t.Angle += Engine.DilatedDelta * 0.5f);
-
-        world.Scenes.Add(scene);
 
         string fbxPathDesktop = Path.Combine(desktopDir, "test.fbx");
 
@@ -258,8 +257,8 @@ internal class Program
 
         ModelImporter.ImportAsync(fbxPathDesktop, flags, null, MaterialFactory, importedModelsNode, 0.0254f, true).ContinueWith(OnFinished);
 
-        //string sponzaPath = Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj");
-        //_ = ModelImporter.ImportAsync(sponzaPath, flags, null, MaterialFactory, importedModelsNode);
+        string sponzaPath = Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj");
+        _ = ModelImporter.ImportAsync(sponzaPath, flags, null, MaterialFactory, importedModelsNode);
 
         return world;
     }
@@ -275,7 +274,6 @@ internal class Program
             return;
 
         var comp = rootNode.AddComponent<HumanoidComponent>();
-        //comp!.SetFromNode();
         comp!.Left.Knee?.Node?.GetTransformAs<Transform>()?.RegisterAnimationTick<Transform>(KneeTick);
     }
     static void KneeTick(Transform t)

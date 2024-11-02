@@ -1,20 +1,20 @@
 ﻿using Silk.NET.Input;
 
-namespace XREngine.Input.Devices.Windows
+namespace XREngine.Input.Devices.Glfw
 {
     [Serializable]
-    public class SilkNetKeyboard : BaseKeyboard
+    public class GlfwKeyboard : BaseKeyboard
     {
         private readonly IKeyboard _keyboard;
 
-        public SilkNetKeyboard(IKeyboard keyboard) : base(keyboard.Index)
+        public GlfwKeyboard(IKeyboard keyboard) : base(keyboard.Index)
         {
             _keyboard = keyboard;
             _keyboard.KeyDown += KeyDown;
             _keyboard.KeyUp += KeyUp;
             _keyboard.KeyChar += KeyChar;
         }
-        ~SilkNetKeyboard()
+        ~GlfwKeyboard()
         {
             _keyboard.KeyDown -= KeyDown;
             _keyboard.KeyUp -= KeyUp;
@@ -34,22 +34,10 @@ namespace XREngine.Input.Devices.Windows
 
         }
 
-        protected override void TickStates(float delta)
+        public override void TickStates(float delta)
         {
-            //if (_keyboard.IsConnected)
-            //{
-            //    foreach (var key in _keyboard.Keys)
-            //    {
-            //        EKey eKey = Conv(key);
-            //        if (eKey == EKey.Unknown)
-            //            continue;
-
-            //        if (_keyboard.IsKeyPressed(key))
-            //            _buttonStates[(int)eKey].Update(true);
-            //        else
-            //            _buttonStates[(int)eKey].Update(false);
-            //    }
-            //}
+            foreach (ButtonManager? m in _buttonStates)
+                m?.Tick(_keyboard.IsKeyPressed(Conv((EKey)m.Index)), delta);
         }
 
         public static EKey Conv(Key key) => key switch

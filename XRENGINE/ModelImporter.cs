@@ -45,8 +45,6 @@ namespace XREngine
         
         private readonly ConcurrentBag<XRMesh> _meshes = [];
         private readonly ConcurrentBag<XRMaterial> _materials = [];
-        public Matrix4x4 ScaleConversionMatrix { get; private set; } = Matrix4x4.Identity;
-        public Matrix4x4 CoordinateConversionMatrix { get; private set; } = Matrix4x4.Identity;
 
         public static SceneNode? Import(
             string path,
@@ -98,8 +96,6 @@ namespace XREngine
 #endif
             float rotate = zUp ? -90.0f : 0.0f;
 
-            ScaleConversionMatrix = Matrix4x4.Identity;//Matrix4x4.CreateScale(scaleConversion);
-            CoordinateConversionMatrix = Matrix4x4.Identity;//Matrix4x4.CreateFromAxisAngle(Vector3.UnitX, XRMath.DegToRad(rotate));
             _assimp.Scale = scaleConversion;
             _assimp.XAxisRotation = rotate;
             AScene scene = _assimp.ImportFile(SourceFilePath, options);
@@ -140,7 +136,7 @@ namespace XREngine
 #endif
                     _onCompleted?.Invoke();
                 }
-                Task.Run(ProcessMeshesParallel).ContinueWith(Complete);
+                Task.Run(ProcessMeshesSequential).ContinueWith(CompleteSequential);
             }
             else
             {
@@ -262,7 +258,7 @@ namespace XREngine
             AScene scene)
         {
             //Debug.Out($"Processing mesh: {mesh->MName}");
-            return (new(parentTransform, mesh, _assimp, _nodeCache, ScaleConversionMatrix, CoordinateConversionMatrix), ProcessMaterial(mesh, scene));
+            return (new(parentTransform, mesh, _assimp, _nodeCache), ProcessMaterial(mesh, scene));
         }
 
         private unsafe XRMaterial ProcessMaterial(Mesh mesh, AScene scene)

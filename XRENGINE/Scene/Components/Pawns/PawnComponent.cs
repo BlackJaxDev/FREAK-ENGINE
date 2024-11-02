@@ -23,41 +23,7 @@ namespace XREngine.Components
         public PawnController? Controller
         {
             get => _controller;
-            set
-            {
-                if (Controller == value)
-                    return;
-
-                Unpossess();
-                Possess(value);
-            }
-        }
-
-        private void Possess(PawnController? value)
-        {
-            if (value is null)
-                return;
-
-            //Call before possessing the new pawn
-            PrePossess();
-            SetField(ref _controller, value);
-            value.ControlledPawn = this;
-            //Call after possessing the new pawn
-            PostPossess();
-        }
-
-        private void Unpossess()
-        {
-            if (Controller is null)
-                return;
-            
-            //Call before unregistering anything
-            PreUnpossess();
-            if (Controller.ControlledPawn == this)
-                Controller.ControlledPawn = null;
-            SetField(ref _controller, null);
-            //Call after unregistering controller
-            PostUnpossess();
+            set => SetField(ref _controller, value);
         }
 
         protected virtual void PostPossess()
@@ -68,6 +34,60 @@ namespace XREngine.Components
             => PostUnpossessed.Invoke(this);
         protected virtual void PreUnpossess()
             => PreUnpossessed.Invoke(this);
+
+        protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
+        {
+            bool change = base.OnPropertyChanging(propName, field, @new);
+            if (change)
+            {
+                switch (propName)
+                {
+                    case nameof(Controller):
+                        //Call before unregistering anything
+                        PreUnpossess();
+                        if (Controller?.ControlledPawn == this)
+                            Controller.ControlledPawn = null;
+                        if (Controller is LocalPlayerController localPlayerController)
+                        {
+                            UnregisterTick(ETickGroup.PrePhysics, ETickOrder.Input, TickInput);
+                        }
+                        //Call after unregistering controller
+                        PostUnpossess();
+                        break;
+                }
+            }
+            return change;
+        }
+        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+        {
+            base.OnPropertyChanged(propName, prev, field);
+            switch (propName)
+            {
+                case nameof(Controller):
+                    //Call before possessing the new pawn
+                    PrePossess();
+                    if (Controller is not null)
+                        Controller.ControlledPawn = this;
+                    if (Controller is LocalPlayerController localPlayerController)
+                    {
+                        RegisterTick(ETickGroup.PrePhysics, ETickOrder.Input, TickInput);
+                    }
+                    //Call after possessing the new pawn
+                    PostPossess();
+                    break;
+            }
+        }
+
+        private void TickInput()
+        {
+            if (Controller is not LocalPlayerController localPlayerController ||
+                localPlayerController.Input is not LocalInputInterface localInput)
+                return;
+            
+            localInput.Gamepad?.TickStates(Engine.Time.Timer.FixedUpdateDelta);
+            localInput.Mouse?.TickStates(Engine.Time.Timer.FixedUpdateDelta);
+            localInput.Keyboard?.TickStates(Engine.Time.Timer.FixedUpdateDelta);
+        }
 
         /// <summary>
         /// Casts the controller to a server player controller.
@@ -99,11 +119,11 @@ namespace XREngine.Components
             set => SetField(ref _camera, value);
         }
 
-        private UIInputComponent? _hud = null;
-        public UIInputComponent? HUD
+        private UIInputComponent? _userInterfaceInput = null;
+        public UIInputComponent? UserInterfaceInput
         {
-            get => _hud;
-            set => SetField(ref _hud, value);
+            get => _userInterfaceInput;
+            set => SetField(ref _userInterfaceInput, value);
         }
 
         public virtual void RegisterInput(InputInterface input) { }
@@ -121,5 +141,8 @@ namespace XREngine.Components
         /// <param name="one"></param>
         public void PossessByLocalPlayer(ELocalPlayerIndex one)
             => Engine.State.GetOrCreateLocalPlayer(one).ControlledPawn = this;
+
+        public CameraComponent? GetCamera()
+            => Camera is not null ? Camera : GetSiblingComponent<CameraComponent>();
     }
 }

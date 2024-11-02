@@ -651,75 +651,6 @@ namespace XREngine.Rendering.OpenGL
         public uint CreateSemaphore()
             => EXTSemaphore?.GenSemaphore() ?? 0;
 
-        public void ExportAndSendHandles()
-        {
-            uint memoryObject = CreateMemoryObject();
-            uint semaphore = CreateSemaphore();
-            
-            IntPtr memoryHandle = GetMemoryObjectHandle(memoryObject);
-            IntPtr semaphoreHandle = GetSemaphoreHandle(semaphore);
-
-            IntPtr duplicatedMemoryHandle = DuplicateHandleForIPC(memoryHandle);
-            IntPtr duplicatedSemaphoreHandle = DuplicateHandleForIPC(semaphoreHandle);
-
-            SendHandlesViaNamedPipe(duplicatedMemoryHandle, duplicatedSemaphoreHandle);
-        }
-
-        private IntPtr DuplicateHandleForIPC(IntPtr handle)
-        {
-            IntPtr currentProcess = Process.GetCurrentProcess().Handle;
-            IntPtr targetProcess = GetTargetProcessHandle();
-
-            bool success = DuplicateHandle(
-                currentProcess,
-                handle,
-                targetProcess,
-                out nint duplicatedHandle,
-                0,
-                false,
-                DUPLICATE_SAME_ACCESS
-            );
-
-            if (!success)
-            {
-                throw new Exception("Failed to duplicate handle.");
-            }
-
-            return duplicatedHandle;
-        }
-
-        private nint GetTargetProcessHandle()
-        {
-            //Get VRClient process
-            Process[] processes = Process.GetProcessesByName("vrclient");
-            if (processes.Length == 0)
-                throw new Exception("VRClient process not found.");
-            return processes[0].Handle;
-        }
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        public static extern bool DuplicateHandle(
-            IntPtr hSourceProcessHandle,
-            IntPtr hSourceHandle,
-            IntPtr hTargetProcessHandle,
-            out IntPtr lpTargetHandle,
-            uint dwDesiredAccess,
-            bool bInheritHandle,
-            uint dwOptions);
-
-        public const uint DUPLICATE_SAME_ACCESS = 0x00000002;
-
-        private void SendHandlesViaNamedPipe(IntPtr memoryHandle, IntPtr semaphoreHandle)
-        {
-            using NamedPipeServerStream pipeServer = new("HandlePipe", PipeDirection.Out);
-            Console.WriteLine("Waiting for connection...");
-            pipeServer.WaitForConnection();
-
-            using BinaryWriter writer = new(pipeServer);
-            writer.Write(memoryHandle.ToInt64());
-            writer.Write(semaphoreHandle.ToInt64());
-        }
-
         public IntPtr GetMemoryObjectHandle(uint memoryObject)
         {
             if (EXTMemoryObject is null)
@@ -742,31 +673,5 @@ namespace XREngine.Rendering.OpenGL
         public void SetSemaphoreHandle(uint semaphore, void* semaphoreHandle)
             => EXTSemaphoreWin32?.ImportSemaphoreWin32Handle(semaphore, EXT.HandleTypeOpaqueWin32Ext, semaphoreHandle);
 
-        public void ReceiveAndImportHandles()
-        {
-            if (EXTMemoryObject is null || EXTSemaphore is null)
-                return;
-
-            ReceiveHandlesViaNamedPipe(out nint memoryHandle, out nint semaphoreHandle);
-
-            uint sem = EXTSemaphore.GenSemaphore();
-            uint mem = EXTMemoryObject.CreateMemoryObject();
-            SetMemoryObjectHandle(mem, (void*)memoryHandle);
-            SetSemaphoreHandle(sem, (void*)semaphoreHandle);
-        }
-
-        private void ReceiveHandlesViaNamedPipe(out IntPtr memoryHandle, out IntPtr semaphoreHandle)
-        {
-            using NamedPipeClientStream pipeClient = new(".", "HandlePipe", PipeDirection.In);
-            Console.WriteLine("Connecting to server...");
-            pipeClient.Connect();
-
-            using BinaryReader reader = new(pipeClient);
-            long memoryHandleValue = reader.ReadInt64();
-            long semaphoreHandleValue = reader.ReadInt64();
-
-            memoryHandle = new IntPtr(memoryHandleValue);
-            semaphoreHandle = new IntPtr(semaphoreHandleValue);
-        }
     }
 }

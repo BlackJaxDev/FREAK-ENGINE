@@ -12,6 +12,11 @@ namespace XREngine.Input.Devices
         //relative, absolute
         private readonly List<DelCursorUpdate?>?[] _onCursorUpdate = new List<DelCursorUpdate?>?[2];
 
+        public void Tick(float x, float y, float delta)
+        {
+            TickAbsolute(x, y);
+        }
+
         public void Register(DelCursorUpdate func, EMouseMoveType type, bool unregister)
         {
             int index = (int)type;
@@ -34,7 +39,7 @@ namespace XREngine.Input.Devices
             }
         }
         //public Rectangle? WrapBounds { get; set; } = null;
-        protected internal void SetAbsolute(float x, float y)
+        protected internal void TickAbsolute(float x, float y)
         {
             //float dX, dY;
             //if (WrapBounds is not null)
@@ -55,7 +60,7 @@ namespace XREngine.Input.Devices
             //_lastX = x;
             //_lastY = y;
         }
-        protected internal void MoveRelative(float dX, float dY)
+        protected internal void TickRelative(float dX, float dY)
         {
             //float x = _lastX + dX;
             //float y = _lastY + dY;

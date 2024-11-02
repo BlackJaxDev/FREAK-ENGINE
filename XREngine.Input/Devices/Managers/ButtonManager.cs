@@ -126,13 +126,13 @@ namespace XREngine.Input.Devices
                 }
             }
         }
-        private void OnPressed()
+        public void OnPressed()
         {
             IsPressed = true;
             ExecuteActionList(EButtonInputType.Pressed);
             ExecutePressedStateList(true);
         }
-        private void OnReleased()
+        public void OnReleased()
         {
             IsPressed = false;
             IsHeld = false;
@@ -140,12 +140,12 @@ namespace XREngine.Input.Devices
             ExecuteActionList(EButtonInputType.Released);
             ExecutePressedStateList(false);
         }
-        private void OnHeld()
+        public void OnHeld()
         {
             IsHeld = true;
             ExecuteActionList(EButtonInputType.Held);
         }
-        private void OnDoublePressed()
+        public void OnDoublePressed()
         {
             IsDoublePressed = true;
             ExecuteActionList(EButtonInputType.DoublePressed);

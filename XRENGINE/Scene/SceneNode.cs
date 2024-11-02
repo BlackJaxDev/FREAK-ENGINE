@@ -54,7 +54,7 @@ namespace XREngine.Scene
             if (transform != null)
                 SetTransform(transform, false);
 
-            scene._rootObjects.Add(this);
+            scene.RootNodes.Add(this);
             Name = name;
             ComponentsInternal.PostAnythingAdded += ComponentAdded;
             ComponentsInternal.PostAnythingRemoved += ComponentRemoved;

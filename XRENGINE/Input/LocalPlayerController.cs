@@ -13,32 +13,18 @@ namespace XREngine.Input
         public XRViewport? Viewport
         {
             get => _viewport;
-            internal set
-            {
-                //if (_viewport != null && _viewport.OwningPanel.GlobalHud != null)
-                //    _input.WantsInputsRegistered -= _viewport.OwningPanel.GlobalHud.RegisterInput;
-                _viewport = value;
-                UpdateViewportCamera();
-                //if (_viewport.OwningPanel.GlobalHud != null)
-                //    _input.WantsInputsRegistered += _viewport.OwningPanel.GlobalHud.RegisterInput;
-
-            }
+            internal set => SetField(ref _viewport, value);
         }
 
-        //private List<CameraComponent> _cameras = [];
-        //public List<CameraComponent> Cameras
-        //{
-        //    get => _cameras;
-        //    set => SetField(ref _cameras, value);
-        //}
-
-        public override PawnComponent? ControlledPawn
+        protected override void OnPropertyChanged<T2>(string? propName, T2 prev, T2 field)
         {
-            get => base.ControlledPawn;
-            set
+            base.OnPropertyChanged(propName, prev, field);
+            switch (propName)
             {
-                base.ControlledPawn = value;
-                UpdateViewportCamera();
+                case nameof(Viewport):
+                case nameof(ControlledPawn):
+                    UpdateViewportCamera();
+                    break;
             }
         }
 
@@ -50,7 +36,7 @@ namespace XREngine.Input
         {
             if (_viewport is not null)
             {
-                _viewport.CameraComponent = _controlledPawn?.Camera;
+                _viewport.CameraComponent = _controlledPawn?.GetCamera();
                 Input.UpdateDevices(_viewport.Window?.Input);
             }
             else

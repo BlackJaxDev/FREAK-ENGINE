@@ -1,15 +1,16 @@
 ﻿using Silk.NET.GLFW;
 using Silk.NET.Input;
 using System.Numerics;
+using MouseButton = Silk.NET.Input.MouseButton;
 
-namespace XREngine.Input.Devices.Windows
+namespace XREngine.Input.Devices.Glfw
 {
     [Serializable]
-    public class SilkNetMouse : BaseMouse
+    public class GlfwMouse : BaseMouse
     {
         private readonly IMouse _mouse;
 
-        public SilkNetMouse(IMouse mouse) : base(mouse.Index)
+        public GlfwMouse(IMouse mouse) : base(mouse.Index)
         {
             _mouse = mouse;
             _mouse.MouseMove += MouseMove;
@@ -19,7 +20,7 @@ namespace XREngine.Input.Devices.Windows
             _mouse.Click += Click;
             _mouse.DoubleClick += DoubleClick;
         }
-        ~SilkNetMouse()
+        ~GlfwMouse()
         {
             _mouse.MouseMove -= MouseMove;
             _mouse.MouseUp -= MouseUp;
@@ -56,7 +57,7 @@ namespace XREngine.Input.Devices.Windows
 
         private void MouseMove(IMouse mouse, Vector2 vector)
         {
-            _cursor.MoveRelative(vector.X, vector.Y);
+            _relative += vector;
         }
 
         public override void SetCursorPosition(float x, float y)
@@ -64,9 +65,18 @@ namespace XREngine.Input.Devices.Windows
             _mouse.Position = new Vector2(x, y);
         }
 
-        protected override void TickStates(float delta)
-        {
+        private Vector2 _relative = Vector2.Zero;
 
+
+        public override void TickStates(float delta)
+        {
+            _cursor.TickRelative(_relative.X, _relative.Y);
+            _relative = Vector2.Zero;
+            _cursor.TickAbsolute(_mouse.Position.X, _mouse.Position.Y);
+            _wheel.Tick(_mouse.ScrollWheels[0].Y, delta);
+            LeftClick?.Tick(_mouse.IsButtonPressed(MouseButton.Left), delta);
+            RightClick?.Tick(_mouse.IsButtonPressed(MouseButton.Right), delta);
+            MiddleClick?.Tick(_mouse.IsButtonPressed(MouseButton.Middle), delta);
         }
     }
 }

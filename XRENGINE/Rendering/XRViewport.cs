@@ -122,7 +122,7 @@ namespace XREngine.Rendering
                 return;
 
             World?.VisualScene?.CollectRenderedItems(_renderPipeline.MeshRenderCommands, GetCollectionVolume(camera), camera);
-            //cameraComponent?.UserInterface?.PreRender(this, cameraComponent);
+            CameraComponent?.UserInterfaceOverlay?.CollectVisible(this);
         }
 
         private IVolume? GetCollectionVolume(XRCamera? camera)
@@ -134,6 +134,7 @@ namespace XREngine.Rendering
         private void SwapBuffers()
         {
             _renderPipeline.MeshRenderCommands.SwapBuffers();
+            CameraComponent?.UserInterfaceOverlay?.SwapBuffersScreenSpace();
         }
 
         public static XRViewport ForTotalViewportCount(XRWindow window, int totalViewportCount)

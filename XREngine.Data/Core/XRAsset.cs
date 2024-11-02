@@ -1,6 +1,8 @@
 ﻿using Extensions;
 using System.IO.MemoryMappedFiles;
+using System.Text.Json.Serialization;
 using XREngine.Data.Core;
+using YamlDotNet.Serialization;
 
 namespace XREngine.Core.Files
 {
@@ -19,7 +21,7 @@ namespace XREngine.Core.Files
         public EventList<XRAsset> EmbeddedAssets
         {
             get => _embeddedAssets; 
-            private set => _embeddedAssets = value;
+            internal set => SetField(ref _embeddedAssets, value);
         }
 
         private string? _filePath;
@@ -28,14 +30,8 @@ namespace XREngine.Core.Files
         /// </summary>
         public string? FilePath
         {
-            get
-            {
-                if (_sourceAsset is null || _sourceAsset == this)
-                    return _filePath;
-
-                return _sourceAsset.FilePath;
-            }
-            set => _filePath = (value?.IsValidPath() ?? false) ? Path.GetFullPath(value) : value;
+            get => _sourceAsset is null || _sourceAsset == this ? _filePath : _sourceAsset.FilePath;
+            set => SetField(ref _filePath, (value?.IsValidPath() ?? false) ? Path.GetFullPath(value) : value);
         }
 
         private XRAsset? _sourceAsset = null;
@@ -46,16 +42,20 @@ namespace XREngine.Core.Files
         public XRAsset SourceAsset
         {
             get => _sourceAsset ?? this;
-            set => _sourceAsset = value;
+            set => SetField(ref _sourceAsset, value);
         }
 
         /// <summary>
         /// The map of the asset in memory for unsafe pointer use.
         /// </summary>
+        [JsonIgnore]
+        [YamlIgnore]
         private MemoryMappedFile? FileMap { get; set; }
         /// <summary>
         /// A stream to the file for sequential reading and writing.
         /// </summary>
+        [JsonIgnore]
+        [YamlIgnore]
         public MemoryMappedViewStream? FileMapStream { get; private set; }
 
         public void OpenForStreaming()

@@ -8,7 +8,7 @@ namespace XREngine.Components
 {
     [RequireComponents(typeof(CameraComponent))]
     [RequiresTransform(typeof(Transform))]
-    public class FlyingCameraPawn : FlyingCameraPawnBase
+    public class FlyingCameraPawnComponent : FlyingCameraPawnBaseComponent
     {
         protected override void OnScrolled(bool up)
             => TransformAs<Transform>().TranslateRelative(0.0f, 0.0f, up ? ScrollSpeed : -ScrollSpeed);

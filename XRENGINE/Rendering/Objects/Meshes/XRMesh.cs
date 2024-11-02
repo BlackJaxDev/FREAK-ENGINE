@@ -1027,12 +1027,14 @@ namespace XREngine.Rendering
 #endif
         }
 
-        public unsafe XRMesh(TransformBase parentTransform, Mesh mesh, AssimpContext assimp, Dictionary<string, List<SceneNode>> nodeCache, Matrix4x4 scaleConvMtx, Matrix4x4 coordConvMtx) : this()
+        public unsafe XRMesh(
+            TransformBase parentTransform,
+            Mesh mesh,
+            AssimpContext assimp,
+            Dictionary<string, List<SceneNode>> nodeCache) : this()
         {
             //Engine.Profiler.Start(null, true, "XRMesh Constructor");
 
-            Matrix4x4 fullConv = scaleConvMtx * coordConvMtx;
-            Matrix4x4 invFullConv = fullConv.Inverted();
             Matrix4x4 dataTransform = Matrix4x4.Identity;//parentTransform.InverseWorldMatrix;
 
             ArgumentNullException.ThrowIfNull(mesh);
@@ -1254,7 +1256,6 @@ namespace XREngine.Rendering
                     parentTransform,
                     mesh,
                     nodeCache,
-                    invFullConv,
                     weightsPerVertex,
                     invBindMatrices,
                     boneCount,
@@ -1301,7 +1302,6 @@ namespace XREngine.Rendering
             TransformBase parentTransform,
             Mesh mesh,
             Dictionary<string, List<SceneNode>> nodeCache,
-            Matrix4x4 invFullConv,
             Dictionary<TransformBase, float>?[]? weightsPerVertex,
             Dictionary<TransformBase, Matrix4x4> invBindMatrices,
             int boneCount,

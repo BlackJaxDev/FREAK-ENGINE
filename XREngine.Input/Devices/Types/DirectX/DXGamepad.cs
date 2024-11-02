@@ -62,7 +62,7 @@ namespace XREngine.Input.Devices.DirectX
             Capabilities c = _controller.GetCapabilities(DeviceQueryType.Gamepad);
             return buttons.Select(x => ButtonExists(x, c)).ToList();
         }
-        protected override void TickStates(float delta)
+        public override void TickStates(float delta)
         {
             if (!UpdateConnected(_controller.IsConnected))
                 return;

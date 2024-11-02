@@ -1,4 +1,5 @@
 ﻿using Silk.NET.Input;
+using XREngine.Input.Devices.Glfw;
 
 namespace XREngine.Input.Devices
 {
@@ -14,19 +15,12 @@ namespace XREngine.Input.Devices
         public BaseKeyboard? Keyboard { get; private set; }
         public BaseMouse? Mouse { get; private set; }
 
-        //TODO: contain reference to owning local player controller
-        //and use its player index enum instead
-        //Also update devices when the player index is changed
+        private int _localPlayerIndex;
         public int LocalPlayerIndex
         {
-            get => _playerIndex;
-            set
-            {
-                _playerIndex = value;
-                //UpdateDevices();
-            }
+            get => _localPlayerIndex;
+            set => SetField(ref _localPlayerIndex, value);
         }
-        private int _playerIndex;
 
         public LocalInputInterface(int localPlayerIndex) : base(localPlayerIndex)
         {
@@ -41,8 +35,10 @@ namespace XREngine.Input.Devices
             TryUnregisterInput();
 
             Unregister = false;
+
             //Interface gets input from pawn, hud, local controller, and global list
             OnInputRegistration();
+
             foreach (DelWantsInputsRegistered register in GlobalRegisters)
                 register(this);
         }
@@ -177,22 +173,26 @@ namespace XREngine.Input.Devices
 
             context.ConnectionChanged += ConnectionChanged;
 
-            var gamepads = InputDevice.CurrentDevices[EInputDeviceType.Gamepad];
-            var keyboards = InputDevice.CurrentDevices[EInputDeviceType.Keyboard];
-            var mice = InputDevice.CurrentDevices[EInputDeviceType.Mouse];
+            //var gamepads = InputDevice.CurrentDevices[EInputDeviceType.Gamepad];
+            //var keyboards = InputDevice.CurrentDevices[EInputDeviceType.Keyboard];
+            //var mice = InputDevice.CurrentDevices[EInputDeviceType.Mouse];
 
-            if (_playerIndex >= 0 && _playerIndex < gamepads.Count)
-                Gamepad = gamepads[_playerIndex] as BaseGamePad;
+            var gamepads = context.Gamepads;
+            var keyboards = context.Keyboards;
+            var mice = context.Mice;
+
+            if (_localPlayerIndex >= 0 && _localPlayerIndex < gamepads.Count)
+                Gamepad = new GlfwGamepad(gamepads[_localPlayerIndex]);
 
             //Keyboard and mouse are reserved for the first player only
             //TODO: support multiple mice and keyboard? Could get difficult with laptops and trackpads and whatnot. Probably no-go.
             //TODO: support input from ALL keyboards and mice for first player. Not just the first found keyboard and mouse.
 
-            if (keyboards.Count > 0 && _playerIndex == 0)
-                Keyboard = keyboards[0] as BaseKeyboard;
+            if (keyboards.Count > 0 && _localPlayerIndex == 0)
+                Keyboard = new GlfwKeyboard(keyboards[0]);
 
-            if (mice.Count > 0 && _playerIndex == 0)
-                Mouse = mice[0] as BaseMouse;
+            if (mice.Count > 0 && _localPlayerIndex == 0)
+                Mouse = new GlfwMouse(mice[0]);
 
             AttachInterfaceToDevices(true);
         }
@@ -206,21 +206,15 @@ namespace XREngine.Input.Devices
         {
             if (attach)
             {
-                if (Gamepad != null)
-                    Gamepad.InputInterface = this;
-                if (Keyboard != null)
-                    Keyboard.InputInterface = this;
-                if (Mouse != null)
-                    Mouse.InputInterface = this;
+                Gamepad?.InputInterfaces.Add(this);
+                Keyboard?.InputInterfaces.Add(this);
+                Mouse?.InputInterfaces.Add(this);
             }
             else
             {
-                if (Gamepad != null)
-                    Gamepad.InputInterface = null;
-                if (Keyboard != null)
-                    Keyboard.InputInterface = null;
-                if (Mouse != null)
-                    Mouse.InputInterface = null;
+                Gamepad?.InputInterfaces.Remove(this);
+                Keyboard?.InputInterfaces.Remove(this);
+                Mouse?.InputInterfaces.Remove(this);
             }
         }
     }

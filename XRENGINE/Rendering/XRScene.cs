@@ -1,4 +1,6 @@
-﻿using XREngine.Core.Files;
+﻿using System.Text.Json.Serialization;
+using XREngine.Core.Files;
+using YamlDotNet.Serialization;
 
 namespace XREngine.Scene
 {
@@ -8,12 +10,7 @@ namespace XREngine.Scene
     public class XRScene : XRAsset
     {
         private bool _isVisible = true;
-        internal readonly List<SceneNode> _rootObjects = [];
-
-        /// <summary>
-        /// The world this scene is currently loaded into.
-        /// </summary>
-        public XRWorld? ParentWorld { get; set; }
+        private List<SceneNode> _rootObjects = [];
 
         /// <summary>
         /// If the scene is currently visible in the world.
@@ -28,6 +25,10 @@ namespace XREngine.Scene
         /// All nodes that are at the root of the scene.
         /// Nodes can have any number of children, recursively.
         /// </summary>
-        public IReadOnlyList<SceneNode> RootNodes => _rootObjects;
+        public List<SceneNode> RootNodes
+        {
+            get => _rootObjects;
+            set => SetField(ref _rootObjects, value);
+        }
     }
 }

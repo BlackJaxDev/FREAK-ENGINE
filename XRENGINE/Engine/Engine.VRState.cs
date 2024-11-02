@@ -2,14 +2,18 @@
 using OpenVR.NET;
 using OpenVR.NET.Devices;
 using OpenVR.NET.Manifest;
+using Silk.NET.OpenGLES.Extensions.EXT;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO.Pipes;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Valve.VR;
 using XREngine.Data.Core;
+using XREngine.Rendering.OpenGL;
 
 namespace XREngine
 {
@@ -373,6 +377,94 @@ namespace XREngine
             }
 
             private static VRInputData? _latestInputData = null;
+
+            public static void ExportAndSendHandles(OpenGLRenderer renderer, Process targetProcess)
+            {
+                uint memoryObject = renderer.CreateMemoryObject();
+                uint semaphore = renderer.CreateSemaphore();
+
+                IntPtr memoryHandle = renderer.GetMemoryObjectHandle(memoryObject);
+                IntPtr semaphoreHandle = renderer.GetSemaphoreHandle(semaphore);
+
+                IntPtr duplicatedMemoryHandle = DuplicateHandleForIPC(memoryHandle, targetProcess);
+                IntPtr duplicatedSemaphoreHandle = DuplicateHandleForIPC(semaphoreHandle, targetProcess);
+
+                SendHandlesViaNamedPipe(duplicatedMemoryHandle, duplicatedSemaphoreHandle);
+            }
+
+            private static IntPtr DuplicateHandleForIPC(IntPtr handle, Process targetProcess)
+            {
+                IntPtr currentProcessHandle = Process.GetCurrentProcess().Handle;
+                IntPtr targetProcessHandle = targetProcess.Handle;
+
+                bool success = DuplicateHandle(
+                    currentProcessHandle,
+                    handle,
+                    targetProcessHandle,
+                    out nint duplicatedHandle,
+                    0,
+                    false,
+                    DUPLICATE_SAME_ACCESS
+                );
+
+                if (!success)
+                {
+                    throw new Exception("Failed to duplicate handle.");
+                }
+
+                return duplicatedHandle;
+            }
+
+            [DllImport("kernel32.dll", SetLastError = true)]
+            public static extern bool DuplicateHandle(
+                IntPtr hSourceProcessHandle,
+                IntPtr hSourceHandle,
+                IntPtr hTargetProcessHandle,
+                out IntPtr lpTargetHandle,
+                uint dwDesiredAccess,
+                bool bInheritHandle,
+                uint dwOptions);
+
+            public const uint DUPLICATE_SAME_ACCESS = 0x00000002;
+
+            private static void SendHandlesViaNamedPipe(IntPtr memoryHandle, IntPtr semaphoreHandle, string pipeName = "HandlePipe")
+            {
+                using NamedPipeServerStream pipeServer = new(pipeName, PipeDirection.Out);
+                Console.WriteLine("Waiting for connection...");
+                pipeServer.WaitForConnection();
+
+                using BinaryWriter writer = new(pipeServer);
+                writer.Write(memoryHandle.ToInt64());
+                writer.Write(semaphoreHandle.ToInt64());
+            }
+
+            private static void ReceiveHandlesViaNamedPipe(out IntPtr memoryHandle, out IntPtr semaphoreHandle, string pipeName = "HandlePipe")
+            {
+                using NamedPipeClientStream pipeClient = new(".", pipeName, PipeDirection.In);
+                Console.WriteLine("Connecting to server...");
+                pipeClient.Connect();
+
+                using BinaryReader reader = new(pipeClient);
+                long memoryHandleValue = reader.ReadInt64();
+                long semaphoreHandleValue = reader.ReadInt64();
+
+                memoryHandle = new IntPtr(memoryHandleValue);
+                semaphoreHandle = new IntPtr(semaphoreHandleValue);
+            }
+
+            public static unsafe void ReceiveAndImportHandles(OpenGLRenderer renderer)
+            {
+                if (renderer.EXTMemoryObject is null || renderer. EXTSemaphore is null)
+                    return;
+
+                ReceiveHandlesViaNamedPipe(out nint memoryHandle, out nint semaphoreHandle);
+
+                uint sem = renderer.EXTSemaphore.GenSemaphore();
+                uint mem = renderer.EXTMemoryObject.CreateMemoryObject();
+
+                renderer.SetMemoryObjectHandle(mem, (void*)memoryHandle);
+                renderer.SetSemaphoreHandle(sem, (void*)semaphoreHandle);
+            }
         }
     }
 }

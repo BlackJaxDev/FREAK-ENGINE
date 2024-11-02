@@ -367,7 +367,7 @@ namespace XREngine
 #endif
         }
 
-        public Func<string, bool>? AllowOverwriteCallback { get; set; } = path => false;
+        public Func<string, bool>? AllowOverwriteCallback { get; set; } = path => true;
 
         public static string GetUniqueAssetPath(string path)
         {
@@ -418,15 +418,16 @@ namespace XREngine
 
         public static readonly ISerializer Serializer = new SerializerBuilder()
             .WithEventEmitter(nextEmitter => new DepthTrackingEventEmitter(nextEmitter))
-            .WithTypeConverter(new XRAssetYamlConverter())
+            //.WithTypeConverter(new XRAssetYamlConverter())
             .WithTypeConverter(new DataSourceYamlTypeConverter())
             .Build();
 
         public static readonly IDeserializer Deserializer = new DeserializerBuilder()
+            .IgnoreUnmatchedProperties()
             .WithNodeDeserializer(
                 inner => new DepthTrackingNodeDeserializer(inner),
                 s => s.InsteadOf<ObjectNodeDeserializer>())
-            .WithNodeDeserializer(new XRAssetDeserializer(), w => w.OnTop())
+            //.WithNodeDeserializer(new XRAssetDeserializer(), w => w.OnTop())
             .Build();
 
         private static T? Deserialize<T>(string filePath) where T : XRAsset, new()

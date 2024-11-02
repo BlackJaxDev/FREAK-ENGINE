@@ -26,8 +26,8 @@
         public bool IsConnected => _isConnected;
         public int Index => _index;
         public abstract EInputDeviceType DeviceType { get; }
-        public InputInterface? InputInterface { get; internal set; }
-
+        public List<InputInterface> InputInterfaces { get; } = [];
+        
         protected InputDevice(int index)
         {
             _index = index;
@@ -40,7 +40,7 @@
             _buttonStates = new ButtonManager[GetButtonCount()];
             _axisStates = new AxisManager[GetAxisCount()];
         }
-        protected abstract void TickStates(float delta);
+        public abstract void TickStates(float delta);
         /// <summary>
         /// Returns true if connected.
         /// </summary>

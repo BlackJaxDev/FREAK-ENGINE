@@ -1,4 +1,6 @@
 ﻿using System.Numerics;
+using System.Text.Json.Serialization;
+using YamlDotNet.Serialization;
 
 namespace XREngine.Data.Geometry
 {
@@ -7,8 +9,8 @@ namespace XREngine.Data.Geometry
     /// </summary>
     public struct AABB : IShape
     {
-        private Vector3 min;
-        private Vector3 max;
+        private Vector3 _min;
+        private Vector3 _max;
 
         public AABB(Vector3 min, Vector3 max)
         {
@@ -25,6 +27,8 @@ namespace XREngine.Data.Geometry
         public static AABB FromSize(Vector3 size)
             => FromCenterSize(Vector3.Zero, size);
 
+        [JsonIgnore]
+        [YamlIgnore]
         public Vector3 Size
         {
             readonly get => Max - Min;
@@ -37,6 +41,8 @@ namespace XREngine.Data.Geometry
             }
         }
 
+        [JsonIgnore]
+        [YamlIgnore]
         public Vector3 Extents
         {
             readonly get => (Max - Min) / 2.0f;
@@ -49,6 +55,8 @@ namespace XREngine.Data.Geometry
             }
         }
 
+        [JsonIgnore]
+        [YamlIgnore]
         public Vector3 Center
         {
             readonly get => (Max + Min) / 2.0f;
@@ -62,17 +70,19 @@ namespace XREngine.Data.Geometry
             }
         }
 
+        [JsonIgnore]
+        [YamlIgnore]
         public readonly float Volume => Size.X * Size.Y * Size.Z;
 
         public Vector3 Min
         {
-            readonly get => min;
-            set => min = value;
+            readonly get => _min;
+            set => _min = value;
         }
         public Vector3 Max
         {
-            readonly get => max;
-            set => max = value;
+            readonly get => _max;
+            set => _max = value;
         }
 
         public readonly bool Intersects(AABB other) => 
