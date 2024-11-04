@@ -6,6 +6,7 @@ using XREngine.Components;
 using XREngine.Components.Lights;
 using XREngine.Components.Scene;
 using XREngine.Components.Scene.Mesh;
+using XREngine.Components.Scene.Transforms;
 using XREngine.Data.Colors;
 using XREngine.Data.Core;
 using XREngine.Data.Rendering;
@@ -61,7 +62,12 @@ internal class Program
         //orbitTransform.Radius = 5.0f;
         //orbitTransform.IgnoreRotation = false;
         //orbitTransform.RegisterAnimationTick<OrbitTransform>(t => t.Angle += Engine.DilatedDelta * 0.5f);
-        cameraNode.GetTransformAs<Transform>()!.Translation = new Vector3(0.0f, 0.0f, 5.0f);
+
+        var laggedTransform = cameraNode.GetTransformAs<TransformLagged>(true)!;
+        laggedTransform.Translation = new Vector3(0.0f, 0.0f, 5.0f);
+        laggedTransform.RotationSmoothingSpeed = 10.0f;
+        laggedTransform.TranslationSmoothingSpeed = 10.0f;
+        laggedTransform.ScaleSmoothingSpeed = 10.0f;
 
         if (cameraNode.TryAddComponent<CameraComponent>(out var cameraComp))
         {

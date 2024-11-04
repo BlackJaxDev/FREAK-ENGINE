@@ -1,4 +1,5 @@
-﻿using System.ComponentModel;
+﻿using Extensions;
+using System.ComponentModel;
 using XREngine.Input.Devices;
 
 namespace XREngine.Components
@@ -15,34 +16,23 @@ namespace XREngine.Components
         public float Yaw
         {
             get => _yaw;
-            set
-            {
-                _yaw = value;
-                YawPitchUpdated();
-            }
+            set => SetField(ref _yaw, value.RemapToRange(-180.0f, 180.0f));
         }
         public float Pitch
         {
             get => _pitch;
-            set
-            {
-                _pitch = value;
-                YawPitchUpdated();
-            }
+            set => SetField(ref _pitch, value.RemapToRange(-180.0f, 180.0f));
         }
 
         public void SetYawPitch(float yaw, float pitch)
         {
-            _yaw = yaw;
-            _pitch = pitch;
+            _yaw = yaw.RemapToRange(-180.0f, 180.0f);
+            _pitch = pitch.RemapToRange(-180.0f, 180.0f);
             YawPitchUpdated();
         }
+
         public void AddYawPitch(float yawDiff, float pitchDiff)
-        {
-            _yaw += yawDiff;
-            _pitch += pitchDiff;
-            YawPitchUpdated();
-        }
+            => SetYawPitch(Yaw + yawDiff, Pitch + pitchDiff);
 
         protected abstract void YawPitchUpdated();
 
@@ -54,8 +44,10 @@ namespace XREngine.Components
 
         [Browsable(false)]
         public bool Rotating => _rightClickPressed && _ctrl;
+
         [Browsable(false)]
         public bool Translating => _rightClickPressed && !_ctrl;
+
         [Browsable(false)]
         public bool Moving => Rotating || Translating;
 
@@ -78,7 +70,7 @@ namespace XREngine.Components
         public float KeyboardTranslateSpeed { get; set; } = 10.0f;
 
         [Category("Movement")]
-        public float KeyboardRotateSpeed { get; set; } = 15.0f;
+        public float KeyboardRotateSpeed { get; set; } = 0.01f;
 
         public override void RegisterInput(InputInterface input)
         {
@@ -106,6 +98,7 @@ namespace XREngine.Components
             input.RegisterAxisUpdate(EGamePadAxis.LeftThumbstickY, OnLeftStickY, false);
             input.RegisterAxisUpdate(EGamePadAxis.RightThumbstickX, OnRightStickX, false);
             input.RegisterAxisUpdate(EGamePadAxis.RightThumbstickY, OnRightStickY, false);
+
             input.RegisterButtonPressed(EGamePadButton.RightBumper, MoveUp);
             input.RegisterButtonPressed(EGamePadButton.LeftBumper, MoveDown);
         }
@@ -143,26 +136,35 @@ namespace XREngine.Components
 
         private void OnControl(bool pressed)
             => _ctrl = pressed;
-
         protected virtual void OnRightClick(bool pressed)
-        {
-            _rightClickPressed = pressed;
-        }
+            => _rightClickPressed = pressed;
 
         protected internal override void OnComponentActivated()
         {
             base.OnComponentActivated();
-            RegisterTick(ETickGroup.PrePhysics, ETickOrder.Input, Tick);
+            RegisterTick(ETickGroup.Normal, ETickOrder.Input, Tick);
         }
         protected internal override void OnComponentDeactivated()
         {
             base.OnComponentDeactivated();
-            UnregisterTick(ETickGroup.PrePhysics, ETickOrder.Input, Tick);
+            UnregisterTick(ETickGroup.Normal, ETickOrder.Input, Tick);
         }
 
         protected abstract void OnScrolled(bool up);
         protected abstract void MouseMove(float x, float y);
         protected abstract void Tick();
+
+        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+        {
+            base.OnPropertyChanged(propName, prev, field);
+            switch (propName)
+            {
+                case nameof(Yaw):
+                case nameof(Pitch):
+                    YawPitchUpdated();
+                    break;
+            }
+        }
 
         #region Customizable Input
         //Dictionary<ComboModifier, Action<bool>> _combos = new Dictionary<ComboModifier, Action<bool>>();
@@ -205,38 +207,4 @@ namespace XREngine.Components
         //}
         #endregion
     }
-
-    //public enum CameraInputType
-    //{
-    //    TranslateXY,
-    //    RotateYP,
-    //    Select,
-    //    ContextMenu,
-    //}
-    //[Flags]
-    //public enum ComboModifier
-    //{
-    //    None        = 0x0,
-    //    Ctrl        = 0x1,
-    //    Alt         = 0x2,
-    //    Shift       = 0x4,
-    //    LeftClick   = 0x8,
-    //    MiddleClick = 0x10,
-    //    RightClick  = 0x20,
-    //}
-    //public class CameraInputCombo
-    //{
-    //    public CameraInputCombo(EMouseButton type, ComboModifier modifiers)
-    //    {
-    //        _type = type;
-    //        _modifiers = modifiers;
-    //    }
-    //    public CameraInputCombo(EMouseButton type)
-    //    {
-    //        _type = type;
-    //        _modifiers = ComboModifier.None;
-    //    }
-    //    public EMouseButton _type;
-    //    public ComboModifier _modifiers;
-    //}
 }

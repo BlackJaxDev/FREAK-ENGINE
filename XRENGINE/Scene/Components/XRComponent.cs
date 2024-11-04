@@ -147,6 +147,7 @@ namespace XREngine.Components
 
         public T TransformAs<T>() where T : TransformBase
             => (T)Transform;
+
         public bool TransformIs<T>(out T? transform) where T : TransformBase
         {
             if (Transform is T t)

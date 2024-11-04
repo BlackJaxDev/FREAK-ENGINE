@@ -143,7 +143,14 @@ namespace XREngine
                 //Join the multicast group
                 udpClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
                 udpClient.Client.Bind(new IPEndPoint(IPAddress.Any, upMulticastServerPort));
-                udpClient.JoinMulticastGroup(udpMulticastServerIP);
+                try
+                {
+                    udpClient.JoinMulticastGroup(udpMulticastServerIP);
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogException(ex);
+                }
                 UdpReceiver = udpClient;
             }
 

@@ -51,11 +51,15 @@ namespace XREngine.Components
         {
             IncrementRotation();
 
-            if (!(_incRight.IsZero() && _incUp.IsZero() && _incForward.IsZero()))
-                TransformAs<Transform>().TranslateRelative(
-                    _incRight * Engine.Delta,
-                    _incUp * Engine.Delta,
-                    -_incForward * Engine.Delta);
+            if (_incRight.IsZero() && 
+                _incUp.IsZero() && 
+                _incForward.IsZero())
+                return;
+
+            TransformAs<Transform>().TranslateRelative(
+                _incRight * Engine.Delta,
+                _incUp * Engine.Delta,
+                -_incForward * Engine.Delta);
         }
 
         private void IncrementRotation()
