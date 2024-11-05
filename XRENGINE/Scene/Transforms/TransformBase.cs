@@ -155,19 +155,19 @@ namespace XREngine.Scene.Transforms
         /// </summary>
         internal bool ParallelDepthRecalculate()
         {
+            bool recalcWorld = false;
             if (_localMatrix.NeedsRecalc)
             {
                 _localMatrix.NeedsRecalc = false;
                 RecalcLocal();
-                _worldMatrix.NeedsRecalc = true;
-
+                //We have to use a local bool here because the world matrix can be recalculated elsewhere before we get to it here
+                //_worldMatrix.NeedsRecalc = true;
+                recalcWorld = true;
                 Engine.Networking.ReplicateTransform(this);
             }
 
-            if (!_worldMatrix.NeedsRecalc)
-                return false;
-            
-            RecalcWorld(false);
+            if (recalcWorld)
+                RecalcWorld(false);
 
             if (World is null)
                 return false;

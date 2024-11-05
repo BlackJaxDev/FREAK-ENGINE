@@ -90,6 +90,7 @@ namespace XREngine.Timers
             if (IsRunning)
                 return;
 
+            _watch.Start();
             _renderDone = new ManualResetEventSlim(false);
             _collectVisibleDone = new ManualResetEventSlim(true);
 
@@ -105,7 +106,6 @@ namespace XREngine.Timers
             //SwapDone is set when the render thread finishes swapping buffers. This fence is set right before the render thread starts rendering.
             //PreRenderDone is set when the prerender thread finishes collecting render commands. This fence is set right before the render thread starts swapping buffers.
 
-            _watch.Start();
             Debug.Out($"Started game loop threads.");
 
             //Stopwatch sw = Stopwatch.StartNew();
