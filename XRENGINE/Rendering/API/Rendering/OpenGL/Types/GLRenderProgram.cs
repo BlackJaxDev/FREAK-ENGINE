@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using System.Numerics;
 using System.Security.Cryptography;
 using System.Text;
+using XREngine.Data.Vectors;
 
 namespace XREngine.Rendering.OpenGL
 {
@@ -176,6 +177,18 @@ namespace XREngine.Rendering.OpenGL
                 Data.UniformSetDoubleArrayRequested += Uniform;
                 Data.UniformSetMatrix4x4ArrayRequested += Uniform;
 
+                Data.UniformSetIVector2Requested += Uniform;
+                Data.UniformSetIVector3Requested += Uniform;
+                Data.UniformSetIVector4Requested += Uniform;
+
+                //Data.UniformSetUVector2Requested += Uniform;
+                //Data.UniformSetUVector3Requested += Uniform;
+                //Data.UniformSetUVector4Requested += Uniform;
+
+                //Data.UniformSetBoolVector2Requested += Uniform;
+                //Data.UniformSetBoolVector3Requested += Uniform;
+                //Data.UniformSetBoolVector4Requested += Uniform;
+
                 Data.SamplerRequested += Sampler;
                 Data.SamplerRequestedByLocation += Sampler;
 
@@ -206,6 +219,18 @@ namespace XREngine.Rendering.OpenGL
                 Data.UniformSetUIntArrayRequested -= Uniform;
                 Data.UniformSetDoubleArrayRequested -= Uniform;
                 Data.UniformSetMatrix4x4ArrayRequested -= Uniform;
+
+                Data.UniformSetIVector2Requested -= Uniform;
+                Data.UniformSetIVector3Requested -= Uniform;
+                Data.UniformSetIVector4Requested -= Uniform;
+
+                //Data.UniformSetUVector2Requested -= Uniform;
+                //Data.UniformSetUVector3Requested -= Uniform;
+                //Data.UniformSetUVector4Requested -= Uniform;
+
+                //Data.UniformSetBoolVector2Requested -= Uniform;
+                //Data.UniformSetBoolVector3Requested -= Uniform;
+                //Data.UniformSetBoolVector4Requested -= Uniform;
 
                 Data.SamplerRequested -= Sampler;
                 Data.SamplerRequestedByLocation -= Sampler;
@@ -593,6 +618,20 @@ namespace XREngine.Rendering.OpenGL
             public void Uniform(string name, double[] p)
                 => Uniform(GetUniformLocation(name), p);
             public void Uniform(string name, Matrix4x4[] p)
+                => Uniform(GetUniformLocation(name), p);
+
+            public void Uniform(int location, IVector2 p)
+                => Api.ProgramUniform2(BindingId, location, p);
+            public void Uniform(int location, IVector3 p)
+                => Api.ProgramUniform3(BindingId, location, p);
+            public void Uniform(int location, IVector4 p)
+                => Api.ProgramUniform4(BindingId, location, p);
+
+            public void Uniform(string name, IVector2 p)
+                => Uniform(GetUniformLocation(name), p);
+            public void Uniform(string name, IVector3 p)
+                => Uniform(GetUniformLocation(name), p);
+            public void Uniform(string name, IVector4 p)
                 => Uniform(GetUniformLocation(name), p);
 
             public void Uniform(int location, Vector2[] p)

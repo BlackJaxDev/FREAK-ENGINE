@@ -198,6 +198,8 @@ namespace XREngine.Rendering
         //private float _lastFrameTime = 0.0f;
         private void RenderCallback(double delta)
         {
+            //using var d = Profiler.Start();
+
             try
             {
                 Active = true;
@@ -369,6 +371,8 @@ namespace XREngine.Rendering
             //_renderObjectCache.Clear();
             //GC.SuppressFinalize(this);
         }
+
+        public abstract void DispatchCompute(XRRenderProgram program, int v1, int v2, int v3);
     }
     public abstract unsafe partial class AbstractRenderer<TAPI>(XRWindow window) : AbstractRenderer(window) where TAPI : NativeAPI
     {

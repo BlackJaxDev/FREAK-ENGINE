@@ -263,6 +263,16 @@ namespace XREngine.Scene
             {
                 throw new NotImplementedException();
             }
+
+            public bool Intersects(Segment segment, out Vector3[] points)
+            {
+                throw new NotImplementedException();
+            }
+
+            public bool Intersects(Segment segment)
+            {
+                throw new NotImplementedException();
+            }
         }
 
         public LightProbeComponent[] GetNearestProbes(Vector3 position)

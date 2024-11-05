@@ -400,7 +400,7 @@ namespace XREngine.Data.Geometry
         /// the ray, no intersection is assumed to have happened. In both cases of assumptions,
         /// this method returns false.
         /// </remarks>
-        public static bool RayIntersectsTriangle(Ray ray, Vector3 vertex1, Vector3 vertex2, Vector3 vertex3, out float distance)
+        public static bool RayIntersectsTriangle(Vector3 rayStart, Vector3 rayDir, Vector3 vertex1, Vector3 vertex2, Vector3 vertex3, out float distance)
         {
             //Source: Fast Minimum Storage Ray / Triangle Intersection
             //Reference: http://www.cs.virginia.edu/~gfx/Courses/2003/ImageSynthesis/papers/Acceleration/Fast%20MinimumStorage%20RayTriangle%20Intersection.pdf
@@ -420,9 +420,9 @@ namespace XREngine.Data.Geometry
 
             //Cross product of ray direction and edge2 - first part of determinant.
             Vector3 directioncrossedge2 = Vector3.Zero;
-            directioncrossedge2.X = (ray.Direction.Y * edge2.Z) - (ray.Direction.Z * edge2.Y);
-            directioncrossedge2.Y = (ray.Direction.Z * edge2.X) - (ray.Direction.X * edge2.Z);
-            directioncrossedge2.Z = (ray.Direction.X * edge2.Y) - (ray.Direction.Y * edge2.X);
+            directioncrossedge2.X = (rayDir.Y * edge2.Z) - (rayDir.Z * edge2.Y);
+            directioncrossedge2.Y = (rayDir.Z * edge2.X) - (rayDir.X * edge2.Z);
+            directioncrossedge2.Z = (rayDir.X * edge2.Y) - (rayDir.Y * edge2.X);
 
             //Compute the determinant.
             float determinant;
@@ -442,9 +442,9 @@ namespace XREngine.Data.Geometry
 
             //Calculate the U parameter of the intersection point.
             Vector3 distanceVector = Vector3.Zero;
-            distanceVector.X = ray.StartPoint.X - vertex1.X;
-            distanceVector.Y = ray.StartPoint.Y - vertex1.Y;
-            distanceVector.Z = ray.StartPoint.Z - vertex1.Z;
+            distanceVector.X = rayStart.X - vertex1.X;
+            distanceVector.Y = rayStart.Y - vertex1.Y;
+            distanceVector.Z = rayStart.Z - vertex1.Z;
 
             float triangleU;
             triangleU = (distanceVector.X * directioncrossedge2.X) + (distanceVector.Y * directioncrossedge2.Y) + (distanceVector.Z * directioncrossedge2.Z);
@@ -464,7 +464,7 @@ namespace XREngine.Data.Geometry
             distancecrossedge1.Z = (distanceVector.X * edge1.Y) - (distanceVector.Y * edge1.X);
 
             float triangleV;
-            triangleV = ((ray.Direction.X * distancecrossedge1.X) + (ray.Direction.Y * distancecrossedge1.Y)) + (ray.Direction.Z * distancecrossedge1.Z);
+            triangleV = ((rayDir.X * distancecrossedge1.X) + (rayDir.Y * distancecrossedge1.Y)) + (rayDir.Z * distancecrossedge1.Z);
             triangleV *= inversedeterminant;
 
             //Make sure it is inside the triangle.
@@ -500,15 +500,15 @@ namespace XREngine.Data.Geometry
         /// <param name="point">When the method completes, contains the point of intersection,
         /// or <see cref="Vector3.Zero"/> if there was no intersection.</param>
         /// <returns>Whether the two objects intersected.</returns>
-        public static bool RayIntersectsTriangle(Ray ray, Vector3 vertex1, Vector3 vertex2, Vector3 vertex3, out Vector3 point)
+        public static bool RayIntersectsTriangle(Vector3 rayStart, Vector3 rayDir, Vector3 vertex1, Vector3 vertex2, Vector3 vertex3, out Vector3 point)
         {
-            if (!RayIntersectsTriangle(ray, vertex1, vertex2, vertex3, out float distance))
+            if (!RayIntersectsTriangle(rayStart, rayDir, vertex1, vertex2, vertex3, out float distance))
             {
                 point = Vector3.Zero;
                 return false;
             }
 
-            point = ray.StartPoint + (ray.Direction * distance);
+            point = rayStart + (rayDir * distance);
             return true;
         }
         public static bool RayIntersectsBoxDistance(Vector3 rayStartPoint, Vector3 rayDirection, Vector3 boxHalfExtents, Matrix4x4 boxInverseTransform, out float distance)
@@ -564,6 +564,47 @@ namespace XREngine.Data.Geometry
                 }
             return true;
         }
+        public static bool RayIntersectsAABBDistance(Ray ray, AABB aabb, out float nearDistance, out float farDistance)
+            => RayIntersectsAABBDistance(ray.StartPoint, ray.Direction, aabb.Min, aabb.Max, out nearDistance, out farDistance);
+        public static bool RayIntersectsAABBDistance(Vector3 rayStartPoint, Vector3 rayDirection, Vector3 boxMin, Vector3 boxMax, out float nearDistance, out float farDistance)
+        {
+            rayDirection = Vector3.Normalize(rayDirection);
+
+            nearDistance = 0.0f;
+            farDistance = float.MaxValue;
+
+            for (int i = 0; i < 3; ++i)
+                if (rayDirection[i].IsZero())
+                {
+                    if (rayStartPoint[i] < boxMin[i] || rayStartPoint[i] > boxMax[i])
+                    {
+                        nearDistance = 0.0f;
+                        farDistance = 0.0f;
+                        return false;
+                    }
+                }
+                else
+                {
+                    float inverse = 1.0f / rayDirection[i];
+                    float t1 = (boxMin[i] - rayStartPoint[i]) * inverse;
+                    float t2 = (boxMax[i] - rayStartPoint[i]) * inverse;
+
+                    if (t1 > t2)
+                        (t2, t1) = (t1, t2);
+
+                    nearDistance = Math.Max(t1, nearDistance);
+                    farDistance = Math.Min(t2, farDistance);
+
+                    if (nearDistance > farDistance)
+                    {
+                        nearDistance = 0.0f;
+                        farDistance = 0.0f;
+                        return false;
+                    }
+                }
+
+            return true;
+        }
         #endregion
 
         private static bool RaySlabIntersect(float slabmin, float slabmax, float raystart, float rayend, ref float tbenter, ref float tbexit)
@@ -595,8 +636,7 @@ namespace XREngine.Data.Geometry
                 // nope. Ray missed the box.
                 return false;
             }
-            // yep, the slab and current intersection interval overlap
-            else
+            else // yep, the slab and current intersection interval overlap
             {
                 // update the intersection interval
                 tbenter = Math.Max(tbenter, tsenter);
@@ -610,26 +650,17 @@ namespace XREngine.Data.Geometry
             enterPoint = segmentStart;
             exitPoint = segmentEnd;
 
-            // initialise to the segment's boundaries. 
             float tenter = 0.0f;
             float texit = 1.0f;
 
-            // test X slab
-            if (!RaySlabIntersect(boxMin.X, boxMax.X, segmentStart.X, segmentEnd.X, ref tenter, ref texit))
-                return false;
-
-            // test Y slab
-            if (!RaySlabIntersect(boxMin.Y, boxMax.Y, segmentStart.Y, segmentEnd.Y, ref tenter, ref texit))
-                return false;
-
-            // test Z slab
-            if (!RaySlabIntersect(boxMin.Z, boxMax.Z, segmentStart.Z, segmentEnd.Z, ref tenter, ref texit))
+            if (!RaySlabIntersect(boxMin.X, boxMax.X, segmentStart.X, segmentEnd.X, ref tenter, ref texit) || 
+                !RaySlabIntersect(boxMin.Y, boxMax.Y, segmentStart.Y, segmentEnd.Y, ref tenter, ref texit) || 
+                !RaySlabIntersect(boxMin.Z, boxMax.Z, segmentStart.Z, segmentEnd.Z, ref tenter, ref texit))
                 return false;
 
             enterPoint = Interp.Lerp(segmentStart, segmentEnd, tenter);
             exitPoint = Interp.Lerp(segmentStart, segmentEnd, texit);
 
-            // all intersections in the green.
             return true;
         }
 
@@ -1310,6 +1341,37 @@ namespace XREngine.Data.Geometry
         public static EContainment FrustumContainsCone(Frustum frustum, Vector3 center, Vector3 up, float height, float radius)
         {
             throw new NotImplementedException();
+        }
+
+        public static bool SegmentIntersectsPlane(Vector3 start, Vector3 end, float d, Vector3 normal, out Vector3 intersectionPoint)
+        {
+            Vector3 ab = end - start;
+            float t = (d - Vector3.Dot(start, normal)) / Vector3.Dot(ab, normal);
+            if (t >= 0.0f && t <= 1.0f)
+            {
+                intersectionPoint = start + ab * t;
+                return true;
+            }
+            intersectionPoint = Vector3.Zero;
+            return false;
+        }
+
+        public enum EBetweenPlanes
+        {
+            NormalsFacing,
+            NormalsAway,
+            DontCare
+        }
+
+        public static bool PointIsBetweenPlanes(Vector3 point, Plane far, Plane left, EBetweenPlanes comp)
+        {
+            float farDist = DistancePlanePoint(far, point);
+            float leftDist = DistancePlanePoint(left, point);
+            if (comp == EBetweenPlanes.NormalsFacing)
+                return farDist > 0.0f && leftDist > 0.0f;
+            if (comp == EBetweenPlanes.NormalsAway)
+                return farDist < 0.0f && leftDist < 0.0f;
+            return farDist * leftDist < 0.0f;
         }
     }
     public enum EContainment

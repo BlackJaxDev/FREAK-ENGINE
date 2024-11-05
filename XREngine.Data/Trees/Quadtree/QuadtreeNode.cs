@@ -562,6 +562,32 @@ namespace XREngine.Data.Trees
                 //IsLoopingSubNodes = false;
             }
         }
+
+        public void Raycast(Segment segment, SortedDictionary<float, T> items, Func<T, Segment, float?> directTest)
+        {
+            //if (!_bounds.Intersects(segment))
+            //    return;
+
+            ////IsLoopingItems = true;
+            //foreach (T item in _items)
+            //{
+            //    float dist = item.DistanceToSegment(segment);
+            //    if (dist >= 0.0f)
+            //        items.Add(dist, item);
+            //}
+            ////IsLoopingItems = false;
+
+            ////IsLoopingSubNodes = true;
+            //for (int i = 0; i < QuadtreeBase.MaxChildNodeCount; ++i)
+            //    _subNodes[i]?.Raycast(segment, items);
+            ////IsLoopingSubNodes = false;
+        }
+
+        public void Raycast(Segment segment, SortedDictionary<float, ITreeItem> items, Func<ITreeItem, Segment, float?> directTest)
+        {
+
+        }
+
         #endregion
     }
 }

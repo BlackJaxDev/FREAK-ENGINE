@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using System.Numerics;
 using System.Runtime.InteropServices;
 using XREngine.Data.Rendering;
 using XREngine.Rendering.Objects;
@@ -50,4 +51,7 @@ public unsafe struct IVector3(int x, int y, int z) : IBufferable, IUniformable
             Data[index] = value;
         }
     }
+
+    public static explicit operator IVector3(Vector3 v) => new((int)v.X, (int)v.Y, (int)v.Z);
+    public static implicit operator Vector3(IVector3 v) => new(v.X, v.Y, v.Z);
 }

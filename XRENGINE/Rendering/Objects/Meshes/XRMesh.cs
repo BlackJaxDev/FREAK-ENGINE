@@ -13,6 +13,11 @@ using XREngine.Scene.Transforms;
 using YamlDotNet.Serialization;
 using Assimp;
 using Matrix4x4 = System.Numerics.Matrix4x4;
+using SimpleScene.Util.ssBVH;
+using System.Diagnostics.CodeAnalysis;
+using Silk.NET.Maths;
+using XREngine.Rendering.Models.Materials;
+using XREngine.Data;
 
 namespace XREngine.Rendering
 {
@@ -664,7 +669,7 @@ namespace XREngine.Rendering
 
         //    OnBufferInfoChanged();
         //}
-        
+
         /// <summary>
         /// Weight values from 0.0 to 1.0 for each blendshape that affects each vertex.
         /// Same length as BlendshapeIndices, stream-write buffer.
@@ -755,7 +760,7 @@ namespace XREngine.Rendering
 
             while (vertices.Count % 3 != 0)
                 vertices.RemoveAt(vertices.Count - 1);
-            
+
             if (remap)
             {
                 Remapper remapper = new();
@@ -1031,7 +1036,8 @@ namespace XREngine.Rendering
             TransformBase parentTransform,
             Mesh mesh,
             AssimpContext assimp,
-            Dictionary<string, List<SceneNode>> nodeCache) : this()
+            Dictionary<string, List<SceneNode>> nodeCache,
+            Matrix4x4 invRootMatrix) : this()
         {
             //Engine.Profiler.Start(null, true, "XRMesh Constructor");
 
@@ -1064,7 +1070,7 @@ namespace XREngine.Rendering
             {
                 if (v is null)
                     return;
-                
+
                 vertices.Add(v);
 
                 if (bounds is null)
@@ -1077,13 +1083,13 @@ namespace XREngine.Rendering
                 //    {
                 //        weights![i] = vtx?.Weights ?? [];
                 //    });
-                
+
                 if (v.Normal is not null && !vertexActions.ContainsKey(1))
                     vertexActions.TryAdd(1, (i, x, vtx) => NormalsBuffer!.SetDataRawAtIndex((uint)i, Vector3.TransformNormal(vtx?.Normal ?? Vector3.Zero, dataTransform).Normalize()));
-                
+
                 if (v.Tangent is not null && !vertexActions.ContainsKey(2))
                     vertexActions.TryAdd(2, (i, x, vtx) => TangentsBuffer!.SetDataRawAtIndex((uint)i, Vector3.TransformNormal(vtx?.Tangent ?? Vector3.Zero, dataTransform).Normalize()));
-                
+
                 Interlocked.Exchange(ref maxTexCoordCount, Math.Max(maxTexCoordCount, v.TextureCoordinateSets.Count));
                 if (v.TextureCoordinateSets is not null && v.TextureCoordinateSets.Count > 0 && !vertexActions.ContainsKey(3))
                 {
@@ -1259,8 +1265,9 @@ namespace XREngine.Rendering
                     weightsPerVertex,
                     invBindMatrices,
                     boneCount,
-                    faceRemap);
-            
+                    faceRemap,
+                    invRootMatrix);
+
             //MakeFaceIndices(weights, count);
 
             //Fill the buffers with the vertex data using the command list
@@ -1305,7 +1312,8 @@ namespace XREngine.Rendering
             Dictionary<TransformBase, float>?[]? weightsPerVertex,
             Dictionary<TransformBase, Matrix4x4> invBindMatrices,
             int boneCount,
-            Dictionary<int, List<int>> faceRemap)
+            Dictionary<int, List<int>> faceRemap,
+            Matrix4x4 invRootMatrix)
         {
             //using var time = Engine.Profiler.Start();
 
@@ -1328,7 +1336,9 @@ namespace XREngine.Rendering
                     continue;
                 }
 
-                invBindMatrices.Add(transform!, bone.OffsetMatrix.ToNumerics().Transposed());
+                Matrix4x4 mtx = bone.OffsetMatrix.ToNumerics().Transposed()/* * invRootMatrix*/;
+                //Matrix4x4 mtx = transform.InverseWorldMatrix;
+                invBindMatrices.Add(transform!, mtx);
 
                 int weightCount = bone.VertexWeightCount;
                 for (int j = 0; j < weightCount; j++)
@@ -1577,6 +1587,161 @@ namespace XREngine.Rendering
         {
             uv.Y = 1.0f - uv.Y;
             return uv;
+        }
+
+        [RequiresDynamicCode("")]
+        public float? Intersect(Segment localSpaceSegment, out Triangle? triangle)
+        {
+            triangle = null;
+
+            if (BVHTree is null)
+                return null;
+
+            var matches = BVHTree.Traverse(x => GeoUtil.SegmentIntersectsAABB(localSpaceSegment.Start, localSpaceSegment.End, x.Min, x.Max, out _, out _));
+            if (matches is null)
+                return null;
+
+            var triangles = matches.Select(x => x.gobjects![0]);
+            float? minDist = null;
+            foreach (var tri in triangles)
+            {
+                GeoUtil.RayIntersectsTriangle(localSpaceSegment.Start, localSpaceSegment.End, tri.A, tri.B, tri.C, out float dist);
+                if (dist < minDist || minDist is null)
+                {
+                    minDist = dist;
+                    triangle = tri;
+                }
+            }
+
+            return minDist;
+        }
+
+        private BVH<Triangle>? _bvhTree = null;
+        public BVH<Triangle>? BVHTree
+        {
+            [RequiresDynamicCode("")]
+            get
+            {
+                if (_bvhTree is null)
+                    GenerateBVH();
+                return _bvhTree!;
+            }
+            internal set => _bvhTree = value;
+        }
+
+        [RequiresDynamicCode("")]
+        public void GenerateBVH()
+        {
+            if (PositionsBuffer is null || Triangles is null)
+                return;
+
+            _bvhTree = new(new TriangleAdapter(), Triangles.Select(GetTriangle).ToList());
+        }
+
+        [RequiresDynamicCode("Calls XREngine.Rendering.XRDataBuffer.Get<T>(UInt32)")]
+        private Triangle GetTriangle(IndexTriangle indices)
+        {
+            Vector3 pos0 = PositionsBuffer!.Get<Vector3>((uint)indices.Point0 * 12u)!.Value;
+            Vector3 pos1 = PositionsBuffer!.Get<Vector3>((uint)indices.Point1 * 12u)!.Value;
+            Vector3 pos2 = PositionsBuffer!.Get<Vector3>((uint)indices.Point2 * 12u)!.Value;
+            return new Triangle(pos0, pos1, pos2);
+        }
+
+        public XRTexture3D? SignedDistanceField { get; internal set; } = null;
+
+        public void GenerateSDF(IVector3 resolution)
+        {
+            //Each pixel in the 3D texture is a distance to the nearest triangle
+            SignedDistanceField = new();
+            XRShader shader = ShaderHelper.LoadEngineShader("Compute//sdfgen.comp");
+            XRRenderProgram program = new(true, shader);
+            XRDataBuffer verticesBuffer = Buffers[ECommonBufferType.Position.ToString()].Clone(false, EBufferTarget.ShaderStorageBuffer);
+            verticesBuffer.BindingName = "Vertices";
+            XRDataBuffer indicesBuffer = GetIndexBuffer(EPrimitiveType.Triangles, out _, EBufferTarget.ShaderStorageBuffer)!;
+            indicesBuffer.BindingName = "Indices";
+            program.BindImageTexture(0, SignedDistanceField);
+            program.Uniform("sdfMinBounds", Bounds.Min);
+            program.Uniform("sdfMaxBounds", Bounds.Max);
+            program.Uniform("sdfResolution", resolution);
+            Engine.EnqueueMainThreadTask(() =>
+            {
+                int local_size_x = 8;
+                int local_size_y = 8;
+                int local_size_z = 8;
+                AbstractRenderer.Current?.DispatchCompute(
+                    program,
+                    (resolution.X + local_size_x - 1) / local_size_x,
+                    (resolution.Y + local_size_y - 1) / local_size_y,
+                    (resolution.Z + local_size_z - 1) / local_size_z);
+            });
+        }
+
+        public XRDataBuffer? GetIndexBuffer(EPrimitiveType type, out IndexSize bufferElementSize, EBufferTarget target = EBufferTarget.ElementArrayBuffer)
+        {
+            bufferElementSize = IndexSize.Byte;
+
+            var indices = GetIndices(type);
+            if (indices is null || indices.Length == 0)
+                return null;
+
+            var data = new XRDataBuffer(target, true) { BindingName = type.ToString() };
+            //TODO: primitive restart will use MaxValue for restart id
+            if (VertexCount < byte.MaxValue)
+            {
+                bufferElementSize = IndexSize.Byte;
+                data.SetDataRaw(indices?.Select(x => (byte)x)?.ToList() ?? []);
+            }
+            else if (VertexCount < short.MaxValue)
+            {
+                bufferElementSize = IndexSize.TwoBytes;
+                data.SetDataRaw(indices?.Select(x => (ushort)x)?.ToList() ?? []);
+            }
+            else
+            {
+                bufferElementSize = IndexSize.FourBytes;
+                data.SetDataRaw(indices);
+            }
+            return data;
+        }
+    }
+
+    public class TriangleAdapter : ISSBVHNodeAdaptor<Triangle>
+    {
+        public BVH<Triangle>? BVH { get; private set; }
+
+        public void SetBVH(BVH<Triangle> bvh)
+            => BVH = bvh;
+
+        private readonly Dictionary<Triangle, BVHNode<Triangle>> _triangleToLeaf = [];
+
+        public void UnmapObject(Triangle obj)
+            => _triangleToLeaf.Remove(obj);
+
+        public void CheckMap(Triangle obj)
+        {
+            if (!_triangleToLeaf.ContainsKey(obj))
+                throw new Exception("missing map for a shuffled child");
+        }
+
+        public BVHNode<Triangle>? GetLeaf(Triangle obj)
+            => _triangleToLeaf.TryGetValue(obj, out BVHNode<Triangle>? leaf) ? leaf : null;
+
+        public void MapObjectToBVHLeaf(Triangle obj, BVHNode<Triangle> leaf)
+            => _triangleToLeaf.Add(obj, leaf);
+
+        public Vector3 ObjectPos(Triangle obj)
+            => (obj.A + obj.B + obj.C) / 3.0f;
+
+        public float Radius(Triangle obj)
+        {
+            //Calc center of triangle
+            Vector3 center = ObjectPos(obj);
+            //Calc distance to each vertex
+            float distA = (center - obj.A).Length();
+            float distB = (center - obj.B).Length();
+            float distC = (center - obj.C).Length();
+            //Return the max distance
+            return Math.Max(distA, Math.Max(distB, distC));
         }
     }
 }

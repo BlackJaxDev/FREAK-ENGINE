@@ -76,6 +76,16 @@ namespace XREngine.Data.Geometry
         public readonly AABB GetAABB() 
             => new(Center - new Vector3(Radius), Center + new Vector3(Radius));
 
+        public bool Intersects(Segment segment, out Vector3[] points)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool Intersects(Segment segment)
+        {
+            throw new NotImplementedException();
+        }
+
         public override readonly string ToString()
             => $"Sphere (Center: {Center}, Radius: {Radius})";
     }

@@ -1,16 +1,23 @@
-﻿using XREngine.Data.Rendering;
-using XREngine.Rendering.Commands;
-using XREngine.Rendering;
-using XREngine.Rendering.Models;
-using XREngine.Rendering.Info;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Drawing.Drawing2D;
 using System.Numerics;
+using XREngine.Data.Geometry;
+using XREngine.Data.Rendering;
+using XREngine.Rendering;
+using XREngine.Rendering.Commands;
+using XREngine.Rendering.Info;
+using XREngine.Rendering.Models;
+using XREngine.Scene.Transforms;
 
 namespace XREngine.Components.Scene.Mesh
 {
     public class RenderableMesh : IDisposable
     {
         public RenderInfo3D RenderInfo { get; }
+
         private readonly RenderCommandMesh3D _rc;
+        
+        public TransformBase? RootTransform { get; set; }
 
         /// <summary>
         /// The transform that owns this mesh.
@@ -23,7 +30,8 @@ namespace XREngine.Components.Scene.Mesh
 
             foreach (var lod in mesh.LODs)
             {
-                var renderer = new XRMeshRenderer(lod.Mesh, lod.Material);
+                var renderer = lod.NewRenderer();
+                renderer.SettingUniforms += SettingUniforms;
                 void UpdateReferences(object? s, System.ComponentModel.PropertyChangedEventArgs e)
                 {
                     if (e.PropertyName == nameof(SubMeshLOD.Mesh))
@@ -32,12 +40,17 @@ namespace XREngine.Components.Scene.Mesh
                         renderer.Material = lod.Material;
                 }
                 lod.PropertyChanged += UpdateReferences;
-                LODs.AddLast(new RenderableLOD(lod.NewRenderer(), lod.MaxVisibleDistance));
+                LODs.AddLast(new RenderableLOD(renderer, lod.MaxVisibleDistance));
             }
 
             RenderInfo = RenderInfo3D.New(component, _rc = new RenderCommandMesh3D(0));
             RenderInfo.CullingVolume = mesh.CullingVolumeOverride ?? mesh.Bounds;
             RenderInfo.PreAddRenderCommandsCallback = BeforeAdd;
+        }
+
+        private void SettingUniforms(XRRenderProgram vertexProgram, XRRenderProgram materialProgram)
+        {
+            vertexProgram.Uniform(EEngineUniform.RootInvModelMatrix.ToString(), /*RootTransform?.InverseWorldMatrix ?? */Matrix4x4.Identity);
         }
 
         private void BeforeAdd(RenderInfo info, RenderCommandCollection passes, XRCamera? camera)
@@ -47,13 +60,14 @@ namespace XREngine.Components.Scene.Mesh
             if (!passes.IsShadowPass)
                 UpdateLOD(distance);
 
-            _rc.Mesh = CurrentLOD?.Value?.Manager;
-            _rc.WorldMatrix = Component.Transform.WorldMatrix;
+            var rend = CurrentLOD?.Value?.Renderer;
+            _rc.Mesh = rend;
+            _rc.WorldMatrix = (rend?.Mesh?.HasSkinning ?? false) ? Matrix4x4.Identity : Component.Transform.WorldMatrix;
             _rc.RenderDistance = distance;
-            _rc.RenderPass = CurrentLOD?.Value?.Manager?.Material?.RenderPass ?? 0;
+            _rc.RenderPass = rend?.Material?.RenderPass ?? 0;
         }
 
-        public record RenderableLOD(XRMeshRenderer Manager, float MaxVisibleDistance);
+        public record RenderableLOD(XRMeshRenderer Renderer, float MaxVisibleDistance);
 
         public LinkedListNode<RenderableLOD>? CurrentLOD { get; private set; } = null;
         public XRWorldInstance? World => Component.SceneNode.World;
@@ -82,9 +96,16 @@ namespace XREngine.Components.Scene.Mesh
         public void Dispose()
         {
             foreach (var lod in LODs)
-                lod.Manager.Destroy();
+                lod.Renderer.Destroy();
             LODs.Clear();
             GC.SuppressFinalize(this);
+        }
+
+        [RequiresDynamicCode("")]
+        public float? Intersect(Segment localSpaceSegment, out Triangle? triangle)
+        {
+            triangle = null;
+            return CurrentLOD?.Value?.Renderer?.Mesh?.Intersect(localSpaceSegment, out triangle);
         }
     }
 }

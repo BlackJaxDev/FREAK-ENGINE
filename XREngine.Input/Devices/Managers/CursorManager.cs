@@ -7,15 +7,10 @@ namespace XREngine.Input.Devices
     [Serializable]
     public class CursorManager : InputManagerBase
     {
-        //private float _lastX, _lastY;
+        private float _lastX, _lastY;
 
         //relative, absolute
         private readonly List<DelCursorUpdate?>?[] _onCursorUpdate = new List<DelCursorUpdate?>?[2];
-
-        public void Tick(float x, float y, float delta)
-        {
-            TickAbsolute(x, y);
-        }
 
         public void Register(DelCursorUpdate func, EMouseMoveType type, bool unregister)
         {
@@ -39,9 +34,9 @@ namespace XREngine.Input.Devices
             }
         }
         //public Rectangle? WrapBounds { get; set; } = null;
-        protected internal void TickAbsolute(float x, float y)
+        protected internal void Tick(float x, float y)
         {
-            //float dX, dY;
+            float dX, dY;
             //if (WrapBounds is not null)
             //{
             //    Vector2 position = new(x, y);
@@ -52,31 +47,31 @@ namespace XREngine.Input.Devices
             //}
             //else
             //{
-            //    dX = x - _lastX;
-            //    dY = y - _lastY;
+                dX = x - _lastX;
+                dY = y - _lastY;
             //}
             PerformAction(EMouseMoveType.Absolute, x, y);
-            //PerformAction(EMouseMoveType.Relative, dX, dY);
-            //_lastX = x;
-            //_lastY = y;
+            PerformAction(EMouseMoveType.Relative, dX, -dY);
+            _lastX = x;
+            _lastY = y;
         }
-        protected internal void TickRelative(float dX, float dY)
-        {
-            //float x = _lastX + dX;
-            //float y = _lastY + dY;
-            //if (WrapBounds is not null)
-            //{
-            //    Vector2 position = new(x, y);
-            //    Vector2 lastPosition = new(_lastX, _lastY);
-            //    position = Wrap(position, lastPosition, WrapBounds.Value, out dX, out dY);
-            //    x = position.X;
-            //    y = position.Y;
-            //}
-            //PerformAction(EMouseMoveType.Absolute, x, y);
-            PerformAction(EMouseMoveType.Relative, dX, dY);
-            //_lastX = x;
-            //_lastY = y;
-        }
+        //protected internal void TickRelative(float dX, float dY)
+        //{
+        //    float x = _lastX + dX;
+        //    float y = _lastY + dY;
+        //    if (WrapBounds is not null)
+        //    {
+        //        Vector2 position = new(x, y);
+        //        Vector2 lastPosition = new(_lastX, _lastY);
+        //        position = Wrap(position, lastPosition, WrapBounds.Value, out dX, out dY);
+        //        x = position.X;
+        //        y = position.Y;
+        //    }
+        //    PerformAction(EMouseMoveType.Absolute, x, y);
+        //    PerformAction(EMouseMoveType.Relative, dX, dY);
+        //    _lastX = x;
+        //    _lastY = y;
+        //}
         protected void PerformAction(EMouseMoveType type, float x, float y)
         {
             int index = (int)type;

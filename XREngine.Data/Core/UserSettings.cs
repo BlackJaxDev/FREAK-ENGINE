@@ -18,7 +18,6 @@ namespace XREngine
         private EInputLibrary _inputLibrary = EInputLibrary.XInput;
         private EPhysicsLibrary _physicsLibrary = EPhysicsLibrary.PhysX;
 
-        private float? _targetUpdatesPerSecond = 90.0f;
         private float? _targetFramesPerSecond = 90.0f;
         private IVector2 _windowedResolution = new(1920, 1080);
 
@@ -61,11 +60,6 @@ namespace XREngine
         {
             get => _physicsLibrary;
             set => SetField(ref _physicsLibrary, value);
-        }
-        public float? TargetUpdatesPerSecond
-        {
-            get => _targetUpdatesPerSecond;
-            set => SetField(ref _targetUpdatesPerSecond, value);
         }
         public float? TargetFramesPerSecond
         {

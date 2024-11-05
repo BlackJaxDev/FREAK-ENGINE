@@ -504,5 +504,131 @@ namespace XREngine.Data.Geometry
 
         public override string ToString()
             => $"Frustum (Near: {Near}, Far: {Far}, Left: {Left}, Right: {Right}, Top: {Top}, Bottom: {Bottom})";
+
+        public bool Intersects(Segment segment, out Vector3[] points)
+        {
+            var intersections = new List<Vector3>();
+            Plane far = Far;
+            Plane near = Near;
+            Plane left = Left;
+            Plane right = Right;
+            Plane top = Top;
+            Plane bottom = Bottom;
+
+            bool nearHit = GeoUtil.SegmentIntersectsPlane(segment.Start, segment.End, near.D, near.Normal, out Vector3 nearPoint);
+            bool farHit = GeoUtil.SegmentIntersectsPlane(segment.Start, segment.End, far.D, far.Normal, out Vector3 farPoint);
+            bool leftHit = GeoUtil.SegmentIntersectsPlane(segment.Start, segment.End, left.D, left.Normal, out Vector3 leftPoint);
+            bool rightHit = GeoUtil.SegmentIntersectsPlane(segment.Start, segment.End, right.D, right.Normal, out Vector3 rightPoint);
+            bool topHit = GeoUtil.SegmentIntersectsPlane(segment.Start, segment.End, top.D, top.Normal, out Vector3 topPoint);
+            bool bottomHit = GeoUtil.SegmentIntersectsPlane(segment.Start, segment.End, bottom.D, bottom.Normal, out Vector3 bottomPoint);
+
+            //Each plane hit must be between the 4 planes perpendicular to it
+            if (nearHit)
+            {
+                if (GeoUtil.PointIsBetweenPlanes(nearPoint, top, bottom, GeoUtil.EBetweenPlanes.DontCare) &&
+                    GeoUtil.PointIsBetweenPlanes(nearPoint, left, right, GeoUtil.EBetweenPlanes.DontCare))
+                    intersections.Add(nearPoint);
+            }
+
+            if (farHit)
+            {
+                if (GeoUtil.PointIsBetweenPlanes(farPoint, top, bottom, GeoUtil.EBetweenPlanes.DontCare) &&
+                    GeoUtil.PointIsBetweenPlanes(farPoint, left, right, GeoUtil.EBetweenPlanes.DontCare))
+                    intersections.Add(farPoint);
+            }
+
+            if (leftHit)
+            {
+                if (GeoUtil.PointIsBetweenPlanes(leftPoint, top, bottom, GeoUtil.EBetweenPlanes.DontCare) &&
+                    GeoUtil.PointIsBetweenPlanes(leftPoint, near, far, GeoUtil.EBetweenPlanes.DontCare))
+                    intersections.Add(leftPoint);
+            }
+
+            if (rightHit)
+            {
+                if (GeoUtil.PointIsBetweenPlanes(rightPoint, top, bottom, GeoUtil.EBetweenPlanes.DontCare) &&
+                    GeoUtil.PointIsBetweenPlanes(rightPoint, near, far, GeoUtil.EBetweenPlanes.DontCare))
+                    intersections.Add(rightPoint);
+            }
+
+            if (topHit)
+            {
+                if (GeoUtil.PointIsBetweenPlanes(topPoint, left, right, GeoUtil.EBetweenPlanes.DontCare) &&
+                    GeoUtil.PointIsBetweenPlanes(topPoint, near, far, GeoUtil.EBetweenPlanes.DontCare))
+                    intersections.Add(topPoint);
+            }
+
+            if (bottomHit)
+            {
+                if (GeoUtil.PointIsBetweenPlanes(bottomPoint, left, right, GeoUtil.EBetweenPlanes.DontCare) &&
+                    GeoUtil.PointIsBetweenPlanes(bottomPoint, near, far, GeoUtil.EBetweenPlanes.DontCare))
+                    intersections.Add(bottomPoint);
+            }
+
+            points = [.. intersections];
+            return points.Length > 0;
+        }
+
+        public bool Intersects(Segment segment)
+        {
+            Plane far = Far;
+            Plane near = Near;
+            Plane left = Left;
+            Plane right = Right;
+            Plane top = Top;
+            Plane bottom = Bottom;
+
+            bool nearHit = GeoUtil.SegmentIntersectsPlane(segment.Start, segment.End, near.D, near.Normal, out Vector3 nearPoint);
+            bool farHit = GeoUtil.SegmentIntersectsPlane(segment.Start, segment.End, far.D, far.Normal, out Vector3 farPoint);
+            bool leftHit = GeoUtil.SegmentIntersectsPlane(segment.Start, segment.End, left.D, left.Normal, out Vector3 leftPoint);
+            bool rightHit = GeoUtil.SegmentIntersectsPlane(segment.Start, segment.End, right.D, right.Normal, out Vector3 rightPoint);
+            bool topHit = GeoUtil.SegmentIntersectsPlane(segment.Start, segment.End, top.D, top.Normal, out Vector3 topPoint);
+            bool bottomHit = GeoUtil.SegmentIntersectsPlane(segment.Start, segment.End, bottom.D, bottom.Normal, out Vector3 bottomPoint);
+
+            //Each plane hit must be between the 4 planes perpendicular to it
+            if (nearHit)
+            {
+                if (GeoUtil.PointIsBetweenPlanes(nearPoint, top, bottom, GeoUtil.EBetweenPlanes.DontCare) &&
+                    GeoUtil.PointIsBetweenPlanes(nearPoint, left, right, GeoUtil.EBetweenPlanes.DontCare))
+                    return true;
+            }
+
+            if (farHit)
+            {
+                if (GeoUtil.PointIsBetweenPlanes(farPoint, top, bottom, GeoUtil.EBetweenPlanes.DontCare) &&
+                    GeoUtil.PointIsBetweenPlanes(farPoint, left, right, GeoUtil.EBetweenPlanes.DontCare))
+                    return true;
+            }
+
+            if (leftHit)
+            {
+                if (GeoUtil.PointIsBetweenPlanes(leftPoint, top, bottom, GeoUtil.EBetweenPlanes.DontCare) &&
+                    GeoUtil.PointIsBetweenPlanes(leftPoint, near, far, GeoUtil.EBetweenPlanes.DontCare))
+                    return true;
+            }
+
+            if (rightHit)
+            {
+                if (GeoUtil.PointIsBetweenPlanes(rightPoint, top, bottom, GeoUtil.EBetweenPlanes.DontCare) &&
+                    GeoUtil.PointIsBetweenPlanes(rightPoint, near, far, GeoUtil.EBetweenPlanes.DontCare))
+                    return true;
+            }
+
+            if (topHit)
+            {
+                if (GeoUtil.PointIsBetweenPlanes(topPoint, left, right, GeoUtil.EBetweenPlanes.DontCare) &&
+                    GeoUtil.PointIsBetweenPlanes(topPoint, near, far, GeoUtil.EBetweenPlanes.DontCare))
+                    return true;
+            }
+
+            if (bottomHit)
+            {
+                if (GeoUtil.PointIsBetweenPlanes(bottomPoint, left, right, GeoUtil.EBetweenPlanes.DontCare) &&
+                    GeoUtil.PointIsBetweenPlanes(bottomPoint, near, far, GeoUtil.EBetweenPlanes.DontCare))
+                    return true;
+            }
+
+            return false;
+        }
     }
 }

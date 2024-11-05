@@ -1,0 +1,117 @@
+#version 430
+
+// Define the size of the work group (adjust as needed)
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
+
+// Output 3D texture to store the SDF values
+layout(r32f, binding = 0) uniform writeonly image3D sdfTexture;
+
+// Mesh data buffers SSBO
+layout(std430, binding = 1) buffer Vertices
+{
+    vec3 vertices[];
+};
+
+layout(std430, binding = 2) buffer Indices
+{
+    uvec3 indices[]; // Each uvec3 represents a triangle (vertex indices)
+};
+
+// Uniforms defining the SDF grid
+uniform vec3 sdfMinBounds;     // Minimum corner of the bounding box
+uniform vec3 sdfMaxBounds;     // Maximum corner of the bounding box
+uniform ivec3 sdfResolution;   // Resolution of the 3D texture (number of voxels)
+
+// Function to compute the signed distance from a point to a triangle
+float sdTriangle(vec3 p, vec3 a, vec3 b, vec3 c)
+{
+    // Compute edge vectors
+    vec3 ba = b - a;
+    vec3 ca = c - a;
+    vec3 pa = p - a;
+
+    // Compute normal of the triangle
+    vec3 n = cross(ba, ca);
+    float area = length(n);
+    n = normalize(n);
+
+    // Signed distance from point to the plane of the triangle
+    float distPlane = dot(pa, n);
+
+    // Project point onto the plane
+    vec3 projectedP = p - distPlane * n;
+
+    // Compute barycentric coordinates
+    vec3 v0 = ba;
+    vec3 v1 = ca;
+    vec3 v2 = projectedP - a;
+
+    float d00 = dot(v0, v0);
+    float d01 = dot(v0, v1);
+    float d11 = dot(v1, v1);
+    float d20 = dot(v2, v0);
+    float d21 = dot(v2, v1);
+
+    float denom = d00 * d11 - d01 * d01;
+    float v = (d11 * d20 - d01 * d21) / denom;
+    float w = (d00 * d21 - d01 * d20) / denom;
+    float u = 1.0 - v - w;
+
+    // Check if point is inside the triangle
+    bool insideTriangle = (u >= 0.0) && (v >= 0.0) && (w >= 0.0);
+
+    if (insideTriangle)
+    {
+        // Return signed distance (inside the triangle plane)
+        return distPlane;
+    }
+    else 
+    {
+        // Compute distances to edges and vertices
+        float distEdgeAB = length(ba * clamp(dot(ba, pa) / dot(ba, ba), 0.0, 1.0) - pa);
+        float distEdgeBC = length((c - b) * clamp(dot(c - b, p - b) / dot(c - b, c - b), 0.0, 1.0) - (p - b));
+        float distEdgeCA = length((a - c) * clamp(dot(a - c, p - c) / dot(a - c, a - c), 0.0, 1.0) - (p - c));
+        float dist = min(min(distEdgeAB, distEdgeBC), distEdgeCA);
+        
+        // Return unsigned distance (outside the triangle plane)
+        return sqrt(dist * dist + distPlane * distPlane);
+    }
+}
+
+// Main compute shader function
+void main() 
+{
+    ivec3 gid = ivec3(gl_GlobalInvocationID);
+
+    // Bounds check
+    if (any(greaterThanEqual(gid, sdfResolution)))
+        return;
+
+    // Map grid coordinates to world space position
+    vec3 uvw = vec3(gid) / vec3(sdfResolution - 1);
+    vec3 p = mix(sdfMinBounds, sdfMaxBounds, uvw);
+
+    float minDist = 1e20;
+
+    // Number of triangles in the mesh
+    uint numTriangles = indices.length();
+
+    // Loop over all triangles in the mesh
+    for (uint i = 0; i < numTriangles; ++i)
+    {
+        uvec3 tri = indices[i];
+        vec3 a = vertices[tri.x];
+        vec3 b = vertices[tri.y];
+        vec3 c = vertices[tri.z];
+
+        // Compute signed distance to the triangle
+        float dist = sdTriangle(p, a, b, c);
+
+        // Keep the minimum (closest) distance
+        if (abs(dist) < abs(minDist))
+            minDist = dist;
+    }
+
+    // Store the signed distance in the 3D texture
+    imageStore(sdfTexture, gid, vec4(minDist));
+}

@@ -8,8 +8,8 @@ namespace XREngine.Data.Geometry
         public Vector3 B = b;
         public Vector3 C = c;
 
-        public readonly System.Numerics.Plane GetPlane()
-            => System.Numerics.Plane.CreateFromVertices(A, B, C);
+        public readonly Plane GetPlane()
+            => Plane.CreateFromVertices(A, B, C);
 
         public readonly Vector3 GetNormal()
             => Vector3.Normalize(Vector3.Cross(B - A, C - A));

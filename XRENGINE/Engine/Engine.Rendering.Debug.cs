@@ -61,10 +61,12 @@ namespace XREngine
                     XRMeshRenderer renderer = GetDebugPrimitive(EDebugPrimitiveType.Line);
                     SetOptions(depthTestEnabled, lineWidth, null, renderer);
                     renderer.SetParameter(0, color);
-                    renderer.Render(
-                        Matrix4x4.CreateScale((end - start).Length()) *
-                        Matrix4x4.CreateFromQuaternion(XRMath.RotationBetweenVectors(Globals.Backward, (end - start).Normalize())) *
-                        Matrix4x4.CreateTranslation(start));
+                    Vector3 dir = (end - start).Normalize();
+                    Vector3 arb = Vector3.UnitX;
+                    if (Vector3.Dot(dir, Vector3.UnitX) > 0.99f || Vector3.Dot(dir, Vector3.UnitX) < -0.99f)
+                        arb = Vector3.UnitZ;
+                    Vector3 perp = Vector3.Cross(dir, arb).Normalize();
+                    renderer.Render(Matrix4x4.CreateScale(Vector3.Distance(start, end)) * Matrix4x4.CreateWorld(start, dir, perp));
                 }
 
                 public static void RenderCircle(
@@ -266,7 +268,7 @@ namespace XREngine
                     => type switch
                     {
                         EDebugPrimitiveType.Point => XRMesh.CreatePoints(Vector3.Zero),
-                        EDebugPrimitiveType.Line => XRMesh.CreateLines(Vector3.Zero, Globals.Backward),
+                        EDebugPrimitiveType.Line => XRMesh.CreateLines(Vector3.Zero, Globals.Forward),
                         EDebugPrimitiveType.WireSphere => XRMesh.Shapes.WireframeSphere(Vector3.Zero, 1.0f, 60),//Diameter is set to 2.0f on purpose
                         EDebugPrimitiveType.SolidSphere => XRMesh.Shapes.SolidSphere(Vector3.Zero, 1.0f, 30),//Diameter is set to 2.0f on purpose
                         EDebugPrimitiveType.WireBox => XRMesh.Shapes.WireframeBox(new Vector3(-1.0f), new Vector3(1.0f)),

@@ -1,30 +1,20 @@
 ﻿using Extensions;
+using System.Diagnostics;
 
 namespace XREngine.Input.Devices
 {
-    public delegate void DelMouseScroll(bool down);
+    public delegate void DelMouseScroll(float diff);
     [Serializable]
     public class ScrollWheelManager : InputManagerBase
     {
         private readonly List<DelMouseScroll> _onUpdate = [];
 
-        private float _lastValue = 0.0f;
-
-        internal void Tick(float value, float delta)
+        internal void Tick(float diff)
         {
-            if (value.EqualTo(_lastValue))
+            if (diff.EqualTo(0.0f))
                 return;
-
-            if (value < _lastValue)
-            {
-                OnUpdate(true);
-                _lastValue = value;
-            }
-            else if (value > _lastValue)
-            {
-                OnUpdate(false);
-                _lastValue = value;
-            }
+            //Debug.WriteLine($"ScrollWheelManager::Tick({diff})");
+            OnUpdate(diff);
         }
         public void Register(DelMouseScroll func, bool unregister)
         {
@@ -40,12 +30,12 @@ namespace XREngine.Input.Devices
                     _onUpdate.Add(func);
             }
         }
-        private void OnUpdate(bool down)
+        private void OnUpdate(float diff)
         {
             lock (_onUpdate)
             {
                 for (int x = 0; x < _onUpdate.Count; ++x)
-                    _onUpdate[x](down);
+                    _onUpdate[x](diff);
             }
         }
     }

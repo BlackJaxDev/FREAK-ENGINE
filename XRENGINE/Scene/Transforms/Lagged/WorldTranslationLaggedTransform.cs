@@ -62,7 +62,7 @@ namespace XREngine.Components.Scene.Transforms
             //if (_laggingDistance > _maxLagDistance)
             //    _interpPoint = CustomMath.InterpLinearTo(_destPoint, _currentPoint, _maxLagDistance / _laggingDistance);
             //else
-                _interpPoint = Interp.Lerp(_currentPoint, _destPoint, Engine.SmoothedDilatedDelta, InterpSpeed);
+                _interpPoint = Interp.Lerp(_currentPoint, _destPoint, Engine.SmoothedDelta, InterpSpeed);
             MarkWorldModified();
         }
         protected internal override void Start()

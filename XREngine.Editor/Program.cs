@@ -6,7 +6,6 @@ using XREngine.Components;
 using XREngine.Components.Lights;
 using XREngine.Components.Scene;
 using XREngine.Components.Scene.Mesh;
-using XREngine.Components.Scene.Transforms;
 using XREngine.Data.Colors;
 using XREngine.Data.Core;
 using XREngine.Data.Rendering;
@@ -74,10 +73,11 @@ internal class Program
             cameraComp!.Name = "TestCamera";
             cameraComp.Camera.Parameters = new XRPerspectiveCameraParameters(80.0f, null, 0.1f, 99999.0f);
             cameraComp.Camera.RenderPipeline = new DefaultRenderPipeline();
+            cameraComp.CullWithFrustum = false;
         }
 
         //Pawn
-        cameraNode.TryAddComponent<FlyingCameraPawnComponent>(out var pawnComp);
+        cameraNode.TryAddComponent<EditorFlyingCameraPawnComponent>(out var pawnComp);
         pawnComp!.Name = "TestPawn";
         //pawnComp!.Camera = cameraComp;
         pawnComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
@@ -197,7 +197,7 @@ internal class Program
 
         var probe = new SceneNode(rootNode) { Name = "TestLightProbeNode" };
         var probeTransform = probe.SetTransform<Transform>();
-        probeTransform.Translation = new Vector3(0.0f, 4.0f, 0.0f);
+        probeTransform.Translation = new Vector3(0.0f, 10.0f, 0.0f);
         if (probe.TryAddComponent<LightProbeComponent>(out var probeComp))
         {
             probeComp!.Name = "TestLightProbe";
@@ -261,10 +261,10 @@ internal class Program
             PostProcessSteps.JoinIdenticalVertices |
             PostProcessSteps.CalculateTangentSpace;
 
-        ModelImporter.ImportAsync(fbxPathDesktop, flags, null, MaterialFactory, importedModelsNode, 0.0254f, true).ContinueWith(OnFinished);
+        ModelImporter.ImportAsync(fbxPathDesktop, flags, null, MaterialFactory, importedModelsNode, 1, true).ContinueWith(OnFinished);
 
-        string sponzaPath = Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj");
-        _ = ModelImporter.ImportAsync(sponzaPath, flags, null, MaterialFactory, importedModelsNode);
+        //string sponzaPath = Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj");
+        //_ = ModelImporter.ImportAsync(sponzaPath, flags, null, MaterialFactory, importedModelsNode);
 
         return world;
     }
@@ -279,12 +279,16 @@ internal class Program
         if (rootNode is null)
             return;
 
-        var comp = rootNode.AddComponent<HumanoidComponent>();
-        comp!.Left.Knee?.Node?.GetTransformAs<Transform>()?.RegisterAnimationTick<Transform>(KneeTick);
+        var comp = rootNode.AddComponent<HumanoidComponent>()!;
+        comp.IsActive = false;
+        var knee = comp!.Right.Knee?.Node?.Transform;
+
+        //var knee = rootNode.FindDescendant((x, y) => y.Contains("knee", StringComparison.InvariantCultureIgnoreCase))?.GetTransformAs<Transform>();
+        knee?.RegisterAnimationTick<Transform>(KneeTick);
     }
     static void KneeTick(Transform t)
     {
-        t.Rotation = Quaternion.CreateFromAxisAngle(Globals.Right, XRMath.DegToRad(90.0f * MathF.Cos(Engine.ElapsedTime)));
+        t.Rotation = Quaternion.CreateFromAxisAngle(Globals.Right, XRMath.DegToRad(90.0f * (MathF.Cos(Engine.ElapsedTime) * 0.5f + 0.5f)));
     }
     private static readonly ConcurrentDictionary<string, XRTexture2D> _textureCache = new();
 
@@ -395,8 +399,9 @@ internal class Program
     {
         int w = 1920;
         int h = 1080;
-        float update = 60.0f;
-        float render = 90.0f;
+        float updateHz = 60.0f;
+        float renderHz = 0.0f;
+        float fixedHz = 60.0f;
 
         int primaryX = NativeMethods.GetSystemMetrics(0);
         int primaryY = NativeMethods.GetSystemMetrics(1);
@@ -419,10 +424,11 @@ internal class Program
             OutputVerbosity = EOutputVerbosity.Verbose,
             DefaultUserSettings = new UserSettings()
             {
-                TargetFramesPerSecond = render,
-                TargetUpdatesPerSecond = update,
+                TargetFramesPerSecond = renderHz,
                 VSync = EVSyncMode.Off,
-            }
+            },
+            TargetUpdatesPerSecond = updateHz,
+            FixedFramesPerSecond = fixedHz,
         };
     }
 }

@@ -1,5 +1,7 @@
-﻿using System.Numerics;
+﻿using Extensions;
+using System.Numerics;
 using System.Text.Json.Serialization;
+using XREngine.Data.Core;
 using YamlDotNet.Serialization;
 
 namespace XREngine.Data.Geometry
@@ -90,6 +92,18 @@ namespace XREngine.Data.Geometry
             other.Min.Y <= Max.Y && other.Max.Y >= Min.Y &&
             other.Min.Z <= Max.Z && other.Max.Z >= Min.Z;
 
+        public readonly bool Intersects(Sphere sphere)
+        {
+            Vector3 closestPoint = ClosestPoint(sphere.Center, true);
+            return Vector3.DistanceSquared(closestPoint, sphere.Center) <= sphere.Radius * sphere.Radius;
+        }
+
+        public readonly bool Intersects(Segment segment, float tolerance = 0.0001f)
+        {
+            Vector3 closestPoint = ClosestPoint(segment.ClosestPoint(Center), false);
+            return Vector3.DistanceSquared(closestPoint, segment.ClosestPoint(closestPoint)) < tolerance;
+        }
+
         public void ExpandToInclude(Vector3 point)
         {
             Min = Vector3.Min(Min, point);
@@ -119,6 +133,19 @@ namespace XREngine.Data.Geometry
                 newMax = Vector3.Max(newMax, corners[i]);
             }
             return new AABB(newMin, newMax);
+        }
+
+        public readonly void GetPlanes(out Plane up, out Plane down, out Plane right, out Plane left, out Plane back, out Plane front)
+        {
+            Vector3 center = Center;
+            Vector3 extents = Extents;
+
+            up = XRMath.CreatePlaneFromPointAndNormal(center + Globals.Up * extents.Y, Globals.Up);
+            down = XRMath.CreatePlaneFromPointAndNormal(center - Globals.Up * extents.Y, -Globals.Up);
+            left = XRMath.CreatePlaneFromPointAndNormal(center - Globals.Right * extents.X, -Globals.Right);
+            right = XRMath.CreatePlaneFromPointAndNormal(center + Globals.Right * extents.X, Globals.Right);
+            front = XRMath.CreatePlaneFromPointAndNormal(center + Globals.Forward * extents.Z, Globals.Forward);
+            back = XRMath.CreatePlaneFromPointAndNormal(center - Globals.Forward * extents.Z, -Globals.Forward);
         }
 
         /// <summary>
@@ -410,6 +437,42 @@ namespace XREngine.Data.Geometry
         {
             Vector3 min = Vector3.Max(bounds1.Min, bounds2.Min);
             Vector3 max = Vector3.Min(bounds1.Max, bounds2.Max);
+            return new AABB(min, max);
+        }
+
+        public readonly bool Intersects(Segment segment, out Vector3[] points)
+        {
+            List<Vector3> intersections = [];
+            GetPlanes(out var up, out var down, out var right, out var left, out var back, out var front);
+            Plane[] planes = { up, down, right, left, back, front };
+            foreach (Plane plane in planes)
+                if (GeoUtil.RayIntersectsPlane(segment.Start, (segment.End - segment.Start).Normalize(), XRMath.GetPlanePoint(plane), plane.Normal, out Vector3 point) && Contains(point))
+                    intersections.Add(point);
+            points = [.. intersections];
+            return points.Length > 0;
+        }
+
+        public readonly bool Intersects(Segment segment)
+        {
+            GetPlanes(out var up, out var down, out var right, out var left, out var back, out var front);
+            Plane[] planes = { up, down, right, left, back, front };
+            foreach (Plane plane in planes)
+                if (GeoUtil.RayIntersectsPlane(segment.Start, (segment.End - segment.Start).Normalize(), XRMath.GetPlanePoint(plane), plane.Normal, out Vector3 point) && Contains(point))
+                    return true;
+            return false;
+        }
+
+        public static AABB FromSphere(Vector3 center, float radius)
+        {
+            Vector3 min = center - new Vector3(radius);
+            Vector3 max = center + new Vector3(radius);
+            return new AABB(min, max);
+        }
+
+        public readonly AABB ExpandedToInclude(AABB other)
+        {
+            Vector3 min = Vector3.Min(Min, other.Min);
+            Vector3 max = Vector3.Max(Max, other.Max);
             return new AABB(min, max);
         }
     }

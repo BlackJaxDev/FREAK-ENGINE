@@ -1,8 +1,9 @@
-﻿namespace XREngine.Rendering
+﻿using XREngine.Data.Rendering;
+
+namespace XREngine.Rendering
 {
     public class XRTexture3D : XRTexture
     {
-        //#region Constructors
         //public XRTexture3D() : this(null, 1, 1, 1) { }
         //public XRTexture3D(int width, int height, int depth)
         //{
@@ -57,7 +58,6 @@
         //        ];
         //    }
         //}
-        //#endregion
 
         //public Bitmap3D[] _mipmaps;
         //public Bitmap3D[] Mipmaps
@@ -118,30 +118,34 @@
         //    }
         //}
 
-        ///// <summary>
-        ///// If false, calling resize will do nothing.
-        ///// Useful for repeating textures that must always be a certain size or textures that never need to be dynamically resized during the game.
-        ///// False by default.
-        ///// </summary>
-        //public bool Resizable { get; set; } = true;
+        /// <summary>
+        /// If false, calling resize will do nothing.
+        /// Useful for repeating textures that must always be a certain size or textures that never need to be dynamically resized during the game.
+        /// False by default.
+        /// </summary>
+        public bool Resizable { get; set; } = true;
 
-        //public EDepthStencilFmt DepthStencilFormat { get; set; } = EDepthStencilFmt.None;
+        public EDepthStencilFmt DepthStencilFormat { get; set; } = EDepthStencilFmt.None;
 
-        //public ETexMagFilter MagFilter { get; set; } = ETexMagFilter.Nearest;
+        public ETexMagFilter MagFilter { get; set; } = ETexMagFilter.Nearest;
 
-        //public ETexMinFilter MinFilter { get; set; } = ETexMinFilter.Nearest;
+        public ETexMinFilter MinFilter { get; set; } = ETexMinFilter.Nearest;
 
-        //public ETexWrapMode UWrap { get; set; } = ETexWrapMode.Repeat;
+        public ETexWrapMode UWrap { get; set; } = ETexWrapMode.Repeat;
 
-        //public ETexWrapMode VWrap { get; set; } = ETexWrapMode.Repeat;
+        public ETexWrapMode VWrap { get; set; } = ETexWrapMode.Repeat;
 
-        //public ETexWrapMode WWrap { get; set; } = ETexWrapMode.Repeat;
+        public ETexWrapMode WWrap { get; set; } = ETexWrapMode.Repeat;
 
-        //public float LodBias { get; set; } = 0.0f;
+        public float LodBias { get; set; } = 0.0f;
 
-        //public int Width => _width;
-        //public int Height => _height;
-        //public int Depth => _depth;
+        private int _width;
+        private int _height;
+        private int _depth;
+
+        public int Width => _width;
+        public int Height => _height;
+        public int Depth => _depth;
 
         //private bool _isLoading = false;
 
@@ -176,53 +180,21 @@
         //    return _texture;
         //}
 
-        ///// <summary>
-        ///// Resizes the textures stored in memory.
-        ///// Does nothing if Resizeable is false.
-        ///// </summary>
-        //public void Resize(int width, int height, int depth, bool resizeRenderTexture = true)
-        //{
-        //    if (!Resizable)
-        //        return;
+        /// <summary>
+        /// Resizes the textures stored in memory.
+        /// Does nothing if Resizeable is false.
+        /// </summary>
+        public void Resize(int width, int height, int depth, bool resizeRenderTexture = true)
+        {
+            if (!Resizable)
+                return;
 
-        //    _width = width;
-        //    _height = height;
-        //    _depth = depth;
+            _width = width;
+            _height = height;
+            _depth = depth;
 
-        //    if (_isLoading)
-        //        return;
-
-        //    _mipmaps?.ForEach(x => x.File?.Resize(width, height, depth));
-
-        //    if (resizeRenderTexture)
-        //        _texture?.Resize(width, height, depth);
-        //}
-        ///// <summary>
-        ///// Resizes the allocated render texture stored in video memory, if it exists.
-        ///// Does not resize the bitmaps stored in RAM.
-        ///// Does nothing if Resizeable is false.
-        ///// </summary>
-        //public void ResizeRenderTexture(int width, int height, int depth, bool doNotLoad = false)
-        //{
-        //    if (!Resizable)
-        //        return;
-
-        //    _width = width;
-        //    _height = height;
-        //    _depth = depth;
-
-        //    if (_isLoading)
-        //        return;
-
-        //    if (doNotLoad && _texture is null)
-        //        return;
-
-        //    RenderTex3D t = GetTexture(true);
-        //    t?.Resize(_width, _height, _depth);
-        //}
-
-        //[Browsable(false)]
-        //public bool IsLoaded => _texture != null;
+            //_mipmaps?.ForEach(x => x.File?.Resize(width, height, depth));
+        }
 
         //public override int MaxDimension { get; }
 

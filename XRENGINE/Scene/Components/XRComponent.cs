@@ -25,7 +25,7 @@ namespace XREngine.Components
         public bool IsActive
         {
             get => _isActive;
-            private set => SetField(ref _isActive, value);
+            set => SetField(ref _isActive, value);
         }
 
         public XREvent<XRComponent> TransformChanged;

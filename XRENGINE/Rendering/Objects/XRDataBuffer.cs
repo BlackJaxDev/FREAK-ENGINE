@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Numerics;
 using System.Runtime.InteropServices;
 using XREngine.Data;
 using XREngine.Data.Rendering;
@@ -361,6 +362,7 @@ namespace XREngine.Rendering
         /// <typeparam name="T">The type of value to read.</typeparam>
         /// <param name="offset">The offset into the buffer, in bytes.</param>
         /// <returns>The T value at the given offset.</returns>
+        [RequiresDynamicCode("")]
         public T? Get<T>(uint offset) where T : struct
             => _clientSideSource != null ? (T?)Marshal.PtrToStructure(_clientSideSource.Address + offset, typeof(T)) : default;
 
@@ -728,6 +730,19 @@ namespace XREngine.Rendering
 
             //_vaoId = 0;
             _disposedValue = true;
+        }
+
+        public XRDataBuffer Clone(bool cloneBuffer, EBufferTarget target)
+        {
+            XRDataBuffer clone = new(target, _integral)
+            {
+                _componentType = _componentType,
+                _componentCount = _componentCount,
+                _elementCount = _elementCount,
+                _normalize = _normalize,
+                _clientSideSource = cloneBuffer ? _clientSideSource?.Clone() : _clientSideSource,
+            };
+            return clone;
         }
 
         public static implicit operator VoidPtr(XRDataBuffer b) => b.Address;

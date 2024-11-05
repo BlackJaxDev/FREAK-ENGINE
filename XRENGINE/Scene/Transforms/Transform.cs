@@ -62,14 +62,14 @@ namespace XREngine.Scene.Transforms
         public Transform(TransformBase? parent = null, EOrder order = EOrder.TRS)
             : this(Quaternion.Identity, parent, order) { }
 
-        private Vector3 _scale;
+        private Vector3 _scale = Vector3.One;
         public Vector3 Scale
         {
             get => _scale;
             set => SetField(ref _scale, value);
         }
 
-        private Vector3 _translation;
+        private Vector3 _translation = Vector3.Zero;
         public Vector3 Translation
         {
             get => _translation;
@@ -82,7 +82,7 @@ namespace XREngine.Scene.Transforms
             set => Rotation = value.ToQuaternion();
         }
 
-        private Quaternion _rotation;
+        private Quaternion _rotation = Quaternion.Identity;
         public Quaternion Rotation
         {
             get => _rotation;

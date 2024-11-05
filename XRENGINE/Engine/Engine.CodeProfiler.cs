@@ -33,7 +33,7 @@ namespace XREngine
             }
 
             public bool EnableFrameLogging { get; set; } = true;
-            public float DebugOutputMinElapsedMs { get; set; } = 1.0f;
+            public float DebugOutputMinElapsedMs { get; set; } = 0.0f;
             public ConcurrentQueue<(int threadId, string methodName, float elapsedMs)> FrameLog { get; } = [];
 
             public void ClearFrameLog()

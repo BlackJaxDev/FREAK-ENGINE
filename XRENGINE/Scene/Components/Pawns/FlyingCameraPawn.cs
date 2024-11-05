@@ -10,25 +10,56 @@ namespace XREngine.Components
     [RequiresTransform(typeof(Transform))]
     public class FlyingCameraPawnComponent : FlyingCameraPawnBaseComponent
     {
-        protected override void OnScrolled(bool up)
-            => TransformAs<Transform>().TranslateRelative(0.0f, 0.0f, up ? ScrollSpeed : -ScrollSpeed);
+        public float ScrollSpeedModifier { get; set; } = 1.0f;
+
+        protected override void OnScrolled(float diff)
+        {
+            if (ShiftPressed)
+                diff *= ShiftSpeedModifier;
+
+            //if (CtrlPressed)
+            //{
+            //    if (diff > 0.0f)
+            //        ScrollSpeedModifier *= 0.5f;
+            //    else if (diff < 0.0f)
+            //        ShiftSpeedModifier *= 1.5f;
+            //}
+
+            TransformAs<Transform>().TranslateRelative(0.0f, 0.0f, diff * -ScrollSpeed * ScrollSpeedModifier);
+        }
 
         protected override void MouseMove(float x, float y)
         {
             if (Rotating)
+                MouseRotate(x, y);
+
+            if (Translating)
             {
-                AddYawPitch(
-                    -x * MouseRotateSpeed,
-                    -y * MouseRotateSpeed);
-            }
-            else if (Translating)
-            {
-                TransformAs<Transform>().TranslateRelative(
-                    -x * MouseTranslateSpeed,
-                    -y * MouseTranslateSpeed,
-                    0.0f);
+                if (ShiftPressed)
+                {
+                    x *= ShiftSpeedModifier;
+                    y *= ShiftSpeedModifier;
+                }
+                MouseTranslate(x, y);
             }
         }
+
+        private float _shiftSpeedModifier = 2.0f;
+        public float ShiftSpeedModifier 
+        {
+            get => _shiftSpeedModifier; 
+            set => SetField(ref _shiftSpeedModifier, value);
+        }
+
+        protected virtual void MouseTranslate(float x, float y)
+            => TransformAs<Transform>().TranslateRelative(
+                -x * MouseTranslateSpeed,
+                -y * MouseTranslateSpeed,
+                0.0f);
+
+        protected virtual void MouseRotate(float x, float y)
+            => AddYawPitch(-x * MouseRotateSpeed, y * MouseRotateSpeed);
+
         public void Pivot(float pitch, float yaw, float distance)
         {
             var tfm = TransformAs<Transform>();
@@ -56,10 +87,20 @@ namespace XREngine.Components
                 _incForward.IsZero())
                 return;
 
+            if (ShiftPressed)
+            {
+                _incRight *= ShiftSpeedModifier;
+                _incUp *= ShiftSpeedModifier;
+                _incForward *= ShiftSpeedModifier;
+            }
+
+            //Don't time dilate user inputs
+            float delta = Engine.UndilatedDelta;
+            //Vector2 dir = Vector2.Normalize(new(_incRight, _incUp));
             TransformAs<Transform>().TranslateRelative(
-                _incRight * Engine.Delta,
-                _incUp * Engine.Delta,
-                -_incForward * Engine.Delta);
+                _incRight * delta,
+                _incUp * delta,
+                -_incForward * delta);
         }
 
         private void IncrementRotation()

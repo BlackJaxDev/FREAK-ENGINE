@@ -79,6 +79,8 @@ namespace XREngine.Rendering
 
         public event Action<string, XRTexture, int>? SamplerRequested = null;
         public event Action<int, XRTexture, int>? SamplerRequestedByLocation = null;
+
+        public event Action<int, XRTexture>? BindImageTextureRequested = null;
         
         /// <summary>
         /// Mask of the shader types included in the program.
@@ -433,5 +435,8 @@ namespace XREngine.Rendering
         /// <param name="value"></param>
         public void Sampler(int location, XRTexture texture, int textureUnit)
             => SamplerRequestedByLocation?.Invoke(location, texture, textureUnit);
+
+        public void BindImageTexture(int bindingIndex, XRTexture texture)
+            => BindImageTextureRequested?.Invoke(bindingIndex, texture);
     }
 }

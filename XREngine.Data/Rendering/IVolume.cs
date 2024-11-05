@@ -37,5 +37,7 @@ namespace XREngine.Data.Rendering
         /// <returns></returns>
         bool Contains(Vector3 point);
         AABB GetAABB();
+        bool Intersects(Segment segment, out Vector3[] points);
+        bool Intersects(Segment segment);
     }
 }

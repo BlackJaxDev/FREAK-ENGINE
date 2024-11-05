@@ -43,12 +43,16 @@ namespace XREngine
             private void ExecuteParallel()
             {
                 Dequeue();
+                //float time = ElapsedTime;
                 _methods.ForEachParallelIList(ExecTick);
+                //Debug.Out($"TickList Parallel: {Math.Round((ElapsedTime - time) * 1000.0f, 2)} ms");
             }
             private void ExecuteSequential()
             {
                 Dequeue();
+                //float time = ElapsedTime;
                 _methods.ForEach(ExecTick);
+                //Debug.Out($"TickList Sequential: {Math.Round((ElapsedTime - time) * 1000.0f, 2)} ms");
             }
             private void ExecTick(DelTick func)
                 => func();

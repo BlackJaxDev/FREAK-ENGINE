@@ -169,29 +169,7 @@ namespace XREngine.Rendering.OpenGL
             }
 
             private void SetIndexBuffer(ref GLDataBuffer? buffer, ref IndexSize bufferElementSize, XRMesh mesh, EPrimitiveType type)
-            {
-                var indices = mesh.GetIndices(type);
-                if (indices is null || indices.Length == 0)
-                    return;
-
-                buffer = Renderer.GenericToAPI<GLDataBuffer>(new XRDataBuffer(EBufferTarget.ElementArrayBuffer, true) { BindingName = type.ToString() })!;
-                //TODO: primitive restart will use MaxValue for restart id
-                if (mesh.VertexCount < byte.MaxValue)
-                {
-                    bufferElementSize = IndexSize.Byte;
-                    buffer.Data.SetDataRaw(indices?.Select(x => (byte)x)?.ToList() ?? []);
-                }
-                else if (mesh.VertexCount < short.MaxValue)
-                {
-                    bufferElementSize = IndexSize.TwoBytes;
-                    buffer.Data.SetDataRaw(indices?.Select(x => (ushort)x)?.ToList() ?? []);
-                }
-                else
-                {
-                    bufferElementSize = IndexSize.FourBytes;
-                    buffer.Data.SetDataRaw(indices);
-                }
-            }
+                => buffer = Renderer.GenericToAPI<GLDataBuffer>(mesh.GetIndexBuffer(type, out bufferElementSize))!;
 
             private void OnMeshChanged(XRMesh? mesh)
             {

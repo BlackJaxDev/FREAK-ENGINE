@@ -1,5 +1,4 @@
 ﻿using Extensions;
-using System;
 using System.Numerics;
 using XREngine.Components;
 using XREngine.Data.Core;
@@ -117,7 +116,7 @@ namespace XREngine.Scene.Components.Animation
             public Fingers Hand { get; } = new();
             public BoneDef Leg { get; } = new();
             public BoneDef Knee { get; } = new();
-            public BoneDef Ankle { get; } = new();
+            public BoneDef Foot { get; } = new();
             public BoneDef Toes { get; } = new();
         }
 
@@ -130,20 +129,35 @@ namespace XREngine.Scene.Components.Animation
         public BoneChainItem[]? _leftShoulderToWristChain = null;
         public BoneChainItem[]? _rightShoulderToWristChain = null;
 
+        private static BoneChainItem[] Link(BoneDef[] bones)
+        {
+            BoneChainItem[] chain = new BoneChainItem[bones.Length];
+            for (int i = 0; i < bones.Length; i++)
+            {
+                chain[i] = bones[i];
+                if (i > 0)
+                {
+                    chain[i].ParentPrev = chain[i - 1];
+                    chain[i - 1].ChildNext = chain[i];
+                }
+            }
+            return chain;
+        }
+
         public BoneChainItem[] GetHipToHeadChain()
-            => _hipToHeadChain ??= [Hips, Spine, Chest, Neck, Head];
+            => _hipToHeadChain ??= Link([Hips, Spine, Chest, Neck, Head]);
 
         public BoneChainItem[] GetLeftLegToAnkleChain()
-            => _leftLegToAnkleChain ??= [Left.Leg, Left.Knee, Left.Ankle];
+            => _leftLegToAnkleChain ??= Link([Left.Leg, Left.Knee, Left.Foot]);
 
         public BoneChainItem[] GetRightLegToAnkleChain()
-            => _rightLegToAnkleChain ??= [Right.Leg, Right.Knee, Right.Ankle];
+            => _rightLegToAnkleChain ??= Link([Right.Leg, Right.Knee, Right.Foot]);
 
         public BoneChainItem[] GetLeftShoulderToWristChain()
-            => _leftShoulderToWristChain ??= [Left.Shoulder, Left.Arm, Left.Elbow, Left.Wrist];
+            => _leftShoulderToWristChain ??= Link([Left.Shoulder, Left.Arm, Left.Elbow, Left.Wrist]);
 
         public BoneChainItem[] GetRightShoulderToWristChain()
-            => _rightShoulderToWristChain ??= [Right.Shoulder, Right.Arm, Right.Elbow, Right.Wrist];
+            => _rightShoulderToWristChain ??= Link([Right.Shoulder, Right.Arm, Right.Elbow, Right.Wrist]);
 
         public TransformBase? HeadTarget => Head.Node?.Transform;
         public TransformBase? HipsTarget => Hips.Node?.Transform;
@@ -162,25 +176,36 @@ namespace XREngine.Scene.Components.Animation
 
         public void SolveFullBodyIK()
         {
-            Engine.Profiler.Start();
+            //using var d = Engine.Profiler.Start();
 
-            int maxIterations = 5;
+            int maxIterations = 10;
             for (int i = 0; i < maxIterations; i++)
             {
                 if (HeadTarget is not null && HipsTarget is not null)
-                    SolveFABRIKWithFixedEnds(GetHipToHeadChain(), HipsTarget?.WorldTranslation ?? Vector3.Zero, HeadTarget?.WorldTranslation ?? Vector3.Zero);
+                    SolveFABRIKWithFixedEnds(
+                        GetHipToHeadChain(),
+                        HipsTarget?.WorldTranslation ?? Vector3.Zero,
+                        HeadTarget?.WorldTranslation ?? Vector3.Zero);
 
                 if (LeftHandTarget is not null)
-                    SolveFABRIK(GetLeftShoulderToWristChain(), LeftHandTarget.WorldTranslation);
+                    SolveFABRIK(
+                        GetLeftShoulderToWristChain(),
+                        LeftHandTarget.WorldTranslation);
 
                 if (RightHandTarget is not null)
-                    SolveFABRIK(GetRightShoulderToWristChain(), RightHandTarget.WorldTranslation);
-                
+                    SolveFABRIK(
+                        GetRightShoulderToWristChain(),
+                        RightHandTarget.WorldTranslation);
+
                 if (LeftFootTarget is not null)
-                    SolveFABRIK(GetLeftLegToAnkleChain(), LeftFootTarget.WorldTranslation);
+                    SolveFABRIK(
+                        GetLeftLegToAnkleChain(),
+                        LeftFootTarget.WorldTranslation);
 
                 if (RightFootTarget is not null)
-                    SolveFABRIK(GetRightLegToAnkleChain(), RightFootTarget.WorldTranslation);
+                    SolveFABRIK(
+                        GetRightLegToAnkleChain(),
+                        RightFootTarget.WorldTranslation);
             }
         }
 
@@ -223,22 +248,24 @@ namespace XREngine.Scene.Components.Animation
                 switch (propName)
                 {
                     case nameof(ChildNext):
-                        LocalAxis = GetLocalDirToChild();
+                        LocalAxis = LocalDirToChild;
                         break;
                 }
             }
 
-            public Vector3 GetLocalDirToChild()
-                => (ChildPositionLocal() - LocalPosition).Normalize();
+            public Vector3 LocalDirToChild
+                => (ChildPositionLocal - LocalPosition).Normalize();
 
-            public Vector3 GetWorldDirToChild()
-                => (ChildPositionWorld() - WorldPosition).Normalize();
+            public Vector3 WorldDirToChild
+                => (ChildPositionWorld - WorldPosition).Normalize();
 
-            public Vector3 ChildPositionLocal()
+            public Vector3 ChildPositionLocal
                 => Vector3.Transform(ChildNext?.WorldPosition ?? Vector3.Zero, Transform?.InverseWorldMatrix ?? Matrix4x4.Identity);
 
-            public Vector3 ChildPositionWorld()
+            public Vector3 ChildPositionWorld
                 => ChildNext?.WorldPosition ?? Vector3.Zero;
+
+            public Vector3 WorldPosition { get; set; } = Vector3.Zero;
 
             public Vector3 LocalPosition
             {
@@ -247,15 +274,6 @@ namespace XREngine.Scene.Components.Animation
                 {
                     if (Transform is not null)
                         Transform.Translation = value;
-                }
-            }
-            public Vector3 WorldPosition
-            {
-                get => Transform?.WorldTranslation ?? Vector3.Zero;
-                set
-                {
-                    if (Transform is not null)
-                        Transform.Translation = value - (ParentPrev?.WorldPosition ?? Vector3.Zero);
                 }
             }
             public Rotator LocalRotator
@@ -294,16 +312,19 @@ namespace XREngine.Scene.Components.Animation
             float tolerance = 0.001f,
             int maxIterations = 10)
         {
+            if (chain.Length < 2)
+            {
+                Debug.LogWarning("The chain must have at least two bones.");
+                return;
+            }
+
+            float totalLength = Init(chain);
+
             // Check if the chain has movable roots
             bool hasMovableRoot = chain[0].Def.IsMovable;
 
             // Original root position
             Vector3 originalRootPosition = chain[0].WorldPosition;
-
-            // Calculate total length
-            float totalLength = 0;
-            for (int i = 0; i < chain.Length - 1; i++)
-                totalLength += chain[i].Length;
 
             // Distance from root to target
             //float distanceToTarget = Vector3.Distance(originalRootPosition, targetPosition);
@@ -326,7 +347,7 @@ namespace XREngine.Scene.Components.Animation
 
                     // If the bone is movable
                     if (parent.Def.IsMovable)
-                        parent.WorldPosition = child.WorldPosition - parent.GetWorldDirToChild() * parent.Length;
+                        parent.WorldPosition = child.WorldPosition - parent.WorldDirToChild * parent.Length;
                     else
                         break;
                 }
@@ -334,23 +355,37 @@ namespace XREngine.Scene.Components.Animation
                 // **Backward Reaching Phase**
 
                 // If root is movable, constrain its movement
-                chain[0].WorldPosition = hasMovableRoot 
-                    ? ConstrainPosition(chain[0], originalRootPosition) 
+                chain[0].WorldPosition = hasMovableRoot
+                    ? ConstrainPosition(chain[0], originalRootPosition)
                     : originalRootPosition;
 
                 for (int i = 0; i < chain.Length - 1; i++)
                 {
                     BoneChainItem parent = chain[i];
                     BoneChainItem child = chain[i + 1];
-                    child.WorldPosition = parent.WorldPosition + parent.GetWorldDirToChild() * parent.Length;
+                    child.WorldPosition = parent.WorldPosition + parent.WorldDirToChild * parent.Length;
                 }
 
                 diff = Vector3.Distance(chain[^1].WorldPosition, targetPosition);
                 iterations++;
             }
 
-            UpdateBoneRotations(chain);
+            UpdateBones(chain);
         }
+
+        private static float Init(BoneChainItem[] chain)
+        {
+            //Set the current positions of all bones
+            for (int i = 0; i < chain.Length; i++)
+                chain[i].WorldPosition = chain[i].Transform?.WorldTranslation ?? Vector3.Zero;
+
+            // Calculate total length
+            float totalLength = 0;
+            for (int i = 0; i < chain.Length - 1; i++)
+                totalLength += chain[i].Length;
+            return totalLength;
+        }
+
         public static void SolveFABRIKWithFixedEnds(
             BoneChainItem[] chain,
             Vector3 startPosition,
@@ -365,22 +400,17 @@ namespace XREngine.Scene.Components.Animation
                 return;
             }
 
-            // Set the start and end positions
+            float totalLength = Init(chain);
+
             chain[0].WorldPosition = startPosition;
             chain[numBones - 1].WorldPosition = endPosition;
 
-            // Compute the total length of the chain
-            float totalLength = 0;
-            for (int i = 0; i < numBones - 1; i++)
-                totalLength += chain[i].Length;
-            
             // Distance between the fixed points
-            float distanceBetweenFixedPoints = Vector3.Distance(startPosition, endPosition);
-
-            if (distanceBetweenFixedPoints > totalLength)
+            if (Vector3.DistanceSquared(startPosition, endPosition) > totalLength * totalLength)
             {
-                Debug.LogWarning("The fixed points are too far apart to be connected by the chain.");
-                // Optionally, stretch the chain to reach both points
+                //Debug.LogWarning("The fixed points are too far apart to be connected by the chain.");
+                //Stretch the chain to reach both points
+                //TODO: implement stretching factors for each bone.
                 for (int i = 1; i < numBones - 1; i++)
                     chain[i].WorldPosition = Vector3.Lerp(startPosition, endPosition, (float)i / (numBones - 1));
             }
@@ -388,10 +418,9 @@ namespace XREngine.Scene.Components.Animation
             {
                 int iterations = 0;
                 float diff = float.MaxValue;
-
                 while (diff > tolerance && iterations < maxIterations)
                 {
-                    // Store positions to check for convergence
+                    //Store positions to check for convergence
                     Vector3[] prevPositions = new Vector3[numBones];
                     for (int i = 0; i < numBones; i++)
                         prevPositions[i] = chain[i].WorldPosition;
@@ -414,10 +443,10 @@ namespace XREngine.Scene.Components.Animation
                         chain[i].WorldPosition = chain[i + 1].WorldPosition + dir * length;
                     }
 
-                    // Enforce the start position again
+                    //Enforce the start position again
                     chain[0].WorldPosition = startPosition;
 
-                    // Compute the maximum change in positions
+                    //Compute the maximum change in positions
                     diff = 0;
                     for (int i = 0; i < numBones; i++)
                     {
@@ -431,17 +460,19 @@ namespace XREngine.Scene.Components.Animation
             }
 
             // Update rotations after positions are set
-            UpdateBoneRotations(chain);
+            UpdateBones(chain);
         }
 
         public static Vector3 ConstrainPosition(BoneChainItem bone, Vector3 originalPosition)
             => ApplyDistanceCurve(originalPosition, bone.WorldPosition, 1.0f, AnimationCurve.EaseOut);
-        public static void UpdateBoneRotations(BoneChainItem[] chain)
+
+        public static void UpdateBones(BoneChainItem[] chain)
         {
             for (int i = 0; i < chain.Length - 1; i++)
             {
                 BoneChainItem parent = chain[i];
-                parent.LocalRotator = ApplyJointConstraints(parent, XRMath.RotationBetweenVectors(parent.LocalAxis, parent.GetLocalDirToChild()));
+                //parent.LocalPosition = parent.Transform?.WorldTranslation ?? Vector3.Zero;
+                parent.LocalRotator = ApplyJointConstraints(parent, XRMath.RotationBetweenVectors(parent.LocalAxis, parent.LocalDirToChild));
             }
         }
         public static Rotator ApplyJointConstraints(BoneChainItem bone, Quaternion desiredRotation)
@@ -484,7 +515,7 @@ namespace XREngine.Scene.Components.Animation
             Hips.Node = SceneNode.FindDescendantByName("Hips", StringComparison.InvariantCultureIgnoreCase);
 
             //Find middle bones
-            FindChildren(Hips, [
+            FindChildrenFor(Hips, [
                 (Spine, ByName("Spine")),
                 (Chest, ByName("Chest")),
                 (Left.Leg, ByPosition("Leg", x => x.X > 0.0f)),
@@ -492,12 +523,12 @@ namespace XREngine.Scene.Components.Animation
             ]);
 
             if (Spine.Node is not null && Chest.Node is null)
-                FindChildren(Spine, [
+                FindChildrenFor(Spine, [
                     (Chest, ByName("Chest")),
                 ]);
 
             if (Chest.Node is not null)
-                FindChildren(Chest, [
+                FindChildrenFor(Chest, [
                     (Neck, ByName("Neck")),
                     (Head, ByName("Head")),
                     (Left.Shoulder, ByPosition("Shoulder", x => x.X > 0.0f)),
@@ -505,50 +536,50 @@ namespace XREngine.Scene.Components.Animation
                 ]);
 
             if (Neck.Node is not null && Head.Node is null)
-                FindChildren(Neck, [
+                FindChildrenFor(Neck, [
                     (Head, ByName("Head")),
                 ]);
 
             //Find shoulder bones
             if (Left.Shoulder.Node is not null)
-                FindChildren(Left.Shoulder, [
-                    (Left.Arm, ByName("Arm")),
-                    (Left.Elbow, ByName("Elbow")),
-                    (Left.Wrist, ByName("Wrist")),
+                FindChildrenFor(Left.Shoulder, [
+                    (Left.Arm, ByNameContainsAll("Arm")),
+                    (Left.Elbow, ByNameContainsAll("Elbow")),
+                    (Left.Wrist, ByNameContainsAll("Wrist")),
                 ]);
 
             if (Right.Shoulder.Node is not null)
-                FindChildren(Right.Shoulder, [
-                    (Right.Arm, ByName("Arm")),
-                    (Right.Elbow, ByName("Elbow")),
-                    (Right.Wrist, ByName("Wrist")),
+                FindChildrenFor(Right.Shoulder, [
+                    (Right.Arm, ByNameContainsAll("Arm")),
+                    (Right.Elbow, ByNameContainsAll("Elbow")),
+                    (Right.Wrist, ByNameContainsAll("Wrist")),
                 ]);
 
             if (Left.Arm.Node is not null && Left.Elbow.Node is null)
-                FindChildren(Left.Arm, [
-                    (Left.Elbow, ByName("Elbow")),
-                    (Left.Wrist, ByName("Wrist")),
+                FindChildrenFor(Left.Arm, [
+                    (Left.Elbow, ByNameContainsAll("Elbow")),
+                    (Left.Wrist, ByNameContainsAll("Wrist")),
                 ]);
 
             if (Right.Arm.Node is not null && Right.Elbow.Node is null)
-                FindChildren(Right.Arm, [
-                    (Right.Elbow, ByName("Elbow")),
-                    (Right.Wrist, ByName("Wrist")),
+                FindChildrenFor(Right.Arm, [
+                    (Right.Elbow, ByNameContainsAll("Elbow")),
+                    (Right.Wrist, ByNameContainsAll("Wrist")),
                 ]);
 
             if (Left.Elbow.Node is not null && Left.Wrist.Node is null)
-                FindChildren(Left.Elbow, [
-                    (Left.Wrist, ByName("Wrist")),
+                FindChildrenFor(Left.Elbow, [
+                    (Left.Wrist, ByNameContainsAll("Wrist")),
                 ]);
 
             if (Right.Elbow.Node is not null && Right.Wrist.Node is null)
-                FindChildren(Right.Elbow, [
-                    (Right.Wrist, ByName("Wrist")),
+                FindChildrenFor(Right.Elbow, [
+                    (Right.Wrist, ByNameContainsAll("Wrist")),
                 ]);
 
             //Find finger bones
             if (Left.Wrist.Node is not null)
-                FindChildren(Left.Wrist, [
+                FindChildrenFor(Left.Wrist, [
                     (Left.Hand.Pinky.Proximal, ByNameContainsAll("pinky", "1")),
                     (Left.Hand.Pinky.Intermediate, ByNameContainsAll("pinky", "2")),
                     (Left.Hand.Pinky.Distal, ByNameContainsAll("pinky", "3")),
@@ -567,7 +598,7 @@ namespace XREngine.Scene.Components.Animation
                 ]);
 
             if (Right.Wrist.Node is not null)
-                FindChildren(Right.Wrist, [
+                FindChildrenFor(Right.Wrist, [
                     (Right.Hand.Pinky.Proximal, ByNameContainsAll("pinky", "1")),
                     (Right.Hand.Pinky.Intermediate, ByNameContainsAll("pinky", "2")),
                     (Right.Hand.Pinky.Distal, ByNameContainsAll("pinky", "3")),
@@ -587,39 +618,39 @@ namespace XREngine.Scene.Components.Animation
 
             //Find leg bones
             if (Left.Leg.Node is not null)
-                FindChildren(Left.Leg, [
-                    (Left.Knee, ByName("Knee")),
-                    (Left.Ankle, ByName("Ankle")),
-                    (Left.Toes, ByName("Toes")),
+                FindChildrenFor(Left.Leg, [
+                    (Left.Knee, ByNameContainsAll("Knee")),
+                    (Left.Foot, ByNameContainsAll("Foot")),
+                    (Left.Toes, ByNameContainsAll("Toe")),
                 ]);
 
             if (Right.Leg.Node is not null)
-                FindChildren(Right.Leg, [
-                    (Right.Knee, ByName("Knee")),
-                    (Right.Ankle, ByName("Ankle")),
-                    (Right.Toes, ByName("Toes")),
+                FindChildrenFor(Right.Leg, [
+                    (Right.Knee, ByNameContainsAll("Knee")),
+                    (Right.Foot, ByNameContainsAll("Foot")),
+                    (Right.Toes, ByNameContainsAll("Toe")),
                 ]);
 
-            if (Left.Knee.Node is not null && Left.Ankle.Node is null)
-                FindChildren(Left.Knee, [
-                    (Left.Ankle, ByName("Ankle")),
-                    (Left.Toes, ByName("Toes")),
+            if (Left.Knee.Node is not null && Left.Foot.Node is null)
+                FindChildrenFor(Left.Knee, [
+                    (Left.Foot, ByNameContainsAll("Foot")),
+                    (Left.Toes, ByNameContainsAll("Toe")),
                 ]);
 
-            if (Right.Knee.Node is not null && Right.Ankle.Node is null)
-                FindChildren(Right.Knee, [
-                    (Right.Ankle, ByName("Ankle")),
-                    (Right.Toes, ByName("Toes")),
+            if (Right.Knee.Node is not null && Right.Foot.Node is null)
+                FindChildrenFor(Right.Knee, [
+                    (Right.Foot, ByNameContainsAll("Foot")),
+                    (Right.Toes, ByNameContainsAll("Toe")),
                 ]);
 
-            if (Left.Ankle.Node is not null && Left.Toes.Node is null)
-                FindChildren(Left.Ankle, [
-                    (Left.Toes, ByName("Toes")),
+            if (Left.Foot.Node is not null && Left.Toes.Node is null)
+                FindChildrenFor(Left.Foot, [
+                    (Left.Toes, ByNameContainsAll("Toe")),
                 ]);
 
-            if (Right.Ankle.Node is not null && Right.Toes.Node is null)
-                FindChildren(Right.Ankle, [
-                    (Right.Toes, ByName("Toes")),
+            if (Right.Foot.Node is not null && Right.Toes.Node is null)
+                FindChildrenFor(Right.Foot, [
+                    (Right.Toes, ByNameContainsAll("Toe")),
                 ]);
         }
 
@@ -641,7 +672,7 @@ namespace XREngine.Scene.Components.Animation
         private static Func<SceneNode, bool> ByName(string name, StringComparison comp = StringComparison.InvariantCultureIgnoreCase)
             => node => node.Name?.Equals(name, comp) ?? false;
 
-        private static void FindChildren(BoneDef def, (BoneDef, Func<SceneNode, bool>)[] childSearch)
+        private static void FindChildrenFor(BoneDef def, (BoneDef, Func<SceneNode, bool>)[] childSearch)
         {
             var children = def?.Node?.Transform.Children;
             if (children is not null)

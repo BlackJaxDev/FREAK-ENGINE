@@ -1,5 +1,5 @@
-﻿using Silk.NET.GLFW;
-using Silk.NET.Input;
+﻿using Silk.NET.Input;
+using System.Diagnostics;
 using System.Numerics;
 using MouseButton = Silk.NET.Input.MouseButton;
 
@@ -9,6 +9,13 @@ namespace XREngine.Input.Devices.Glfw
     public class GlfwMouse : BaseMouse
     {
         private readonly IMouse _mouse;
+
+        public override Vector2 CursorPosition
+        {
+            get => _mouse.Position;
+            set => _mouse.Position = value;
+        }
+        private float _lastScroll = 0.0f;
 
         public GlfwMouse(IMouse mouse) : base(mouse.Index)
         {
@@ -30,50 +37,41 @@ namespace XREngine.Input.Devices.Glfw
             _mouse.DoubleClick -= DoubleClick;
         }
 
-        private void DoubleClick(IMouse mouse, Silk.NET.Input.MouseButton button, Vector2 vector)
+        private void DoubleClick(IMouse mouse, MouseButton button, Vector2 vector)
         {
 
         }
 
-        private void Click(IMouse mouse, Silk.NET.Input.MouseButton button, Vector2 vector)
+        private void Click(IMouse mouse, MouseButton button, Vector2 vector)
         {
 
         }
 
         private void Scroll(IMouse mouse, ScrollWheel wheel)
         {
-
+            _lastScroll += wheel.Y;
         }
 
-        private void MouseDown(IMouse mouse, Silk.NET.Input.MouseButton button)
+        private void MouseDown(IMouse mouse, MouseButton button)
         {
 
         }
 
-        private void MouseUp(IMouse mouse, Silk.NET.Input.MouseButton button)
+        private void MouseUp(IMouse mouse, MouseButton button)
         {
 
         }
 
-        private void MouseMove(IMouse mouse, Vector2 vector)
+        private void MouseMove(IMouse mouse, Vector2 position)
         {
-            _relative += vector;
+
         }
-
-        public override void SetCursorPosition(float x, float y)
-        {
-            _mouse.Position = new Vector2(x, y);
-        }
-
-        private Vector2 _relative = Vector2.Zero;
-
 
         public override void TickStates(float delta)
         {
-            _cursor.TickRelative(_relative.X, _relative.Y);
-            _relative = Vector2.Zero;
-            _cursor.TickAbsolute(_mouse.Position.X, _mouse.Position.Y);
-            _wheel.Tick(_mouse.ScrollWheels[0].Y, delta);
+            _cursor.Tick(_mouse.Position.X, _mouse.Position.Y);
+            _wheel.Tick(_lastScroll);
+            _lastScroll = 0.0f;
             LeftClick?.Tick(_mouse.IsButtonPressed(MouseButton.Left), delta);
             RightClick?.Tick(_mouse.IsButtonPressed(MouseButton.Right), delta);
             MiddleClick?.Tick(_mouse.IsButtonPressed(MouseButton.Middle), delta);

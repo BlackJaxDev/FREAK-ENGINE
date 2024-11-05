@@ -1,6 +1,7 @@
 ﻿using XREngine.Core.Files;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
+using XREngine.Scene.Transforms;
 
 namespace XREngine.Rendering.Models
 {
@@ -25,6 +26,7 @@ namespace XREngine.Rendering.Models
             get => cullingVolumeOverride;
             set => SetField(ref cullingVolumeOverride, value);
         }
+        public TransformBase? RootTransform { get; set; }
 
         public SubMesh() { }
 

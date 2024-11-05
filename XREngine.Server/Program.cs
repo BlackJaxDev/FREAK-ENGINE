@@ -77,8 +77,9 @@ namespace XREngine.Networking
         {
             int w = 1920;
             int h = 1080;
-            float update = 60.0f;
-            float render = 10.0f;
+            float updateHz = 60.0f;
+            float renderHz = 10.0f;
+            float fixedHz = 90.0f;
 
             int primaryX = NativeMethods.GetSystemMetrics(0);
             int primaryY = NativeMethods.GetSystemMetrics(1);
@@ -103,10 +104,11 @@ namespace XREngine.Networking
                 AppType = EAppType.Server,
                 DefaultUserSettings = new UserSettings()
                 {
-                    TargetFramesPerSecond = render,
-                    TargetUpdatesPerSecond = update,
+                    TargetFramesPerSecond = renderHz,
                     VSync = EVSyncMode.Off,
-                }
+                },
+                TargetUpdatesPerSecond = updateHz,
+                FixedFramesPerSecond = fixedHz,
             };
         }
     }

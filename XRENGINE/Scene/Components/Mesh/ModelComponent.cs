@@ -1,4 +1,6 @@
 ﻿using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
+using XREngine.Data.Geometry;
 using XREngine.Rendering.Models;
 
 namespace XREngine.Components.Scene.Mesh
@@ -58,7 +60,10 @@ namespace XREngine.Components.Scene.Mesh
 
         private void AddMesh(SubMesh item)
         {
-            RenderableMesh mesh = new(item, this);
+            RenderableMesh mesh = new(item, this)
+            {
+                RootTransform = item.RootTransform
+            };
             Meshes.Add(mesh);
             _meshLinks.TryAdd(item, mesh);
         }
@@ -66,6 +71,21 @@ namespace XREngine.Components.Scene.Mesh
         {
             if (_meshLinks.TryRemove(item, out RenderableMesh? mesh))
                 Meshes.Remove(mesh);
+        }
+
+        [RequiresDynamicCode("")]
+        public float? Intersect(Segment segment, out Triangle? triangle)
+        {
+            triangle = null;
+            segment = segment.TransformedBy(Transform.InverseWorldMatrix);
+            float? closest = null;
+            foreach (RenderableMesh mesh in Meshes)
+            {
+                float? distance = mesh.Intersect(segment, out triangle);
+                if (distance.HasValue && (!closest.HasValue || distance < closest))
+                    closest = distance;
+            }
+            return closest;
         }
     }
 }

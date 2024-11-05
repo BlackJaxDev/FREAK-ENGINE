@@ -1,4 +1,8 @@
-﻿using XREngine.Data.Core;
+﻿using System.Numerics;
+using XREngine.Components;
+using XREngine.Components.Scene.Mesh;
+using XREngine.Data.Core;
+using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
 using XREngine.Data.Trees;
 using XREngine.Rendering;
@@ -88,5 +92,8 @@ namespace XREngine.Scene
         /// </summary>
         public virtual void GlobalSwapBuffers()
             => RenderablesTree.Swap();
+
+        public void Raycast(CameraComponent cameraComponent, Vector2 screenPoint, out SortedDictionary<float, ITreeItem> items, Func<ITreeItem, Segment, float?> directTest)
+            => RenderablesTree.Raycast(cameraComponent.Camera.GetWorldSegment(screenPoint), out items, directTest);
     }
 }

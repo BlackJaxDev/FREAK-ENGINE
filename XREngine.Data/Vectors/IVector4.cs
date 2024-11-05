@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using System.Numerics;
 using System.Runtime.InteropServices;
 
 namespace XREngine.Data.Vectors;
@@ -68,4 +69,7 @@ public unsafe struct IVector4(int x, int y, int z, int w)
 
     public override readonly string ToString()
         => string.Format("({0}, {1}, {2}, {3})", X, Y, Z, W);
+
+    public static explicit operator IVector4(Vector4 v) => new((int)v.X, (int)v.Y, (int)v.Z, (int)v.W);
+    public static implicit operator Vector4(IVector4 v) => new(v.X, v.Y, v.Z, v.W);
 }

@@ -2,11 +2,16 @@
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using XREngine.Audio;
 using XREngine.Components;
+using XREngine.Components.Scene.Mesh;
 using XREngine.Data.Core;
+using XREngine.Data.Geometry;
 using XREngine.Data.Trees;
+using XREngine.Rendering.Info;
 using XREngine.Scene;
 using XREngine.Scene.Transforms;
 using static XREngine.Engine;
@@ -123,8 +128,49 @@ namespace XREngine.Rendering
             Time.Timer.CollectVisible -= GlobalCollectVisible;
         }
 
+        public void GlobalCollectVisible()
+        {
+            //using var d = Profiler.Start();
+            ProcessTransformQueue();
+            VisualScene.GlobalCollectVisible();
+        }
+
+        private void GlobalSwapBuffers()
+        {
+            SwapTransformQueues();
+            VisualScene.GlobalSwapBuffers();
+        }
+
+        /// <summary>
+        /// Called by windows on the render thread, right before rendering all viewports.
+        /// </summary>
+        public void GlobalPreRender()
+        {
+            //using var d = Profiler.Start();
+            VisualScene.GlobalPreRender();
+        }
+
+        /// <summary>
+        /// Called by windows on the render thread, right after rendering all viewports.
+        /// </summary>
+        public void GlobalPostRender()
+        {
+            //using var d = Profiler.Start();
+            VisualScene.GlobalPostRender();
+        }
+
+        private void SwapTransformQueues()
+        {
+            (_transformBucketsByDepthRendering, _transformBucketsByDepthUpdating) = (_transformBucketsByDepthUpdating, _transformBucketsByDepthRendering);
+
+            foreach (var bag in _transformBucketsByDepthUpdating.Values)
+                bag.Clear();
+        }
+
         private void ProcessTransformQueue()
         {
+            //using var d = Profiler.Start();
+
             //This method updates transforms in breadth-first order of appearance in the scene.
             //Right now, it's operating in sequential order and could be subject to never finishing if transforms are added faster than they are processed.
             //Ideally, we'll want to add transforms to a bucket, then here we can take a snapshot, sort by depth and then process each depth in parallel.
@@ -137,33 +183,40 @@ namespace XREngine.Rendering
                 if (!_transformBucketsByDepthRendering.TryGetValue(depth, out var bag))
                     continue;
 
+                //This is good in theory for processing large amounts of nodes but the overhead of parallel initialization is too high for it to be worth the cost.
                 //Parallel.ForEach(bag, transform =>
                 //{
                 //    if (!transform.ParallelDepthRecalculate())
                 //        return;
-                    
+
                 //    lock (depthKeys)
                 //        depthKeys.Add(transform.Depth + 1);
                 //});
 
                 foreach (var transform in bag)
                     if (transform.ParallelDepthRecalculate())
-                        depthKeys.Add(transform.Depth + 1);
+                    {
+                        int depthPlusOne = transform.Depth + 1;
+                        if (!depthKeys.Contains(depthPlusOne))
+                            depthKeys.Add(depthPlusOne);
+                    }
             }
         }
 
         private ConcurrentDictionary<int, ConcurrentBag<TransformBase>> _transformBucketsByDepthUpdating = new();
         private ConcurrentDictionary<int, ConcurrentBag<TransformBase>> _transformBucketsByDepthRendering = new();
         
-        public void AddDirtyTransform(TransformBase transform, out bool wasDepthAdded)
+        public void AddDirtyTransform(TransformBase transform, out bool wasDepthAdded, bool directToRender)
         {
             bool added = false;
-            var bag = _transformBucketsByDepthUpdating.GetOrAdd(transform.Depth, x =>
+            ConcurrentDictionary<int, ConcurrentBag<TransformBase>> dict = directToRender ? _transformBucketsByDepthRendering : _transformBucketsByDepthUpdating;
+            var bag = dict.GetOrAdd(transform.Depth, x =>
             {
                 added = true;
                 return [];
             });
-            bag.Add(transform);
+            if (!bag.Contains(transform))
+                bag.Add(transform);
             wasDepthAdded = added;
         }
 
@@ -281,10 +334,13 @@ namespace XREngine.Rendering
         /// </summary>
         private TickList GetTickList(ETickGroup group, int order)
         {
-            SortedDictionary<int, TickList> dic = TickLists[group];
-            if (!dic.TryGetValue(order, out TickList? list))
-                dic[order] = list = new TickList(Engine.Rendering.Settings.TickGroupedItemsInParallel);
-            return list;
+            lock (_lock)
+            {
+                SortedDictionary<int, TickList> dic = TickLists[group];
+                if (!dic.TryGetValue(order, out TickList? list))
+                    dic.Add(order, list = new TickList(Engine.Rendering.Settings.TickGroupedItemsInParallel));
+                return list;
+            }
         }
 
         /// <summary>
@@ -292,17 +348,22 @@ namespace XREngine.Rendering
         /// </summary>
         public void TickGroup(ETickGroup group)
         {
-            var tickListDic = TickLists[group];
-            List<int> toRemove = [];
-            foreach (var kv in tickListDic)
+            lock (_lock)
             {
-                kv.Value.Tick();
-                if (kv.Value.Count == 0)
-                    toRemove.Add(kv.Key);
+                var tickListDic = TickLists[group];
+                List<int> toRemove = [];
+                foreach (var kv in tickListDic)
+                {
+                    kv.Value.Tick();
+                    if (kv.Value.Count == 0)
+                        toRemove.Add(kv.Key);
+                }
+                foreach (int key in toRemove)
+                    tickListDic.Remove(key);
             }
-            foreach (int key in toRemove)
-                tickListDic.Remove(key);
         }
+
+        private readonly object _lock = new();
 
         /// <summary>
         /// Ticks the before, during, and after physics groups. Also steps the physics simulation during the during physics tick group.
@@ -337,38 +398,24 @@ namespace XREngine.Rendering
             Sequences.Clear();
         }
 
-        public void GlobalCollectVisible()
+        public SortedDictionary<float, ITreeItem>? Raycast(CameraComponent cameraComponent, Vector2 screenPoint)
         {
-            ProcessTransformQueue();
-            VisualScene.GlobalCollectVisible();
+            Debug.Out($"Raycasting from screen point: {screenPoint}");
+            VisualScene.Raycast(cameraComponent, screenPoint, out SortedDictionary<float, ITreeItem> items, DirectItemTest);
+            //PhysicsScene.Raycast(cameraComponent, screenPoint, items);
+            return items;
         }
 
-        private void GlobalSwapBuffers()
-        {
-            SwapTransformQueues();
-            VisualScene.GlobalSwapBuffers();
-        }
-
-        private void SwapTransformQueues()
-        {
-            (_transformBucketsByDepthRendering, _transformBucketsByDepthUpdating) = (_transformBucketsByDepthUpdating, _transformBucketsByDepthRendering);
-            _transformBucketsByDepthUpdating.Clear();
-        }
-
-        /// <summary>
-        /// Called by windows on the render thread, right before rendering all viewports.
-        /// </summary>
-        public void GlobalPreRender()
-        {
-            VisualScene.GlobalPreRender();
-        }
-
-        /// <summary>
-        /// Called by windows on the render thread, right after rendering all viewports.
-        /// </summary>
-        public void GlobalPostRender()
-        {
-            VisualScene.GlobalPostRender();
-        }
+        [RequiresDynamicCode("Calls XREngine.Components.Scene.Mesh.ModelComponent.Intersect(Segment, out Triangle?)")]
+        private float? DirectItemTest(ITreeItem item, Segment segment)
+            => item is not RenderInfo renderable || renderable.Owner is not XRComponent component
+                ? null
+                : component switch
+                {
+                    ModelComponent model => model.Intersect(segment, out _),
+                    //TODO: physics comparision
+                    //RigidBodyComponent body => body.Collider?.Intersect(segment),
+                    _ => null,
+                };
     }
 }

@@ -76,7 +76,7 @@ namespace XREngine.Components.Scene.Transforms
 
         protected virtual void NoiseTick()
         {
-            _time += Engine.Delta;
+            _time += Engine.UndilatedDelta;
             _rotation.SetRotations(
                 MaxPitch * ShakeIntensity * _noise.GetPerlin(21.0f, _time),
                 MaxYaw * ShakeIntensity * _noise.GetPerlin(20.0f, _time),

@@ -298,10 +298,7 @@ namespace XREngine.Scene
             if (!VerifyComponentAttributesOnAdd(comp))
                 return null;
 
-            lock (Components)
-            {
-                ComponentsInternal.Add(comp);
-            }
+            AddComponent(comp);
             return comp;
         }
 
@@ -314,13 +311,20 @@ namespace XREngine.Scene
             if (XRComponent.New(this, type) is not XRComponent comp || !VerifyComponentAttributesOnAdd(comp))
                 return null;
 
+            AddComponent(comp);
+            return comp;
+        }
+
+        private void AddComponent(XRComponent comp)
+        {
             lock (Components)
             {
                 ComponentsInternal.Add(comp);
             }
             comp.Destroying += ComponentDestroying;
             comp.Destroyed += ComponentDestroyed;
-            return comp;
+            comp.VerifyInterfacesOnStart();
+            comp.OnComponentActivated();
         }
 
         public bool TryAddComponent<T>(out T? comp) where T : XRComponent

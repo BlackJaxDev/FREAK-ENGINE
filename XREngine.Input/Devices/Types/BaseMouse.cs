@@ -1,4 +1,5 @@
 ﻿using System.Drawing;
+using System.Numerics;
 
 namespace XREngine.Input.Devices
 {
@@ -17,7 +18,7 @@ namespace XREngine.Input.Devices
         protected CursorManager _cursor = new();
         protected ScrollWheelManager _wheel = new();
 
-        public abstract void SetCursorPosition(float x, float y);
+        public abstract Vector2 CursorPosition { get; set; }
 
         protected override int GetAxisCount() => 0; 
         protected override int GetButtonCount() => 3;

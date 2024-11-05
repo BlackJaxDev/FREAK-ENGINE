@@ -1,38 +1,38 @@
-﻿namespace XREngine.Data.Rendering
-{
-    public enum EEngineUniform
-    {
-        UpdateDelta,
+﻿//namespace XREngine.Data.Rendering
+//{
+//    public enum EEngineUniform
+//    {
+//        UpdateDelta,
 
-        ModelMatrix,
-        WorldToCameraSpaceMatrix,
-        ProjMatrix,
-        NormalMatrix,
+//        ModelMatrix,
+//        WorldToCameraSpaceMatrix,
+//        ProjMatrix,
+//        NormalMatrix,
 
-        InvModelMatrix,
-        CameraToWorldSpaceMatrix,
-        InvProjMatrix,
+//        InvModelMatrix,
+//        CameraToWorldSpaceMatrix,
+//        InvProjMatrix,
 
-        PrevModelMatrix,
-        PrevViewMatrix,
-        PrevProjMatrix,
+//        PrevModelMatrix,
+//        PrevViewMatrix,
+//        PrevProjMatrix,
 
-        PrevInvModelMatrix,
-        PrevInvViewMatrix,
-        PrevInvProjMatrix,
+//        PrevInvModelMatrix,
+//        PrevInvViewMatrix,
+//        PrevInvProjMatrix,
 
-        ScreenWidth,
-        ScreenHeight,
-        ScreenOrigin,
+//        ScreenWidth,
+//        ScreenHeight,
+//        ScreenOrigin,
 
-        CameraFovX,
-        CameraFovY,
-        CameraAspect,
-        CameraNearZ,
-        CameraFarZ,
-        CameraPosition,
-        //CameraForward,
-        //CameraUp,
-        //CameraRight,
-    }
-}
+//        CameraFovX,
+//        CameraFovY,
+//        CameraAspect,
+//        CameraNearZ,
+//        CameraFarZ,
+//        CameraPosition,
+//        //CameraForward,
+//        //CameraUp,
+//        //CameraRight,
+//    }
+//}

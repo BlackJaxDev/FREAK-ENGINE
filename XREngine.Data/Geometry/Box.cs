@@ -130,6 +130,16 @@ namespace XREngine.Data.Geometry
         public readonly AABB GetAABB()
             => new(WorldMinimum, WorldMaximum);
 
+        public bool Intersects(Segment segment, out Vector3[] points)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool Intersects(Segment segment)
+        {
+            throw new NotImplementedException();
+        }
+
         public readonly Vector3[] LocalCorners =>
         [
             new(LocalMinimum.X, LocalMinimum.Y, LocalMinimum.Z),

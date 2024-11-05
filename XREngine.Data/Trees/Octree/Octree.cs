@@ -163,5 +163,17 @@ namespace XREngine.Data.Trees
             _head.FindAll(itemTester, octreeNodeTester, list);
             return list;
         }
+
+        public void Raycast(Segment segment, out SortedDictionary<float, T> items, Func<T, Segment, float?> directTest)
+        {
+            items = [];
+            _head.Raycast(segment, items, directTest);
+        }
+
+        public void Raycast(Segment segment, out SortedDictionary<float, ITreeItem> items, Func<ITreeItem, Segment, float?> directTest)
+        {
+            items = [];
+            _head.Raycast(segment, items, directTest);
+        }
     }
 }

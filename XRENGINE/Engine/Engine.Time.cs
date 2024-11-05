@@ -4,11 +4,34 @@ namespace XREngine
 {
     public static partial class Engine
     {
-        public static float Delta => Time.Timer.Update.Delta;
-        public static float DilatedDelta => Time.Timer.Update.DilatedDelta;
-        public static float SmoothedDelta => Time.Timer.Update.SmoothedDelta;
-        public static float SmoothedDilatedDelta => Time.Timer.Update.SmoothedDilatedDelta;
+        /// <summary>
+        /// This delta is the time that has passed since the last frame, in seconds.
+        /// Not affected by time dilation.
+        /// </summary>
+        public static float UndilatedDelta => Time.Timer.Update.Delta;
+        /// <summary>
+        /// This delta is the time that has passed since the last frame, in seconds.
+        /// Affected by time dilation.
+        /// </summary>
+        public static float Delta => Time.Timer.Update.DilatedDelta;
+        /// <summary>
+        /// This delta is the time that has passed since the last frame, in seconds.
+        /// Smoothed and not affected by time dilation.
+        /// </summary>
+        public static float SmoothedUndilatedDelta => Time.Timer.Update.SmoothedDelta;
+        /// <summary>
+        /// This delta is the time that has passed since the last frame, in seconds.
+        /// Smoothed and affected by time dilation.
+        /// </summary>
+        public static float SmoothedDelta => Time.Timer.Update.SmoothedDilatedDelta;
+        /// <summary>
+        /// This delta is the time that has passed since the last fixed update, in seconds.
+        /// Does not vary.
+        /// </summary>
         public static float FixedDelta => Time.Timer.FixedUpdateDelta;
+        /// <summary>
+        /// How many seconds have passed since the game started.
+        /// </summary>
         public static float ElapsedTime => Time.Timer.Time();
 
         public static class Time
@@ -45,7 +68,10 @@ namespace XREngine
             /// <param name="gameSet"></param>
             /// <param name="userSet"></param>
             public static void Initialize(GameStartupSettings gameSet, UserSettings userSet)
-                => UpdateTimer(userSet?.TargetFramesPerSecond ?? 0.0f, userSet?.TargetUpdatesPerSecond ?? 0.0f);
+                => UpdateTimer(
+                    userSet.TargetFramesPerSecond ?? 0.0f,
+                    gameSet.TargetUpdatesPerSecond ?? 0.0f,
+                    gameSet.FixedFramesPerSecond);
 
             /// <summary>
             /// Updates the core game engine timer settings.
@@ -55,10 +81,12 @@ namespace XREngine
             /// <param name="targetUpdateFrequency"></param>
             public static void UpdateTimer(
                 float targetRenderFrequency,
-                float targetUpdateFrequency)
+                float targetUpdateFrequency,
+                float fixedUpdateFrequency)
             {
                 Timer.TargetRenderFrequency = targetRenderFrequency;
                 Timer.TargetUpdateFrequency = targetUpdateFrequency;
+                Timer.FixedUpdateFrequency = fixedUpdateFrequency;
             }
         }
     }

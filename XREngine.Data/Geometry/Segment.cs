@@ -78,5 +78,8 @@ namespace XREngine.Data.Geometry
             Vector3 diff = endPoint - startPoint;
             return startPoint + (diff * (distance / diff.Length()));
         }
+
+        public readonly Segment TransformedBy(Matrix4x4 transform)
+            => new Segment(Vector3.Transform(start, transform), Vector3.Transform(end, transform));
     }
 }

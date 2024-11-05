@@ -41,7 +41,7 @@ namespace XREngine.Components.Scene.Transforms
 
         protected virtual void Tick()
         {
-            _currentTranslation = Interp.CosineTo(_currentTranslation, _desiredTranslation, Engine.SmoothedDilatedDelta, _invTransInterpSec);
+            _currentTranslation = Interp.CosineTo(_currentTranslation, _desiredTranslation, Engine.SmoothedDelta, _invTransInterpSec);
             MarkLocalModified();
         }
         protected override Matrix4x4 CreateLocalMatrix()

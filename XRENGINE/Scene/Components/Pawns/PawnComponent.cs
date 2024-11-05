@@ -26,6 +26,8 @@ namespace XREngine.Components
             set => SetField(ref _controller, value);
         }
 
+        public LocalInputInterface? LocalInput => (Controller as LocalPlayerController)?.Input;
+        
         protected virtual void PostPossess()
             => PostPossessed.Invoke(this);
         protected virtual void PrePossess()

@@ -73,7 +73,7 @@ namespace XREngine.Components.Scene.Transforms
         }
         protected override void NoiseTick()
         {
-            Trauma -= TraumaDecrementPerSecond * Engine.Delta;
+            Trauma -= TraumaDecrementPerSecond * Engine.UndilatedDelta;
             base.NoiseTick();
         }
     }

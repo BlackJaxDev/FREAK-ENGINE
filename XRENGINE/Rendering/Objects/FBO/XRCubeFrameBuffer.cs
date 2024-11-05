@@ -59,7 +59,7 @@ namespace XREngine.Rendering
                 _cameras[i] = new(_cameraTransforms[i] = new Transform()
                 {
                     Parent = Transform,
-                    Rotation = rotations[i].ToQuaternion(true),
+                    Rotation = rotations[i].ToQuaternion(),
                 }, p);
         }
 

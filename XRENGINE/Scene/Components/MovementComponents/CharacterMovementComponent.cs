@@ -197,7 +197,7 @@ namespace XREngine.Components
         {
             if (_postWalkAllowJump)
             {
-                AllowJumpTimeDelta += Engine.Delta;
+                AllowJumpTimeDelta += Engine.UndilatedDelta;
                 if (AllowJumpTimeDelta > AllowJumpExtraTime)
                     _postWalkAllowJump = false;
             }
@@ -244,8 +244,8 @@ namespace XREngine.Components
         {
             _prevVelocity = _velocity;
             _position = root.Transform.WorldTranslation;
-            _velocity = (_position - _prevPosition) / Engine.Delta;
-            _acceleration = (_velocity - _prevVelocity) / Engine.Delta;
+            _velocity = (_position - _prevPosition) / Engine.UndilatedDelta;
+            _acceleration = (_velocity - _prevVelocity) / Engine.UndilatedDelta;
         }
 
         private void GroundTest(CapsuleYComponent root, Transform rootTfm, XRRigidBody? body, ref Vector3 down, Matrix4x4 stepUpMatrix, out Matrix4x4 inputTransform)

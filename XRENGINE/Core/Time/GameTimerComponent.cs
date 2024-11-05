@@ -124,7 +124,7 @@ namespace XREngine.Timers
         }
         private void TickMulti()
         {
-            float delta = Engine.Delta;
+            float delta = Engine.UndilatedDelta;
             _totalElapsed += delta;
             _elapsedSinceLastFire += delta;
             if (_elapsedSinceLastFire > _currentSecondsBetweenFires)
@@ -139,7 +139,7 @@ namespace XREngine.Timers
         }
         private void TickSingle()
         {
-            float delta = Engine.Delta;
+            float delta = Engine.UndilatedDelta;
             _totalElapsed += delta;
             _elapsedSinceLastFire += delta;
             if (_elapsedSinceLastFire > _currentSecondsBetweenFires)

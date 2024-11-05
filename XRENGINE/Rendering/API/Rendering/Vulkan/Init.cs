@@ -114,6 +114,10 @@ namespace XREngine.Rendering.Vulkan
         {
             throw new NotImplementedException();
         }
+        public override void DispatchCompute(XRRenderProgram program, int numGroupsX, int numGroupsY, int numGroupsZ)
+        {
+            throw new NotImplementedException();
+        }
         public override void SetReadBuffer(EDrawBuffersAttachment attachment)
         {
             throw new NotImplementedException();

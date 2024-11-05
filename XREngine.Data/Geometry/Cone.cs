@@ -90,5 +90,15 @@ namespace XREngine.Data.Geometry
         {
             throw new NotImplementedException();
         }
+
+        public bool Intersects(Segment segment, out Vector3[] points)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool Intersects(Segment segment)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

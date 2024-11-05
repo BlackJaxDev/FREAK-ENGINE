@@ -401,6 +401,60 @@ namespace XREngine.Data.Trees
                 _subNodes[i]?.FindAll(itemTester, octreeNodeTester, list);
         }
 
+        /// <summary>
+        /// Casts a segment through the octree and returns the items in order of distance from the segment start.
+        /// directTest is a function that returns the distance from the segment start to the item, or null if the item is not intersected.
+        /// Typically, this function is used to test against the depth buffer.
+        /// </summary>
+        /// <param name="segment"></param>
+        /// <param name="orderedItems"></param>
+        /// <param name="directTest"></param>
+        public void Raycast(Segment segment, SortedDictionary<float, T> orderedItems, Func<T, Segment, float?> directTest)
+        {
+            if (!_bounds.Intersects(segment))
+                return;
+
+            for (int i = 0; i < _items.Count; ++i)
+            {
+                T item = _items[i];
+                if (item?.CullingVolume is null)
+                    continue;
+
+                if (!item.CullingVolume.Intersects(segment))
+                    continue;
+
+                float? dist = directTest(item, segment);
+                if (dist is not null)
+                    orderedItems.Add(dist.Value, item);
+            }
+
+            for (int i = 0; i < _subNodes.Length; ++i)
+                _subNodes[i]?.Raycast(segment, orderedItems, directTest);
+        }
+
+        public void Raycast(Segment segment, SortedDictionary<float, ITreeItem> orderedItems, Func<ITreeItem, Segment, float?> directTest)
+        {
+            if (!_bounds.Intersects(segment))
+                return;
+
+            for (int i = 0; i < _items.Count; ++i)
+            {
+                T item = _items[i];
+                if (item?.CullingVolume is null)
+                    continue;
+
+                if (!item.CullingVolume.Intersects(segment))
+                    continue;
+
+                float? dist = directTest(item, segment);
+                if (dist is not null)
+                    orderedItems.Add(dist.Value, item);
+            }
+
+            for (int i = 0; i < _subNodes.Length; ++i)
+                _subNodes[i]?.Raycast(segment, orderedItems, directTest);
+        }
+
         #endregion
     }
 }

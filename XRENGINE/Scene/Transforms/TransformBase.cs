@@ -52,8 +52,11 @@ namespace XREngine.Scene.Transforms
 
         protected virtual void RenderDebugLineToParent(bool shadowPass)
         {
-            if (!shadowPass)
-                Engine.Rendering.Debug.RenderLine(Parent?.WorldTranslation ?? Vector3.Zero, WorldTranslation, ColorF4.White, false, 1);
+            if (shadowPass)
+                return;
+            
+            Engine.Rendering.Debug.RenderLine(Parent?.WorldTranslation ?? Vector3.Zero, WorldTranslation, ColorF4.LightRed, false, 1);
+            Engine.Rendering.Debug.RenderPoint(WorldTranslation, ColorF4.Green, false);
         }
 
         private void ChildAdded(TransformBase e)
@@ -174,7 +177,8 @@ namespace XREngine.Scene.Transforms
                 bool wasAdded = false;
                 foreach (TransformBase child in Children)
                 {
-                    World.AddDirtyTransform(child, out bool wasDepthAdded);
+                    child._worldMatrix.NeedsRecalc = true;
+                    World.AddDirtyTransform(child, out bool wasDepthAdded, true);
                     wasAdded |= wasDepthAdded;
                 }
                 return wasAdded;
@@ -425,7 +429,7 @@ namespace XREngine.Scene.Transforms
         {
             _localMatrix.NeedsRecalc = true;
             MarkWorldModified();
-            World?.AddDirtyTransform(this, out _);
+            World?.AddDirtyTransform(this, out _, false);
         }
 
         /// <summary>
@@ -437,7 +441,7 @@ namespace XREngine.Scene.Transforms
             //lock (_children)
             //    foreach (TransformBase child in _children)
             //        child.MarkWorldModified();
-            World?.AddDirtyTransform(this, out _);
+            World?.AddDirtyTransform(this, out _, false);
         }
 
         ///// <summary>

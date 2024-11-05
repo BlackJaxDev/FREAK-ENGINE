@@ -1,7 +1,6 @@
 ﻿using Extensions;
 using System.Diagnostics;
 using XREngine.Data.Core;
-using XREngine.Native;
 
 namespace XREngine.Timers
 {
@@ -16,7 +15,7 @@ namespace XREngine.Timers
         /// This is the desired FPS for physics and other fixed-timestep calculations.
         /// It does not vary.
         /// </summary>
-        public float FixedUpdateHz
+        public float FixedUpdateFrequency
         {
             get => 1.0f / FixedUpdateDelta.ClampMin(0.0001f);
             set => FixedUpdateDelta = 1.0f / value.ClampMin(0.0001f);

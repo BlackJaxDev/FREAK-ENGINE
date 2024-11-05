@@ -15,6 +15,8 @@ namespace XREngine
         private bool _useIntegerWeightingIds = true;
         private UserSettings _defaultUserSettings = new();
         private string _texturesFolder = "";
+        private float? _targetUpdatesPerSecond = 90.0f;
+        private float _fixedFramesPerSecond = 90.0f;
 
         private IActionManifest? _vrActionManifest;
         private VrManifest? _vrManifest;
@@ -96,6 +98,16 @@ namespace XREngine
         {
             get => _serverIP;
             set => SetField(ref _serverIP, value);
+        }
+        public float? TargetUpdatesPerSecond
+        {
+            get => _targetUpdatesPerSecond;
+            set => SetField(ref _targetUpdatesPerSecond, value);
+        }
+        public float FixedFramesPerSecond
+        {
+            get => _fixedFramesPerSecond;
+            set => SetField(ref _fixedFramesPerSecond, value);
         }
     }
 }

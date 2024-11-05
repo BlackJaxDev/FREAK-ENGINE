@@ -115,12 +115,12 @@ namespace XREngine.Components
             {
                 input = forward * _keyboardMovementInput.Y + right * _keyboardMovementInput.X;
                 input = Vector3.Normalize(input);
-                Movement.AddMovementInput(input * Engine.Delta * KeyboardMovementInputMultiplier);
+                Movement.AddMovementInput(input * Engine.UndilatedDelta * KeyboardMovementInputMultiplier);
             }
             if (gamepadMovement)
             {
                 input = forward * _gamepadMovementInput.Y + right * _gamepadMovementInput.X;
-                Movement.AddMovementInput(input * Engine.Delta * GamePadMovementInputMultiplier);
+                Movement.AddMovementInput(input * Engine.UndilatedDelta * GamePadMovementInputMultiplier);
             }
             //if (gamepadMovement || keyboardMovement)
             //    _meshComp.Rotation.Yaw = _movement.TargetFrameInputDirection.LookatAngles().Yaw + 180.0f;

@@ -1,4 +1,6 @@
 ﻿using Assimp;
+using Assimp.Configs;
+using Assimp.Unmanaged;
 using Extensions;
 using ImageMagick;
 using System.Collections.Concurrent;
@@ -95,6 +97,14 @@ namespace XREngine
             sw.Start();
 #endif
             float rotate = zUp ? -90.0f : 0.0f;
+            bool removeAssimpFBXNodes = false;
+            bool preservePivots = true;
+
+            _assimp.SetConfig(new BooleanPropertyConfig(AiConfigs.AI_CONFIG_IMPORT_FBX_PRESERVE_PIVOTS, preservePivots));
+            //_assimp.SetConfig(new BooleanPropertyConfig(AiConfigs.AI_CONFIG_IMPORT_FBX_READ_ALL_MATERIALS, true));
+            _assimp.SetConfig(new BooleanPropertyConfig(AiConfigs.AI_CONFIG_IMPORT_FBX_READ_MATERIALS, true));
+            _assimp.SetConfig(new BooleanPropertyConfig(AiConfigs.AI_CONFIG_IMPORT_FBX_READ_TEXTURES, true));
+            _assimp.SetConfig(new BooleanPropertyConfig(AiConfigs.AI_CONFIG_GLOB_MULTITHREADING, true));
 
             _assimp.Scale = scaleConversion;
             _assimp.XAxisRotation = rotate;
@@ -104,9 +114,7 @@ namespace XREngine
                 return null;
             
             SceneNode rootNode = new(Path.GetFileNameWithoutExtension(SourceFilePath));
-            ProcessNode(scene.RootNode, scene, rootNode, null, true);
-            //Debug.Out(rootNode.PrintTree());
-
+            ProcessNode(true, scene.RootNode, scene, rootNode, Matrix4x4.Identity, null, null, removeAssimpFBXNodes);
             //Debug.Out(rootNode.PrintTree());
 
             //for (var i = 0; i < scene->MNumAnimations; i++)
@@ -161,18 +169,27 @@ namespace XREngine
                 action();
         }
 
-        private void ProcessNode(Node node, AScene scene, SceneNode parentSceneNode, Matrix4x4? fbxMatrixParent = null, bool removeAssimpFBXNodes = true)
+        private void ProcessNode(
+            bool rootNode,
+            Node node,
+            AScene scene,
+            SceneNode parentSceneNode,
+            Matrix4x4 invRootMatrix,
+            TransformBase? rootTransform,
+            Matrix4x4? fbxMatrixParent = null,
+            bool removeAssimpFBXNodes = true)
         {
             SceneNode sceneNode;
             Matrix4x4? fbxMatrix = null;
             string name = node.Name;
 
-            if (removeAssimpFBXNodes)
+            if (removeAssimpFBXNodes && !rootNode)
             {
                 int assimpFBXMagic = name.IndexOf("_$AssimpFbx$");
                 bool assimpFBXNode = assimpFBXMagic != -1;
                 if (assimpFBXNode)
                 {
+                    Debug.Out($"Removing {name}");
                     name = name[..assimpFBXMagic];
                     bool affectsParent = parentSceneNode.Name?.StartsWith(name, StringComparison.InvariantCulture) ?? false;
                     if (affectsParent)
@@ -193,14 +210,25 @@ namespace XREngine
             }
             else
                 sceneNode = CreateNode(node, parentSceneNode, fbxMatrixParent, false, name);
-            
+
+            if (rootNode)
+                rootTransform = sceneNode.Transform;
+
             if (node.MeshCount > 0)
                 Debug.Out($"Node {name} has {node.MeshCount} meshes");
 
             for (var i = 0; i < node.ChildCount; i++)
-                ProcessNode(node.Children[i], scene, sceneNode, fbxMatrix, removeAssimpFBXNodes);
+                ProcessNode(
+                    false,
+                    node.Children[i],
+                    scene,
+                    sceneNode,
+                    invRootMatrix,
+                    rootTransform,
+                    fbxMatrix,
+                    removeAssimpFBXNodes);
 
-            EnqueueProcessMeshes(node, scene, sceneNode);
+            EnqueueProcessMeshes(node, scene, sceneNode, invRootMatrix, rootTransform!);
         }
 
         private SceneNode CreateNode(Node node, SceneNode parentSceneNode, Matrix4x4? fbxMatrixParent, bool removeAssimpFBXNodes, string name)
@@ -223,16 +251,16 @@ namespace XREngine
             return sceneNode;
         }
 
-        private unsafe void EnqueueProcessMeshes(Node node, AScene scene, SceneNode sceneNode)
+        private unsafe void EnqueueProcessMeshes(Node node, AScene scene, SceneNode sceneNode, Matrix4x4 invRootMatrix, TransformBase rootTransform)
         {
             int count = node.MeshCount;
             if (count == 0)
                 return;
 
-            _meshProcessActions.Add(() => ProcessMeshes(node, scene, sceneNode));
+            _meshProcessActions.Add(() => ProcessMeshes(node, scene, sceneNode, invRootMatrix, rootTransform));
         }
 
-        private unsafe void ProcessMeshes(Node node, AScene scene, SceneNode sceneNode)
+        private unsafe void ProcessMeshes(Node node, AScene scene, SceneNode sceneNode, Matrix4x4 invRootMatrix, TransformBase rootTransform)
         {
             ModelComponent modelComponent = sceneNode.AddComponent<ModelComponent>()!;
             Model model = new();
@@ -242,12 +270,12 @@ namespace XREngine
                 int meshIndex = node.MeshIndices[i];
                 Mesh mesh = scene.Meshes[meshIndex];
 
-                (XRMesh xrMesh, XRMaterial xrMaterial) = ProcessSubMesh(sceneNode.Transform, mesh, scene);
+                (XRMesh xrMesh, XRMaterial xrMaterial) = ProcessSubMesh(sceneNode.Transform, mesh, scene, invRootMatrix);
 
                 _meshes.Add(xrMesh);
                 _materials.Add(xrMaterial);
 
-                model.Meshes.Add(new SubMesh(xrMesh, xrMaterial) { Name = mesh.Name });
+                model.Meshes.Add(new SubMesh(xrMesh, xrMaterial) { Name = mesh.Name, RootTransform = rootTransform });
             }
             modelComponent!.Model = model;
         }
@@ -255,10 +283,11 @@ namespace XREngine
         private unsafe (XRMesh mesh, XRMaterial material) ProcessSubMesh(
             TransformBase parentTransform,
             Mesh mesh,
-            AScene scene)
+            AScene scene,
+            Matrix4x4 invRootMatrix)
         {
             //Debug.Out($"Processing mesh: {mesh->MName}");
-            return (new(parentTransform, mesh, _assimp, _nodeCache), ProcessMaterial(mesh, scene));
+            return (new(parentTransform, mesh, _assimp, _nodeCache, invRootMatrix), ProcessMaterial(mesh, scene));
         }
 
         private unsafe XRMaterial ProcessMaterial(Mesh mesh, AScene scene)

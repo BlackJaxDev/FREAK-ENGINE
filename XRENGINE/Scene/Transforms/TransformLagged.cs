@@ -87,9 +87,9 @@ namespace XREngine.Scene.Transforms
 
         private void Lerp()
         {
-            _currentRotation = Quaternion.Slerp(_currentRotation, Rotation, RotationSmoothingSpeed * Engine.DilatedDelta);
-            _currentTranslation = Vector3.Lerp(_currentTranslation, Translation, TranslationSmoothingSpeed * Engine.DilatedDelta);
-            _currentScale = Vector3.Lerp(_currentScale, Scale, ScaleSmoothingSpeed * Engine.DilatedDelta);
+            _currentRotation = Quaternion.Slerp(_currentRotation, Rotation, RotationSmoothingSpeed * Engine.Delta);
+            _currentTranslation = Vector3.Lerp(_currentTranslation, Translation, TranslationSmoothingSpeed * Engine.Delta);
+            _currentScale = Vector3.Lerp(_currentScale, Scale, ScaleSmoothingSpeed * Engine.Delta);
             MarkLocalModified();
         }
     }

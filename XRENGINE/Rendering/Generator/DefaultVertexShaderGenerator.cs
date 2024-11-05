@@ -170,6 +170,9 @@ namespace XREngine.Rendering.Shaders.Generator
             //WriteUniform(EShaderVarType._mat4, EEngineUniform.LeftEyeProjMatrix.ToString());
             //WriteUniform(EShaderVarType._mat4, EEngineUniform.RightEyeViewMatrix.ToString());
             //WriteUniform(EShaderVarType._mat4, EEngineUniform.RightEyeProjMatrix.ToString());
+
+            if (Mesh.HasSkinning)
+                WriteUniform(EShaderVarType._mat4, EEngineUniform.RootInvModelMatrix.ToString());
         }
 
         /// <summary>
@@ -283,7 +286,7 @@ namespace XREngine.Rendering.Shaders.Generator
                 {
                     Line($"int boneIndex = {ECommonBufferType.BoneMatrixOffset}[i];");
                     Line($"float weight = {ECommonBufferType.BoneMatrixCount}[i];");
-                    Line($"mat4 boneMatrix = {ECommonBufferType.BoneMatrices}[boneIndex] * {ECommonBufferType.BoneInvBindMatrices}[boneIndex];");
+                    Line($"mat4 boneMatrix = {ECommonBufferType.BoneInvBindMatrices}[boneIndex] * {ECommonBufferType.BoneMatrices}[boneIndex] * {EEngineUniform.RootInvModelMatrix};");
                     Line("finalPosition += (boneMatrix * basePosition) * weight;");
                     Line("finalNormal += (boneMatrix * baseNormal).xyz * weight;");
                     Line("finalTangent += (boneMatrix * baseTangent).xyz * weight;");
@@ -298,7 +301,7 @@ namespace XREngine.Rendering.Shaders.Generator
                     Line($"int index = {ECommonBufferType.BoneMatrixOffset} + i;");
                     Line($"int boneIndex = {ECommonBufferType.BoneMatrixIndices}[index];");
                     Line($"float weight = {ECommonBufferType.BoneMatrixWeights}[index];");
-                    Line($"mat4 boneMatrix = {ECommonBufferType.BoneMatrices}[boneIndex] * {ECommonBufferType.BoneInvBindMatrices}[boneIndex];");
+                    Line($"mat4 boneMatrix = {ECommonBufferType.BoneInvBindMatrices}[boneIndex] * {ECommonBufferType.BoneMatrices}[boneIndex] * {EEngineUniform.RootInvModelMatrix};");
                     Line("finalPosition += (boneMatrix * basePosition) * weight;");
                     Line("finalNormal += (boneMatrix * baseNormal).xyz * weight;");
                     Line("finalTangent += (boneMatrix * baseTangent).xyz * weight;");
@@ -317,7 +320,7 @@ namespace XREngine.Rendering.Shaders.Generator
                 }
             }
 
-            ResolvePosition("finalPosition");
+            ResolvePosition("finalPosition", true);
         }
         /// <summary>
         /// Calculates positions, and optionally normals, tangents, and binormals for a static mesh.
@@ -372,7 +375,7 @@ namespace XREngine.Rendering.Shaders.Generator
                 //Line();
             }
 
-            ResolvePosition("position");
+            ResolvePosition("position", true);
 
             if (Mesh.NormalsBuffer is not null)
             {
@@ -385,7 +388,7 @@ namespace XREngine.Rendering.Shaders.Generator
                 }
             }
         }
-        private void ResolvePosition(string posName)
+        private void ResolvePosition(string posName, bool includeModelMatrix)
         {
             //Line("mat4 ViewMatrix = WorldToCameraSpaceMatrix;");
             //if (mesh.BillboardingFlags == ECameraTransformFlags.None)
@@ -466,8 +469,16 @@ namespace XREngine.Rendering.Shaders.Generator
             //    Line("BillboardMatrix[3][2] = 0.0f;");
             //}
             Line($"{FragPosLocalName} = {posName}.xyz;");
-            Line($"{FragPosName} = (mvpMatrix * {posName}).xyz;");
-            Line($"gl_Position = mvpMatrix * {posName};");
+            if (includeModelMatrix)
+            {
+                Line($"{FragPosName} = (mvpMatrix * {posName}).xyz;");
+                Line($"gl_Position = mvpMatrix * {posName};");
+            }
+            else
+            {
+                Line($"{FragPosName} = (vpMatrix * {posName}).xyz;");
+                Line($"gl_Position = vpMatrix * {posName};");
+            }
         }
     }
 }

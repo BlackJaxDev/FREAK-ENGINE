@@ -1,10 +1,7 @@
 ﻿using Extensions;
 using Silk.NET.OpenGL;
 using Silk.NET.OpenGLES.Extensions.EXT;
-using System.Diagnostics;
-using System.IO.Pipes;
 using System.Numerics;
-using System.Runtime.InteropServices;
 using XREngine.Data.Colors;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
@@ -198,6 +195,16 @@ namespace XREngine.Rendering.OpenGL
         protected override void WindowRenderCallback(double delta)
         {
 
+        }
+
+        public override void DispatchCompute(XRRenderProgram program, int numGroupsX, int numGroupsY, int numGroupsZ)
+        {
+            GLRenderProgram? glProgram = GenericToAPI<GLRenderProgram>(program);
+            if (glProgram is null)
+                return;
+
+            Api.UseProgram(glProgram.BindingId);
+            Api.DispatchCompute((uint)numGroupsX, (uint)numGroupsY, (uint)numGroupsZ);
         }
 
         public override void AllowDepthWrite(bool allow)

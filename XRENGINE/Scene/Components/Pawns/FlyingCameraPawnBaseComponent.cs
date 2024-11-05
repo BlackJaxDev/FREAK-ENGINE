@@ -1,4 +1,5 @@
 ﻿using Extensions;
+using MathNet.Numerics.Random;
 using System.ComponentModel;
 using XREngine.Input.Devices;
 
@@ -36,29 +37,48 @@ namespace XREngine.Components
 
         protected abstract void YawPitchUpdated();
 
+        public bool ShiftPressed
+        {
+            get => _shiftPressed;
+            private set => SetField(ref _shiftPressed, value);
+        }
+
+        public bool CtrlPressed
+        {
+            get => _ctrlPressed;
+            private set => SetField(ref _ctrlPressed, value);
+        }
+
+        public bool RightClickPressed
+        {
+            get => _rightClickPressed;
+            private set => SetField(ref _rightClickPressed, value);
+        }
+
         protected bool
-            _ctrl = false,
+            _ctrlPressed = false,
+            _shiftPressed = false,
             _rightClickPressed = false;
         private float _yaw;
         private float _pitch;
 
         [Browsable(false)]
-        public bool Rotating => _rightClickPressed && _ctrl;
+        public bool Rotating => _rightClickPressed && _ctrlPressed;
 
         [Browsable(false)]
-        public bool Translating => _rightClickPressed && !_ctrl;
+        public bool Translating => _rightClickPressed && !_ctrlPressed;
 
         [Browsable(false)]
         public bool Moving => Rotating || Translating;
 
         [Category("Movement")]
-        public float ScrollSpeed { get; set; } = 2.0f;
+        public float ScrollSpeed { get; set; } = 0.7f;
 
         [Category("Movement")]
-        public float MouseRotateSpeed { get; set; } = 0.1f;
+        public float MouseRotateSpeed { get; set; } = 0.0075f;
 
         [Category("Movement")]
-        public float MouseTranslateSpeed { get; set; } = 0.1f;
+        public float MouseTranslateSpeed { get; set; } = 0.001f;
 
         [Category("Movement")]
         public float GamepadRotateSpeed { get; set; } = 150.0f;
@@ -67,7 +87,7 @@ namespace XREngine.Components
         public float GamepadTranslateSpeed { get; set; } = 30.0f;
 
         [Category("Movement")]
-        public float KeyboardTranslateSpeed { get; set; } = 10.0f;
+        public float KeyboardTranslateSpeed { get; set; } = 1.0f;
 
         [Category("Movement")]
         public float KeyboardRotateSpeed { get; set; } = 0.01f;
@@ -93,7 +113,9 @@ namespace XREngine.Components
 
             input.RegisterKeyContinuousState(EKey.ControlLeft, OnControl);
             input.RegisterKeyContinuousState(EKey.ControlRight, OnControl);
-            
+            input.RegisterKeyContinuousState(EKey.ShiftLeft, OnShift);
+            input.RegisterKeyContinuousState(EKey.ShiftRight, OnShift);
+
             input.RegisterAxisUpdate(EGamePadAxis.LeftThumbstickX, OnLeftStickX, false);
             input.RegisterAxisUpdate(EGamePadAxis.LeftThumbstickY, OnLeftStickY, false);
             input.RegisterAxisUpdate(EGamePadAxis.RightThumbstickX, OnRightStickX, false);
@@ -134,10 +156,12 @@ namespace XREngine.Components
         protected virtual void PitchUp(bool pressed)
             => _incPitch += KeyboardRotateSpeed * (pressed ? 1.0f : -1.0f);
 
+        protected void OnShift(bool pressed)
+            => ShiftPressed = pressed;
         private void OnControl(bool pressed)
-            => _ctrl = pressed;
+            => CtrlPressed = pressed;
         protected virtual void OnRightClick(bool pressed)
-            => _rightClickPressed = pressed;
+            => RightClickPressed = pressed;
 
         protected internal override void OnComponentActivated()
         {
@@ -150,7 +174,7 @@ namespace XREngine.Components
             UnregisterTick(ETickGroup.Normal, ETickOrder.Input, Tick);
         }
 
-        protected abstract void OnScrolled(bool up);
+        protected abstract void OnScrolled(float diff);
         protected abstract void MouseMove(float x, float y);
         protected abstract void Tick();
 

@@ -1,4 +1,6 @@
-﻿using XREngine.Data.Geometry;
+﻿using System.Numerics;
+using XREngine.Components;
+using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
 using XREngine.Data.Trees;
 using XREngine.Rendering;
@@ -22,6 +24,9 @@ namespace XREngine.Scene
         }
 
         public override IRenderTree RenderablesTree => RenderTree;
+
+        public void Raycast(CameraComponent cameraComponent, Vector2 screenPoint, out SortedDictionary<float, RenderInfo2D> items, Func<RenderInfo2D, Segment, float?> directTest)
+            => RenderTree.Raycast(cameraComponent.Camera.GetWorldSegment(screenPoint), out items, directTest);
     }
 
     /// <summary>
@@ -62,5 +67,8 @@ namespace XREngine.Scene
             base.GlobalSwapBuffers();
             Lights.SwapBuffers();
         }
+
+        public void Raycast(CameraComponent cameraComponent, Vector2 screenPoint, out SortedDictionary<float, RenderInfo3D> items, Func<RenderInfo3D, Segment, float?> directTest)
+            => RenderTree.Raycast(cameraComponent.Camera.GetWorldSegment(screenPoint), out items, directTest);
     }
 }
