@@ -3,8 +3,6 @@ using Silk.NET.OpenGL;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Numerics;
-using System.Security.Cryptography;
-using System.Text;
 using XREngine.Data.Vectors;
 
 namespace XREngine.Rendering.OpenGL

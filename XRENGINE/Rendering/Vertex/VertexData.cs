@@ -31,7 +31,6 @@ namespace XREngine.Data.Rendering
 
         /// <summary>
         /// The color of the vertex. Can be used by the shader for various effects.
-        /// TODO: do we even need this? Remove?
         /// </summary>
         public List<Vector4> ColorSets { get; protected set; } = [];
     }

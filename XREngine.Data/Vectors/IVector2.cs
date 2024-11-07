@@ -2,8 +2,10 @@
 using System.Drawing;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using System.Text.Json.Serialization;
 using XREngine.Data.Rendering;
 using XREngine.Rendering.Objects;
+using YamlDotNet.Serialization;
 
 namespace XREngine.Data.Vectors;
 
@@ -30,11 +32,19 @@ public unsafe struct IVector2(int x, int y) : IBufferable, IUniformable
         _x = x,
         _y = y;
 
+    //[JsonIgnore]
+    //[YamlIgnore]
     [Browsable(false)]
     public int* Data { get { fixed (void* ptr = &this) return (int*)ptr; } }
 
+    //[JsonIgnore]
+    //[YamlIgnore]
     public EComponentType ComponentType { get; } = EComponentType.Int;
+    //[JsonIgnore]
+    //[YamlIgnore]
     public uint ComponentCount { get; } = 2;
+    //[JsonIgnore]
+    //[YamlIgnore]
     public bool Normalize { get; } = false;
 
     public void Write(VoidPtr address)

@@ -355,8 +355,8 @@ namespace XREngine
             if (!(AllowOverwriteCallback?.Invoke(path) ?? true))
                 path = GetUniqueAssetPath(path);
 
-            File.WriteAllText(path, Serializer.Serialize(asset));
             asset.FilePath = path;
+            File.WriteAllText(path, Serializer.Serialize(asset));
             PostSaved(asset, true);
 #if !DEBUG
             }
@@ -398,8 +398,8 @@ namespace XREngine
             {
 #endif
             string path = VerifyAssetPath(asset, directory);
-            await File.WriteAllTextAsync(path, Serializer.Serialize(asset));
             asset.FilePath = path;
+            await File.WriteAllTextAsync(path, Serializer.Serialize(asset));
             CacheAsset(asset);
             PostSaved(asset, true);
 #if !DEBUG
@@ -417,6 +417,8 @@ namespace XREngine
             => SaveTo(asset, Path.Combine(GameAssetsPath, Path.Combine(folderNames)));
 
         public static readonly ISerializer Serializer = new SerializerBuilder()
+            //.IgnoreFields()
+            .EnsureRoundtrip()
             .WithEventEmitter(nextEmitter => new DepthTrackingEventEmitter(nextEmitter))
             //.WithTypeConverter(new XRAssetYamlConverter())
             .WithTypeConverter(new DataSourceYamlTypeConverter())
@@ -440,7 +442,10 @@ namespace XREngine
                 var extensions3rdParty = typeof(T).GetCustomAttribute<XR3rdPartyExtensionsAttribute>()?.Extensions;
                 if (extensions3rdParty?.Contains(ext) ?? false)
                 {
-                    var asset = new T();
+                    var asset = new T
+                    {
+                        OriginalPath = filePath
+                    };
                     asset.Load3rdParty(filePath);
                     return asset;
                 }

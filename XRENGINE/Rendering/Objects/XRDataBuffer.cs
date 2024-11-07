@@ -293,6 +293,16 @@ namespace XREngine.Rendering
                 _ => 0,
             };
 
+        private uint? _bindingIndexOverride;
+        /// <summary>
+        /// Forces a specific binding index for the mesh.
+        /// </summary>
+        public uint? BindingIndexOverride
+        {
+            get => _bindingIndexOverride;
+            set => SetField(ref _bindingIndexOverride, value);
+        }
+
         //TODO: Vulkan methods
         //public Span<T> BeginUpdate()
         //{
@@ -743,6 +753,21 @@ namespace XREngine.Rendering
                 _clientSideSource = cloneBuffer ? _clientSideSource?.Clone() : _clientSideSource,
             };
             return clone;
+        }
+
+        public void Resize(uint elementCount, bool copyData = true)
+        {
+            uint oldLength = Length;
+            ElementCount = elementCount;
+            uint newLength = Length;
+
+            DataSource newSource = DataSource.Allocate(newLength);
+            uint minMatch = Math.Min(oldLength, newLength);
+            if (copyData && _clientSideSource != null && minMatch > 0u)
+                Memory.Move(newSource.Address, _clientSideSource.Address, minMatch);
+
+            _clientSideSource?.Dispose();
+            _clientSideSource = newSource;
         }
 
         public static implicit operator VoidPtr(XRDataBuffer b) => b.Address;

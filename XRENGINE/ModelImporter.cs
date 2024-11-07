@@ -97,7 +97,7 @@ namespace XREngine
             sw.Start();
 #endif
             float rotate = zUp ? -90.0f : 0.0f;
-            bool removeAssimpFBXNodes = false;
+            bool removeAssimpFBXNodes = true;
             bool preservePivots = true;
 
             _assimp.SetConfig(new BooleanPropertyConfig(AiConfigs.AI_CONFIG_IMPORT_FBX_PRESERVE_PIVOTS, preservePivots));

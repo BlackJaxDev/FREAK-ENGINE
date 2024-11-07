@@ -68,12 +68,42 @@ namespace XREngine
 
         public static class State
         {
+            /// <summary>
+            /// Called when a local player is first created.
+            /// </summary>
             public static event Action<LocalPlayerController>? LocalPlayerAdded;
+            /// <summary>
+            /// Called when a local player is removed.
+            /// </summary>
+            public static event Action<LocalPlayerController>? LocalPlayerRemoved;
 
             //Only up to 4 local players, because we only support up to 4 players split screen, realistically. If that.
-            public static LocalPlayerController[] LocalPlayers { get; } = new LocalPlayerController[4];
+            public static LocalPlayerController?[] LocalPlayers { get; } = new LocalPlayerController[4];
+
+            public static bool RemoveLocalPlayer(ELocalPlayerIndex index)
+            {
+                var player = LocalPlayers[(int)index];
+                if (player is null)
+                    return false;
+
+                LocalPlayers[(int)index] = null;
+                LocalPlayerRemoved?.Invoke(player);
+                player.Destroy();
+                return true;
+            }
+
+            /// <summary>
+            /// Retrieves or creates a local player controller for the given index.
+            /// </summary>
+            /// <param name="index"></param>
+            /// <returns></returns>
             public static LocalPlayerController GetOrCreateLocalPlayer(ELocalPlayerIndex index)
                 => LocalPlayers[(int)index] ?? AddLocalPLayer(index);
+
+            /// <summary>
+            /// This property returns the main player, which is the first player and should always exist.
+            /// </summary>
+            public static LocalPlayerController MainPlayer => GetOrCreateLocalPlayer(ELocalPlayerIndex.One);
 
             private static LocalPlayerController AddLocalPLayer(ELocalPlayerIndex index)
             {
@@ -83,8 +113,17 @@ namespace XREngine
                 return player;
             }
 
+            /// <summary>
+            /// Gets the local player controller for the given index, if it exists.
+            /// </summary>
+            /// <param name="index"></param>
+            /// <returns></returns>
             public static LocalPlayerController? GetLocalPlayer(ELocalPlayerIndex index)
                 => LocalPlayers.TryGet((int)index);
+
+            /// <summary>
+            /// All remote players that are connected to this server, this p2p client, or the server this client is connected to.
+            /// </summary>
             public static List<RemotePlayerController> RemotePlayers { get; } = [];
         }
     }

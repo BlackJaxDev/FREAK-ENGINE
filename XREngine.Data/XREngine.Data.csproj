@@ -43,6 +43,7 @@
     <PackageReference Include="NVorbis" Version="0.10.5" />
     <PackageReference Include="SharpFont" Version="4.0.1" />
     <PackageReference Include="SharpFont.NetStandard" Version="1.0.5" />
+    <PackageReference Include="SharpZipLib" Version="1.4.2" />
     <PackageReference Include="Silk.NET.OpenGLES.Extensions.EXT" Version="2.21.0" />
     <PackageReference Include="SkiaSharp" Version="2.88.8" />
     <PackageReference Include="StirlingLabs.Assimp.Net" Version="23.4.1" />

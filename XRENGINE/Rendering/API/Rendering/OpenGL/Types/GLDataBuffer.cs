@@ -135,10 +135,10 @@ namespace XREngine.Rendering.OpenGL
 
                         break;
                     case EBufferTarget.ShaderStorageBuffer:
-                        index = Api.GetProgramResourceIndex(vtx.BindingId, GLEnum.ShaderStorageBlock, bindingName);
+                        index = Data.BindingIndexOverride ?? Api.GetProgramResourceIndex(vtx.BindingId, GLEnum.ShaderStorageBlock, bindingName);
                         break;
                     case EBufferTarget.UniformBuffer:
-                        index = Api.GetProgramResourceIndex(vtx.BindingId, GLEnum.UniformBlock, bindingName);
+                        index = Data.BindingIndexOverride ?? Api.GetProgramResourceIndex(vtx.BindingId, GLEnum.UniformBlock, bindingName);
                         break;
                     default:
                         return 0;

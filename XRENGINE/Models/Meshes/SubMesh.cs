@@ -13,7 +13,7 @@ namespace XREngine.Rendering.Models
         public SortedSet<SubMeshLOD> LODs { get; } = new(new LODSorter());
 
         private AABB _bounds;
-        private IVolume? cullingVolumeOverride;
+        private IVolume? _cullingVolumeOverride;
 
         public AABB Bounds
         {
@@ -23,8 +23,8 @@ namespace XREngine.Rendering.Models
 
         public IVolume? CullingVolumeOverride
         {
-            get => cullingVolumeOverride;
-            set => SetField(ref cullingVolumeOverride, value);
+            get => _cullingVolumeOverride;
+            set => SetField(ref _cullingVolumeOverride, value);
         }
         public TransformBase? RootTransform { get; set; }
 

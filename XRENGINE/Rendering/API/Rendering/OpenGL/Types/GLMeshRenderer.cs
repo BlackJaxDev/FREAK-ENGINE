@@ -1,6 +1,6 @@
 ﻿using Extensions;
 using Silk.NET.OpenGL;
-using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
@@ -46,14 +46,14 @@ namespace XREngine.Rendering.OpenGL
                     if (Material?.Program?.Data.GetShaderTypeMask().HasFlag(EProgramStageMask.VertexShaderBit) ?? false)
                         return Material.Program!;
 
-                    return _defaultVertexProgram!;
+                    return _separatedVertexProgram!;
                 }
             }
 
             /// <summary>
-            /// Default vertex shader for this mesh. Used when the material doesn't have a vertex shader, and shader pipelines are enabled.
+            /// The main vertex shader for this mesh. Used when shader pipelines are enabled.
             /// </summary>
-            private GLRenderProgram? _defaultVertexProgram;
+            private GLRenderProgram? _separatedVertexProgram;
 
             public GLDataBuffer? TriangleIndicesBuffer
             {
@@ -173,8 +173,8 @@ namespace XREngine.Rendering.OpenGL
 
             private void OnMeshChanged(XRMesh? mesh)
             {
-                _defaultVertexProgram?.Destroy();
-                _defaultVertexProgram = null;
+                _separatedVertexProgram?.Destroy();
+                _separatedVertexProgram = null;
 
                 _combinedProgram?.Destroy();
                 _combinedProgram = null;
@@ -237,7 +237,7 @@ namespace XREngine.Rendering.OpenGL
                 {
                     var b = buffer.Value;
                     b.Bind();
-                    uint resourceIndex = Api.GetProgramResourceIndex(vertexProgram!.BindingId, GLEnum.ShaderStorageBlock, b.Data.BindingName);
+                    uint resourceIndex = b.Data.BindingIndexOverride ?? Api.GetProgramResourceIndex(vertexProgram!.BindingId, GLEnum.ShaderStorageBlock, b.Data.BindingName);
                     Api.BindBufferBase(ToGLEnum(EBufferTarget.ShaderStorageBuffer), resourceIndex, b.BindingId);
                     //b.PushSubData();
                     b.Unbind();
@@ -279,7 +279,7 @@ namespace XREngine.Rendering.OpenGL
                 if (!mask.HasFlag(EProgramStageMask.VertexShaderBit))
                 {
                     //If the material doesn't have a custom vertex shader, generate the default one for this mesh
-                    vertexProgram = _defaultVertexProgram;
+                    vertexProgram = _separatedVertexProgram;
 
                     if (materialProgram?.Link() ?? false)
                         _pipeline.Set(mask, materialProgram);
@@ -348,10 +348,14 @@ namespace XREngine.Rendering.OpenGL
                 if (Engine.Rendering.Settings.AllowShaderPipelines)
                 {
                     _combinedProgram = null;
-                    _defaultVertexProgram = Renderer.GenericToAPI<GLRenderProgram>(new XRRenderProgram(false, new XRShader(EShaderType.Vertex, Data.VertexShaderSource!)))!;
-                    _defaultVertexProgram.PropertyChanged += SeparatedProgramPropertyChanged;
 
-                    vertexProgram = _defaultVertexProgram;
+                    var material = Material;
+                    XRShader shader = (material?.Data?.VertexShaders?.Count ?? 0) == 0
+                        ? new XRShader(EShaderType.Vertex, Data.GeneratedVertexShaderSource!)
+                        : material!.Data.VertexShaders[0];
+                    _separatedVertexProgram = Renderer.GenericToAPI<GLRenderProgram>(new XRRenderProgram(false, shader))!;
+                    _separatedVertexProgram.PropertyChanged += SeparatedProgramPropertyChanged;
+                    vertexProgram = _separatedVertexProgram;
                 }
                 else
                 {
@@ -366,9 +370,9 @@ namespace XREngine.Rendering.OpenGL
                     //If the material doesn't have a vertex shader, use the default one
                     bool useDefaultVertexShader = material.Data.VertexShaders.Count == 0;
                     if (useDefaultVertexShader)
-                        shaders = shaders.Append(new XRShader(EShaderType.Vertex, Data.VertexShaderSource!));
+                        shaders = shaders.Append(new XRShader(EShaderType.Vertex, Data.GeneratedVertexShaderSource!));
 
-                    _defaultVertexProgram = null;
+                    _separatedVertexProgram = null;
 
                     _combinedProgram = Renderer.GenericToAPI<GLRenderProgram>(new XRRenderProgram(shaders, false))!;
                     _combinedProgram.PropertyChanged += CombinedProgramPropertyChanged;
@@ -383,19 +387,32 @@ namespace XREngine.Rendering.OpenGL
                 foreach (var pair in (IEventDictionary<string, XRDataBuffer>)Data.Buffers)
                     _bufferCache.Add(pair.Key, Renderer.GenericToAPI<GLDataBuffer>(pair.Value)!);
 
+                //Data.Buffers.Added += Buffers_Added;
+                //Data.Buffers.Removed += Buffers_Removed;
+
                 vertexProgram.Data.Link();
 
                 if (!Data.GenerateAsync)
                     vertexProgram.Link();
             }
 
+            private void Buffers_Removed(string key, XRDataBuffer value)
+            {
+                _bufferCache.Remove(key);
+            }
+
+            private void Buffers_Added(string key, XRDataBuffer value)
+            {
+                _bufferCache.Add(key, Renderer.GenericToAPI<GLDataBuffer>(value)!);
+            }
+
             private void SeparatedProgramPropertyChanged(object? sender, PropertyChangedEventArgs e)
             {
-                if (e.PropertyName != nameof(GLRenderProgram.IsLinked) || !(_defaultVertexProgram?.IsLinked ?? false))
+                if (e.PropertyName != nameof(GLRenderProgram.IsLinked) || !(_separatedVertexProgram?.IsLinked ?? false))
                     return;
                 
                 //Continue linking the program
-                _defaultVertexProgram.PropertyChanged -= SeparatedProgramPropertyChanged;
+                _separatedVertexProgram.PropertyChanged -= SeparatedProgramPropertyChanged;
                 if (Data.GenerateAsync)
                     Engine.EnqueueMainThreadTask(LinkSeparatedVertex);
                 else
@@ -469,8 +486,8 @@ namespace XREngine.Rendering.OpenGL
                 _pipeline?.Destroy();
                 _pipeline = null;
 
-                _defaultVertexProgram?.Destroy();
-                _defaultVertexProgram = null;
+                _separatedVertexProgram?.Destroy();
+                _separatedVertexProgram = null;
 
                 _combinedProgram?.Destroy();
                 _combinedProgram = null;
@@ -508,18 +525,18 @@ namespace XREngine.Rendering.OpenGL
 
             if (triangles > 0)
             {
-                Api.DrawElements(GLEnum.Triangles, triangles, ToGLEnum(ActiveMeshRenderer.TrianglesElementType), null);
-                //Api.DrawElementsInstancedBaseInstance(GLEnum.Triangles, triangles, ToGLEnum(ActiveMeshRenderer.TrianglesElementType), null, instances, 0);
+                //Api.DrawElements(GLEnum.Triangles, triangles, ToGLEnum(ActiveMeshRenderer.TrianglesElementType), null);
+                Api.DrawElementsInstancedBaseInstance(GLEnum.Triangles, triangles, ToGLEnum(ActiveMeshRenderer.TrianglesElementType), null, instances, 0);
             }
             if (lines > 0)
             {
-                Api.DrawElements(GLEnum.Lines, lines, ToGLEnum(ActiveMeshRenderer.LineIndicesElementType), null);
-                //Api.DrawElementsInstancedBaseInstance(GLEnum.Lines, lines, ToGLEnum(ActiveMeshRenderer.LineIndicesElementType), null, instances, 0);
+                //Api.DrawElements(GLEnum.Lines, lines, ToGLEnum(ActiveMeshRenderer.LineIndicesElementType), null);
+                Api.DrawElementsInstancedBaseInstance(GLEnum.Lines, lines, ToGLEnum(ActiveMeshRenderer.LineIndicesElementType), null, instances, 0);
             }
             if (points > 0)
             {
-                Api.DrawElements(GLEnum.Points, points, ToGLEnum(ActiveMeshRenderer.PointIndicesElementType), null);
-                //Api.DrawElementsInstancedBaseInstance(GLEnum.Points, points, ToGLEnum(ActiveMeshRenderer.PointIndicesElementType), null, instances, 0);
+                //Api.DrawElements(GLEnum.Points, points, ToGLEnum(ActiveMeshRenderer.PointIndicesElementType), null);
+                Api.DrawElementsInstancedBaseInstance(GLEnum.Points, points, ToGLEnum(ActiveMeshRenderer.PointIndicesElementType), null, instances, 0);
             }
 
             //Api.MemoryBarrier(MemoryBarrierMask.ShaderStorageBarrierBit | MemoryBarrierMask.ClientMappedBufferBarrierBit);
@@ -537,7 +554,7 @@ namespace XREngine.Rendering.OpenGL
                 return;
 
             Api.ColorMask(r.WriteRed, r.WriteGreen, r.WriteBlue, r.WriteAlpha);
-            if (r.CullMode != ECulling.None)
+            if (r.CullMode != ECullMode.None)
             {
                 Api.Enable(EnableCap.CullFace);
                 Api.CullFace(ToGLEnum(r.CullMode));
@@ -659,11 +676,11 @@ namespace XREngine.Rendering.OpenGL
                 _ => GLEnum.Never,
             };
 
-        private GLEnum ToGLEnum(ECulling cullMode)
+        private GLEnum ToGLEnum(ECullMode cullMode)
             => cullMode switch
             {
-                ECulling.Front => GLEnum.Front,
-                ECulling.Back => GLEnum.Back,
+                ECullMode.Front => GLEnum.Front,
+                ECullMode.Back => GLEnum.Back,
                 _ => GLEnum.FrontAndBack,
             };
 

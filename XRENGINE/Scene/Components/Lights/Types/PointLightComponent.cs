@@ -184,7 +184,7 @@ namespace XREngine.Components.Lights
             XRMaterial mat = new(refs, fragShader, geomShader);
 
             //No culling so if a light exists inside of a mesh it will shadow everything.
-            mat.RenderOptions.CullMode = ECulling.None;
+            mat.RenderOptions.CullMode = ECullMode.None;
 
             return mat;
         }

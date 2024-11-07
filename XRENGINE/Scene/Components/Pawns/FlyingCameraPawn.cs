@@ -44,7 +44,7 @@ namespace XREngine.Components
             }
         }
 
-        private float _shiftSpeedModifier = 2.0f;
+        private float _shiftSpeedModifier = 1.1f;
         public float ShiftSpeedModifier 
         {
             get => _shiftSpeedModifier; 
@@ -87,20 +87,24 @@ namespace XREngine.Components
                 _incForward.IsZero())
                 return;
 
+            float incRight = _incRight;
+            float incUp = _incUp;
+            float incForward = _incForward;
+
             if (ShiftPressed)
             {
-                _incRight *= ShiftSpeedModifier;
-                _incUp *= ShiftSpeedModifier;
-                _incForward *= ShiftSpeedModifier;
+                incRight *= ShiftSpeedModifier;
+                incUp *= ShiftSpeedModifier;
+                incForward *= ShiftSpeedModifier;
             }
 
             //Don't time dilate user inputs
             float delta = Engine.UndilatedDelta;
             //Vector2 dir = Vector2.Normalize(new(_incRight, _incUp));
             TransformAs<Transform>().TranslateRelative(
-                _incRight * delta,
-                _incUp * delta,
-                -_incForward * delta);
+                incRight * delta,
+                incUp * delta,
+                -incForward * delta);
         }
 
         private void IncrementRotation()

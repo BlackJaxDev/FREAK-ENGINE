@@ -1327,6 +1327,12 @@ namespace XREngine.Data.Geometry
             return start + v * t;
         }
 
+        public static Vector3 RayClosestColinearPointToPoint(Vector3 start, Vector3 dir, Vector3 point)
+        {
+            float t = Vector3.Dot(point - start, dir);
+            return start + dir * t;
+        }
+
         public static float SegmentShortestDistanceToPoint(Vector3 start, Vector3 end, Vector3 point)
         {
             Vector3 v = end - start;

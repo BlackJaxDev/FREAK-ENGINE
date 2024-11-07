@@ -321,10 +321,15 @@ namespace XREngine.Scene
             {
                 ComponentsInternal.Add(comp);
             }
+
             comp.Destroying += ComponentDestroying;
             comp.Destroyed += ComponentDestroyed;
-            comp.VerifyInterfacesOnStart();
-            comp.OnComponentActivated();
+
+            if (IsActiveInHierarchy && World is not null)
+            {
+                comp.VerifyInterfacesOnStart();
+                comp.OnComponentActivated();
+            }
         }
 
         public bool TryAddComponent<T>(out T? comp) where T : XRComponent

@@ -1,6 +1,8 @@
 ﻿using Extensions;
 using System.Numerics;
+using XREngine.Data.Geometry;
 using XREngine.Data.Transforms.Rotations;
+using YamlDotNet.Core.Tokens;
 using static System.Math;
 
 namespace XREngine.Data.Core
@@ -600,6 +602,85 @@ namespace XREngine.Data.Core
 
         public static float GetPitchAfterYaw(Vector3 vector)
             => MathF.Atan2(vector.Y, MathF.Sqrt(vector.X * vector.X + vector.Z * vector.Z));
+
+        public static Vector3 GetSafeNormal(Vector3 value, float Tolerance = 1.0e-8f)
+        {
+            float sq = value.LengthSquared();
+            if (sq == 1.0f)
+                return value;
+            else if (sq < Tolerance)
+                return Vector3.Zero;
+            else
+                return value * InverseSqrtFast(sq);
+        }
+
+        public static bool IsInTriangle(Vector3 value, Triangle triangle)
+            => IsInTriangle(value, triangle.A, triangle.B, triangle.C);
+        public static bool IsInTriangle(Vector3 value, Vector3 triPt1, Vector3 triPt2, Vector3 triPt3)
+        {
+            Vector3 v0 = triPt2 - triPt1;
+            Vector3 v1 = triPt3 - triPt1;
+            Vector3 v2 = value - triPt1;
+
+            float dot00 = v0.Dot(v0);
+            float dot01 = v0.Dot(v1);
+            float dot02 = v0.Dot(v2);
+            float dot11 = v1.Dot(v1);
+            float dot12 = v1.Dot(v2);
+
+            float invDenom = 1.0f / (dot00 * dot11 - dot01 * dot01);
+            float u = (dot11 * dot02 - dot01 * dot12) * invDenom;
+            float v = (dot00 * dot12 - dot01 * dot02) * invDenom;
+
+            return u >= 0.0f && v >= 0.0f && u + v < 1.0f;
+        }
+
+        public static bool BarycentricCoordsWithin(
+            Vector3 value,
+            Vector3 triPt1, Vector3 triPt2, Vector3 triPt3,
+            out float u, out float v, out float w)
+        {
+            Vector3 v0 = triPt2 - triPt1;
+            Vector3 v1 = triPt3 - triPt1;
+            Vector3 v2 = value - triPt1;
+
+            float d00 = v0.Dot(v0);
+            float d01 = v0.Dot(v1);
+            float d02 = v0.Dot(v2);
+            float d11 = v1.Dot(v1);
+            float d12 = v1.Dot(v2);
+
+            float invDenom = 1.0f / (d00 * d11 - d01 * d01);
+            v = (d11 * d02 - d01 * d12) * invDenom;
+            w = (d00 * d12 - d01 * d02) * invDenom;
+            u = 1.0f - v - w;
+
+            return u >= 0.0f && v >= 0.0f && u + v < 1.0f;
+        }
+
+        /// <summary>
+        /// Returns a vector pointing out of a plane, given the plane's normal and a vector to be reflected which is pointing at the plane.
+        /// </summary>
+        public static Vector3 ReflectionVector(Vector3 normal, Vector3 vector)
+        {
+            normal = normal.Normalize();
+            return vector - 2.0f * Vector3.Dot(vector, normal) * normal;
+        }
+
+        /// <summary>
+        /// Returns the portion of this Vector3 that is parallel to the given normal.
+        /// </summary>
+        public static Vector3 ParallelComponent(Vector3 value, Vector3 normal)
+        {
+            normal = normal.Normalize();
+            return normal * Vector3.Dot(value, normal);
+        }
+
+        /// <summary>
+        /// Returns the portion of this Vector3 that is perpendicular to the given normal.
+        /// </summary>
+        public static Vector3 PerpendicularComponent(Vector3 value, Vector3 normal)
+            => value - ParallelComponent(value, normal);
 
         #region Transforms
         public static Vector3 RotateAboutPoint(Vector3 point, Vector3 center, Rotator angles)

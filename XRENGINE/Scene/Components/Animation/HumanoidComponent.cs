@@ -509,7 +509,7 @@ namespace XREngine.Scene.Components.Animation
 
         public void SetFromNode()
         {
-            Debug.Out(SceneNode.PrintTree());
+            //Debug.Out(SceneNode.PrintTree());
 
             //Start at the hips
             Hips.Node = SceneNode.FindDescendantByName("Hips", StringComparison.InvariantCultureIgnoreCase);

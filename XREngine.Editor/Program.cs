@@ -16,6 +16,7 @@ using XREngine.Rendering.Commands;
 using XREngine.Rendering.Info;
 using XREngine.Rendering.Models;
 using XREngine.Rendering.Models.Materials;
+using XREngine.Rendering.UI;
 using XREngine.Scene;
 using XREngine.Scene.Components.Animation;
 using XREngine.Scene.Transforms;
@@ -38,7 +39,7 @@ internal class Program
         RenderInfo2D.ConstructorOverride = RenderInfo2DConstructor;
         RenderInfo3D.ConstructorOverride = RenderInfo3DConstructor;
 
-        var startup = Engine.LoadOrGenerateGameSettings(() => GetEngineSettings(new XRWorld()));
+        var startup =/* Engine.LoadOrGenerateGameSettings(() => */GetEngineSettings(new XRWorld());//);
         var world = CreateTestWorld();
         startup.StartupWindows[0].TargetWorld = world;
 
@@ -47,7 +48,12 @@ internal class Program
 
     static XRWorld CreateTestWorld()
     {
+        FontGlyphSet font = Engine.Assets.LoadEngineAsset<FontGlyphSet>("Fonts", "Calligraphy.ttf");
+        string? dir = Path.GetDirectoryName(font.OriginalPath);
+        Engine.Assets.SaveTo(font, dir!);
+
         string desktopDir = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+        //UnityPackageExtractor.ExtractAsync(Path.Combine(desktopDir, "Animations.unitypackage"), Path.Combine(desktopDir, "Extracted"), true);
 
         var world = new XRWorld() { Name = "TestWorld" };
         var scene = new XRScene() { Name = "TestScene" };
@@ -62,19 +68,28 @@ internal class Program
         //orbitTransform.IgnoreRotation = false;
         //orbitTransform.RegisterAnimationTick<OrbitTransform>(t => t.Angle += Engine.DilatedDelta * 0.5f);
 
-        var laggedTransform = cameraNode.GetTransformAs<TransformLagged>(true)!;
+        var laggedTransform = cameraNode.GetTransformAs<SmoothedTransform>(true)!;
         laggedTransform.Translation = new Vector3(0.0f, 0.0f, 5.0f);
-        laggedTransform.RotationSmoothingSpeed = 10.0f;
-        laggedTransform.TranslationSmoothingSpeed = 10.0f;
-        laggedTransform.ScaleSmoothingSpeed = 10.0f;
+        laggedTransform.RotationSmoothingSpeed = 15.0f;
+        laggedTransform.TranslationSmoothingSpeed = 15.0f;
+        laggedTransform.ScaleSmoothingSpeed = 15.0f;
 
         if (cameraNode.TryAddComponent<CameraComponent>(out var cameraComp))
         {
             cameraComp!.Name = "TestCamera";
-            cameraComp.Camera.Parameters = new XRPerspectiveCameraParameters(80.0f, null, 0.1f, 99999.0f);
+            cameraComp.Camera.Parameters = new XRPerspectiveCameraParameters(60.0f, null, 0.1f, 99999.0f);
             cameraComp.Camera.RenderPipeline = new DefaultRenderPipeline();
             cameraComp.CullWithFrustum = false;
         }
+
+        SceneNode textNode = new(rootNode) { Name = "TestTextNode" };
+        TextComponent text = textNode.AddComponent<TextComponent>()!;
+        text.Font = font;
+        //text.Text = "Hello, World!";
+        text.RegisterAnimationTick<TextComponent>(t => t.Text = $"{MathF.Round(1.0f / Engine.Time.Timer.Render.SmoothedDelta)} fps");
+        var textTransform = textNode.GetTransformAs<Transform>()!;
+        textTransform.Translation = new Vector3(0.0f, 0.0f, -5.0f);
+        textTransform.Scale = new Vector3(10.0f);
 
         //Pawn
         cameraNode.TryAddComponent<EditorFlyingCameraPawnComponent>(out var pawnComp);
@@ -230,7 +245,7 @@ internal class Program
                     RenderPass = (int)EDefaultRenderPass.Background,
                     RenderOptions = new RenderingParameters()
                     {
-                        CullMode = ECulling.None,
+                        CullMode = ECullMode.None,
                         DepthTest = new DepthTest()
                         {
                             UpdateDepth = true,
@@ -261,34 +276,39 @@ internal class Program
             PostProcessSteps.JoinIdenticalVertices |
             PostProcessSteps.CalculateTangentSpace;
 
-        ModelImporter.ImportAsync(fbxPathDesktop, flags, null, MaterialFactory, importedModelsNode, 1, true).ContinueWith(OnFinished);
+        //ModelImporter.ImportAsync(fbxPathDesktop, flags, null, MaterialFactory, importedModelsNode, 1, true).ContinueWith(OnFinishedAvatar);
 
         //string sponzaPath = Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj");
-        //_ = ModelImporter.ImportAsync(sponzaPath, flags, null, MaterialFactory, importedModelsNode);
+        //ModelImporter.ImportAsync(sponzaPath, flags, null, MaterialFactory, importedModelsNode, 1, false).ContinueWith(OnFinishedWorld);
 
         return world;
     }
 
-    private static void OnFinished(Task<(SceneNode? rootNode, IReadOnlyCollection<XRMaterial> materials, IReadOnlyCollection<XRMesh> meshes)> x)
+    private static void OnFinishedWorld(Task<(SceneNode? rootNode, IReadOnlyCollection<XRMaterial> materials, IReadOnlyCollection<XRMesh> meshes)> task)
+    {
+        (SceneNode? rootNode, IReadOnlyCollection<XRMaterial> materials, IReadOnlyCollection<XRMesh> meshes) = task.Result;
+        rootNode?.GetTransformAs<Transform>()?.ApplyScale(new Vector3(0.01f));
+    }
+
+    private static void OnFinishedAvatar(Task<(SceneNode? rootNode, IReadOnlyCollection<XRMaterial> materials, IReadOnlyCollection<XRMesh> meshes)> x)
     {
         (SceneNode? rootNode, IReadOnlyCollection<XRMaterial> materials, IReadOnlyCollection<XRMesh> meshes) = x.Result;
-        OnFinishedImporting(rootNode, materials, meshes);
+        OnFinishedImportingAvatar(rootNode, materials, meshes);
     }
-    static void OnFinishedImporting(SceneNode? rootNode, IReadOnlyCollection<XRMaterial> materials, IReadOnlyCollection<XRMesh> meshes)
+    static void OnFinishedImportingAvatar(SceneNode? rootNode, IReadOnlyCollection<XRMaterial> materials, IReadOnlyCollection<XRMesh> meshes)
     {
         if (rootNode is null)
             return;
 
         var comp = rootNode.AddComponent<HumanoidComponent>()!;
         comp.IsActive = false;
+
         var knee = comp!.Right.Knee?.Node?.Transform;
+        var leg = comp!.Right.Leg?.Node?.Transform;
 
         //var knee = rootNode.FindDescendant((x, y) => y.Contains("knee", StringComparison.InvariantCultureIgnoreCase))?.GetTransformAs<Transform>();
-        knee?.RegisterAnimationTick<Transform>(KneeTick);
-    }
-    static void KneeTick(Transform t)
-    {
-        t.Rotation = Quaternion.CreateFromAxisAngle(Globals.Right, XRMath.DegToRad(90.0f * (MathF.Cos(Engine.ElapsedTime) * 0.5f + 0.5f)));
+        leg?.RegisterAnimationTick<Transform>(t => t.Rotation = Quaternion.CreateFromAxisAngle(Globals.Right, XRMath.DegToRad(180 - 90.0f * (MathF.Cos(Engine.ElapsedTime) * 0.5f + 0.5f))));
+        knee?.RegisterAnimationTick<Transform>(t => t.Rotation = Quaternion.CreateFromAxisAngle(Globals.Right, XRMath.DegToRad(90.0f * (MathF.Cos(Engine.ElapsedTime) * 0.5f + 0.5f))));
     }
     private static readonly ConcurrentDictionary<string, XRTexture2D> _textureCache = new();
 
@@ -309,7 +329,7 @@ internal class Program
         mat.Name = name;
         mat.RenderOptions = new RenderingParameters()
         {
-            CullMode = ECulling.None,
+            CullMode = ECullMode.None,
             DepthTest = new DepthTest()
             {
                 UpdateDepth = true,
@@ -341,7 +361,7 @@ internal class Program
     private static void LoadTexture(string modelFilePath, List<TextureSlot> textures, XRMaterial mat, int i)
     {
         string path = textures[i].FilePath;
-        if (path is null)
+        if (string.IsNullOrWhiteSpace(path))
             return;
 
         path = path.Replace("/", "\\");
@@ -358,6 +378,7 @@ internal class Program
             var tex = Engine.Assets.Load<XRTexture2D>(path);
             if (tex is null)
             {
+                Debug.Out($"Failed to load texture: {path}");
                 tex = new XRTexture2D()
                 {
                     Name = Path.GetFileNameWithoutExtension(path),
@@ -372,6 +393,7 @@ internal class Program
             }
             else
             {
+                Debug.Out($"Loaded texture: {path}");
                 tex.MagFilter = ETexMagFilter.Linear;
                 tex.MinFilter = ETexMinFilter.Linear;
                 tex.UWrap = ETexWrapMode.Repeat;

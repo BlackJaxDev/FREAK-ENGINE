@@ -190,6 +190,35 @@ namespace XREngine.Scene.Transforms
         //TODO: thread-safe event list class
         public EventList<TransformBase> Children => _children;
 
+        public TransformBase? FindChild(string name)
+        {
+            lock (_children)
+                return _children.FirstOrDefault(x => x.Name == name);
+        }
+
+        public TransformBase? FindChildRecursive(string name)
+        {
+            lock (_children)
+            {
+                TransformBase? child = _children.FirstOrDefault(x => x.Name == name);
+                if (child is not null)
+                    return child;
+                foreach (TransformBase c in _children)
+                {
+                    child = c.FindChildRecursive(name);
+                    if (child is not null)
+                        return child;
+                }
+            }
+            return null;
+        }
+
+        public TransformBase? TryGetChildAt(int index)
+        {
+            lock (_children)
+                return _children.IndexInRange(index) ? _children[index] : null;
+        }
+
         /// <summary>
         /// Returns the parent world matrix, or identity if no parent.
         /// </summary>

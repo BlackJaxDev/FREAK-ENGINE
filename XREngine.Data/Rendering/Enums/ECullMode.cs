@@ -1,6 +1,6 @@
 ﻿namespace XREngine.Data.Rendering
 {
-    public enum ECulling
+    public enum ECullMode
     {
         /// <summary>
         /// No faces will be invisible.

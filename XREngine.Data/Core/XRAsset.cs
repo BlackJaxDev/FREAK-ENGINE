@@ -24,6 +24,16 @@ namespace XREngine.Core.Files
             internal set => SetField(ref _embeddedAssets, value);
         }
 
+        private string? _originalPath;
+        /// <summary>
+        /// The original path of this asset before it was imported and converted for engine use.
+        /// </summary>
+        public string? OriginalPath
+        {
+            get => _originalPath;
+            set => SetField(ref _originalPath, value);
+        }
+
         private string? _filePath;
         /// <summary>
         /// The absolute origin of this asset in the file system.

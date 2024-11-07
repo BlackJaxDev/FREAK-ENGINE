@@ -6,7 +6,7 @@ namespace XREngine.Scene.Transforms
     /// <summary>
     /// Can be used to smooth out tranformations without getting in the way of components expecting a regular Transform.
     /// </summary>
-    public class TransformLagged : Transform
+    public class SmoothedTransform : Transform
     {
         private Quaternion _currentRotation = Quaternion.Identity;
         private Vector3 _currentTranslation = Vector3.Zero;

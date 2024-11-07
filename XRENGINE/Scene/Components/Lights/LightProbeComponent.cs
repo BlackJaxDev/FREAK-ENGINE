@@ -210,7 +210,7 @@ namespace XREngine.Components.Lights
 
             RenderingParameters r = new();
             r.DepthTest.Enabled = ERenderParamUsage.Disabled;
-            r.CullMode = ECulling.None;
+            r.CullMode = ECullMode.None;
             XRTexture[] texArray = [_environmentTextureCubemap!];
             XRMaterial irrMat = new([], texArray, irrShader);
             XRMaterial prefMat = new(prefilterVars, texArray, prefShader);
@@ -260,7 +260,7 @@ namespace XREngine.Components.Lights
 
             RenderingParameters r = new();
             r.DepthTest.Enabled = ERenderParamUsage.Disabled;
-            r.CullMode = ECulling.None;
+            r.CullMode = ECullMode.None;
             XRTexture[] texArray = [_environmentTextureEquirect!];
             XRMaterial irrMat = new([], texArray, irrShader);
             XRMaterial prefMat = new(prefilterVars, texArray, prefShader);

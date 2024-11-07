@@ -92,5 +92,8 @@
         /// No 0 values are stored in this buffer.
         /// </summary>
         BlendshapeTangentDeltas,
+
+        GlyphTransforms,
+        GlyphTexCoords,
     }
 }

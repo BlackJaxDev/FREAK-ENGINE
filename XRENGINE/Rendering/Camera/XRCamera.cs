@@ -11,7 +11,8 @@ namespace XREngine.Rendering
     /// </summary>
     public class XRCamera : XRBase
     {
-        public static XREvent<XRCamera?> CurrentRenderTargetChanged { get; } = new();
+        public static event Action<XRCamera?>? CurrentRenderTargetChanged;
+
         private static XRCamera? _currentRenderTarget = null;
         public static XRCamera? CurrentRenderTarget
         {
@@ -22,7 +23,7 @@ namespace XREngine.Rendering
                     return;
 
                 _currentRenderTarget = value;
-                CurrentRenderTargetChanged.Invoke(value);
+                CurrentRenderTargetChanged?.Invoke(value);
             }
         }
 

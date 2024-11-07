@@ -26,7 +26,7 @@ namespace XREngine.Rendering
         private XRMaterial? _material;
         private string? _vertexShaderSource;
 
-        public string? VertexShaderSource => _vertexShaderSource ??= GenerateVertexShaderSource<DefaultVertexShaderGenerator>();
+        public string? GeneratedVertexShaderSource => _vertexShaderSource ??= GenerateVertexShaderSource<DefaultVertexShaderGenerator>();
 
         public XRMesh? Mesh 
         {

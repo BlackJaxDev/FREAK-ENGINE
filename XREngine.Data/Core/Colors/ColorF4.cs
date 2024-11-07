@@ -20,6 +20,9 @@ namespace XREngine.Data.Colors
         public static readonly ColorF4 Yellow = new(1.0f, 1.0f, 0.0f);
         public static readonly ColorF4 Cyan = new(0.0f, 1.0f, 1.0f);
         public static readonly ColorF4 Magenta = new(1.0f, 0.0f, 1.0f);
+        public static readonly ColorF4 Orange = new(1.0f, 0.5f, 0.0f);
+        public static readonly ColorF4 LightOrange = new(1.0f, 0.75f, 0.5f);
+        public static readonly ColorF4 DarkOrange = new(0.5f, 0.25f, 0.0f);
         public static readonly ColorF4 Transparent = new(0.0f, 0.0f, 0.0f, 0.0f);
         public static readonly ColorF4 LightGray = new(0.75f, 1.0f);
         public static readonly ColorF4 DarkGray = new(0.25f, 1.0f);
@@ -35,8 +38,6 @@ namespace XREngine.Data.Colors
         public static readonly ColorF4 DarkCyan = new(0.0f, 0.5f, 0.5f);
         public static readonly ColorF4 LightMagenta = new(1.0f, 0.5f, 1.0f);
         public static readonly ColorF4 DarkMagenta = new(0.5f, 0.0f, 0.5f);
-        public static readonly ColorF4 LightOrange = new(1.0f, 0.75f, 0.5f);
-        public static readonly ColorF4 DarkOrange = new(0.5f, 0.25f, 0.0f);
         public static readonly ColorF4 LightPurple = new(0.75f, 0.5f, 1.0f);
         public static readonly ColorF4 DarkPurple = new(0.25f, 0.0f, 0.5f);
         public static readonly ColorF4 LightBrown = new(0.75f, 0.5f, 0.25f);

@@ -15,7 +15,7 @@ namespace XREngine.Rendering.Models.Materials
         private BlendMode _blendMode = new();
         private float _lineWidth = AbstractRenderer.DefaultLineSize;
         private float _pointSize = AbstractRenderer.DefaultPointSize;
-        private ECulling _cullMode = ECulling.Back;
+        private ECullMode _cullMode = ECullMode.Back;
         private EWinding _winding = EWinding.Clockwise;
         private bool _writeAlpha = true;
         private bool _writeBlue = true;
@@ -77,7 +77,7 @@ namespace XREngine.Rendering.Models.Materials
             get => _winding;
             set => SetField(ref _winding, value);
         }
-        public ECulling CullMode
+        public ECullMode CullMode
         {
             get => _cullMode;
             set => SetField(ref _cullMode, value);
