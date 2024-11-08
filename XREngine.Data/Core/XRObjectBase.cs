@@ -37,7 +37,7 @@ namespace XREngine.Data.Core
             Destroy();
         }
 
-        public void Generate()
+        public virtual void Generate()
         {
             ID = Guid.NewGuid();
             IsDestroyed = false;

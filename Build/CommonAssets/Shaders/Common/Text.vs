@@ -6,9 +6,8 @@ layout (location = 2) in vec2 TexCoord0;
 
 layout(std430, binding = 0) buffer GlyphTransformsBuffer
 {
-    mat4 GlyphTransforms[];
+    vec4 GlyphTransforms[];
 };
-
 layout(std430, binding = 1) buffer GlyphTexCoordsBuffer
 {
     vec4 GlyphTexCoords[];
@@ -32,19 +31,21 @@ out gl_PerVertex
 
 void main()
 {
-	mat4 mvMatrix = inverse(InverseViewMatrix) * ModelMatrix;
-    mat4 mvpMatrix = ProjMatrix * mvMatrix;
-    mat3 normalMatrix = transpose(inverse(mat3(mvMatrix)));
+    vec4 tfm = GlyphTransforms[gl_InstanceID];
+    vec4 uv = GlyphTexCoords[gl_InstanceID];
 
-    mat4 transform = GlyphTransforms[gl_InstanceID];
-    vec4 uvRect = GlyphTexCoords[gl_InstanceID];
-
-    vec4 position = transform * vec4(Position, 1.0f);
-    vec3 normal = vec3(0.0f, 0.0f, 1.0f);
-
+	mat4 ViewMatrix = inverse(InverseViewMatrix);
+	mat4 mvMatrix = ViewMatrix * ModelMatrix;
+	mat4 mvpMatrix = ProjMatrix * mvMatrix;
+	mat4 vpMatrix = ProjMatrix * ViewMatrix;
+	mat3 normalMatrix = transpose(inverse(mat3(mvMatrix)));
+	
+	vec4 position = vec4(tfm.xy + (Position.xy * tfm.zw), 0.0f, 1.0f);
+	vec3 normal = Normal;
+	
 	FragPosLocal = position.xyz;
 	FragPos = (mvpMatrix * position).xyz;
-    gl_Position = mvpMatrix * position;
+	gl_Position = mvpMatrix * position;
 	FragNorm = normalize(normalMatrix * normal);
-    FragUV0 = mix(uvRect.xy, uvRect.zw, Position.xy);
+	FragUV0 = mix(uv.xy, uv.zw, Position.xy);
 }

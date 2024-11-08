@@ -59,9 +59,12 @@ namespace XREngine.Rendering
         /// <summary>
         /// Tells API objects to generate this object right now instead of waiting for the first access.
         /// </summary>
-        public void Generate()
+        public override void Generate()
         {
+            base.Generate();
+
             //GetWrappers();
+
             lock (_apiWrappers)
             {
                 foreach (var wrapper in APIWrappers)

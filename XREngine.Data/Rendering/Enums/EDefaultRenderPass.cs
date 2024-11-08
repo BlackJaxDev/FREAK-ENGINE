@@ -31,5 +31,9 @@
         /// Renders on top of everything that has been previously rendered.
         /// </summary>
         OnTopForward,
+        /// <summary>
+        /// Called after all rendering is done.
+        /// </summary>
+        PostRender,
     }
 }

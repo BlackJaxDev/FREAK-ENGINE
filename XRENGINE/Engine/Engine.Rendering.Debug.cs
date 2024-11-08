@@ -2,6 +2,7 @@
 using System.Numerics;
 using XREngine.Data.Colors;
 using XREngine.Data.Core;
+using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
 using XREngine.Data.Transforms.Rotations;
 using XREngine.Rendering;
@@ -45,7 +46,7 @@ namespace XREngine
                     bool depthTestEnabled = true,
                     float pointSize = DefaultPointSize)
                 {
-                    XRMeshRenderer renderer = GetDebugPrimitive(EDebugPrimitiveType.Point);
+                    XRMeshRenderer renderer = GetDebugPrimitive(EDebugPrimitiveType.Point, out _);
                     SetOptions(depthTestEnabled, null, pointSize, renderer);
                     renderer.SetParameter(0, color);
                     renderer.Render(Matrix4x4.CreateTranslation(position));
@@ -58,7 +59,7 @@ namespace XREngine
                     bool depthTestEnabled = true,
                     float lineWidth = DefaultLineSize)
                 {
-                    XRMeshRenderer renderer = GetDebugPrimitive(EDebugPrimitiveType.Line);
+                    XRMeshRenderer renderer = GetDebugPrimitive(EDebugPrimitiveType.Line, out _);
                     SetOptions(depthTestEnabled, lineWidth, null, renderer);
                     renderer.SetParameter(0, color);
                     Vector3 dir = (end - start).Normalize();
@@ -78,7 +79,7 @@ namespace XREngine
                     bool depthTestEnabled = true,
                     float lineWidth = DefaultLineSize)
                 {
-                    XRMeshRenderer renderer = GetDebugPrimitive(solid ? EDebugPrimitiveType.SolidCircle : EDebugPrimitiveType.WireCircle);
+                    XRMeshRenderer renderer = GetDebugPrimitive(solid ? EDebugPrimitiveType.SolidCircle : EDebugPrimitiveType.WireCircle, out _);
                     SetOptions(depthTestEnabled, lineWidth, null, renderer);
                     renderer.SetParameter(0, color);
                     renderer.Render(
@@ -96,7 +97,7 @@ namespace XREngine
                     bool depthTestEnabled = true,
                     float lineWidth = DefaultLineSize)
                 {
-                    var renderer = GetDebugPrimitive(solid ? EDebugPrimitiveType.SolidQuad : EDebugPrimitiveType.WireQuad);
+                    var renderer = GetDebugPrimitive(solid ? EDebugPrimitiveType.SolidQuad : EDebugPrimitiveType.WireQuad, out _);
                     SetOptions(depthTestEnabled, lineWidth, null, renderer);
                     renderer.SetParameter(0, color);
                     renderer.Render(
@@ -113,7 +114,7 @@ namespace XREngine
                     bool depthTestEnabled = true,
                     float lineWidth = DefaultLineSize)
                 {
-                    XRMeshRenderer renderer = GetDebugPrimitive(solid ? EDebugPrimitiveType.SolidSphere : EDebugPrimitiveType.WireSphere);
+                    XRMeshRenderer renderer = GetDebugPrimitive(solid ? EDebugPrimitiveType.SolidSphere : EDebugPrimitiveType.WireSphere, out _);
                     SetOptions(depthTestEnabled, lineWidth, null, renderer);
                     renderer.SetParameter(0, color);
                     //radius doesn't need to be multiplied by 2.0f; the sphere is already 2.0f in diameter
@@ -145,7 +146,7 @@ namespace XREngine
                     bool depthTestEnabled = true,
                     float lineWidth = DefaultLineSize)
                 {
-                    var renderer = GetDebugPrimitive(solid ? EDebugPrimitiveType.SolidBox : EDebugPrimitiveType.WireBox);
+                    var renderer = GetDebugPrimitive(solid ? EDebugPrimitiveType.SolidBox : EDebugPrimitiveType.WireBox, out _);
                     SetOptions(depthTestEnabled, lineWidth, null, renderer);
                     renderer.SetParameter(0, color);
                     //halfExtents doesn't need to be multiplied by 2.0f; the box is already 1.0f in each direction of each dimension (2.0f extents)
@@ -199,6 +200,44 @@ namespace XREngine
                     mBot.Render(botTransform);
                 }
 
+                public static void RenderTriangle(
+                    Triangle value,
+                    ColorF4 color,
+                    bool solid,
+                    bool depthTestEnabled = true)
+                {
+                    EDebugPrimitiveType type = solid ? EDebugPrimitiveType.SolidTriangle : EDebugPrimitiveType.WireTriangle;
+                    XRMeshRenderer renderer = GetDebugPrimitive(type, out bool created);
+                    if (created)
+                    {
+                        renderer.Mesh!.PositionsBuffer!.Usage = EBufferUsage.DynamicDraw;
+                        renderer.GenerateAsync = false;
+                        renderer.Generate();
+                    }
+                    SetOptions(depthTestEnabled, 1.0f, null, renderer);
+                    renderer.Parameter<ShaderVector4>(0)!.Value = color;
+                    var posBuf = renderer.Mesh!.PositionsBuffer!;
+                    if (solid)
+                    {
+                        posBuf.Set(0, value.A);
+                        posBuf.Set(0, value.B);
+                        posBuf.Set(0, value.C);
+                    }
+                    else
+                    {
+                        posBuf.Set(0, value.A);
+                        posBuf.Set(0, value.B);
+
+                        posBuf.Set(0, value.B);
+                        posBuf.Set(0, value.C);
+
+                        posBuf.Set(0, value.C);
+                        posBuf.Set(0, value.A);
+                    }
+                    posBuf.PushSubData();
+                    renderer.Render();
+                }
+
                 public static void RenderCylinder(Matrix4x4 transform, Vector3 localUpAxis, float radius, float halfHeight, bool solid, ColorF4 color, float lineWidth = DefaultLineSize)
                 {
                     throw new NotImplementedException();
@@ -206,17 +245,15 @@ namespace XREngine
                 public static void RenderCone(Matrix4x4 transform, Vector3 localUpAxis, float radius, float height, bool solid, ColorF4 color, float lineWidth = DefaultLineSize)
                 {
                     //SetLineSize(lineWidth);
-                    XRMeshRenderer m = GetDebugPrimitive(solid ? EDebugPrimitiveType.SolidCone : EDebugPrimitiveType.WireCone);
-                    m.Parameter<ShaderVector4>(0).Value = color;
+                    XRMeshRenderer m = GetDebugPrimitive(solid ? EDebugPrimitiveType.SolidCone : EDebugPrimitiveType.WireCone, out _);
+                    m.Parameter<ShaderVector4>(0)!.Value = color;
                     transform = transform * XRMath.LookatAngles(localUpAxis).GetMatrix() * Matrix4x4.CreateScale(radius, radius, height);
                     m.Render(transform);
                 }
 
                 private static XRMeshRenderer AssignDebugPrimitive(string name, XRMeshRenderer m)
                 {
-                    if (!_debugPrimitives.ContainsKey(name))
-                        _debugPrimitives.Add(name, m);
-                    else
+                    if (!_debugPrimitives.TryAdd(name, m))
                         _debugPrimitives[name] = m;
                     return m;
                 }
@@ -225,6 +262,9 @@ namespace XREngine
                 {
                     Point,
                     Line,
+
+                    WireTriangle,
+                    SolidTriangle,
 
                     WireQuad,
                     SolidQuad,
@@ -249,14 +289,16 @@ namespace XREngine
                 private static readonly Dictionary<string, XRMeshRenderer> _debugPrimitives = [];
                 private static readonly XRMeshRenderer[] _debugPrims = new XRMeshRenderer[14];
 
-                public static XRMeshRenderer GetDebugPrimitive(EDebugPrimitiveType type)
+                public static XRMeshRenderer GetDebugPrimitive(EDebugPrimitiveType type, out bool created, Func<XRMaterial>? materialFactory = null)
                 {
+                    created = false;
                     XRMeshRenderer mesh = _debugPrims[(int)type];
                     if (mesh != null)
                         return mesh;
                     else
                     {
-                        XRMaterial mat = XRMaterial.CreateUnlitColorMaterialForward();
+                        created = true;
+                        XRMaterial mat = materialFactory?.Invoke() ?? XRMaterial.CreateUnlitColorMaterialForward();
                         RenderingParameters p = new();
                         p.DepthTest.Enabled = ERenderParamUsage.Enabled;
                         mat.RenderOptions = p;
@@ -269,6 +311,8 @@ namespace XREngine
                     {
                         EDebugPrimitiveType.Point => XRMesh.CreatePoints(Vector3.Zero),
                         EDebugPrimitiveType.Line => XRMesh.CreateLines(Vector3.Zero, Globals.Forward),
+                        EDebugPrimitiveType.WireTriangle => XRMesh.CreateLinestrip(true, Vector3.Zero, Vector3.Zero, Vector3.Zero),
+                        EDebugPrimitiveType.SolidTriangle => XRMesh.CreateTriangles(Vector3.Zero, Vector3.Zero, Vector3.Zero),
                         EDebugPrimitiveType.WireSphere => XRMesh.Shapes.WireframeSphere(Vector3.Zero, 1.0f, 60),//Diameter is set to 2.0f on purpose
                         EDebugPrimitiveType.SolidSphere => XRMesh.Shapes.SolidSphere(Vector3.Zero, 1.0f, 30),//Diameter is set to 2.0f on purpose
                         EDebugPrimitiveType.WireBox => XRMesh.Shapes.WireframeBox(new Vector3(-1.0f), new Vector3(1.0f)),

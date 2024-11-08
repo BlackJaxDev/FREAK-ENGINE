@@ -109,7 +109,7 @@ namespace XREngine.Rendering
                     }
             
             if (Engine.Rendering.Settings.AllowShaderPipelines)
-                _shaderPipelineProgram = new XRRenderProgram(Shaders);
+                _shaderPipelineProgram = new XRRenderProgram(Shaders.Where(x => x.Type != EShaderType.Vertex));
         }
 
         public static XRMaterial CreateUnlitAlphaTextureMaterialForward(XRTexture2D texture)

@@ -9,7 +9,6 @@ namespace XREngine.Rendering.Models.Materials
     /// </summary>
     public class RenderingParameters : XRAsset
     {
-        private AlphaTest _alphaTest = new();
         private DepthTest _depthTest = new();
         private StencilTest _stencilTest = new();
         private BlendMode _blendMode = new();
@@ -38,12 +37,6 @@ namespace XREngine.Rendering.Models.Materials
                 BlendMode.AlphaDstFactor = EBlendingFactor.OneMinusSrcAlpha;
                 BlendMode.RgbEquation = EBlendEquationMode.FuncAdd;
                 BlendMode.AlphaEquation = EBlendEquationMode.FuncAdd;
-            }
-            if (defaultAlphaTestDiscardMax != null)
-            {
-                AlphaTest.Enabled = ERenderParamUsage.Enabled;
-                AlphaTest.Ref = defaultAlphaTestDiscardMax.Value;
-                AlphaTest.Comp = EComparison.Lequal;
             }
         }
 
@@ -91,11 +84,6 @@ namespace XREngine.Rendering.Models.Materials
         {
             get => _lineWidth;
             set => SetField(ref _lineWidth, value);
-        }
-        public AlphaTest AlphaTest
-        {
-            get => _alphaTest;
-            set => SetField(ref _alphaTest, value);
         }
         public DepthTest DepthTest
         {

@@ -1,7 +1,6 @@
 ﻿using XREngine.Components;
 using XREngine.Data.Core;
 using XREngine.Rendering.Commands;
-using XREngine.Rendering.UI;
 using XREngine.Scene;
 using static XREngine.Engine.Rendering.State;
 
@@ -30,6 +29,20 @@ public sealed partial class XRRenderPipelineInstance : XRBase
         set => SetField(ref _pipeline, value);
     }
 
+    protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
+    {
+        bool change = base.OnPropertyChanging(propName, field, @new);
+        if (change)
+        {
+            switch (propName)
+            {
+                case nameof(Pipeline):
+                    Pipeline?.Instances.Remove(this);
+                    break;
+            }
+        }
+        return change;
+    }
     protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
     {
         base.OnPropertyChanged(propName, prev, field);
@@ -40,6 +53,7 @@ public sealed partial class XRRenderPipelineInstance : XRBase
                 {
                     MeshRenderCommands.SetRenderPasses(Pipeline.PassIndicesAndSorters);
                     InvalidMaterial = Pipeline.InvalidMaterial;
+                    Pipeline.Instances.Add(this);
                 }
                 else
                     InvalidMaterial = null;

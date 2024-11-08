@@ -1,4 +1,5 @@
 ﻿using Extensions;
+using ImageMagick;
 using Silk.NET.OpenGL;
 using Silk.NET.OpenGLES.Extensions.EXT;
 using System.Numerics;
@@ -7,10 +8,11 @@ using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
 using XREngine.Rendering.Models.Materials;
 using XREngine.Rendering.Models.Materials.Textures;
+using PixelFormat = Silk.NET.OpenGL.PixelFormat;
 
 namespace XREngine.Rendering.OpenGL
 {
-    public unsafe partial class OpenGLRenderer : AbstractRenderer<GL>
+    public partial class OpenGLRenderer : AbstractRenderer<GL>
     {
         public Silk.NET.OpenGLES.GL ESApi { get; }
         public ExtMemoryObject? EXTMemoryObject { get; }
@@ -37,12 +39,7 @@ namespace XREngine.Rendering.OpenGL
 
             Api.UseProgram(0);
 
-            Api.Enable(EnableCap.DebugOutput);
-            Api.Enable(EnableCap.DebugOutputSynchronous);
-            Api.DebugMessageCallback(DebugCallback, null);
-            uint[] ids = [];
-            fixed (uint* ptr = ids)
-                Api.DebugMessageControl(GLEnum.DontCare, GLEnum.DontCare, GLEnum.DontCare, 0, ptr, true);
+            SetupDebug();
 
             ESApi = Silk.NET.OpenGLES.GL.GetApi(Window.GLContext);
             EXTMemoryObject = ESApi.TryGetExtension<ExtMemoryObject>(out var ext) ? ext : null;
@@ -51,6 +48,16 @@ namespace XREngine.Rendering.OpenGL
             EXTSemaphoreWin32 = ESApi.TryGetExtension<ExtSemaphoreWin32>(out var ext4) ? ext4 : null;
             EXTMemoryObjectFd = ESApi.TryGetExtension<ExtMemoryObjectFd>(out var ext5) ? ext5 : null;
             EXTSemaphoreFd = ESApi.TryGetExtension<ExtSemaphoreFd>(out var ext6) ? ext6 : null;
+        }
+
+        private unsafe void SetupDebug()
+        {
+            Api.Enable(EnableCap.DebugOutput);
+            Api.Enable(EnableCap.DebugOutputSynchronous);
+            Api.DebugMessageCallback(DebugCallback, null);
+            uint[] ids = [];
+            fixed (uint* ptr = ids)
+                Api.DebugMessageControl(GLEnum.DontCare, GLEnum.DontCare, GLEnum.DontCare, 0, ptr, true);
         }
 
         private int[] _ignoredMessageIds =
@@ -71,7 +78,7 @@ namespace XREngine.Rendering.OpenGL
             //1281, //Invalid texture format
             //1282,
         ];
-        public void DebugCallback(GLEnum source, GLEnum type, int id, GLEnum severity, int length, nint message, nint userParam)
+        public unsafe void DebugCallback(GLEnum source, GLEnum type, int id, GLEnum severity, int length, nint message, nint userParam)
         {
             if (_ignoredMessageIds.IndexOf(id) >= 0)
                 return;
@@ -267,13 +274,13 @@ namespace XREngine.Rendering.OpenGL
             else
                 Api.Disable(EnableCap.DepthTest);
         }
-        public override float GetDepth(float x, float y)
+        public override unsafe float GetDepth(float x, float y)
         {
             float depth = 0.0f;
             Api.ReadPixels((int)x, (int)y, 1, 1, PixelFormat.DepthComponent, PixelType.Float, &depth);
             return depth;
         }
-        public override byte GetStencilIndex(float x, float y)
+        public override unsafe byte GetStencilIndex(float x, float y)
         {
             byte stencil = 0;
             Api.ReadPixels((int)x, (int)y, 1, 1, PixelFormat.StencilIndex, PixelType.UnsignedByte, &stencil);
@@ -283,6 +290,11 @@ namespace XREngine.Rendering.OpenGL
         {
             var att = attachment switch
             {
+                EDrawBuffersAttachment.None => GLEnum.None,
+                EDrawBuffersAttachment.FrontLeft => GLEnum.FrontLeft,
+                EDrawBuffersAttachment.FrontRight => GLEnum.FrontRight,
+                EDrawBuffersAttachment.BackLeft => GLEnum.BackLeft,
+                EDrawBuffersAttachment.BackRight => GLEnum.BackRight,
                 EDrawBuffersAttachment.ColorAttachment0 => GLEnum.ColorAttachment0,
                 EDrawBuffersAttachment.ColorAttachment1 => GLEnum.ColorAttachment1,
                 EDrawBuffersAttachment.ColorAttachment2 => GLEnum.ColorAttachment2,
@@ -439,19 +451,19 @@ namespace XREngine.Rendering.OpenGL
         //    Api.TexParameterI(t, TextureParameterName.TextureMaxLod, ref maxLOD);
         //}
 
-        public void ClearTexImage(uint bindingId, int level, ColorF4 color)
+        public unsafe void ClearTexImage(uint bindingId, int level, ColorF4 color)
         {
             void* addr = color.Address;
             Api.ClearTexImage(bindingId, level, GLEnum.Rgba, GLEnum.Float, addr);
         }
 
-        public void ClearTexImage(uint bindingId, int level, ColorF3 color)
+        public unsafe void ClearTexImage(uint bindingId, int level, ColorF3 color)
         {
             void* addr = color.Address;
             Api.ClearTexImage(bindingId, level, GLEnum.Rgb, GLEnum.Float, addr);
         }
 
-        public void ClearTexImage(uint bindingId, int level, RGBAPixel color)
+        public unsafe void ClearTexImage(uint bindingId, int level, RGBAPixel color)
         {
             void* addr = color.Address;
             Api.ClearTexImage(bindingId, level, GLEnum.Rgba, GLEnum.Byte, addr);
@@ -466,7 +478,7 @@ namespace XREngine.Rendering.OpenGL
                 _ => TextureTarget.Texture2D
             };
 
-        public override bool CalcDotLuminance(XRTexture2D texture, Vector3 luminance, out float dotLuminance, bool genMipmapsNow = true)
+        public override unsafe bool CalcDotLuminance(XRTexture2D texture, Vector3 luminance, out float dotLuminance, bool genMipmapsNow = true)
         {
             dotLuminance = 1.0f;
             var glTex = GenericToAPI<GLTexture2D>(texture);
@@ -489,6 +501,70 @@ namespace XREngine.Rendering.OpenGL
 
             //Calculate luminance factor off of the average color
             dotLuminance = rgb.Dot(luminance);
+            return true;
+        }
+
+        public override void GetScreenshotAsync(BoundingRectangle region, bool withTransparency, Action<MagickImage> imageCallback)
+        {
+            //TODO: render to an FBO with the desired render size and capture from that, instead of using the window size.
+
+            //TODO: multi-glcontext readback.
+            //This method is async on the CPU, but still executes synchronously on the GPU.
+            //https://developer.download.nvidia.com/GTC/PDF/GTC2012/PresentationPDF/S0356-GTC2012-Texture-Transfers.pdf
+
+            uint w = (uint)region.Width;
+            uint h = (uint)region.Height;
+            EPixelFormat format = withTransparency ? EPixelFormat.Bgra : EPixelFormat.Bgr;
+            EPixelType pixelType = EPixelType.UnsignedByte;
+            var data = XRTexture.AllocateBytes(w, h, format, pixelType);
+
+            Api.BindFramebuffer(FramebufferTarget.ReadFramebuffer, 0);
+            Api.ReadBuffer(ReadBufferMode.Front);
+
+            nuint size = (uint)data.Length;
+            uint pbo = ReadToPBO(region, w, h, format, pixelType, size, out IntPtr sync);
+            void FenceCheck()
+            {
+                if (GetData(size, data, sync, pbo))
+                {
+                    Api.DeleteSync(sync);
+                    Api.DeleteBuffer(pbo);
+                    var image = XRTexture.NewImage(w, h, format, pixelType, data);
+                    image.Flip();
+                    Task.Run(() => imageCallback(image));
+                }
+                else
+                {
+                    Engine.EnqueueMainThreadTask(FenceCheck);
+                }
+            }
+            Engine.EnqueueMainThreadTask(FenceCheck);
+        }
+
+        private unsafe uint ReadToPBO(BoundingRectangle region, uint w, uint h, EPixelFormat format, EPixelType type, nuint size, out IntPtr sync)
+        {
+            uint pbo = Api.GenBuffer();
+            Api.BindBuffer(BufferTargetARB.PixelPackBuffer, pbo);
+            Api.BufferData(GLEnum.PixelPackBuffer, size, null, GLEnum.StreamRead);
+            Api.ReadPixels(region.X, region.Y, w, h, GLObjectBase.ToGLEnum(format), GLObjectBase.ToGLEnum(type), null);
+            sync = Api.FenceSync(GLEnum.SyncGpuCommandsComplete, 0u);
+            Api.BindBuffer(BufferTargetARB.PixelPackBuffer, 0);
+            return pbo;
+        }
+
+        private unsafe bool GetData(nuint size, byte[] data, IntPtr sync, uint pbo)
+        {
+            var result = Api.ClientWaitSync(sync, 0u, 0u);
+            if (!(result == GLEnum.AlreadySignaled || result == GLEnum.ConditionSatisfied))
+                return false;
+
+            Api.BindBuffer(BufferTargetARB.PixelPackBuffer, pbo);
+            fixed (byte* ptr = data)
+            {
+                Api.GetBufferSubData(GLEnum.PixelPackBuffer, IntPtr.Zero, size, ptr);
+            }
+            Api.BindBuffer(BufferTargetARB.PixelPackBuffer, 0);
+
             return true;
         }
 
@@ -674,10 +750,10 @@ namespace XREngine.Rendering.OpenGL
             return (IntPtr)handle;
         }
 
-        public void SetMemoryObjectHandle(uint memoryObject, void* memoryObjectHandle)
+        public unsafe void SetMemoryObjectHandle(uint memoryObject, void* memoryObjectHandle)
             => EXTMemoryObjectWin32?.ImportMemoryWin32Handle(memoryObject, 0, EXT.HandleTypeOpaqueWin32Ext, memoryObjectHandle);
 
-        public void SetSemaphoreHandle(uint semaphore, void* semaphoreHandle)
+        public unsafe void SetSemaphoreHandle(uint semaphore, void* semaphoreHandle)
             => EXTSemaphoreWin32?.ImportSemaphoreWin32Handle(semaphore, EXT.HandleTypeOpaqueWin32Ext, semaphoreHandle);
 
     }

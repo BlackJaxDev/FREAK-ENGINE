@@ -6,6 +6,14 @@ namespace XREngine.Rendering
 {
     public abstract class XRTexture : GenericRenderObject
     {
+        /// <summary>
+        /// Allocates a new empty image with the specified dimensions, format and type.
+        /// </summary>
+        /// <param name="width"></param>
+        /// <param name="height"></param>
+        /// <param name="format"></param>
+        /// <param name="type"></param>
+        /// <returns></returns>
         public static MagickImage NewImage(uint width, uint height, EPixelFormat format, EPixelType type)
         {
             byte[] data = AllocateBytes(width, height, format, type);
@@ -26,6 +34,69 @@ namespace XREngine.Rendering
                     _ => 8,
                 },
             };
+            return new(data, settings);
+        }
+        /// <summary>
+        /// Creates a new image with the specified dimensions, format, type and data.
+        /// Allocate the data array parameter with AllocateBytes.
+        /// </summary>
+        /// <param name="width"></param>
+        /// <param name="height"></param>
+        /// <param name="format"></param>
+        /// <param name="type"></param>
+        /// <param name="dataFactory"></param>
+        /// <returns></returns>
+        public static MagickImage NewImage(uint width, uint height, EPixelFormat format, EPixelType type, byte[] data)
+        {
+            MagickReadSettings settings = new()
+            {
+                Width = width,
+                Height = height,
+                FillColor = HasAlpha(format) ? MagickColor.FromRgba(0, 0, 0, 255) : MagickColor.FromRgb(0, 0, 0),
+                Format = GetMagickFormat(format),
+                ColorSpace = IsSigned(type) ? ColorSpace.sRGB : ColorSpace.RGB,
+                Depth = type switch
+                {
+                    EPixelType.Byte => 8,
+                    EPixelType.Short => 16,
+                    EPixelType.Int => 32,
+                    EPixelType.Float => 32,
+                    EPixelType.HalfFloat => 16,
+                    _ => 8,
+                },
+            };
+            return new(data, settings);
+        }
+        /// <summary>
+        /// Allocates and populates a new image with the specified dimensions, format, type and data.
+        /// </summary>
+        /// <param name="width"></param>
+        /// <param name="height"></param>
+        /// <param name="format"></param>
+        /// <param name="type"></param>
+        /// <param name="dataFactory"></param>
+        /// <returns></returns>
+        public static MagickImage NewImage(uint width, uint height, EPixelFormat format, EPixelType type, Action<byte[]> dataFactory)
+        {
+            byte[] data = AllocateBytes(width, height, format, type);
+            MagickReadSettings settings = new()
+            {
+                Width = width,
+                Height = height,
+                FillColor = HasAlpha(format) ? MagickColor.FromRgba(0, 0, 0, 255) : MagickColor.FromRgb(0, 0, 0),
+                Format = GetMagickFormat(format),
+                ColorSpace = IsSigned(type) ? ColorSpace.sRGB : ColorSpace.RGB,
+                Depth = type switch
+                {
+                    EPixelType.Byte => 8,
+                    EPixelType.Short => 16,
+                    EPixelType.Int => 32,
+                    EPixelType.Float => 32,
+                    EPixelType.HalfFloat => 16,
+                    _ => 8,
+                },
+            };
+            dataFactory(data);
             return new(data, settings);
         }
 

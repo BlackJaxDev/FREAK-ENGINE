@@ -343,14 +343,22 @@ namespace XREngine.Rendering.OpenGL
             {
                 MakeIndexBuffers();
 
+                var material = Material;
+                if (material is null)
+                {
+                    Debug.LogWarning("No material found for mesh renderer, using invalid material.");
+                    material = Renderer.GenericToAPI<GLMaterial>(Engine.Rendering.State.CurrentPipeline!.InvalidMaterial); //Don't use GetRenderMaterial here, global and local override materials are for current render only
+                }
+
+                bool useDefaultVertexShader = material?.Data?.VertexShaders?.Count == 0;
+
                 //Determine how we're combining the material and vertex shader here
                 GLRenderProgram vertexProgram;
                 if (Engine.Rendering.Settings.AllowShaderPipelines)
                 {
                     _combinedProgram = null;
 
-                    var material = Material;
-                    XRShader shader = (material?.Data?.VertexShaders?.Count ?? 0) == 0
+                    XRShader shader = useDefaultVertexShader
                         ? new XRShader(EShaderType.Vertex, Data.GeneratedVertexShaderSource!)
                         : material!.Data.VertexShaders[0];
                     _separatedVertexProgram = Renderer.GenericToAPI<GLRenderProgram>(new XRRenderProgram(false, shader))!;
@@ -359,16 +367,9 @@ namespace XREngine.Rendering.OpenGL
                 }
                 else
                 {
-                    var material = Material;
-                    if (material is null)
-                    {
-                        Debug.LogWarning("No material found for mesh renderer, using invalid material.");
-                        material = Renderer.GenericToAPI<GLMaterial>(Engine.Rendering.State.CurrentPipeline!.InvalidMaterial); //Don't use GetRenderMaterial here, global and local override materials are for current render only
-                    }
                     IEnumerable<XRShader> shaders = material!.Data.Shaders;
 
                     //If the material doesn't have a vertex shader, use the default one
-                    bool useDefaultVertexShader = material.Data.VertexShaders.Count == 0;
                     if (useDefaultVertexShader)
                         shaders = shaders.Append(new XRShader(EShaderType.Vertex, Data.GeneratedVertexShaderSource!));
 
@@ -526,17 +527,17 @@ namespace XREngine.Rendering.OpenGL
             if (triangles > 0)
             {
                 //Api.DrawElements(GLEnum.Triangles, triangles, ToGLEnum(ActiveMeshRenderer.TrianglesElementType), null);
-                Api.DrawElementsInstancedBaseInstance(GLEnum.Triangles, triangles, ToGLEnum(ActiveMeshRenderer.TrianglesElementType), null, instances, 0);
+                Api.DrawElementsInstanced(GLEnum.Triangles, triangles, ToGLEnum(ActiveMeshRenderer.TrianglesElementType), null, instances);
             }
             if (lines > 0)
             {
                 //Api.DrawElements(GLEnum.Lines, lines, ToGLEnum(ActiveMeshRenderer.LineIndicesElementType), null);
-                Api.DrawElementsInstancedBaseInstance(GLEnum.Lines, lines, ToGLEnum(ActiveMeshRenderer.LineIndicesElementType), null, instances, 0);
+                Api.DrawElementsInstanced(GLEnum.Lines, lines, ToGLEnum(ActiveMeshRenderer.LineIndicesElementType), null, instances);
             }
             if (points > 0)
             {
                 //Api.DrawElements(GLEnum.Points, points, ToGLEnum(ActiveMeshRenderer.PointIndicesElementType), null);
-                Api.DrawElementsInstancedBaseInstance(GLEnum.Points, points, ToGLEnum(ActiveMeshRenderer.PointIndicesElementType), null, instances, 0);
+                Api.DrawElementsInstanced(GLEnum.Points, points, ToGLEnum(ActiveMeshRenderer.PointIndicesElementType), null, instances);
             }
 
             //Api.MemoryBarrier(MemoryBarrierMask.ShaderStorageBarrierBit | MemoryBarrierMask.ClientMappedBufferBarrierBit);

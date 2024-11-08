@@ -1,4 +1,5 @@
-﻿using Silk.NET.Vulkan;
+﻿using ImageMagick;
+using Silk.NET.Vulkan;
 using System.Numerics;
 using XREngine.Data.Colors;
 using XREngine.Data.Geometry;
@@ -7,6 +8,10 @@ namespace XREngine.Rendering.Vulkan
 {
     public unsafe partial class VulkanRenderer
     {
+        public override void GetScreenshotAsync(BoundingRectangle region, bool withTransparency, Action<MagickImage> imageCallback)
+        {
+            throw new NotImplementedException();
+        }
         public override void ClearColor(ColorF4 color)
         {
             throw new NotImplementedException();

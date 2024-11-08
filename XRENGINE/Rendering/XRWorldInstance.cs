@@ -398,24 +398,30 @@ namespace XREngine.Rendering
             Sequences.Clear();
         }
 
-        public SortedDictionary<float, ITreeItem>? Raycast(CameraComponent cameraComponent, Vector2 screenPoint)
+        [RequiresDynamicCode("")]
+        public SortedDictionary<float, ITreeItem>? Raycast(CameraComponent cameraComponent, Vector2 screenPoint, out Triangle? triangle)
         {
-            Debug.Out($"Raycasting from screen point: {screenPoint}");
-            VisualScene.Raycast(cameraComponent, screenPoint, out SortedDictionary<float, ITreeItem> items, DirectItemTest);
+            //Debug.Out($"Raycasting from screen point: {screenPoint}");
+            Triangle? t = null;
+            VisualScene.Raycast(cameraComponent, screenPoint, out SortedDictionary<float, ITreeItem> items, (item, segment) => DirectItemTest(item, segment, out t));
             //PhysicsScene.Raycast(cameraComponent, screenPoint, items);
+            triangle = t;
             return items;
         }
 
         [RequiresDynamicCode("Calls XREngine.Components.Scene.Mesh.ModelComponent.Intersect(Segment, out Triangle?)")]
-        private float? DirectItemTest(ITreeItem item, Segment segment)
-            => item is not RenderInfo renderable || renderable.Owner is not XRComponent component
+        private static float? DirectItemTest(ITreeItem item, Segment segment, out Triangle? triangle)
+        {
+            triangle = null;
+            return item is not RenderInfo renderable || renderable.Owner is not XRComponent component
                 ? null
                 : component switch
                 {
-                    ModelComponent model => model.Intersect(segment, out _),
+                    ModelComponent model => model.Intersect(segment, out triangle),
                     //TODO: physics comparision
                     //RigidBodyComponent body => body.Collider?.Intersect(segment),
                     _ => null,
                 };
+        }
     }
 }

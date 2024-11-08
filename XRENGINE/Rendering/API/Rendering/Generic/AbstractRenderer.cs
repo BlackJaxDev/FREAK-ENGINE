@@ -1,4 +1,5 @@
 ﻿using Extensions;
+using ImageMagick;
 using Silk.NET.Core.Native;
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
@@ -13,7 +14,6 @@ using XREngine.Data.Rendering;
 using XREngine.Data.Transforms.Rotations;
 using XREngine.Input;
 using XREngine.Rendering.Models.Materials;
-using XREngine.Scene;
 using static XREngine.Engine;
 
 namespace XREngine.Rendering
@@ -373,6 +373,8 @@ namespace XREngine.Rendering
         }
 
         public abstract void DispatchCompute(XRRenderProgram program, int v1, int v2, int v3);
+
+        public abstract void GetScreenshotAsync(BoundingRectangle region, bool withTransparency, Action<MagickImage> imageCallback);
     }
     public abstract unsafe partial class AbstractRenderer<TAPI>(XRWindow window) : AbstractRenderer(window) where TAPI : NativeAPI
     {

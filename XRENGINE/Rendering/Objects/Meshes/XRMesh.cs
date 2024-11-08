@@ -402,6 +402,8 @@ namespace XREngine.Rendering
             => new(positions.SelectEvery(3, x => new VertexTriangle(x[0], x[1], x[2])));
         public static XRMesh CreateLines(params Vector3[] positions)
             => new(positions.SelectEvery(2, x => new VertexLine(x[0], x[1])));
+        public static XRMesh CreateLinestrip(bool closed, params Vector3[] positions)
+            => new(new VertexLineStrip(closed, positions.Select(x => new Vertex(x)).ToArray()));
         public static XRMesh CreateLines(IEnumerable<Vector3> positions)
             => new(positions.SelectEvery(2, x => new VertexLine(x[0], x[1])));
         public static XRMesh CreatePoints(params Vector3[] positions)
@@ -842,10 +844,8 @@ namespace XREngine.Rendering
         /// <param name="type"></param>
         public XRMesh(IEnumerable<VertexPrimitive> primitives) : this()
         {
-#if DEBUG
-            Stopwatch sw = new();
-            sw.Start();
-#endif
+            Engine.Profiler.Start(null, true, "XRMesh Constructor");
+
             //TODO: convert triangles to tristrips and use primitive restart to render them all in one call? is this more efficient?
 
             //Convert all primitives to simple primitives
@@ -1023,13 +1023,6 @@ namespace XREngine.Rendering
 
             //if (weights is not null)
             //    SetBoneWeights(weights, );
-
-#if DEBUG
-            sw.Stop();
-            float sec = sw.ElapsedMilliseconds / 1000.0f;
-            if (sec > 1.0f)
-                Debug.Out($"Mesh creation took {sw.ElapsedMilliseconds / 1000.0f} sec.");
-#endif
         }
 
         public unsafe XRMesh(
@@ -1039,7 +1032,7 @@ namespace XREngine.Rendering
             Dictionary<string, List<SceneNode>> nodeCache,
             Matrix4x4 invRootMatrix) : this()
         {
-            //Engine.Profiler.Start(null, true, "XRMesh Constructor");
+            Engine.Profiler.Start(null, true, "XRMesh Assimp Constructor");
 
             Matrix4x4 dataTransform = Matrix4x4.Identity;//parentTransform.InverseWorldMatrix;
 
@@ -1601,11 +1594,20 @@ namespace XREngine.Rendering
             if (matches is null)
                 return null;
 
-            var triangles = matches.Select(x => x.gobjects![0]);
+            var triangles = matches.Select(x =>
+            {
+                Triangle? tri = null;
+                if (x.gobjects is not null && x.gobjects.Count != 0)
+                    tri = x.gobjects[0];
+                return tri;
+            });
             float? minDist = null;
             foreach (var tri in triangles)
             {
-                GeoUtil.RayIntersectsTriangle(localSpaceSegment.Start, localSpaceSegment.End, tri.A, tri.B, tri.C, out float dist);
+                if (tri is null)
+                    continue;
+
+                GeoUtil.RayIntersectsTriangle(localSpaceSegment.Start, localSpaceSegment.End, tri.Value.A, tri.Value.B, tri.Value.C, out float dist);
                 if (dist < minDist || minDist is null)
                 {
                     minDist = dist;

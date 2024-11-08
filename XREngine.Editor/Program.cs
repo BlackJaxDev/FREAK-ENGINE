@@ -48,9 +48,9 @@ internal class Program
 
     static XRWorld CreateTestWorld()
     {
-        FontGlyphSet font = Engine.Assets.LoadEngineAsset<FontGlyphSet>("Fonts", "Calligraphy.ttf");
+        FontGlyphSet font = Engine.Assets.LoadEngineAsset<FontGlyphSet>("Fonts", "Roboto", "Roboto-Regular.ttf");
         string? dir = Path.GetDirectoryName(font.OriginalPath);
-        Engine.Assets.SaveTo(font, dir!);
+        //Engine.Assets.SaveTo(font, dir!);
 
         string desktopDir = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
         //UnityPackageExtractor.ExtractAsync(Path.Combine(desktopDir, "Animations.unitypackage"), Path.Combine(desktopDir, "Extracted"), true);
@@ -82,14 +82,14 @@ internal class Program
             cameraComp.CullWithFrustum = false;
         }
 
-        SceneNode textNode = new(rootNode) { Name = "TestTextNode" };
+        SceneNode textNode = new(cameraNode) { Name = "TestTextNode" };
         TextComponent text = textNode.AddComponent<TextComponent>()!;
         text.Font = font;
         //text.Text = "Hello, World!";
-        text.RegisterAnimationTick<TextComponent>(t => t.Text = $"{MathF.Round(1.0f / Engine.Time.Timer.Render.SmoothedDelta)} fps");
+        text.RegisterAnimationTick<TextComponent>(t => t.Text = $"{MathF.Round(1.0f / Engine.Time.Timer.Render.SmoothedDelta)}hz");
         var textTransform = textNode.GetTransformAs<Transform>()!;
-        textTransform.Translation = new Vector3(0.0f, 0.0f, -5.0f);
-        textTransform.Scale = new Vector3(10.0f);
+        textTransform.Translation = new Vector3(0.95f, 0.55f, -1.0f);
+        textTransform.Scale = new Vector3(0.0002f);
 
         //Pawn
         cameraNode.TryAddComponent<EditorFlyingCameraPawnComponent>(out var pawnComp);
@@ -252,10 +252,6 @@ internal class Program
                             Enabled = ERenderParamUsage.Enabled,
                             Function = EComparison.Less,
                         },
-                        AlphaTest = new AlphaTest()
-                        {
-                            Enabled = ERenderParamUsage.Disabled,
-                        },
                         LineWidth = 1.0f,
                     }
                 })]);
@@ -276,7 +272,7 @@ internal class Program
             PostProcessSteps.JoinIdenticalVertices |
             PostProcessSteps.CalculateTangentSpace;
 
-        //ModelImporter.ImportAsync(fbxPathDesktop, flags, null, MaterialFactory, importedModelsNode, 1, true).ContinueWith(OnFinishedAvatar);
+        ModelImporter.ImportAsync(fbxPathDesktop, flags, null, MaterialFactory, importedModelsNode, 1, true).ContinueWith(OnFinishedAvatar);
 
         //string sponzaPath = Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj");
         //ModelImporter.ImportAsync(sponzaPath, flags, null, MaterialFactory, importedModelsNode, 1, false).ContinueWith(OnFinishedWorld);
@@ -335,17 +331,6 @@ internal class Program
                 UpdateDepth = true,
                 Enabled = ERenderParamUsage.Enabled,
                 Function = EComparison.Less,
-            },
-            AlphaTest = new AlphaTest()
-            {
-                Enabled = ERenderParamUsage.Enabled,
-                Comp = EComparison.Greater,
-                Ref = 0.5f,
-                Comp1 = EComparison.Greater,
-                Ref1 = 0.5f,
-                LogicGate = ELogicGate.Or,
-                UseAlphaToCoverage = false,
-                UseConstantAlpha = false
             },
             LineWidth = 5.0f,
         };

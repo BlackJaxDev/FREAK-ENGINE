@@ -2,6 +2,7 @@
 using XREngine.Components;
 using XREngine.Data.Rendering;
 using XREngine.Rendering.Info;
+using XREngine.Scene.Transforms;
 
 namespace XREngine.Rendering.UI
 {
@@ -12,10 +13,19 @@ namespace XREngine.Rendering.UI
             RenderedObjects[0] = RenderInfo3D.New(this, _rc);
         }
 
+        private readonly RenderCommandMesh3D _rc = new((int)EDefaultRenderPass.TransparentForward);
+        public RenderInfo[] RenderedObjects { get; } = new RenderInfo[1];
+
         private FontGlyphSet? _font;
         private string? _text;
         private bool _animatableTransforms = false;
-        private List<(Matrix4x4 transform, Vector4 uvs)>? _glyphs;
+        private List<(Vector4 transform, Vector4 uvs)>? _glyphs;
+
+        protected override void OnTransformWorldMatrixChanged(TransformBase transform)
+        {
+            base.OnTransformWorldMatrixChanged(transform);
+            _rc.WorldMatrix = transform.WorldMatrix;
+        }
 
         public string? Text
         {
@@ -60,21 +70,37 @@ namespace XREngine.Rendering.UI
 
             if (fontChanged || _rc.Mesh is null)
             {
-                _rc.Mesh?.Destroy();
-                var mesh = XRMesh.Create(VertexQuad.PosZ(1.0f, true, 0.0f, true));
-                var mat = new XRMaterial(
+                if (_rc.Mesh is not null)
+                {
+                    _rc.Mesh.SettingUniforms -= MeshRend_SettingUniforms;
+                    _rc.Mesh.Destroy();
+                }
+
+                var mesh = XRMesh.Create(VertexQuad.PosZ(1.0f, true, 0.0f, false));
+                var mat =
+                //XRMaterial.CreateUnlitColorMaterialForward(ColorF4.Red);
+                new XRMaterial(
                     [Font.Atlas],
                     XRShader.EngineShader(Path.Combine("Common", "Text.vs"), EShaderType.Vertex),
                     XRShader.EngineShader(Path.Combine("Common", "Text.fs"), EShaderType.Fragment))
                 {
-                    RenderPass = (int)EDefaultRenderPass.OpaqueForward
+                    RenderPass = (int)EDefaultRenderPass.TransparentForward,
+                    RenderOptions = new()
+                    {
+                        CullMode = ECullMode.None,
+                        DepthTest = new()
+                        {
+                            Enabled = Models.Materials.ERenderParamUsage.Disabled,
+                            Function = Models.Materials.EComparison.Always
+                        },
+                        //RequiredEngineUniforms = Models.Materials.EUniformRequirements.Camera
+                    }
                 };
-                mat.RenderOptions.CullMode = ECullMode.None;
-                mat.RenderOptions.DepthTest.Enabled = Models.Materials.ERenderParamUsage.Enabled;
-                mat.RenderOptions.DepthTest.Function = Models.Materials.EComparison.Always;
-                var meshRend = new XRMeshRenderer(mesh, mat);
-                CreateSSBOs(meshRend);
-                _rc.Mesh = meshRend;
+
+                var rend = new XRMeshRenderer(mesh, mat);
+                rend.SettingUniforms += MeshRend_SettingUniforms;
+                CreateSSBOs(rend);
+                _rc.Mesh = rend;
             }
 
             Font.GetQuads(Text, out _glyphs);
@@ -82,7 +108,26 @@ namespace XREngine.Rendering.UI
             UpdateSSBOs();
         }
 
-        private uint _allocatedGlyphCount = 0;
+        public bool PushFull = false;
+        public bool DataChanged = false;
+
+        private void MeshRend_SettingUniforms(XRRenderProgram vertexProgram, XRRenderProgram materialProgram)
+        {
+            if (!DataChanged)
+                return;
+
+            DataChanged = false;
+
+            if (PushFull)
+            {
+                PushFull = false;
+                PushBuffers();
+            }
+            else
+                PushSubBuffers();
+        }
+
+        private uint _allocatedGlyphCount = 20;
 
         private void UpdateSSBOs()
         {
@@ -92,20 +137,27 @@ namespace XREngine.Rendering.UI
             if (_glyphs is null || _glyphs.Count == 0)
                 return;
 
+            uint length = GetAllocationLength();
+
+            if (_allocatedGlyphCount < length)
+            {
+                _allocatedGlyphCount = length;
+                _transformsBuffer?.Resize(_allocatedGlyphCount);
+                _uvsBuffer?.Resize(_allocatedGlyphCount);
+                PushFull = true;
+            }
+
+            DataChanged = true;
+        }
+
+        private uint GetAllocationLength()
+        {
             //Get nearest power of 2 for the number of glyphs
-            uint numGlyphs = (uint)_glyphs.Count;
+            uint numGlyphs = (uint)(_glyphs?.Count ?? 0);
             uint powerOf2 = 1u;
             while (powerOf2 < numGlyphs)
                 powerOf2 *= 2u;
-
-            if (_allocatedGlyphCount < powerOf2)
-            {
-                _allocatedGlyphCount = powerOf2;
-                _transformsBuffer?.Resize(_allocatedGlyphCount);
-                _uvsBuffer?.Resize(_allocatedGlyphCount);
-            }
-
-            WriteData();
+            return powerOf2;
         }
 
         private void CreateSSBOs(XRMeshRenderer meshRend)
@@ -113,13 +165,15 @@ namespace XREngine.Rendering.UI
             string transformsBindingName = "GlyphTransformsBuffer";
             string uvsBindingName = $"GlyphTexCoordsBuffer";
 
+            //_allocatedGlyphCount = GetAllocationLength();
+
             _transformsBuffer?.Destroy();
-            _transformsBuffer = new(transformsBindingName, EBufferTarget.ShaderStorageBuffer, _allocatedGlyphCount, EComponentType.Float, 16, false, false)
+            _transformsBuffer = new(transformsBindingName, EBufferTarget.ShaderStorageBuffer, _allocatedGlyphCount, EComponentType.Float, 4, false, false)
             {
                 //RangeFlags = EBufferMapRangeFlags.Write | EBufferMapRangeFlags.Persistent | EBufferMapRangeFlags.Coherent;
                 //StorageFlags = EBufferMapStorageFlags.Write | EBufferMapStorageFlags.Persistent | EBufferMapStorageFlags.Coherent | EBufferMapStorageFlags.ClientStorage;
                 Usage = AnimatableTransforms ? EBufferUsage.StreamDraw : EBufferUsage.StaticCopy,
-                //BindingIndexOverride = 0,
+                BindingIndexOverride = 0,
             };
 
             _uvsBuffer?.Destroy();
@@ -128,11 +182,14 @@ namespace XREngine.Rendering.UI
                 //RangeFlags = EBufferMapRangeFlags.Write | EBufferMapRangeFlags.Persistent | EBufferMapRangeFlags.Coherent;
                 //StorageFlags = EBufferMapStorageFlags.Write | EBufferMapStorageFlags.Persistent | EBufferMapStorageFlags.Coherent | EBufferMapStorageFlags.ClientStorage;
                 Usage = EBufferUsage.StaticCopy,
-                //BindingIndexOverride = 1,
+                BindingIndexOverride = 1,
             };
 
             meshRend.Buffers.Add(transformsBindingName, _transformsBuffer);
             meshRend.Buffers.Add(uvsBindingName, _uvsBuffer);
+
+            DataChanged = true;
+            PushFull = true;
         }
 
         private unsafe void WriteData()
@@ -140,23 +197,38 @@ namespace XREngine.Rendering.UI
             if (_glyphs is null || _transformsBuffer is null || _uvsBuffer is null)
                 return;
 
-            var tfmPtr = (float*)_transformsBuffer.Source!.Address.Pointer;
-            var uvsPtr = (float*)_uvsBuffer.Source!.Address.Pointer;
+            float* tfmPtr = (float*)_transformsBuffer.Source!.Address.Pointer;
+            float* uvsPtr = (float*)_uvsBuffer.Source!.Address.Pointer;
 
             for (int i = 0; i < _glyphs.Count; i++)
             {
                 var (transform, uvs) = _glyphs[i];
 
-                for (int y = 0; y < 4; y++)
-                    for (int x = 0; x < 4; x++)
-                        *tfmPtr++ = transform[x, y];
-                
-                for (int j = 0; j < 4; j++)
-                    *uvsPtr++ = uvs[j];
+                *tfmPtr++ = transform.X;
+                *tfmPtr++ = transform.Y;
+                *tfmPtr++ = transform.Z;
+                *tfmPtr++ = transform.W;
+                //Debug.Out(i.ToString() + ": " + transform.ToString());
+
+                *uvsPtr++ = uvs.X;
+                *uvsPtr++ = uvs.Y;
+                *uvsPtr++ = uvs.Z;
+                *uvsPtr++ = uvs.W;
+                //Debug.Out(uvs.ToString());
             }
         }
 
-        private readonly RenderCommandMesh3D _rc = new((int)EDefaultRenderPass.OpaqueForward);
-        public RenderInfo[] RenderedObjects { get; } = new RenderInfo[1];
+        private void PushSubBuffers()
+        {
+            WriteData();
+            _transformsBuffer?.PushSubData();
+            _uvsBuffer?.PushSubData();
+        }
+        private void PushBuffers()
+        {
+            WriteData();
+            _transformsBuffer?.PushData();
+            _uvsBuffer?.PushData();
+        }
     }
 }

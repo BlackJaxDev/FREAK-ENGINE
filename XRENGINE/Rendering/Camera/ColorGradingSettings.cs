@@ -13,7 +13,7 @@ namespace XREngine.Rendering
 
         private float _contrast = 0.0f;
         private float _contrastUniformValue;
-        private float _exposureTransitionSpeed = 0.1f;
+        private float _exposureTransitionSpeed = 0.01f;
         private ColorF3 _tint = new(1.0f, 1.0f, 1.0f);
         private bool _autoExposure = true;
         private float _autoExposureBias = 0.0f;

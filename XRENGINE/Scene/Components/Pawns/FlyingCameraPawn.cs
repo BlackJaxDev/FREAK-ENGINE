@@ -44,7 +44,7 @@ namespace XREngine.Components
             }
         }
 
-        private float _shiftSpeedModifier = 1.1f;
+        private float _shiftSpeedModifier = 3.0f;
         public float ShiftSpeedModifier 
         {
             get => _shiftSpeedModifier; 

@@ -1,19 +1,19 @@
-﻿using System.Numerics;
+﻿using XREngine.Data.Core;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
 using XREngine.Data.Vectors;
 using XREngine.Rendering.Commands;
 using XREngine.Rendering.Models.Materials;
 using XREngine.Rendering.Pipelines.Commands;
-using static XREngine.Rendering.XRRenderPipelineInstance;
 using static XREngine.Engine.Rendering.State;
-using XREngine.Data.Core;
-using XREngine.Data.Colors;
+using static XREngine.Rendering.XRRenderPipelineInstance;
 
 namespace XREngine.Rendering;
 
 public abstract class RenderPipeline : XRBase
 {
+    public List<XRRenderPipelineInstance> Instances { get; } = [];
+
     protected abstract Lazy<XRMaterial> InvalidMaterialFactory { get; }
     public XRMaterial InvalidMaterial 
         => InvalidMaterialFactory.Value;

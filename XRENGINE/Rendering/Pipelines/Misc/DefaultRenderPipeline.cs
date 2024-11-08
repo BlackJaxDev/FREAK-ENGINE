@@ -26,6 +26,7 @@ public class DefaultRenderPipeline : RenderPipeline
             { (int)EDefaultRenderPass.OpaqueForward, _nearToFarSorter },
             { (int)EDefaultRenderPass.TransparentForward, _farToNearSorter },
             { (int)EDefaultRenderPass.OnTopForward, null },
+            { (int)EDefaultRenderPass.PostRender, _nearToFarSorter }
         };
 
     protected override Lazy<XRMaterial> InvalidMaterialFactory => new(MakeInvalidMaterial, LazyThreadSafetyMode.PublicationOnly);
@@ -94,6 +95,7 @@ public class DefaultRenderPipeline : RenderPipeline
                 c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.OnTopForward;
             }
         }
+        c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.PostRender;
         return c;
     }
 
@@ -207,6 +209,7 @@ public class DefaultRenderPipeline : RenderPipeline
                 c.Add<VPRC_RenderUI>().UserInterfaceFBOName = UserInterfaceFBOName;
             }
         }
+        c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.PostRender;
         return c;
     }
 

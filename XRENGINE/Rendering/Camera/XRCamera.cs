@@ -5,6 +5,14 @@ using XREngine.Scene.Transforms;
 
 namespace XREngine.Rendering
 {
+    public class XRCameraBase : XRBase
+    {
+        
+    }
+    public class VRCamera : XRCameraBase
+    {
+
+    }
     /// <summary>
     /// This class represents a camera in 3D space.
     /// It calculates the model-view-projection matrix driven by a transform and projection parameters.

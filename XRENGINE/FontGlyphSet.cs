@@ -72,7 +72,14 @@ namespace XREngine.Rendering
             return characterSet;
         }
 
-        public void GenerateFontAtlas(SKTypeface typeface, List<string> characters, string outputAtlasPath, float textSize, SKPaintStyle style = SKPaintStyle.Fill, float strokeWidth = 0.0f)
+        public void GenerateFontAtlas(
+            SKTypeface typeface,
+            List<string> characters,
+            string outputAtlasPath,
+            float textSize,
+            float pad = 5.0f,
+            SKPaintStyle style = SKPaintStyle.Fill,
+            float strokeWidth = 0.0f)
         {
             // List to hold glyph data
             List<(string character, Glyph info)> glyphInfos = [];
@@ -130,8 +137,8 @@ namespace XREngine.Rendering
                 glyphBitmaps.Add(bitmap);
                 glyphInfos.Add((character, new(
                     new IVector2(width, height),
-                    new Vector2(glyphBounds.Left, glyphBounds.Top),
-                    widths[0])));
+                    new Vector2(-glyphBounds.Left, -glyphBounds.Top),
+                    widths[0] + pad)));
             }
 
             // Pack glyphs into an atlas
@@ -188,9 +195,9 @@ namespace XREngine.Rendering
                 bitmap.Dispose();
         }
 
-        public void GetQuads(string? str, out List<(Matrix4x4 transform, Vector4 uvs)> quads)
+        public void GetQuads(string? str, out List<(Vector4 transform, Vector4 uvs)> quads)
             => GetQuads(str, out quads, Vector2.Zero);
-        public void GetQuads(string? str, out List<(Matrix4x4 transform, Vector4 uvs)> quads, Vector2 offset)
+        public void GetQuads(string? str, out List<(Vector4 transform, Vector4 uvs)> quads, Vector2 offset)
         {
             if (Glyphs is null)
                 throw new InvalidOperationException("Glyphs are not initialized.");
@@ -205,13 +212,14 @@ namespace XREngine.Rendering
             string? str,
             Dictionary<string, Glyph> glyphs,
             IVector2 atlasSize,
-            out List<(Matrix4x4 transform, Vector4 uvs)> quads,
+            out List<(Vector4 transform, Vector4 uvs)> quads,
             Vector2 offset)
         {
             quads = [];
             if (str is null)
                 return;
 
+            float xOffset = offset.X;
             foreach (char ch in str)
             {
                 string character = ch.ToString();
@@ -222,20 +230,21 @@ namespace XREngine.Rendering
                 }
 
                 Glyph glyph = glyphs[character];
-                float translateX = offset.X + glyph.Bearing.X;
-                float translateY = offset.Y - glyph.Bearing.Y;
+                float translateX = xOffset + glyph.Bearing.X;
+                float translateY = offset.Y + glyph.Bearing.Y;
                 float scaleX = glyph.Size.X;
-                float scaleY = glyph.Size.Y;
+                float scaleY = -glyph.Size.Y;
 
-                Matrix4x4 transform = Matrix4x4.CreateScale(scaleX, scaleY, 1.0f) * Matrix4x4.CreateTranslation(translateX, translateY, 0.0f);
+                Vector4 transform = new(
+                    translateX,
+                    translateY,
+                    scaleX,
+                    scaleY);
 
                 float u0 = glyph.Position.X / atlasSize.X;
                 float v0 = glyph.Position.Y / atlasSize.Y;
                 float u1 = (glyph.Position.X + glyph.Size.X) / atlasSize.X;
                 float v1 = (glyph.Position.Y + glyph.Size.Y) / atlasSize.Y;
-
-                //v0 = 1.0f - v0;
-                //v1 = 1.0f - v1;
 
                 // Add UVs in the order matching the quad vertices
                 // Assuming quad vertices are defined in this order:
@@ -243,11 +252,11 @@ namespace XREngine.Rendering
                 // Bottom-right (1, 0)
                 // Top-right (1, 1)
                 // Top-left (0, 1)
-                Vector4 uvs = new(u0, v1, u1, v0); // Bottom-left to Top-right
+                Vector4 uvs = new(u0, v0, u1, v1); // Bottom-left to Top-right
                 
                 quads.Add((transform, uvs));
 
-                offset.X += glyph.AdvanceX;
+                xOffset += glyph.AdvanceX;
             }
         }
 

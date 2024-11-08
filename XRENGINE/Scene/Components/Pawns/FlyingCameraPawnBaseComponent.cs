@@ -78,7 +78,7 @@ namespace XREngine.Components
         public float MouseRotateSpeed { get; set; } = 0.0075f;
 
         [Category("Movement")]
-        public float MouseTranslateSpeed { get; set; } = 0.001f;
+        public float MouseTranslateSpeed { get; set; } = 0.01f;
 
         [Category("Movement")]
         public float GamepadRotateSpeed { get; set; } = 150.0f;
@@ -87,7 +87,7 @@ namespace XREngine.Components
         public float GamepadTranslateSpeed { get; set; } = 30.0f;
 
         [Category("Movement")]
-        public float KeyboardTranslateSpeed { get; set; } = 1.0f;
+        public float KeyboardTranslateSpeed { get; set; } = 10.0f;
 
         [Category("Movement")]
         public float KeyboardRotateSpeed { get; set; } = 0.01f;
@@ -190,7 +190,6 @@ namespace XREngine.Components
             }
         }
 
-        #region Customizable Input
         //Dictionary<ComboModifier, Action<bool>> _combos = new Dictionary<ComboModifier, Action<bool>>();
 
         //private void ExecuteCombo(EMouseButton button, bool pressed)
@@ -229,6 +228,5 @@ namespace XREngine.Components
         //        else
         //            _combos.Add(mod, func);
         //}
-        #endregion
     }
 }

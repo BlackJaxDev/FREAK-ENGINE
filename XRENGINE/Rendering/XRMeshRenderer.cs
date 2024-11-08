@@ -165,7 +165,7 @@ namespace XREngine.Rendering
                 //var elemSize = BoneMatricesBuffer.ElementSize;
                 //BoneMatricesBuffer.PushSubData((int)(bone.Key * elemSize), elemSize);
             }
-            BoneMatricesBuffer.PushSubData(0, BoneMatricesBuffer.Length);
+            BoneMatricesBuffer.PushSubData();
         }
 
         private bool _generateAsync = false;
