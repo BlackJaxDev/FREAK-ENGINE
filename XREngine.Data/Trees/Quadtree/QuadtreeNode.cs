@@ -1,6 +1,8 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
+using XREngine.Data.Colors;
 using XREngine.Data.Geometry;
+using XREngine.Data.Rendering;
 
 namespace XREngine.Data.Trees
 {
@@ -62,13 +64,13 @@ namespace XREngine.Data.Trees
                 return;
 
             //Still within the same volume?
-            if (t.CullingVolume.ContainmentWithin(_bounds) == EContainment.Contains)
+            if (t.CullingVolume is not null && t.CullingVolume.Value.ContainmentWithin(_bounds) == EContainment.Contains)
             {
                 //Try subdividing
                 for (int i = 0; i < QuadtreeBase.MaxChildNodeCount; ++i)
                 {
                     BoundingRectangleF bounds = GetSubdivision(i);
-                    if (t.CullingVolume.ContainmentWithin(bounds) == EContainment.Contains)
+                    if (t.CullingVolume.Value.ContainmentWithin(bounds) == EContainment.Contains)
                     {
                         RemoveHere(t);
                         CreateSubNode(bounds, i)?.AddHereOrSmaller(t);
@@ -108,39 +110,38 @@ namespace XREngine.Data.Trees
         }
         #endregion
 
-        //#region Debug
-        //public void DebugRender(bool recurse, bool onlyContainingItems, BoundingRectangleF? f, float lineWidth)
-        //{
-        //    Color color = Color.Red;
-        //    if (recurse)
-        //    {
-        //        EContainment containment = f?.ContainmentOf(_bounds) ?? EContainment.Contains;
-        //        color = containment == EContainment.Intersects ? Color.Green : containment == EContainment.Contains ? Color.White : Color.Red;
-        //        if (containment != EContainment.Disjoint)
-        //            foreach (Node n in _subNodes)
-        //                n?.DebugRender(true, onlyContainingItems, f, lineWidth);
-        //    }
-        //    if (!onlyContainingItems || _items.Count != 0)
-        //    {
-        //        BoundingRectangleF region;
-        //        //bool anyVisible = false;
-        //        for (int i = 0; i < _items.Count; ++i)
-        //        {
-        //            region = _items[i].RenderInfo.AxisAlignedRegion;
-        //            Api.RenderQuad(region.Center + AbstractRenderer.UIPositionBias, AbstractRenderer.UIRotation, region.Extents, false, Color.Orange, lineWidth);
-        //        }
-        //        //if (anyVisible)
-        //            DebugRender(color, lineWidth);
-        //    }
-        //}
-        //public void DebugRender(Color color, float lineWidth)
-        //    => Api.RenderQuad(_bounds.Center + AbstractRenderer.UIPositionBias, AbstractRenderer.UIRotation, _bounds.Extents, false, color, lineWidth);
-        //#endregion
+        public void DebugRender(bool recurse, bool onlyContainingItems, BoundingRectangleF? volume, DelRenderBounds render)
+        {
+            ColorF4 color = ColorF4.Red;
+            if (recurse)
+            {
+                EContainment containment = volume?.ContainmentOf(_bounds) ?? EContainment.Contains;
+                color = containment == EContainment.Intersects ? ColorF4.Green : containment == EContainment.Contains ? ColorF4.White : ColorF4.Red;
+                if (containment != EContainment.Disjoint)
+                    foreach (var n in _subNodes)
+                        n?.DebugRender(true, onlyContainingItems, volume, render);
+            }
+            if (!onlyContainingItems || _items.Count != 0)
+            {
+                BoundingRectangleF? region;
+                //bool anyVisible = false;
+                for (int i = 0; i < _items.Count; ++i)
+                {
+                    region = _items[i].CullingVolume;
+                    if (region == null)
+                        continue;
+
+                    render(region.Value.Extents, region.Value.Center, ColorF4.Orange);
+                }
+                //if (anyVisible)
+                render(_bounds.Extents, _bounds.Center, color);
+            }
+        }
 
         #region Visible collection
-        public void CollectVisible(BoundingRectangleF bounds, bool containsOnly, Action<T> action)
+        public void CollectVisible(BoundingRectangleF? bounds, bool containsOnly, Action<T> action, DelIntersectionTest intersectionTest)
         {
-            EContainment c = bounds.ContainmentOf(_bounds);
+            EContainment c = bounds?.ContainmentOf(_bounds) ?? EContainment.Contains;
             if (c != EContainment.Disjoint)
             {
                 if (c == EContainment.Contains)
@@ -151,26 +152,87 @@ namespace XREngine.Data.Trees
                     for (int i = 0; i < _items.Count; ++i)
                     {
                         T r = _items[i];
-                        if (containsOnly)
+                        if (r.CullingVolume is null || bounds is null)
                         {
-                            if (r.CullingVolume.ContainmentWithin(bounds) == EContainment.Contains)
-                                action(r);
+                            action(r);
+                            continue;
                         }
-                        else
-                        {
-                            if (r.CullingVolume.ContainmentWithin(bounds) != EContainment.Disjoint)
-                                action(r);
-                        }
+
+                        if (intersectionTest(r, r.CullingVolume.Value, containsOnly))
+                            action(r);
                     }
                     //IsLoopingItems = false;
 
                     //IsLoopingSubNodes = true;
                     for (int i = 0; i < QuadtreeBase.MaxChildNodeCount; ++i)
-                        _subNodes[i]?.CollectVisible(bounds, containsOnly, action);
+                        _subNodes[i]?.CollectVisible(bounds, containsOnly, action, intersectionTest);
                     //IsLoopingSubNodes = false;
                 }
             }
         }
+        public void CollectVisible(BoundingRectangleF? bounds, bool containsOnly, Action<IQuadtreeItem> action, QuadtreeNode<IQuadtreeItem>.DelIntersectionTestGeneric intersectionTest)
+        {
+            EContainment c = bounds?.ContainmentOf(_bounds) ?? EContainment.Contains;
+            if (c != EContainment.Disjoint)
+            {
+                if (c == EContainment.Contains)
+                    CollectAll(action);
+                else
+                {
+                    //IsLoopingItems = true;
+                    for (int i = 0; i < _items.Count; ++i)
+                    {
+                        T r = _items[i];
+                        if (r.CullingVolume is null)
+                        {
+                            action(r);
+                            continue;
+                        }
+
+                        if (intersectionTest(r, r.CullingVolume.Value, containsOnly))
+                            action(r);
+                    }
+                    //IsLoopingItems = false;
+
+                    //IsLoopingSubNodes = true;
+                    for (int i = 0; i < QuadtreeBase.MaxChildNodeCount; ++i)
+                        _subNodes[i]?.CollectVisible(bounds, containsOnly, action, intersectionTest);
+                    //IsLoopingSubNodes = false;
+                }
+            }
+        }
+        public void CollectVisibleNodes(BoundingRectangleF? bounds, bool containsOnly, Action<(QuadtreeNodeBase node, bool intersects)> action)
+        {
+            EContainment c = bounds?.ContainmentOf(_bounds) ?? EContainment.Contains;
+            if (c != EContainment.Disjoint)
+            {
+                if (c == EContainment.Contains)
+                    CollectNode(action);
+                else
+                    CollectIntersectedNode(bounds, containsOnly, action);
+            }
+        }
+
+        private void CollectIntersectedNode(BoundingRectangleF? bounds, bool containsOnly, Action<(QuadtreeNodeBase node, bool intersects)> action)
+        {
+            if (!containsOnly)
+                action((this, true));
+
+            for (int i = 0; i < QuadtreeBase.MaxChildNodeCount; ++i)
+                _subNodes[i]?.CollectVisibleNodes(bounds, containsOnly, action);
+        }
+
+        private void CollectNode(Action<(QuadtreeNodeBase node, bool intersects)> action)
+        {
+            action((this, false));
+
+            for (int i = 0; i < QuadtreeBase.MaxChildNodeCount; ++i)
+                _subNodes[i]?.CollectNode(action);
+        }
+
+        public delegate bool DelIntersectionTest(T item, BoundingRectangleF cullingVolume, bool containsOnly);
+        public delegate bool DelIntersectionTestGeneric(IQuadtreeItem item, BoundingRectangleF cullingVolume, bool containsOnly);
+
         public void CollectAll(Action<T> action)
         {
             //IsLoopingItems = true;
@@ -243,9 +305,9 @@ namespace XREngine.Data.Trees
             if (item is null)
                 return false;
 
-            if (!item.CullingVolume.IsEmpty())
+            if (item.CullingVolume is not null && !item.CullingVolume.Value.IsEmpty())
             {
-                if (item.CullingVolume.ContainmentWithin(_bounds) != EContainment.Contains)
+                if (item.CullingVolume.Value.ContainmentWithin(_bounds) != EContainment.Contains)
                     return false;
 
                 for (int i = 0; i < QuadtreeBase.MaxChildNodeCount; ++i)
@@ -254,7 +316,7 @@ namespace XREngine.Data.Trees
                         continue;
 
                     BoundingRectangleF bounds = GetSubdivision(i);
-                    if (item.CullingVolume.ContainmentWithin(bounds) == EContainment.Contains)
+                    if (item.CullingVolume.Value.ContainmentWithin(bounds) == EContainment.Contains)
                     {
                         CreateSubNode(bounds, i)?.AddHereOrSmaller(item);
                         return true;

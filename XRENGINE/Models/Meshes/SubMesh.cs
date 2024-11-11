@@ -13,19 +13,26 @@ namespace XREngine.Rendering.Models
         public SortedSet<SubMeshLOD> LODs { get; } = new(new LODSorter());
 
         private AABB _bounds;
-        private IVolume? _cullingVolumeOverride;
+        private AABB? _cullingVolumeOverride;
 
+        /// <summary>
+        /// The true bind-pose bounding box of this mesh.
+        /// </summary>
         public AABB Bounds
         {
             get => _bounds;
             set => SetField(ref _bounds, value);
         }
 
-        public IVolume? CullingVolumeOverride
+        /// <summary>
+        /// The user-set culing bounds for this mesh.
+        /// </summary>
+        public AABB? CullingBounds
         {
             get => _cullingVolumeOverride;
             set => SetField(ref _cullingVolumeOverride, value);
         }
+
         public TransformBase? RootTransform { get; set; }
 
         public SubMesh() { }

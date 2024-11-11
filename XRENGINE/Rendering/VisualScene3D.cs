@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using System.Drawing;
+using System.Numerics;
 using XREngine.Components;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
@@ -9,26 +10,6 @@ using XREngine.Rendering.Info;
 
 namespace XREngine.Scene
 {
-    /// <summary>
-    /// Represents a scene with special optimizations for rendering in 2D.
-    /// </summary>
-    public class VisualScene2D : VisualScene
-    {
-        public VisualScene2D() { }
-
-        public Quadtree<RenderInfo2D> RenderTree { get; } = new Quadtree<RenderInfo2D>(new BoundingRectangleF());
-
-        public void SetBounds(BoundingRectangleF bounds)
-        {
-            RenderTree.Remake(bounds);
-        }
-
-        public override IRenderTree RenderablesTree => RenderTree;
-
-        public void Raycast(CameraComponent cameraComponent, Vector2 screenPoint, out SortedDictionary<float, RenderInfo2D> items, Func<RenderInfo2D, Segment, float?> directTest)
-            => RenderTree.Raycast(cameraComponent.Camera.GetWorldSegment(screenPoint), out items, directTest);
-    }
-
     /// <summary>
     /// Represents a scene with special optimizations for rendering in 3D.
     /// </summary>
@@ -68,7 +49,34 @@ namespace XREngine.Scene
             Lights.SwapBuffers();
         }
 
+        public override void DebugRender(XRCamera? camera, bool onlyContainingItems = false)
+            => RenderTree.DebugRender(camera?.WorldFrustum(), onlyContainingItems, RenderAABB);
+
+        private void RenderAABB(Vector3 extents, Vector3 center, Color color)
+            => Engine.Rendering.Debug.RenderAABB(extents, center, false, color, true);
+
         public void Raycast(CameraComponent cameraComponent, Vector2 screenPoint, out SortedDictionary<float, RenderInfo3D> items, Func<RenderInfo3D, Segment, float?> directTest)
             => RenderTree.Raycast(cameraComponent.Camera.GetWorldSegment(screenPoint), out items, directTest);
+
+        public override void CollectRenderedItems(RenderCommandCollection meshRenderCommands, XRCamera? activeCamera, bool cullWithFrustum, Func<XRCamera>? cullingCameraOverride, bool shadowPass)
+        {
+            var cullingCamera = cullingCameraOverride?.Invoke() ?? activeCamera;
+            var collectionVolume = cullWithFrustum ? cullingCamera?.WorldFrustum() : null;
+            CollectRenderedItems(meshRenderCommands, collectionVolume, activeCamera, shadowPass);
+
+        }
+        public void CollectRenderedItems(RenderCommandCollection commands, IVolume? collectionVolume, XRCamera? camera, bool shadowPass)
+        {
+            bool IntersectionTest(RenderInfo3D item, IVolume? cullingVolume, bool containsOnly)
+                => item.AllowRender(cullingVolume, commands, camera, shadowPass);
+
+            void AddRenderCommands(ITreeItem item)
+            {
+                if (item is RenderInfo renderable)
+                    renderable.AddRenderCommands(commands, camera);
+            }
+
+            RenderTree.CollectVisible(collectionVolume, false, AddRenderCommands, IntersectionTest);
+        }
     }
 }

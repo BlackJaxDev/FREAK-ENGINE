@@ -6,7 +6,7 @@ namespace System
 {
     public interface IQuadtreeItem : ITreeItem
     {
-        BoundingRectangleF CullingVolume { get; }
+        BoundingRectangleF? CullingVolume { get; }
         QuadtreeNodeBase? QuadtreeNode { get; set; }
         bool Intersects(BoundingRectangleF cullingVolume, bool containsOnly);
         bool Contains(Vector2 point);

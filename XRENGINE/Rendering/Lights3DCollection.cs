@@ -213,38 +213,39 @@ namespace XREngine.Scene
 
                 };
                 RenderInfo = RenderInfo3D.New(this);
-                RenderInfo.CullingVolume = this;
+                //RenderInfo.LocalCullingVolume = this;
                 RenderedObjects = [RenderInfo];
             }
 
             private RenderCommandMesh3D _rc;
             public RenderInfo3D RenderInfo { get; }
             public RenderInfo[] RenderedObjects { get; }
-            public IVolume? CullingVolume => this;
+            public IVolume? LocalCullingVolume => this;
             public OctreeNodeBase? OctreeNode { get; set; }
             public bool ShouldRender { get; } = true;
+            AABB? IOctreeItem.LocalCullingVolume { get; }
 
             public bool Intersects(IVolume cullingVolume, bool containsOnly)
             {
                 throw new NotImplementedException();
             }
 
-            public EContainment Contains(AABB box)
+            public EContainment ContainsAABB(AABB box, float tolerance = float.Epsilon)
             {
                 throw new NotImplementedException();
             }
 
-            public EContainment Contains(Sphere sphere)
+            public EContainment ContainsSphere(Sphere sphere)
             {
                 throw new NotImplementedException();
             }
 
-            public EContainment Contains(Cone cone)
+            public EContainment ContainsCone(Cone cone)
             {
                 throw new NotImplementedException();
             }
 
-            public EContainment Contains(Capsule shape)
+            public EContainment ContainsCapsule(Capsule shape)
             {
                 throw new NotImplementedException();
             }
@@ -254,7 +255,7 @@ namespace XREngine.Scene
                 throw new NotImplementedException();
             }
 
-            public bool Contains(Vector3 point)
+            public bool ContainsPoint(Vector3 point, float tolerance = float.Epsilon)
             {
                 throw new NotImplementedException();
             }
@@ -264,12 +265,17 @@ namespace XREngine.Scene
                 throw new NotImplementedException();
             }
 
-            public bool Intersects(Segment segment, out Vector3[] points)
+            public bool IntersectsSegment(Segment segment, out Vector3[] points)
             {
                 throw new NotImplementedException();
             }
 
-            public bool Intersects(Segment segment)
+            public bool IntersectsSegment(Segment segment)
+            {
+                throw new NotImplementedException();
+            }
+
+            public EContainment ContainsBox(Box box)
             {
                 throw new NotImplementedException();
             }
@@ -283,8 +289,8 @@ namespace XREngine.Scene
             //Find a tetrahedron cell that contains the point.
             //We'll use this group of probes to light whatever mesh is using the provided position as reference.
             LightProbeCell? cell = LightProbeTree.FindFirst(
-                item => item.CullingVolume?.Contains(position) ?? false,
-                bounds => bounds.Contains(position));
+                item => item.LocalCullingVolume?.ContainsPoint(position) ?? false,
+                bounds => bounds.ContainsPoint(position));
 
             if (cell is null)
                 return [];

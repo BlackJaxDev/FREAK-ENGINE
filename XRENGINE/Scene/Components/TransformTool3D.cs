@@ -23,19 +23,63 @@ namespace XREngine.Actors.Types
     {
         public RenderInfo3D RenderInfo { get; }
 
+        private static SceneNode? _instanceNode;
+
+        public static void DestroyInstance()
+        {
+            _instanceNode?.Destroy();
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="world">The world to spawn the transform tool in.</param>
+        /// <param name="comp"></param>
+        /// <param name="transformType"></param>
+        /// <returns></returns>
+        public static TransformTool3D? GetInstance(TransformBase comp, ETransformType transformType)
+        {
+            XRWorldInstance? world = comp?.World;
+            if (world is null)
+                return null;
+
+            if (_instanceNode?.World != world)
+            {
+                _instanceNode?.Destroy();
+                _instanceNode = new SceneNode(world);
+            }
+
+            TransformTool3D tool = _instanceNode.GetOrAddComponent<TransformTool3D>(out _)!;
+            tool.TargetSocket = comp;
+            tool.TransformMode = transformType;
+
+            return tool;
+        }
+
         public TransformTool3D() : base()
         {
             TransformSpace = ETransformSpace.Local;
             _rc = new RenderCommandMethod3D((int)EDefaultRenderPass.OnTopForward, Render);
             RenderInfo = RenderInfo3D.New(this, _rc);
+            RenderedObjects = [RenderInfo];
+            UpdateModelComponent();
         }
+
+        public event Action? MouseDown, MouseUp;
+
+        private readonly RenderCommandMethod3D _rc;
+
+        //UIString2D _xText, _yText, _zText;
 
         private readonly XRMaterial[] _axisMat = new XRMaterial[3];
         private readonly XRMaterial[] _transPlaneMat = new XRMaterial[6];
         private readonly XRMaterial[] _scalePlaneMat = new XRMaterial[3];
-        private XRMaterial _screenMat;
+        private XRMaterial? _screenMat;
 
         private ETransformSpace _transformSpace;
+
+        public Matrix4x4 PrevRootWorldMatrix { get; private set; } = Matrix4x4.Identity;
+        public RenderInfo[] RenderedObjects { get; }
 
         protected void UpdateModelComponent()
         {
@@ -324,6 +368,9 @@ namespace XREngine.Actors.Types
             var meshes = modelComp.Meshes;
             var screenMeshes = screenModelComp?.Meshes;
 
+            if (meshes.Count != 21)
+                return;
+
             meshes[x++].RenderInfo.IsVisible = _mode == ETransformType.Rotate;
 
             for (int i = 0; i < 3; ++i)
@@ -420,7 +467,7 @@ namespace XREngine.Actors.Types
                 case ETransformSpace.Screen:
                     {
                         Vector3 point = _targetSocket.WorldMatrix.Translation;
-                        XRCamera? camera = Engine.State.MainPlayer.Viewport?.Camera;
+                        XRCamera? camera = Engine.State.MainPlayer.Viewport?.ActiveCamera;
                         if (camera != null)
                         {
                             Vector3 forward = (camera.Transform.WorldTranslation - point).Normalize();
@@ -457,7 +504,7 @@ namespace XREngine.Actors.Types
                 case ETransformSpace.Screen:
                     {
                         Vector3 point = _targetSocket.WorldMatrix.Translation;
-                        XRCamera? camera = Engine.State.MainPlayer.Viewport?.Camera;
+                        XRCamera? camera = Engine.State.MainPlayer.Viewport?.ActiveCamera;
                         if (camera != null)
                         {
                             Vector3 forward = (camera.Transform.WorldTranslation - point).Normalize();
@@ -473,35 +520,6 @@ namespace XREngine.Actors.Types
                     }
             }
         }
-
-        //public static void DestroyInstance()
-        //{
-        //    Instance.Despawn();
-        //}
-        ///// <summary>
-        ///// 
-        ///// </summary>
-        ///// <param name="world">The world to spawn the transform tool in.</param>
-        ///// <param name="comp"></param>
-        ///// <param name="transformType"></param>
-        ///// <returns></returns>
-        //public static TransformTool3D? GetInstance(TransformBase comp, ETransformType transformType)
-        //{
-        //    XRWorldInstance? world = comp?.World;
-        //    if (world is null)
-        //        return null;
-
-        //    if (Instance.World != world)
-        //    {
-        //        Instance.SceneNode.Destroy();
-        //        world.SpawnActor(Instance);
-        //    }
-
-        //    Instance.TargetSocket = comp;
-        //    Instance.TransformMode = transformType;
-
-        //    return Instance;
-        //}
 
         private void SocketTransformChanged(TransformBase? socket)
         {
@@ -545,9 +563,9 @@ namespace XREngine.Actors.Types
         Vector3 _lastPointWorld;
         Vector3 _localDragPlaneNormal;
 
-        private Action _mouseUp, _mouseDown;
-        private DelDrag _drag;
-        private DelHighlight _highlight;
+        private Action? _mouseUp, _mouseDown;
+        private DelDrag? _drag;
+        private DelHighlight? _highlight;
         private delegate bool DelHighlight(XRCamera camera, Ray localRay);
         private delegate void DelDrag(Vector3 dragPoint);
         private delegate void DelDragRot(Quaternion dragPoint);
@@ -952,7 +970,7 @@ namespace XREngine.Actors.Types
                 Ray localRay = cursor.TransformedBy(Transform.InverseWorldMatrix);
                 Vector3 localDragPoint = GetLocalDragPoint(camera, localRay);
                 Vector3 worldDragPoint = Vector3.Transform(localDragPoint, Transform.WorldMatrix);
-                _drag(worldDragPoint);
+                _drag?.Invoke(worldDragPoint);
 
                 _lastPointWorld = worldDragPoint;
             }
@@ -971,7 +989,7 @@ namespace XREngine.Actors.Types
                 _axisMat[0].Parameter<ShaderVector4>(0)!.Value = _hiAxis.X ? ColorF4.Yellow : ColorF4.Red;
                 _axisMat[1].Parameter<ShaderVector4>(0)!.Value = _hiAxis.Y ? ColorF4.Yellow : ColorF4.Green;
                 _axisMat[2].Parameter<ShaderVector4>(0)!.Value = _hiAxis.Z ? ColorF4.Yellow : ColorF4.Blue;
-                _screenMat.Parameter<ShaderVector4>(0)!.Value = _hiCam ? ColorF4.Yellow : ColorF4.LightGray;
+                _screenMat!.Parameter<ShaderVector4>(0)!.Value = _hiCam ? ColorF4.Yellow : ColorF4.LightGray;
 
                 GetDependentColors();
 
@@ -982,28 +1000,25 @@ namespace XREngine.Actors.Types
         }
         private void GetDependentColors()
         {
-            if (TransformMode != ETransformType.Rotate)
+            if (_transPlaneMat.Any(m => m == null) || _scalePlaneMat.Any(m => m == null) || TransformMode == ETransformType.Rotate)
+                return;
+
+            if (TransformMode == ETransformType.Translate)
             {
-                if (TransformMode == ETransformType.Translate)
-                {
-                    _transPlaneMat[0].Parameter<ShaderVector4>(0)!.Value = _hiAxis.X && _hiAxis.Y ? (ColorF4)ColorF4.Yellow : ColorF4.Red;
-                    _transPlaneMat[1].Parameter<ShaderVector4>(0)!.Value = _hiAxis.X && _hiAxis.Z ? (ColorF4)ColorF4.Yellow : ColorF4.Red;
-                    _transPlaneMat[2].Parameter<ShaderVector4>(0)!.Value = _hiAxis.Y && _hiAxis.Z ? (ColorF4)ColorF4.Yellow : ColorF4.Green;
-                    _transPlaneMat[3].Parameter<ShaderVector4>(0)!.Value = _hiAxis.Y && _hiAxis.X ? (ColorF4)ColorF4.Yellow : ColorF4.Green;
-                    _transPlaneMat[4].Parameter<ShaderVector4>(0)!.Value = _hiAxis.Z && _hiAxis.X ? (ColorF4)ColorF4.Yellow : ColorF4.Blue;
-                    _transPlaneMat[5].Parameter<ShaderVector4>(0)!.Value = _hiAxis.Z && _hiAxis.Y ? (ColorF4)ColorF4.Yellow : ColorF4.Blue;
-                }
-                else
-                {
-                    _scalePlaneMat[0].Parameter<ShaderVector4>(0)!.Value = _hiAxis.Y && _hiAxis.Z ? (ColorF4)ColorF4.Yellow : ColorF4.Red;
-                    _scalePlaneMat[1].Parameter<ShaderVector4>(0)!.Value = _hiAxis.X && _hiAxis.Z ? (ColorF4)ColorF4.Yellow : ColorF4.Green;
-                    _scalePlaneMat[2].Parameter<ShaderVector4>(0)!.Value = _hiAxis.X && _hiAxis.Y ? (ColorF4)ColorF4.Yellow : ColorF4.Blue;
-                }
+                _transPlaneMat[0].Parameter<ShaderVector4>(0)!.Value = _hiAxis.X && _hiAxis.Y ? (ColorF4)ColorF4.Yellow : ColorF4.Red;
+                _transPlaneMat[1].Parameter<ShaderVector4>(0)!.Value = _hiAxis.X && _hiAxis.Z ? (ColorF4)ColorF4.Yellow : ColorF4.Red;
+                _transPlaneMat[2].Parameter<ShaderVector4>(0)!.Value = _hiAxis.Y && _hiAxis.Z ? (ColorF4)ColorF4.Yellow : ColorF4.Green;
+                _transPlaneMat[3].Parameter<ShaderVector4>(0)!.Value = _hiAxis.Y && _hiAxis.X ? (ColorF4)ColorF4.Yellow : ColorF4.Green;
+                _transPlaneMat[4].Parameter<ShaderVector4>(0)!.Value = _hiAxis.Z && _hiAxis.X ? (ColorF4)ColorF4.Yellow : ColorF4.Blue;
+                _transPlaneMat[5].Parameter<ShaderVector4>(0)!.Value = _hiAxis.Z && _hiAxis.Y ? (ColorF4)ColorF4.Yellow : ColorF4.Blue;
+            }
+            else
+            {
+                _scalePlaneMat[0].Parameter<ShaderVector4>(0)!.Value = _hiAxis.Y && _hiAxis.Z ? (ColorF4)ColorF4.Yellow : ColorF4.Red;
+                _scalePlaneMat[1].Parameter<ShaderVector4>(0)!.Value = _hiAxis.X && _hiAxis.Z ? (ColorF4)ColorF4.Yellow : ColorF4.Green;
+                _scalePlaneMat[2].Parameter<ShaderVector4>(0)!.Value = _hiAxis.X && _hiAxis.Y ? (ColorF4)ColorF4.Yellow : ColorF4.Blue;
             }
         }
-
-        public Matrix4x4 PrevRootWorldMatrix { get; private set; } = Matrix4x4.Identity;
-        public RenderInfo[] RenderedObjects { get; }
 
         private void OnPressed()
         {
@@ -1024,7 +1039,7 @@ namespace XREngine.Actors.Types
 
         private void SetWorldMatrices(Matrix4x4 transform, Matrix4x4 invTransform)
         {
-            throw new NotImplementedException();
+            SceneNode.GetTransformAs<DrivenWorldTransform>(true)!.SetWorldMatrix(transform);
         }
 
         private void OnReleased()
@@ -1032,10 +1047,6 @@ namespace XREngine.Actors.Types
             _pressed = false;
             MouseUp?.Invoke();
         }
-
-        public event Action MouseDown, MouseUp;
-
-        //UIString2D _xText, _yText, _zText;
 
         private void Render(bool shadowPass)
         {
@@ -1048,7 +1059,5 @@ namespace XREngine.Actors.Types
             if (camera != null)
                 Engine.Rendering.Debug.RenderLine(_lastPointWorld, _lastPointWorld + worldNormal * camera.DistanceScale(Transform.WorldTranslation, 2.0f), ColorF4.Black, false);
         }
-
-        private readonly RenderCommandMethod3D _rc;
     }
 }

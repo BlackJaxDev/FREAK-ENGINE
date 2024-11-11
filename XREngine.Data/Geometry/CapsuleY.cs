@@ -32,22 +32,22 @@ namespace XREngine.Data.Geometry
             HalfHeight = halfHeight;
         }
 
-        public EContainment Contains(AABB box)
+        public EContainment ContainsAABB(AABB box, float tolerance = float.Epsilon)
         {
             throw new NotImplementedException();
         }
 
-        public EContainment Contains(Sphere sphere)
+        public EContainment ContainsSphere(Sphere sphere)
         {
             throw new NotImplementedException();
         }
 
-        public EContainment Contains(Cone cone)
+        public EContainment ContainsCone(Cone cone)
         {
             throw new NotImplementedException();
         }
 
-        public EContainment Contains(Capsule shape)
+        public EContainment ContainsCapsule(Capsule shape)
         {
             throw new NotImplementedException();
         }
@@ -57,7 +57,7 @@ namespace XREngine.Data.Geometry
             throw new NotImplementedException();
         }
 
-        public bool Contains(Vector3 point)
+        public bool ContainsPoint(Vector3 point, float tolerance = float.Epsilon)
         {
             throw new NotImplementedException();
         }
@@ -67,12 +67,17 @@ namespace XREngine.Data.Geometry
             throw new NotImplementedException();
         }
 
-        public bool Intersects(Segment segment, out Vector3[] points)
+        public bool IntersectsSegment(Segment segment, out Vector3[] points)
         {
             throw new NotImplementedException();
         }
 
-        public bool Intersects(Segment segment)
+        public bool IntersectsSegment(Segment segment)
+        {
+            throw new NotImplementedException();
+        }
+
+        public EContainment ContainsBox(Box box)
         {
             throw new NotImplementedException();
         }

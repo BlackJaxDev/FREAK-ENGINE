@@ -9,12 +9,13 @@ namespace XREngine.Data.Trees
     public interface I3DRenderTree
     {
         void Remake(AABB newBounds);
-        void DebugRender(IVolume volume, bool onlyContainingItems, DelRenderAABB render);
-        void CollectIntersecting(IVolume volume, bool onlyContainingItems, Action<IOctreeItem> action);
+        void DebugRender(IVolume? cullingVolume, DelRenderAABB render, bool onlyContainingItems = false);
+        void CollectVisible(IVolume? volume, bool onlyContainingItems, Action<IOctreeItem> action, OctreeNode<IOctreeItem>.DelIntersectionTestGeneric intersectionTest);
         void CollectAll(Action<IOctreeItem> action);
+        void CollectVisibleNodes(IVolume? cullingVolume, bool containsOnly, Action<(OctreeNodeBase node, bool intersects)> action);
     }
     public interface I3DRenderTree<T> : I3DRenderTree, IRenderTree<T> where T : class, IOctreeItem
     {
-        void CollectIntersecting(IVolume volume, bool onlyContainingItems, Action<T> action);
+        void CollectVisible(IVolume? volume, bool onlyContainingItems, Action<T> action, OctreeNode<T>.DelIntersectionTest intersectionTest);
     }
 }

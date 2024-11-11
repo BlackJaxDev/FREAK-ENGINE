@@ -35,7 +35,7 @@ namespace XREngine.Data.Trees
             //However, if the item is inserted into a volume with at least one other item in it, 
             //need to try subdividing for all items at that point.
 
-            if (item?.CullingVolume != null)
+            if (item?.LocalCullingVolume != null)
                 Owner.MovedItems.Enqueue(item);
         }
         public override void HandleMovedItem(IOctreeItem item)
@@ -44,8 +44,7 @@ namespace XREngine.Data.Trees
                 return;
 
             //Still within the same volume?
-            if (t.CullingVolume != null &&
-                ((IVolume)_bounds).Contains(t.CullingVolume) == EContainment.Contains)
+            if (t.LocalCullingVolume is not null && _bounds.ContainsAABB(t.LocalCullingVolume.Value) == EContainment.Contains)
             {
                 //Try subdividing
                 for (int i = 0; i < OctreeBase.MaxChildNodeCount; ++i)
@@ -53,7 +52,7 @@ namespace XREngine.Data.Trees
                     AABB? bounds = GetSubdivision(i);
                     if (bounds is null)
                         return;
-                    if (((IVolume)bounds.Value).Contains(t.CullingVolume) == EContainment.Contains)
+                    if (bounds.Value.ContainsAABB(t.LocalCullingVolume.Value) == EContainment.Contains)
                     {
                         bool shouldDestroy = RemoveHereOrSmaller(t);
                         if (shouldDestroy)
@@ -113,7 +112,7 @@ namespace XREngine.Data.Trees
             Color color = Color.Red;
             if (renderChildren)
             {
-                EContainment containment = collectionVolume?.Contains(_bounds) ?? EContainment.Contains;
+                EContainment containment = collectionVolume?.ContainsAABB(_bounds) ?? EContainment.Contains;
                 color = containment == EContainment.Intersects ? Color.Green : containment == EContainment.Contains ? Color.White : Color.Red;
                 if (containment != EContainment.Disjoint)
                     foreach (OctreeNode<T>? n in _subNodes)
@@ -127,9 +126,9 @@ namespace XREngine.Data.Trees
         #endregion
 
         #region Visible collection 
-        public void CollectVisible(IVolume cullingVolume, bool containsOnly, Action<T> action)
+        public void CollectVisible(IVolume? cullingVolume, bool containsOnly, Action<T> action, DelIntersectionTest intersectionTest)
         {
-            switch (cullingVolume.Contains(_bounds))
+            switch (cullingVolume?.ContainsAABB(_bounds) ?? EContainment.Contains)
             {
                 case EContainment.Contains:
                     //If the culling volume contains this bounds, collect all items in this node and all sub nodes. No need to check individual items.
@@ -137,12 +136,41 @@ namespace XREngine.Data.Trees
                     break;
                 case EContainment.Intersects:
                     //If the culling volume intersects this bounds, each item needs to be checked individually.
-                    CollectIntersecting(cullingVolume, containsOnly, action);
+                    CollectIntersecting(cullingVolume, containsOnly, action, intersectionTest);
+                    break;
+            }
+        }
+        public void CollectVisible(IVolume? cullingVolume, bool containsOnly, Action<IOctreeItem> action, OctreeNode<IOctreeItem>.DelIntersectionTestGeneric intersectionTest)
+        {
+            switch (cullingVolume?.ContainsAABB(_bounds) ?? EContainment.Contains)
+            {
+                case EContainment.Contains:
+                    //If the culling volume contains this bounds, collect all items in this node and all sub nodes. No need to check individual items.
+                    CollectAll(action);
+                    break;
+                case EContainment.Intersects:
+                    //If the culling volume intersects this bounds, each item needs to be checked individually.
+                    CollectIntersecting(cullingVolume, containsOnly, action, intersectionTest);
+                    break;
+            }
+        }
+        public void CollectVisibleNodes(IVolume? cullingVolume, bool containsOnly, Action<(OctreeNodeBase node, bool intersects)> action)
+        {
+            switch (cullingVolume?.ContainsAABB(_bounds) ?? EContainment.Contains)
+            {
+                case EContainment.Contains:
+                    CollectNode(action);
+                    break;
+                case EContainment.Intersects:
+                    IntersectChildNodes(cullingVolume, containsOnly, action);
                     break;
             }
         }
 
-        private void CollectIntersecting(IVolume cullingVolume, bool containsOnly, Action<T> action)
+        public delegate bool DelIntersectionTest(T item, IVolume? cullingVolume, bool containsOnly);
+        public delegate bool DelIntersectionTestGeneric(IOctreeItem item, IVolume? cullingVolume, bool containsOnly);
+
+        private void CollectIntersecting(IVolume? cullingVolume, bool containsOnly, Action<T> action, DelIntersectionTest intersectionTest)
         {
             //Collect items in this bounds by comparing to culling volume directly
             //Can't do this in parallel because SortedSet is not thread-safe.
@@ -150,13 +178,37 @@ namespace XREngine.Data.Trees
             for (int i = 0; i < _items.Count; ++i)
             {
                 T item = _items[i];
-                if (item.ShouldRender && item.Intersects(cullingVolume, containsOnly))
+                if (item.ShouldRender && intersectionTest(item, cullingVolume, containsOnly))
                     action(item);
             }
 
             //Collect items from child bounds
             for (int i = 0; i < OctreeBase.MaxChildNodeCount; ++i)
-                _subNodes[i]?.CollectVisible(cullingVolume, containsOnly, action);
+                _subNodes[i]?.CollectIntersecting(cullingVolume, containsOnly, action, intersectionTest);
+        }
+        private void CollectIntersecting(IVolume? cullingVolume, bool containsOnly, Action<IOctreeItem> action, OctreeNode<IOctreeItem>.DelIntersectionTestGeneric intersectionTest)
+        {
+            //Collect items in this bounds by comparing to culling volume directly
+            //Can't do this in parallel because SortedSet is not thread-safe.
+            //Would have to program a custom thread-safe sorted tree class with logn add time.
+            for (int i = 0; i < _items.Count; ++i)
+            {
+                T item = _items[i];
+                if (item.ShouldRender && intersectionTest(item, cullingVolume, containsOnly))
+                    action(item);
+            }
+
+            //Collect items from child bounds
+            for (int i = 0; i < OctreeBase.MaxChildNodeCount; ++i)
+                _subNodes[i]?.CollectIntersecting(cullingVolume, containsOnly, action, intersectionTest);
+        }
+        private void IntersectChildNodes(IVolume? cullingVolume, bool containsOnly, Action<(OctreeNodeBase node, bool intersects)> action)
+        {
+            if (!containsOnly)
+                action((this, true));
+
+            for (int i = 0; i < OctreeBase.MaxChildNodeCount; ++i)
+                _subNodes[i]?.CollectVisibleNodes(cullingVolume, containsOnly, action);
         }
 
         public void CollectAll(Action<T> action)
@@ -178,6 +230,12 @@ namespace XREngine.Data.Trees
 
             for (int i = 0; i < OctreeBase.MaxChildNodeCount; ++i)
                 _subNodes[i]?.CollectAll(renderables);
+        }
+        public void CollectNode(Action<(OctreeNodeBase node, bool intersects)> action)
+        {
+            action((this, false));
+            for (int i = 0; i < OctreeBase.MaxChildNodeCount; ++i)
+                _subNodes[i]?.CollectNode(action);
         }
         #endregion
 
@@ -227,14 +285,14 @@ namespace XREngine.Data.Trees
             if (item is null)
                 return false;
 
-            if (item.CullingVolume != null && ((IVolume)_bounds).Contains(item.CullingVolume) == EContainment.Contains)
+            if (item.LocalCullingVolume != null && _bounds.ContainsAABB(item.LocalCullingVolume.Value) == EContainment.Contains)
                 for (int i = 0; i < OctreeBase.MaxChildNodeCount; ++i)
                 {
                     if (i == ignoreSubNode)
                         continue;
 
                     AABB? subDiv = GetSubdivision(i);
-                    if (subDiv is not null && ((IVolume)subDiv.Value).Contains(item.CullingVolume) == EContainment.Contains)
+                    if (subDiv is not null && subDiv.Value.ContainsAABB(item.LocalCullingVolume.Value) == EContainment.Contains)
                     {
                         CreateSubNode(subDiv.Value, i)?.AddHereOrSmaller(item);
                         return true;
@@ -260,7 +318,7 @@ namespace XREngine.Data.Trees
         #region Convenience methods
         public T? FindClosest(Vector3 point, ref float closestDistance)
         {
-            if (!_bounds.Contains(point))
+            if (!_bounds.ContainsPoint(point))
                 return null;
 
             //IsLoopingSubNodes = true;
@@ -280,11 +338,11 @@ namespace XREngine.Data.Trees
             //IsLoopingItems = true;
             foreach (T item in _items)
             {
-                var cullingVolume = item?.CullingVolume;
+                var cullingVolume = item?.LocalCullingVolume;
                 if (cullingVolume is null)
                     continue;
 
-                float dist = Vector3.Distance(cullingVolume.ClosestPoint(point, false), point);
+                float dist = Vector3.Distance(cullingVolume.Value.ClosestPoint(point, false), point);
                 if (dist < closestDistance)
                 {
                     closestDistance = dist;
@@ -295,37 +353,37 @@ namespace XREngine.Data.Trees
 
             return closest;
         }
-        public void FindAll(IShape shape, List<T> list, EContainment containment)
-        {
-            EContainment c = ((IVolume)Bounds).Contains(shape);
-            if (c == EContainment.Intersects)
-            {
-                //Compare each item separately
-                //IsLoopingItems = true;
-                foreach (T item in _items)
-                    if (item.CullingVolume != null)
-                    {
-                        c = shape.Contains(item.CullingVolume);
-                        if (c == containment)
-                            list.Add(item);
-                    }
-                //IsLoopingItems = false;
-            }
-            else if (c == containment)
-            {
-                //All items already have this containment
-                //IsLoopingItems = true;
-                list.AddRange(_items);
-                //IsLoopingItems = false;
-            }
-            else //Not what we want
-                return;
+        //public void FindAll(IShape shape, List<T> list, EContainment containment)
+        //{
+        //    EContainment c = Bounds.Contains(shape);
+        //    if (c == EContainment.Intersects)
+        //    {
+        //        //Compare each item separately
+        //        //IsLoopingItems = true;
+        //        foreach (T item in _items)
+        //            if (item.LocalCullingVolume != null)
+        //            {
+        //                c = shape.Contains(item.LocalCullingVolume);
+        //                if (c == containment)
+        //                    list.Add(item);
+        //            }
+        //        //IsLoopingItems = false;
+        //    }
+        //    else if (c == containment)
+        //    {
+        //        //All items already have this containment
+        //        //IsLoopingItems = true;
+        //        list.AddRange(_items);
+        //        //IsLoopingItems = false;
+        //    }
+        //    else //Not what we want
+        //        return;
 
-            //IsLoopingSubNodes = true;
-            foreach (OctreeNode<T>? n in _subNodes)
-                n?.FindAll(shape, list, containment);
-            //IsLoopingSubNodes = false;
-        }
+        //    //IsLoopingSubNodes = true;
+        //    foreach (OctreeNode<T>? n in _subNodes)
+        //        n?.FindAll(shape, list, containment);
+        //    //IsLoopingSubNodes = false;
+        //}
         /// <summary>
         /// Simply collects all the items contained in this node and all of its sub nodes.
         /// </summary>
@@ -411,16 +469,13 @@ namespace XREngine.Data.Trees
         /// <param name="directTest"></param>
         public void Raycast(Segment segment, SortedDictionary<float, T> orderedItems, Func<T, Segment, float?> directTest)
         {
-            if (!_bounds.Intersects(segment))
+            if (!_bounds.IntersectsSegment(segment))
                 return;
 
             for (int i = 0; i < _items.Count; ++i)
             {
                 T item = _items[i];
-                if (item?.CullingVolume is null)
-                    continue;
-
-                if (!item.CullingVolume.Intersects(segment))
+                if (item?.LocalCullingVolume is null || !item.LocalCullingVolume.Value.IntersectsSegment(segment))
                     continue;
 
                 float? dist = directTest(item, segment);
@@ -432,18 +487,23 @@ namespace XREngine.Data.Trees
                 _subNodes[i]?.Raycast(segment, orderedItems, directTest);
         }
 
+        /// <summary>
+        /// Casts a segment through the octree and returns the items in order of distance from the segment start.
+        /// directTest is a function that returns the distance from the segment start to the item, or null if the item is not intersected.
+        /// Typically, this function is used to test against the depth buffer.
+        /// </summary>
+        /// <param name="segment"></param>
+        /// <param name="orderedItems"></param>
+        /// <param name="directTest"></param>
         public void Raycast(Segment segment, SortedDictionary<float, ITreeItem> orderedItems, Func<ITreeItem, Segment, float?> directTest)
         {
-            if (!_bounds.Intersects(segment))
+            if (!_bounds.IntersectsSegment(segment))
                 return;
 
             for (int i = 0; i < _items.Count; ++i)
             {
                 T item = _items[i];
-                if (item?.CullingVolume is null)
-                    continue;
-
-                if (!item.CullingVolume.Intersects(segment))
+                if (item?.LocalCullingVolume is null || !item.LocalCullingVolume.Value.IntersectsSegment(segment))
                     continue;
 
                 float? dist = directTest(item, segment);

@@ -302,6 +302,12 @@ Bottom left point of this rectangle is Position - LocalOrigin.")]
         /// <param name="offset">The translation delta to add to the current translation.</param>
         public void Translate(Vector2 offset)
             => _translation += offset;
+        public void Translate(float x, float y)
+            => _translation += new Vector2(x, y);
+        public readonly BoundingRectangleF Translated(Vector2 offset)
+            => new(_translation + offset, _bounds, _localOriginPercentage);
+        public readonly BoundingRectangleF Translated(float x, float y)
+            => new(_translation + new Vector2(x, y), _bounds, _localOriginPercentage);
         /// <summary>
         /// Checks that the width and height are positive values. Will move the location of the rectangle to fix this.
         /// </summary>

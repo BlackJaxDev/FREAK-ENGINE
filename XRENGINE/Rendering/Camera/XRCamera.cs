@@ -432,5 +432,17 @@ namespace XREngine.Rendering
             program.Uniform(EEngineUniform.CameraPosition.ToString(), Transform.WorldTranslation);
             Parameters.SetUniforms(program);
         }
+
+        public BoundingRectangleF? GetOrthoCameraBounds()
+        {
+            if (Parameters is not XROrthographicCameraParameters op)
+                return null;
+            
+            var b = op.GetBounds();
+            var t = Transform.WorldTranslation;
+            b = b.Translated(t.X, -t.Y);
+            //TODO: scale the rect
+            return b;
+        }
     }
 }

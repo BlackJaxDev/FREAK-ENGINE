@@ -10,6 +10,7 @@ using XREngine.Rendering;
 using XREngine.Rendering.Commands;
 using XREngine.Rendering.Info;
 using XREngine.Scene;
+using XREngine.Scene.Transforms;
 
 namespace XREngine.Editor;
 
@@ -117,6 +118,7 @@ public class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent, IRende
     private SortedDictionary<float, ITreeItem>? _lastRaycast = null;
     private readonly object _raycastLock = new();
     private Triangle? _hitTriangle = null;
+    private TransformBase? _hitTransform = null;
 
     private void Highlight()
     {
@@ -139,8 +141,17 @@ public class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent, IRende
         if (pos is null)
             return;
 
+        Task.Run(() => Raycast(cam, pos.Value));
+    }
+
+    private void Raycast(CameraComponent cam, Vector2 pos)
+    {
+        var result = World!.Raycast(cam, pos, out _hitTriangle, out _hitTransform);
         lock (_raycastLock)
-            _lastRaycast = World.Raycast(cam, pos.Value, out _hitTriangle);
+            _lastRaycast = result;
+
+        if (_hitTransform is not null)
+            Debug.Out($"Hit transform: {_hitTransform}");
     }
 
     private void Select()

@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using Extensions;
+using System.Numerics;
 
 namespace XREngine.Data.Geometry
 {
@@ -29,6 +30,21 @@ namespace XREngine.Data.Geometry
             readonly get => _halfHeight;
             set => _halfHeight = value;
         }
+
+        public readonly Matrix4x4 CreateTransform()
+        {
+            Vector3 arb = Vector3.UnitX;
+            if (Vector3.Dot(UpAxis, Vector3.UnitX) > 0.99f || Vector3.Dot(UpAxis, Vector3.UnitX) < -0.99f)
+                arb = Vector3.UnitZ;
+            Vector3 perp = Vector3.Cross(UpAxis, arb).Normalize();
+            return Matrix4x4.CreateWorld(Center, UpAxis, Vector3.Cross(UpAxis, perp));
+        }
+
+        public readonly Vector3 WorldToLocal(Vector3 worldPoint)
+            => Vector3.Transform(worldPoint, CreateTransform().Inverted());
+
+        public readonly Vector3 LocalToWorld(Vector3 localPoint)
+            => Vector3.Transform(localPoint, CreateTransform());
 
         public Capsule(Vector3 upAxis, float radius, float halfHeight)
         {
@@ -86,7 +102,7 @@ namespace XREngine.Data.Geometry
 
         #region Containment
 
-        public readonly bool Contains(Vector3 point)
+        public readonly bool ContainsPoint(Vector3 point, float tolerance = float.Epsilon)
             => GeoUtil.SegmentShortestDistanceToPoint(GetBottomCenterPoint(), GetTopCenterPoint(), point) <= _radius;
 
         public enum ESegmentPart
@@ -113,7 +129,7 @@ namespace XREngine.Data.Geometry
         public readonly Vector3 ClosestPointTo(Sphere sphere)
             => ClosestPointTo(sphere.Center);
 
-        public readonly EContainment Contains(Sphere sphere)
+        public readonly EContainment ContainsSphere(Sphere sphere)
         {
             Vector3 startPoint = GetBottomCenterPoint();
             Vector3 endPoint = GetTopCenterPoint();
@@ -127,13 +143,13 @@ namespace XREngine.Data.Geometry
                 return EContainment.Intersects;
         }
 
-        public readonly EContainment Contains(Capsule capsule)
+        public readonly EContainment ContainsCapsule(Capsule capsule)
         {
             //TODO
             return EContainment.Contains;
         }
 
-        public readonly EContainment Contains(Cone cone)
+        public readonly EContainment ContainsCone(Cone cone)
         {
             //TODO
             return EContainment.Contains;
@@ -145,7 +161,7 @@ namespace XREngine.Data.Geometry
             return EContainment.Contains;
         }
 
-        public readonly EContainment Contains(AABB box)
+        public readonly EContainment ContainsAABB(AABB box, float tolerance = float.Epsilon)
         {
             //TODO
             return EContainment.Contains;
@@ -156,12 +172,40 @@ namespace XREngine.Data.Geometry
             throw new NotImplementedException();
         }
 
-        public bool Intersects(Segment segment, out Vector3[] points)
+        public readonly bool IntersectsSegment(Segment segment, out Vector3[] points)
         {
-            throw new NotImplementedException();
+            Vector3 top = GetTopCenterPoint();
+            Vector3 bot = GetBottomCenterPoint();
+            float startDist = GeoUtil.SegmentShortestDistanceToPoint(bot, top, segment.Start);
+            float endDist = GeoUtil.SegmentShortestDistanceToPoint(bot, top, segment.End);
+            if (startDist <= _radius || endDist <= _radius)
+            {
+                points =
+                [
+                    startDist <= _radius ? segment.Start : segment.End,
+                    endDist <= _radius ? segment.End : segment.Start,
+                ];
+                return true;
+            }
+            points = [];
+            return false;
         }
 
-        public bool Intersects(Segment segment)
+        public readonly bool IntersectsSegment(Segment segment)
+        {
+            Vector3 top = GetTopCenterPoint();
+            Vector3 bot = GetBottomCenterPoint();
+            //float startDist = GeoUtil.SegmentShortestDistanceToPoint(bot, top, segment.Start);
+            //float endDist = GeoUtil.SegmentShortestDistanceToPoint(bot, top, segment.End);
+            //if (startDist <= _radius || endDist <= _radius)
+            //    return true;
+            Vector3 point = GeoUtil.SegmentClosestColinearPointToPoint(bot, top, segment.Start);
+            if (Vector3.Distance(point, segment.Start) <= segment.Length)
+                return Vector3.Distance(point, segment.Start) <= _radius;
+            return false;
+        }
+
+        public EContainment ContainsBox(Box box)
         {
             throw new NotImplementedException();
         }

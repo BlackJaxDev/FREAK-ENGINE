@@ -25,7 +25,7 @@ namespace XREngine.Data.Components
             set
             {
                 base.RenderInfo = value;
-                RenderInfo.CullingVolume = _shape;
+                RenderInfo.LocalCullingVolume = _shape.GetAABB();
                 RenderInfo.CastsShadows = false;
                 RenderInfo.ReceivesShadows = false;
             }
@@ -34,19 +34,24 @@ namespace XREngine.Data.Components
         public virtual T Shape
         {
             get => _shape;
-            set
+            set => SetField(ref _shape, value ?? new T());
+        }
+
+        protected override void OnPropertyChanged<T2>(string? propName, T2 prev, T2 field)
+        {
+            base.OnPropertyChanged(propName, prev, field);
+            switch (propName)
             {
-                //if (_shape != null)
-                //    _shape.VolumePropertyChanged -= _shape_VolumePropertyChanged;
-                _shape = value ?? new T();
-                //_shape.VolumePropertyChanged += _shape_VolumePropertyChanged;
-                RenderInfo.CullingVolume = _shape;
-                ShapeChanged();
+                case nameof(Shape):
+                    ShapeChanged();
+                    break;
             }
         }
 
         private void ShapeChanged()
         {
+            RenderInfo.LocalCullingVolume = _shape.GetAABB();
+
             if (CollisionObject == null)
                 return;
             

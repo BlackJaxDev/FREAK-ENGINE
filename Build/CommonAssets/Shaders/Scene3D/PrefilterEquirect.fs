@@ -103,7 +103,7 @@ void main()
             // Map spherical coordinates to [0, 1] range for texture sampling
             // phi ranges from -PI to PI, so we map it to [0, 1]
             // theta ranges from -PI/2 to PI/2, so we map it to [0, 1]
-            vec2 uv = vec2((phi / (2.0f * PI)) + 0.5f, 1.0f - ((theta / PI) + 0.5f));
+            vec2 uv = vec2((phi / (2.0f * PI)) + 0.5f, ((theta / PI) + 0.5f));
 
             prefilteredColor += textureLod(Texture0, uv, mipLevel).rgb * NdotL;
             totalWeight      += NdotL;

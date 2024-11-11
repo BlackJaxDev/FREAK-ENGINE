@@ -9,7 +9,7 @@ namespace XREngine.Rendering.Info
     {
         private int _layerIndex = 0;
         private int _indexWithinLayer = 0;
-        private BoundingRectangleF _cullingVolume;
+        private BoundingRectangleF? _cullingVolume;
         private QuadtreeNodeBase? _quadtreeNode;
 
         public override ITreeNode? TreeNode => QuadtreeNode;
@@ -41,7 +41,7 @@ namespace XREngine.Rendering.Info
         /// <summary>
         /// The axis-aligned bounding box for this UI component.
         /// </summary>
-        public BoundingRectangleF CullingVolume
+        public BoundingRectangleF? CullingVolume
         {
             get => _cullingVolume;
             set => SetField(ref _cullingVolume, value);
@@ -67,20 +67,25 @@ namespace XREngine.Rendering.Info
         }
 
         public virtual bool AllowRender(BoundingRectangleF? cullingVolume, RenderCommandCollection passes, XRCamera camera)
-            => IsVisible && (cullingVolume is null || cullingVolume.Value.Intersects(CullingVolume));
+            => IsVisible && (cullingVolume is null || CullingVolume is null || cullingVolume.Value.Intersects(CullingVolume.Value));
 
         public bool Intersects(BoundingRectangleF cullingVolume, bool containsOnly)
-            => containsOnly
-                ? cullingVolume.Contains(CullingVolume)
-                : cullingVolume.Intersects(CullingVolume);
+        {
+            if (CullingVolume is null)
+                return true;
+
+            return containsOnly
+                ? cullingVolume.Contains(CullingVolume.Value)
+                : cullingVolume.Intersects(CullingVolume.Value);
+        }
 
         public bool Contains(Vector2 point)
-            => CullingVolume.Contains(point);
+            => CullingVolume?.Contains(point) ?? false;
 
         public Vector2 ClosestPoint(Vector2 point)
-            => CullingVolume.Contains(point)
-                ? point 
-                : CullingVolume.ClosestPoint(point);
+            => Contains(point)
+                ? point
+                : CullingVolume?.ClosestPoint(point) ?? point;
 
         public bool DeeperThan(IQuadtreeItem other)
             => other is RenderInfo2D other2D && DeeperThan(other2D);

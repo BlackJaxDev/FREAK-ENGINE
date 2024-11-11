@@ -399,29 +399,50 @@ namespace XREngine.Rendering
         }
 
         [RequiresDynamicCode("")]
-        public SortedDictionary<float, ITreeItem>? Raycast(CameraComponent cameraComponent, Vector2 screenPoint, out Triangle? triangle)
+        public SortedDictionary<float, ITreeItem>? Raycast(CameraComponent cameraComponent, Vector2 screenPoint, out Triangle? triangle, out TransformBase? transform)
         {
             //Debug.Out($"Raycasting from screen point: {screenPoint}");
-            Triangle? t = null;
-            VisualScene.Raycast(cameraComponent, screenPoint, out SortedDictionary<float, ITreeItem> items, (item, segment) => DirectItemTest(item, segment, out t));
+            Triangle? tri = null;
+            TransformBase? tfm = null;
+            VisualScene.Raycast(cameraComponent, screenPoint, out SortedDictionary<float, ITreeItem> items, (item, segment) => DirectItemTest(item, segment, out tri, out tfm));
             //PhysicsScene.Raycast(cameraComponent, screenPoint, items);
-            triangle = t;
+            triangle = tri;
+            transform = tfm;
             return items;
         }
 
         [RequiresDynamicCode("Calls XREngine.Components.Scene.Mesh.ModelComponent.Intersect(Segment, out Triangle?)")]
-        private static float? DirectItemTest(ITreeItem item, Segment segment, out Triangle? triangle)
+        private static float? DirectItemTest(ITreeItem item, Segment segment, out Triangle? triangle, out TransformBase? t)
         {
             triangle = null;
-            return item is not RenderInfo renderable || renderable.Owner is not XRComponent component
-                ? null
-                : component switch
-                {
-                    ModelComponent model => model.Intersect(segment, out triangle),
-                    //TODO: physics comparision
-                    //RigidBodyComponent body => body.Collider?.Intersect(segment),
-                    _ => null,
-                };
+            t = null;
+
+            if (item is not RenderInfo renderable)
+                return null;
+            
+            switch (renderable.Owner)
+            {
+                case ModelComponent model:
+                    return model.Intersect(segment, out triangle);
+                case TransformBase transform:
+                    t = transform;
+                    Capsule c = transform.Capsule;
+                    if (c.IntersectsSegment(segment, out Vector3[] points))
+                    {
+                        //Get closest point distance
+                        float min = float.MaxValue;
+                        for (int i = 0; i < points.Length; i++)
+                        {
+                            float dist = (points[i] - segment.Start).LengthSquared();
+                            if (dist < min)
+                                min = dist;
+                        }
+                        return (float)Math.Sqrt(min);
+                    }
+                    break;
+            }
+
+            return null;
         }
     }
 }

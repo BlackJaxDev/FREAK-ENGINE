@@ -57,6 +57,8 @@ namespace XREngine.Data.Geometry
             => new((min + max) * 0.5f, max - min);
 
         public readonly bool Contains(Vector3 worldPoint)
+            => ContainsPoint(worldPoint, float.Epsilon);
+        public readonly bool ContainsPoint(Vector3 worldPoint, float tolerance)
         {
             var localPoint = PointToLocalSpace(worldPoint);
             return localPoint.X >= LocalMinimum.X && localPoint.X <= LocalMaximum.X &&
@@ -102,22 +104,22 @@ namespace XREngine.Data.Geometry
             throw new NotImplementedException();
         }
 
-        public EContainment Contains(AABB box)
+        public EContainment ContainsAABB(AABB box, float tolerance = float.Epsilon)
         {
             throw new NotImplementedException();
         }
 
-        public EContainment Contains(Sphere sphere)
+        public EContainment ContainsSphere(Sphere sphere)
         {
             throw new NotImplementedException();
         }
 
-        public EContainment Contains(Cone cone)
+        public EContainment ContainsCone(Cone cone)
         {
             throw new NotImplementedException();
         }
 
-        public EContainment Contains(Capsule shape)
+        public EContainment ContainsCapsule(Capsule shape)
         {
             throw new NotImplementedException();
         }
@@ -130,12 +132,17 @@ namespace XREngine.Data.Geometry
         public readonly AABB GetAABB()
             => new(WorldMinimum, WorldMaximum);
 
-        public bool Intersects(Segment segment, out Vector3[] points)
+        public bool IntersectsSegment(Segment segment, out Vector3[] points)
         {
             throw new NotImplementedException();
         }
 
-        public bool Intersects(Segment segment)
+        public bool IntersectsSegment(Segment segment)
+        {
+            throw new NotImplementedException();
+        }
+
+        public EContainment ContainsBox(Box box)
         {
             throw new NotImplementedException();
         }

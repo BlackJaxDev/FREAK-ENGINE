@@ -8,6 +8,12 @@ namespace XREngine.Rendering.Commands
         public RenderCommand() { }
         public RenderCommand(int renderPass) => RenderPass = renderPass;
 
+        public delegate void DelPreRender(RenderCommand command, XRCamera? camera);
+        public event DelPreRender? OnPreRender;
+
+        public delegate void DelSwapBuffers(RenderCommand command);
+        public event DelSwapBuffers? OnSwapBuffers;
+
         private int _renderPass = (int)EDefaultRenderPass.OpaqueForward;
         /// <summary>
         /// Used by the engine for proper order of rendering.
@@ -24,8 +30,8 @@ namespace XREngine.Rendering.Commands
         public abstract void Render(bool shadowPass);
 
         public virtual void PreRender(XRCamera? camera)
-        {
-
-        }
+            => OnPreRender?.Invoke(this, camera);
+        public void SwapBuffers()
+            => OnSwapBuffers?.Invoke(this);
     }
 }

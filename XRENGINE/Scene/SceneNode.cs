@@ -1,16 +1,11 @@
 ﻿using System.Collections;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
-using System.Numerics;
 using XREngine.Components;
 using XREngine.Core;
 using XREngine.Core.Attributes;
-using XREngine.Data.Colors;
 using XREngine.Data.Core;
-using XREngine.Data.Rendering;
 using XREngine.Rendering;
-using XREngine.Rendering.Commands;
-using XREngine.Rendering.Info;
 using XREngine.Scene.Transforms;
 
 namespace XREngine.Scene
@@ -56,6 +51,16 @@ namespace XREngine.Scene
 
             scene.RootNodes.Add(this);
             Name = name;
+            ComponentsInternal.PostAnythingAdded += ComponentAdded;
+            ComponentsInternal.PostAnythingRemoved += ComponentRemoved;
+        }
+        public SceneNode(XRWorldInstance? world, string? name = null, TransformBase? transform = null)
+        {
+            if (transform != null)
+                SetTransform(transform, false);
+
+            World = world;
+            Name = name ?? DefaultName;
             ComponentsInternal.PostAnythingAdded += ComponentAdded;
             ComponentsInternal.PostAnythingRemoved += ComponentRemoved;
         }

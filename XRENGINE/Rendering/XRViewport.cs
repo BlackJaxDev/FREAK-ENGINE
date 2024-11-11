@@ -84,8 +84,6 @@ namespace XREngine.Rendering
         public XRWorldInstance? WorldInstanceOverride { get; set; } = null;
         public XRWorldInstance? World => WorldInstanceOverride ?? CameraComponent?.SceneNode?.World;
 
-        public Vector2 CursorPosition { get; set; }
-
         public void Destroy()
         {
 
@@ -117,18 +115,14 @@ namespace XREngine.Rendering
 
         private void CollectVisible()
         {
-            XRCamera? camera = ActiveCamera;
-            if (camera is null)
-                return;
+            World?.VisualScene?.CollectRenderedItems(
+                _renderPipeline.MeshRenderCommands,
+                ActiveCamera,
+                CameraComponent?.CullWithFrustum ?? true,
+                CameraComponent?.CullingCameraOverride,
+                false);
 
-            World?.VisualScene?.CollectRenderedItems(_renderPipeline.MeshRenderCommands, GetCollectionVolume(camera), camera);
-            CameraComponent?.UserInterfaceOverlay?.CollectVisible(this);
-        }
-
-        private IVolume? GetCollectionVolume(XRCamera? camera)
-        {
-            var cameraComponent = CameraComponent;
-            return (cameraComponent?.CullWithFrustum ?? true) ? cameraComponent?.CullingFrustumOverride?.Invoke() ?? camera?.WorldFrustum() : null;
+            CameraComponent?.UserInterfaceOverlay?.CollectVisibleScreenSpace(this);
         }
 
         private void SwapBuffers()
@@ -251,7 +245,13 @@ namespace XREngine.Rendering
             get => _renderPipeline.Pipeline;
             set => _renderPipeline.Pipeline = value;
         }
-        public bool SetRenderPipelineFromCamera { get; set; } = true;
+
+        private bool _setRenderPipelineFromCamera = true;
+        public bool SetRenderPipelineFromCamera
+        {
+            get => _setRenderPipelineFromCamera;
+            set => SetField(ref _setRenderPipelineFromCamera, value);
+        }
 
         /// <summary>
         /// Sizes the viewport according to the window's size and the sizing percentages set to this viewport.
@@ -292,14 +292,14 @@ namespace XREngine.Rendering
 
         private void SetAspectRatioToCamera()
         {
-            if (Camera?.Parameters is not XRPerspectiveCameraParameters p || !p.InheritAspectRatio)
+            if (ActiveCamera?.Parameters is not XRPerspectiveCameraParameters p || !p.InheritAspectRatio)
                 return;
 
             p.AspectRatio = (float)_region.Width / _region.Height;
         }
 
         private void ResizeCameraComponentUI()
-            => CameraComponent?.UserInterfaceOverlay?.Resize(_region.Extents);
+            => CameraComponent?.UserInterfaceOverlay?.Resize(_region.Size);
 
         /// <summary>
         /// This is texture dimensions that the camera will render at, which will be scaled up to the actual resolution of the viewport.
@@ -331,7 +331,7 @@ namespace XREngine.Rendering
             if (_camera is null)
                 throw new InvalidOperationException("No camera is set to this viewport.");
 
-            return _camera.ScreenToWorld(ToInternalResolution(viewportPoint) / _internalResolutionRegion.Extents, depth);
+            return _camera.ScreenToWorld(ToInternalResolution(viewportPoint) / _internalResolutionRegion.Size, depth);
         }
         public Vector3 ScreenToWorld(Vector3 viewportPoint)
             => ScreenToWorld(new Vector2(viewportPoint.X, viewportPoint.Y), viewportPoint.Z);
@@ -341,7 +341,7 @@ namespace XREngine.Rendering
                 throw new InvalidOperationException("No camera is set to this viewport.");
 
             Vector3 normScreenPoint = _camera.WorldToScreen(worldPoint);
-            return new Vector3(FromInternalResolution(new Vector2(normScreenPoint.X, normScreenPoint.Y) * _internalResolutionRegion.Extents), normScreenPoint.Z);
+            return new Vector3(FromInternalResolution(new Vector2(normScreenPoint.X, normScreenPoint.Y) * _internalResolutionRegion.Size), normScreenPoint.Z);
         }
 
         public Vector3 NormalizedScreenToWorld(Vector2 viewportPoint, float depth)
@@ -373,14 +373,14 @@ namespace XREngine.Rendering
         /// to a point relative to the internal resolution.
         /// </summary>
         public Vector2 ToInternalResolution(Vector2 viewportPoint)
-            => viewportPoint * (_internalResolutionRegion.Extents / _region.Extents);
+            => viewportPoint * (_internalResolutionRegion.Size / _region.Size);
 
         /// <summary>
         /// Converts a viewport point relative to the internal resolution
         /// to a point relative to the actual screen resolution.
         /// </summary>
         public Vector2 FromInternalResolution(Vector2 viewportPoint)
-            => viewportPoint * (_internalResolutionRegion.Extents / _region.Extents);
+            => viewportPoint * (_internalResolutionRegion.Size / _region.Size);
 
         #endregion
 

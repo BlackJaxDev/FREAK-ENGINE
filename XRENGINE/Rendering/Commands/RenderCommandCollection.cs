@@ -74,10 +74,13 @@ namespace XREngine.Rendering.Commands
         {
             static void Clear(ICollection<RenderCommand> x)
                 => x.Clear();
-
-            //TODO: swap buffers on each render command? how to preserve transform from collect visible to render?
+            static void Swap(ICollection<RenderCommand> x)
+                => x.ForEach(y => y.SwapBuffers());
+            
             _renderingPasses.Values.ForEach(Clear);
             (_updatingPasses, _renderingPasses) = (_renderingPasses, _updatingPasses);
+            _renderingPasses.Values.ForEach(Swap);
+
             _numCommandsRecentlyAddedToUpdate = 0;
         }
 

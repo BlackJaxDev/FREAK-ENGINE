@@ -154,9 +154,20 @@ namespace XREngine
                         Matrix4x4.CreateScale(halfExtents) *
                         transform);
                 }
-
                 public static void RenderCapsule(
-                    Matrix4x4 transform,
+                    Capsule capsule,
+                    ColorF4 color,
+                    bool depthTestEnabled = true)
+                    => RenderCapsule(
+                        capsule.Center,
+                        capsule.UpAxis,
+                        capsule.Radius,
+                        capsule.HalfHeight,
+                        false,
+                        color,
+                        depthTestEnabled);
+                public static void RenderCapsule(
+                    Vector3 center,
                     Vector3 localUpAxis,
                     float radius,
                     float halfHeight,
@@ -183,11 +194,11 @@ namespace XREngine
                         mBot ??= AssignDebugPrimitive(botStr, new XRMeshRenderer(botData, XRMaterial.CreateUnlitColorMaterialForward()));
                     }
 
-                    Matrix4x4 axisRotation = Matrix4x4.CreateFromQuaternion(XRMath.RotationBetweenVectors(Globals.Up, localUpAxis));
+                    Matrix4x4 tfm = Matrix4x4.CreateWorld(center, Vector3.Cross(localUpAxis, Vector3.UnitX), localUpAxis);
                     Matrix4x4 radiusMtx = Matrix4x4.CreateScale(radius);
-                    Matrix4x4 cylTransform = transform * axisRotation * Matrix4x4.CreateScale(radius, halfHeight, radius);
-                    Matrix4x4 topTransform = transform * axisRotation * Matrix4x4.CreateTranslation(0.0f, halfHeight, 0.0f) * radiusMtx;
-                    Matrix4x4 botTransform = transform * axisRotation * Matrix4x4.CreateTranslation(0.0f, -halfHeight, 0.0f) * radiusMtx;
+                    Matrix4x4 cylTransform = Matrix4x4.CreateScale(radius, halfHeight, radius) * tfm;
+                    Matrix4x4 topTransform = radiusMtx * Matrix4x4.CreateTranslation(0.0f, halfHeight, 0.0f) * tfm;
+                    Matrix4x4 botTransform = radiusMtx * Matrix4x4.CreateTranslation(0.0f, -halfHeight, 0.0f) * tfm;
 
                     SetOptions(depthTestEnabled, lineWidth, null, mCyl);
                     SetOptions(depthTestEnabled, lineWidth, null, mTop);

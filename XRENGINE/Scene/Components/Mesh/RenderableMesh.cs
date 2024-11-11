@@ -44,7 +44,7 @@ namespace XREngine.Components.Scene.Mesh
             }
 
             RenderInfo = RenderInfo3D.New(component, _rc = new RenderCommandMesh3D(0));
-            RenderInfo.CullingVolume = mesh.CullingVolumeOverride ?? mesh.Bounds;
+            RenderInfo.LocalCullingVolume = mesh.CullingBounds ?? mesh.Bounds;
             RenderInfo.PreAddRenderCommandsCallback = BeforeAdd;
         }
 
@@ -53,6 +53,9 @@ namespace XREngine.Components.Scene.Mesh
             vertexProgram.Uniform(EEngineUniform.RootInvModelMatrix.ToString(), /*RootTransform?.InverseWorldMatrix ?? */Matrix4x4.Identity);
         }
 
+        public XRMeshRenderer? CurrentLODRenderer => CurrentLOD?.Value?.Renderer;
+        public XRMesh? CurrentLODMesh => CurrentLOD?.Value?.Renderer?.Mesh;
+
         private void BeforeAdd(RenderInfo info, RenderCommandCollection passes, XRCamera? camera)
         {
             float distance = camera?.DistanceFromNearPlane(Component.Transform.WorldTranslation) ?? 0.0f;
@@ -60,7 +63,7 @@ namespace XREngine.Components.Scene.Mesh
             if (!passes.IsShadowPass)
                 UpdateLOD(distance);
 
-            var rend = CurrentLOD?.Value?.Renderer;
+            var rend = CurrentLODRenderer;
             _rc.Mesh = rend;
             _rc.WorldMatrix = (rend?.Mesh?.HasSkinning ?? false) ? Matrix4x4.Identity : Component.Transform.WorldMatrix;
             _rc.RenderDistance = distance;

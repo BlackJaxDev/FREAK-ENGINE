@@ -34,10 +34,9 @@ namespace XREngine.Data.Components
             {
                 case nameof(MirrorHeight):
                 case nameof(MirrorWidth):
-                    _renderInfo.CullingVolume = new Box(
+                    _renderInfo.LocalCullingVolume = new AABB(
                         new Vector3(0, 0, 0),
-                        new Vector3(MirrorWidth, MirrorHeight, 0.001f),
-                        Transform.WorldMatrix);
+                        new Vector3(MirrorWidth, MirrorHeight, 0.001f));
                     break;
             }
         }

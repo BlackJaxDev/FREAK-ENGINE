@@ -176,20 +176,20 @@ namespace XREngine.Components.Lights
 
         public override void CollectVisibleItems(VisualScene scene)
         {
-            if (!CastsShadows)
+            if (!CastsShadows || scene is not VisualScene3D s3d)
                 return;
 
-            scene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, ShadowCamera.WorldFrustum(), ShadowCamera);
+            s3d.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, ShadowCamera.WorldFrustum(), ShadowCamera, true);
         }
 
         public override void RenderShadowMap(VisualScene scene, bool collectVisibleNow = false)
         {
-            if (!CastsShadows || ShadowMap?.Material is null)
+            if (!CastsShadows || ShadowMap?.Material is null || scene is not VisualScene3D s3d)
                 return;
 
             if (collectVisibleNow)
             {
-                scene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, ShadowCamera.WorldFrustum(), ShadowCamera);
+                s3d.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, ShadowCamera.WorldFrustum(), ShadowCamera, true);
                 _shadowRenderPipeline.MeshRenderCommands.SwapBuffers();
             }
 

@@ -75,14 +75,14 @@ namespace XREngine.Components
             set => SetField(ref _cullWithFrustum, value);
         }
 
-        private Func<IVolume>? _cullingFrustumOverride = null;
+        private Func<XRCamera>? _cullingCameraOverride = null;
         /// <summary>
-        /// When CullWithFrustum is true and this property is not null, this method retrieves the frustum to cull with.
+        /// When CullWithFrustum is true and this property is not null, this method retrieves the camera frustum to cull with.
         /// </summary>
-        public Func<IVolume>? CullingFrustumOverride
+        public Func<XRCamera>? CullingCameraOverride
         {
-            get => _cullingFrustumOverride;
-            set => SetField(ref _cullingFrustumOverride, value);
+            get => _cullingCameraOverride;
+            set => SetField(ref _cullingCameraOverride, value);
         }
 
         public CameraComponent() : base()

@@ -103,5 +103,8 @@ namespace XREngine.Rendering
             program.Uniform(EEngineUniform.ScreenHeight.ToString(), Height);
             program.Uniform(EEngineUniform.ScreenOrigin.ToString(), Origin);
         }
+
+        public BoundingRectangleF GetBounds()
+            => new(_orthoLeft, _orthoRight, _orthoBottom, _orthoTop);
     }
 }

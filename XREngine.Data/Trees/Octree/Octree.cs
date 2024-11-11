@@ -1,5 +1,4 @@
 ﻿using System.Collections.Concurrent;
-using System.Numerics;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
 
@@ -116,17 +115,14 @@ namespace XREngine.Data.Trees
         public void Remove(T value)
             => RemovedItems.Enqueue(value);
 
-        public List<T> FindAll(float radius, Vector3 point, EContainment containment)
-            => FindAll(new Sphere(point, radius), containment);
-        public List<T> FindAll(IShape shape, EContainment containment)
-        {
-            List<T> list = [];
-            _head.FindAll(shape, list, containment);
-            return list;
-        }
-
-        public void CollectVisible(IVolume cullingVolume, bool containsOnly, Action<T> action)
-            => _head.CollectVisible(cullingVolume, containsOnly, action);
+        //public List<T> FindAll(float radius, Vector3 point, EContainment containment)
+        //    => FindAll(new Sphere(point, radius), containment);
+        //public List<T> FindAll(IShape shape, EContainment containment)
+        //{
+        //    List<T> list = [];
+        //    _head.FindAll(shape, list, containment);
+        //    return list;
+        //}
 
         public void CollectAll(Action<T> action)
             => _head.CollectAll(action);
@@ -137,14 +133,15 @@ namespace XREngine.Data.Trees
         /// <param name="volume">The frustum to display intersections with. If null, does not show frustum intersections.</param>
         /// <param name="onlyContainingItems">Only renders subdivisions that contain one or more items.</param>
         /// <param name="lineWidth">The width of the bounding box lines.</param>
-        public void DebugRender(IVolume volume, bool onlyContainingItems, DelRenderAABB render)
+        public void DebugRender(IVolume? volume, bool onlyContainingItems, DelRenderAABB render)
             => _head.DebugRender(true, onlyContainingItems, volume, render);
 
-        public void CollectIntersecting(IVolume volume, bool onlyContainingItems, Action<T> action)
-            => _head.CollectVisible(volume, onlyContainingItems, action);
-
-        void I3DRenderTree.CollectIntersecting(IVolume volume, bool onlyContainingItems, Action<IOctreeItem> action)
-            => CollectIntersecting(volume, onlyContainingItems, action);
+        public void CollectVisible(IVolume? volume, bool onlyContainingItems, Action<T> action, OctreeNode<T>.DelIntersectionTest intersectionTest)
+            => _head.CollectVisible(volume, onlyContainingItems, action, intersectionTest);
+        void I3DRenderTree.CollectVisible(IVolume? volume, bool onlyContainingItems, Action<IOctreeItem> action, OctreeNode<IOctreeItem>.DelIntersectionTestGeneric intersectionTest)
+            => _head.CollectVisible(volume, onlyContainingItems, action, intersectionTest);
+        public void CollectVisibleNodes(IVolume? cullingVolume, bool containsOnly, Action<(OctreeNodeBase node, bool intersects)> action)
+            => _head.CollectVisibleNodes(cullingVolume, containsOnly, action);
 
         void I3DRenderTree.CollectAll(Action<IOctreeItem> action)
         {
@@ -175,5 +172,8 @@ namespace XREngine.Data.Trees
             items = [];
             _head.Raycast(segment, items, directTest);
         }
+
+        public void DebugRender(IVolume? cullingVolume, DelRenderAABB render, bool onlyContainingItems = false)
+            => _head.DebugRender(true, onlyContainingItems, cullingVolume, render);
     }
 }

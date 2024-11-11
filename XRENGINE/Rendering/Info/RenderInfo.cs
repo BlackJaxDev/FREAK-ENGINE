@@ -9,17 +9,46 @@ namespace XREngine.Rendering.Info
     public delegate void DelCullingVolumeChanged(IVolume oldVolume, IVolume newVolume);
     /// <summary>
     /// Render info defines how a renderable object should be rendered and contains state information for the object.
+    /// The culling volume is used to determine if the object is visible to the camera.
+    /// If the culling volume is null, the object is always rendered.
+    /// When this render info is visible, all render commands are added to the rendering passes.
     /// </summary>
     public abstract class RenderInfo : XRBase, ITreeItem
     {
         public abstract ITreeNode? TreeNode { get; }
         public IRenderable? Owner { get; }
 
+        public delegate void DelPreRenderCallback(RenderInfo info, RenderCommand command, XRCamera? camera);
+        public event DelPreRenderCallback? PreRenderCallback;
+
+        public delegate void DelSwapBuffersCallback(RenderInfo info, RenderCommand command);
+        public event DelSwapBuffersCallback? SwapBuffersCallback;
+
         protected RenderInfo(IRenderable owner, params RenderCommand[] renderCommands)
         {
             Owner = owner;
+            RenderCommands.PostAnythingAdded += Added;
+            RenderCommands.PostAnythingRemoved += Removed;
             RenderCommands.AddRange(renderCommands);
         }
+
+        private void Removed(RenderCommand item)
+        {
+            item.OnPreRender -= PreRender;
+            item.OnSwapBuffers -= SwapBuffers;
+        }
+
+        private void Added(RenderCommand item)
+        {
+            item.OnPreRender += PreRender;
+            item.OnSwapBuffers += SwapBuffers;
+        }
+
+        private void SwapBuffers(RenderCommand command)
+            => SwapBuffersCallback?.Invoke(this, command);
+
+        private void PreRender(RenderCommand command, XRCamera? camera)
+            => PreRenderCallback?.Invoke(this, command, camera);
 
         private EventList<RenderCommand> _renderCommands = [];
         public EventList<RenderCommand> RenderCommands
@@ -38,15 +67,10 @@ namespace XREngine.Rendering.Info
             set => SetField(ref _isVisible, value);
         }
 
-        private bool _shouldRender = true;
         /// <summary>
         /// ShouldRender determines if the object is rendered. If false, the object still exists in the visual scene tree, but is not rendered.
         /// </summary>
-        public bool ShouldRender
-        {
-            get => _shouldRender;
-            set => SetField(ref _shouldRender, value);
-        }
+        public virtual bool ShouldRender => true;
 
         private XRWorldInstance? _worldInstance;
         /// <summary>

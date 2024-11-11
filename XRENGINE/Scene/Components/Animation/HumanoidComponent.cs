@@ -667,7 +667,7 @@ namespace XREngine.Scene.Components.Animation
             => node => names.Any(name => node.Name?.Contains(name, comp) ?? false);
         
         private static Func<SceneNode, bool> ByPosition(string nameContains, Func<Vector3, bool> posMatch, StringComparison comp = StringComparison.InvariantCultureIgnoreCase)
-            => node => (nameContains is null || (node.Name?.Contains(nameContains, comp) ?? false)) && posMatch(node.Transform.WorldTranslation);
+            => node => (nameContains is null || (node.Name?.Contains(nameContains, comp) ?? false)) && posMatch(node.Transform.LocalTranslation);
 
         private static Func<SceneNode, bool> ByName(string name, StringComparison comp = StringComparison.InvariantCultureIgnoreCase)
             => node => node.Name?.Equals(name, comp) ?? false;

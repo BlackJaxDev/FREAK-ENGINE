@@ -195,7 +195,7 @@ namespace XREngine.Data.Geometry
         /// <summary>
         /// The width and height of this rectangle.
         /// </summary>
-        public IVector2 Extents
+        public IVector2 Size
         {
             readonly get => _bounds;
             set => _bounds = value;

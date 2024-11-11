@@ -122,7 +122,7 @@ namespace XREngine.Components.Lights
             Prefilter,
         }
 
-        private ERenderPreview _previewDisplay = ERenderPreview.Prefilter;
+        private ERenderPreview _previewDisplay = ERenderPreview.Irradiance;
         public ERenderPreview PreviewDisplay
         {
             get => _previewDisplay;
@@ -305,17 +305,17 @@ namespace XREngine.Components.Lights
             _environmentTextureEquirect?.GenerateMipmapsGPU();
 
             uint res = IrradianceTexture.Extent;
-            //AbstractRenderer.Current?.SetRenderArea(new BoundingRectangle(IVector2.Zero, new IVector2((int)res, (int)res)));
-            using (Engine.Rendering.State.PipelineState?.PushRenderArea(new BoundingRectangle(IVector2.Zero, new IVector2((int)res, (int)res))))
+            using (_irradianceFBO!.BindForWriting())
             {
-                for (int i = 0; i < 6; ++i)
+                //AbstractRenderer.Current?.SetRenderArea(new BoundingRectangle(IVector2.Zero, new IVector2((int)res, (int)res)));
+                using (Engine.Rendering.State.PipelineState?.PushRenderArea(new BoundingRectangle(IVector2.Zero, new IVector2((int)res, (int)res))))
                 {
-                    _irradianceFBO!.SetRenderTargets((IrradianceTexture, EFrameBufferAttachment.ColorAttachment0, 0, i));
-                    using (_irradianceFBO.BindForWriting())
+                    for (int i = 0; i < 6; ++i)
                     {
+                        _irradianceFBO!.SetRenderTargets((IrradianceTexture, EFrameBufferAttachment.ColorAttachment0, 0, i));
                         Engine.Rendering.State.ClearByBoundFBO();
-                        Engine.Rendering.State.EnableDepthTest(false);
-                        Engine.Rendering.State.StencilMask(~0u);
+                        //Engine.Rendering.State.EnableDepthTest(false);
+                        //Engine.Rendering.State.StencilMask(~0u);
                         _irradianceFBO.RenderFullscreen(ECubemapFace.PosX + i);
                     }
                 }
@@ -338,24 +338,25 @@ namespace XREngine.Components.Lights
 
             int maxMipLevels = 5;
             int res = _prefilterFBO!.Material!.Parameter<ShaderInt>(1)!.Value;
-            for (int mip = 0; mip < maxMipLevels; ++mip)
+            using (_prefilterFBO.BindForWriting())
             {
-                int mipWidth = (int)(res * Math.Pow(0.5, mip));
-                int mipHeight = (int)(res * Math.Pow(0.5, mip));
-                float roughness = (float)mip / (maxMipLevels - 1);
-
-                _prefilterFBO.Material.Parameter<ShaderFloat>(0)!.Value = roughness;
-
-                using (Engine.Rendering.State.PipelineState?.PushRenderArea(new BoundingRectangle(IVector2.Zero, new IVector2(mipWidth, mipHeight))))
+                for (int mip = 0; mip < maxMipLevels; ++mip)
                 {
-                    for (int i = 0; i < 6; ++i)
+                    int mipWidth = (int)(res * Math.Pow(0.5, mip));
+                    int mipHeight = (int)(res * Math.Pow(0.5, mip));
+                    float roughness = (float)mip / (maxMipLevels - 1);
+
+                    _prefilterFBO.Material.Parameter<ShaderFloat>(0)!.Value = roughness;
+                    _prefilterFBO.Material.Parameter<ShaderInt>(1)!.Value = (int)ColorResolution;
+
+                    using (Engine.Rendering.State.PipelineState?.PushRenderArea(new BoundingRectangle(IVector2.Zero, new IVector2(mipWidth, mipHeight))))
                     {
-                        _prefilterFBO.SetRenderTargets((PrefilterTex, EFrameBufferAttachment.ColorAttachment0, mip, i));
-                        using (_prefilterFBO.BindForWriting())
+                        for (int i = 0; i < 6; ++i)
                         {
+                            _prefilterFBO.SetRenderTargets((PrefilterTex, EFrameBufferAttachment.ColorAttachment0, mip, i));
                             Engine.Rendering.State.ClearByBoundFBO();
-                            Engine.Rendering.State.EnableDepthTest(false);
-                            Engine.Rendering.State.StencilMask(~0u);
+                            //Engine.Rendering.State.EnableDepthTest(false);
+                            //Engine.Rendering.State.StencilMask(~0u);
                             _prefilterFBO.RenderFullscreen(ECubemapFace.PosX + i);
                         }
                     }

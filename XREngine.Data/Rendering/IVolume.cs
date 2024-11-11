@@ -5,23 +5,31 @@ namespace XREngine.Data.Rendering
 {
     public interface IVolume
     {
-        bool ContainedWithin(IVolume volume)
-            => volume.Contains(this) == EContainment.Contains;
+        //bool ContainedWithin(IVolume volume)
+        //    => volume.Contains(this) == EContainment.Contains;
 
-        EContainment Contains(IVolume shape)
-            => shape switch
-            {
-                AABB box => Contains(box),
-                Sphere sphere => Contains(sphere),
-                Cone cone => Contains(cone),
-                Capsule capsule => Contains(capsule),
-                _ => EContainment.Disjoint
-            };
+        //EContainment ContainsGeneric(IVolume shape)
+        //    => shape switch
+        //    {
+        //        AABB box => ContainsAABB(box),
+        //        Sphere sphere => ContainsSphere(sphere),
+        //        Cone cone => ContainsCone(cone),
+        //        ConeX coneX => ContainsCone(coneX),
+        //        ConeY coneY => ContainsCone(coneY),
+        //        ConeZ coneZ => ContainsCone(coneZ),
+        //        Capsule capsule => ContainsCapsule(capsule),
+        //        CapsuleX capsuleX => ContainsCapsule(capsuleX),
+        //        CapsuleY capsuleY => ContainsCapsule(capsuleY),
+        //        CapsuleZ capsuleZ => ContainsCapsule(capsuleZ),
+        //        Box box => ContainsBox(box),
+        //        _ => EContainment.Disjoint
+        //    };
 
-        EContainment Contains(AABB box);
-        EContainment Contains(Sphere sphere);
-        EContainment Contains(Cone cone);
-        EContainment Contains(Capsule shape);
+        EContainment ContainsAABB(AABB box, float tolerance = float.Epsilon);
+        EContainment ContainsBox(Box box);
+        EContainment ContainsSphere(Sphere sphere);
+        EContainment ContainsCone(Cone cone);
+        EContainment ContainsCapsule(Capsule shape);
 
         /// <summary>
         /// Returns a point on the edge of the shape that is closest to the point in space given.
@@ -35,9 +43,9 @@ namespace XREngine.Data.Rendering
         /// </summary>
         /// <param name="point"></param>
         /// <returns></returns>
-        bool Contains(Vector3 point);
+        bool ContainsPoint(Vector3 point, float tolerance = float.Epsilon);
         AABB GetAABB();
-        bool Intersects(Segment segment, out Vector3[] points);
-        bool Intersects(Segment segment);
+        bool IntersectsSegment(Segment segment, out Vector3[] points);
+        bool IntersectsSegment(Segment segment);
     }
 }

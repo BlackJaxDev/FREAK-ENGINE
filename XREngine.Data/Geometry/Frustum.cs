@@ -436,26 +436,26 @@ namespace XREngine.Data.Geometry
         public EContainment Contains(Box box)
             => GeoUtil.FrustumContainsBox1(this, box.LocalExtents, box.Transform);
 
-        public EContainment Contains(AABB box)
+        public EContainment ContainsAABB(AABB box, float tolerance = float.Epsilon)
             => GeoUtil.FrustumContainsAABB(this, box.Min, box.Max);
 
-        public EContainment Contains(Sphere sphere)
+        public EContainment ContainsSphere(Sphere sphere)
             => GeoUtil.FrustumContainsSphere(this, sphere.Center, sphere.Radius);
 
         public EContainment Contains(IVolume shape)
             => shape switch
             {
-                AABB box => Contains(box),
-                Sphere sphere => Contains(sphere),
-                Cone cone => Contains(cone),
-                Capsule capsule => Contains(capsule),
+                AABB box => ContainsAABB(box),
+                Sphere sphere => ContainsSphere(sphere),
+                Cone cone => ContainsCone(cone),
+                Capsule capsule => ContainsCapsule(capsule),
                 _ => throw new NotImplementedException(),
             };
 
-        public EContainment Contains(Cone cone)
+        public EContainment ContainsCone(Cone cone)
             => GeoUtil.FrustumContainsCone(this, cone.Center, cone.Up, cone.Height, cone.Radius);
 
-        public bool Contains(Vector3 point)
+        public bool ContainsPoint(Vector3 point, float tolerance = float.Epsilon)
         {
             for (int i = 0; i < 6; i++)
                 if (DistanceFromPointToPlane(point, _planes[i]) < 0)
@@ -469,9 +469,18 @@ namespace XREngine.Data.Geometry
             throw new NotImplementedException();
         }
 
-        public EContainment Contains(Capsule shape)
+        public EContainment ContainsCapsule(Capsule shape)
         {
-            throw new NotImplementedException();
+            var top = shape.GetTopCenterPoint();
+            var bottom = shape.GetBottomCenterPoint();
+            var radius = shape.Radius;
+            var topContained = ContainsPoint(top, radius);
+            var bottomContained = ContainsPoint(bottom, radius);
+            if (topContained && bottomContained)
+                return EContainment.Contains;
+            if (topContained || bottomContained)
+                return EContainment.Intersects;
+            return EContainment.Disjoint;
         }
 
         public Vector3 ClosestPoint(Vector3 point, bool clampToEdge)
@@ -505,7 +514,7 @@ namespace XREngine.Data.Geometry
         public override string ToString()
             => $"Frustum (Near: {Near}, Far: {Far}, Left: {Left}, Right: {Right}, Top: {Top}, Bottom: {Bottom})";
 
-        public bool Intersects(Segment segment, out Vector3[] points)
+        public bool IntersectsSegment(Segment segment, out Vector3[] points)
         {
             var intersections = new List<Vector3>();
             Plane far = Far;
@@ -569,7 +578,7 @@ namespace XREngine.Data.Geometry
             return points.Length > 0;
         }
 
-        public bool Intersects(Segment segment)
+        public bool IntersectsSegment(Segment segment)
         {
             Plane far = Far;
             Plane near = Near;
@@ -629,6 +638,23 @@ namespace XREngine.Data.Geometry
             }
 
             return false;
+        }
+
+        public EContainment ContainsBox(Box box)
+        {
+            var corners = box.WorldCorners;
+            int numInside = 0;
+
+            foreach (var corner in corners)
+                if (ContainsPoint(corner))
+                    numInside++;
+            
+            return numInside switch
+            {
+                8 => EContainment.Contains,
+                > 0 => EContainment.Intersects,
+                _ => EContainment.Disjoint
+            };
         }
     }
 }

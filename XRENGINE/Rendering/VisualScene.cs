@@ -1,9 +1,7 @@
 ﻿using System.Numerics;
 using XREngine.Components;
-using XREngine.Components.Scene.Mesh;
 using XREngine.Data.Core;
 using XREngine.Data.Geometry;
-using XREngine.Data.Rendering;
 using XREngine.Data.Trees;
 using XREngine.Rendering;
 using XREngine.Rendering.Commands;
@@ -24,29 +22,11 @@ namespace XREngine.Scene
         /// If the volume is null, all renderables are collected.
         /// Typically, the collectionVolume is the camera's frustum.
         /// </summary>
-        /// <param name="commands"></param>
-        /// <param name="collectionVolume"></param>
-        /// <param name="camera"></param>
-        public virtual void CollectRenderedItems(RenderCommandCollection commands, IVolume? collectionVolume, XRCamera? camera)
-        {
-            void AddRenderCommands(ITreeItem item)
-            {
-                if (item is RenderInfo renderable)
-                    renderable.AddRenderCommands(commands, camera);
-            }
+        public abstract void CollectRenderedItems(RenderCommandCollection meshRenderCommands, XRCamera? activeCamera, bool cullWithFrustum, Func<XRCamera>? cullingCameraOverride, bool shadowPass);
 
-            switch (RenderablesTree)
-            {
-                case I3DRenderTree tree:
-                    if (collectionVolume is null)
-                        tree.CollectAll(AddRenderCommands);
-                    else
-                        tree.CollectIntersecting(collectionVolume, false, AddRenderCommands);
-                    break;
-                case I2DRenderTree tree:
-                    tree.CollectAll(AddRenderCommands);
-                    break;
-            }
+        public virtual void DebugRender(XRCamera? camera, bool onlyContainingItems = false)
+        {
+
         }
 
         public void AddRenderable(RenderInfo renderable)

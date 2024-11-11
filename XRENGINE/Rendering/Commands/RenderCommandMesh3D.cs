@@ -50,6 +50,7 @@ namespace XREngine.Data.Rendering
 
         public override void PreRender(XRCamera? camera)
         {
+            base.PreRender(camera);
             if (camera != null)
                 UpdateRenderDistance(WorldMatrix.Translation, camera);
         }

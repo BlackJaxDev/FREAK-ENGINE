@@ -196,6 +196,8 @@ namespace XREngine
                     {
                         //Update parent transform
                         parentSceneNode.Transform.DeriveLocalMatrix(node.Transform.ToNumerics().Transposed() * parentSceneNode.Transform.LocalMatrix);
+                        parentSceneNode.Transform.RecalcLocal();
+                        parentSceneNode.Transform.RecalcWorld(false);
                     }
                     else
                     {
@@ -242,6 +244,8 @@ namespace XREngine
 
             SceneNode sceneNode = new(parentSceneNode, name);
             sceneNode.Transform.DeriveLocalMatrix(localTransform);
+            sceneNode.Transform.RecalcLocal();
+            sceneNode.Transform.RecalcWorld(false);
 
             if (_nodeCache.TryGetValue(name, out List<SceneNode>? nodes))
                 nodes.Add(sceneNode);

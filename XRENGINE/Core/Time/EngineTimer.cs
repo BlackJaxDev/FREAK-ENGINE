@@ -216,6 +216,8 @@ namespace XREngine.Timers
             bool dispatch = elapsed > 0.0f && elapsed >= TargetRenderPeriod;
             if (dispatch)
             {
+                //Debug.Out("Dispatching render.");
+
                 Render.Delta = elapsed;
                 Render.LastTimestamp = timestamp;
                 RenderFrame?.Invoke();
@@ -235,7 +237,11 @@ namespace XREngine.Timers
             timestamp = Time();
             Collect.ElapsedTime = timestamp - Collect.LastTimestamp;
         }
-        private void DispatchSwapBuffers() => SwapBuffers?.Invoke();
+        private void DispatchSwapBuffers()
+        {
+            //Debug.Out("Swapping buffers.");
+            SwapBuffers?.Invoke();
+        }
         private void DispatchFixedUpdate() => FixedUpdate?.Invoke();
         private void DispatchUpdate()
         {

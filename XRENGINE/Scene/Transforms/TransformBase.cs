@@ -5,6 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Reflection;
 using XREngine.Data.Colors;
+using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
 using XREngine.Rendering.Commands;
 using XREngine.Rendering.Info;
@@ -29,6 +30,9 @@ namespace XREngine.Scene.Transforms
         public event Action<TransformBase>? WorldMatrixChanged;
         public event Action<TransformBase>? InverseWorldMatrixChanged;
 
+        public float SelectionRadius { get; set; } = 0.015f;
+        public Capsule Capsule { get; set; } = new(Vector3.Zero, Vector3.UnitY, 0.015f, 0.5f);
+
         protected TransformBase() : this(null) { }
         protected TransformBase(TransformBase? parent)
         {
@@ -45,6 +49,29 @@ namespace XREngine.Scene.Transforms
             _inverseWorldMatrix = new MatrixInfo { NeedsRecalc = true };
 
             RenderedObjects = GetDebugRenderInfo();
+            MakeCapsule();
+
+            DebugRender = false;
+        }
+
+        private void MakeCapsule()
+        {
+            Vector3 parentPos = Parent?.WorldTranslation ?? Vector3.Zero;
+            Vector3 thisPos = WorldTranslation;
+            Vector3 center = (parentPos + thisPos) / 2.0f;
+            Vector3 dir = (thisPos - parentPos).Normalize();
+            float halfHeight = Vector3.Distance(parentPos, thisPos) / 2.0f;
+            Capsule = new Capsule(center, dir, SelectionRadius, halfHeight);
+        }
+
+        public bool DebugRender
+        {
+            get => RenderedObjects.TryGet(0)?.IsVisible ?? false;
+            set
+            {
+                foreach (var obj in RenderedObjects)
+                    obj.IsVisible = value;
+            }
         }
 
         protected virtual RenderInfo[] GetDebugRenderInfo()
@@ -57,6 +84,7 @@ namespace XREngine.Scene.Transforms
             
             Engine.Rendering.Debug.RenderLine(Parent?.WorldTranslation ?? Vector3.Zero, WorldTranslation, ColorF4.LightRed, false, 1);
             Engine.Rendering.Debug.RenderPoint(WorldTranslation, ColorF4.Green, false);
+            Engine.Rendering.Debug.RenderCapsule(Capsule, ColorF4.LightOrange, false);
         }
 
         private void ChildAdded(TransformBase e)
@@ -155,18 +183,19 @@ namespace XREngine.Scene.Transforms
         /// </summary>
         internal bool ParallelDepthRecalculate()
         {
-            bool recalcWorld = false;
-            if (_localMatrix.NeedsRecalc)
-            {
+            //bool recalcWorld = false;
+            //if (_localMatrix.NeedsRecalc)
+            //{
                 _localMatrix.NeedsRecalc = false;
                 RecalcLocal();
                 //We have to use a local bool here because the world matrix can be recalculated elsewhere before we get to it here
                 //_worldMatrix.NeedsRecalc = true;
-                recalcWorld = true;
+                //recalcWorld = true;
                 Engine.Networking.ReplicateTransform(this);
-            }
+            //}
 
-            if (recalcWorld)
+            //if (recalcWorld)
+            _worldMatrix.NeedsRecalc = false;
                 RecalcWorld(false);
 
             if (World is null)
@@ -286,9 +315,10 @@ namespace XREngine.Scene.Transforms
         {
             if (!_localMatrix.NeedsRecalc)
                 return;
-            
-            _localMatrix.NeedsRecalc = false;
-            RecalcLocal();
+
+            World?.AddDirtyTransform(this, out _, false);
+            //_localMatrix.NeedsRecalc = false;
+            //RecalcLocal();
         }
 
         internal void RecalcLocal()
@@ -325,12 +355,13 @@ namespace XREngine.Scene.Transforms
         {
             if (!_worldMatrix.NeedsRecalc)
                 return;
-            
-            _worldMatrix.NeedsRecalc = false;
-            RecalcWorld(false);
+
+            World?.AddDirtyTransform(this, out _, false);
+            //_worldMatrix.NeedsRecalc = false;
+            //RecalcWorld(false);
         }
 
-        private void RecalcWorld(bool allowSetLocal)
+        internal void RecalcWorld(bool allowSetLocal)
         {
             _worldMatrix.Matrix = CreateWorldMatrix();
             _inverseWorldMatrix.NeedsRecalc = true;
@@ -349,7 +380,11 @@ namespace XREngine.Scene.Transforms
                 : WorldMatrix * inverted;
 
         protected virtual void OnWorldMatrixChanged()
-            => WorldMatrixChanged?.Invoke(this);
+        {
+            MakeCapsule();
+            WorldMatrixChanged?.Invoke(this);
+        }
+
         #endregion
 
         #region Inverse Local Matrix
@@ -582,6 +617,42 @@ namespace XREngine.Scene.Transforms
         {
             DisplayNameAttribute? name = x.GetCustomAttribute<DisplayNameAttribute>();
             return $"{name?.DisplayName ?? x.Name} ({x.Assembly.GetName()})";
+        }
+
+        public static TransformBase? FindCommonAncestor(TransformBase? a, TransformBase? b)
+        {
+            if (a is null || b is null)
+                return null;
+
+            var ancestorsA = new HashSet<TransformBase>();
+            while (a is not null)
+            {
+                ancestorsA.Add(a);
+                a = a.Parent;
+            }
+
+            while (b is not null)
+            {
+                if (ancestorsA.Contains(b))
+                    return b;
+                b = b.Parent;
+            }
+
+            return null;
+        }
+        public static TransformBase? FindCommonAncestor(params TransformBase[] transforms)
+        {
+            if (transforms.Length == 0)
+                return null;
+
+            TransformBase? commonAncestor = transforms.First();
+            foreach (var bone in transforms)
+            {
+                commonAncestor = FindCommonAncestor(commonAncestor, bone);
+                if (commonAncestor is null)
+                    break;
+            }
+            return commonAncestor;
         }
     }
 }

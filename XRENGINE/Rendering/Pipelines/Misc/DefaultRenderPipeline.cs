@@ -164,16 +164,16 @@ public class DefaultRenderPipeline : RenderPipeline
                 c.Add<VPRC_DepthTest>().Enable = false;
                 c.Add<VPRC_BlitFBO>().SourceQuadFBOName = LightCombineFBOName;
 
-                //Normal depth test for opaque forward
-                c.Add<VPRC_DepthTest>().Enable = true;
-                c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.OpaqueForward;
-
                 //No depth writing for backgrounds (skybox)
                 c.Add<VPRC_DepthTest>().Enable = false;
                 c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.Background;
 
-                //Render forward transparent objects next, normal depth testing
+                //Normal depth test for opaque forward
                 c.Add<VPRC_DepthTest>().Enable = true;
+                c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.OpaqueForward;
+
+                //Render forward transparent objects next, normal depth testing
+                //c.Add<VPRC_DepthTest>().Enable = true;
                 c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.TransparentForward;
 
                 //Render forward on-top objects last

@@ -34,7 +34,7 @@ namespace XREngine.Data.Geometry
             return true;
         }
 
-        public readonly EContainment Contains(AABB box)
+        public readonly EContainment ContainsAABB(AABB box, float tolerance = float.Epsilon)
         {
             Vector3 min = box.Min;
             Vector3 max = box.Max;
@@ -48,7 +48,7 @@ namespace XREngine.Data.Geometry
             return EContainment.Contains;
         }
 
-        public readonly EContainment Contains(Sphere sphere)
+        public readonly EContainment ContainsSphere(Sphere sphere)
         {
             float distance = Vector3.Distance(Center, sphere.Center);
             if (distance > Radius + sphere.Radius)
@@ -58,17 +58,17 @@ namespace XREngine.Data.Geometry
             return EContainment.Intersects;
         }
 
-        public EContainment Contains(Cone cone)
+        public EContainment ContainsCone(Cone cone)
         {
             throw new NotImplementedException();
         }
 
-        public EContainment Contains(Capsule shape)
+        public EContainment ContainsCapsule(Capsule shape)
         {
             throw new NotImplementedException();
         }
 
-        public bool Contains(Vector3 point)
+        public bool ContainsPoint(Vector3 point, float tolerance = float.Epsilon)
         {
             throw new NotImplementedException();
         }
@@ -76,17 +76,22 @@ namespace XREngine.Data.Geometry
         public readonly AABB GetAABB() 
             => new(Center - new Vector3(Radius), Center + new Vector3(Radius));
 
-        public bool Intersects(Segment segment, out Vector3[] points)
+        public bool IntersectsSegment(Segment segment, out Vector3[] points)
         {
             throw new NotImplementedException();
         }
 
-        public bool Intersects(Segment segment)
+        public bool IntersectsSegment(Segment segment)
         {
             throw new NotImplementedException();
         }
 
         public override readonly string ToString()
             => $"Sphere (Center: {Center}, Radius: {Radius})";
+
+        public EContainment ContainsBox(Box box)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

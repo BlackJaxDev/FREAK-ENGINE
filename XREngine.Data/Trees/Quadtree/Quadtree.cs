@@ -88,8 +88,10 @@ namespace XREngine.Data.Trees
         public void CollectAll(Action<T> action)
             => _head.CollectAll(action);
 
-        public void CollectIntersecting(BoundingRectangleF collectionRegion, bool containsOnly, Action<T> action)
-            => _head.CollectVisible(collectionRegion, containsOnly, action);
+        public void CollectVisible(BoundingRectangleF? collectionRegion, bool containsOnly, Action<T> action, QuadtreeNode<T>.DelIntersectionTest intersectionTest)
+            => _head.CollectVisible(collectionRegion, containsOnly, action, intersectionTest);
+        void I2DRenderTree.CollectVisible(BoundingRectangleF? volume, bool onlyContainingItems, Action<IQuadtreeItem> action, QuadtreeNode<IQuadtreeItem>.DelIntersectionTestGeneric intersectionTest)
+            => _head.CollectVisible(volume, onlyContainingItems, action, intersectionTest);
 
         public T? FindDeepest(Vector2 point)
         {
@@ -166,16 +168,6 @@ namespace XREngine.Data.Trees
                     Remove(t);
         }
 
-        public void DebugRender(BoundingRectangleF volume, bool onlyContainingItems, DelRenderBounds render)
-        {
-            //_head.DebugRender(true, onlyContainingItems, volume, render);
-        }
-
-        public void CollectIntersecting(BoundingRectangleF region, bool onlyContainingItems, Action<IQuadtreeItem> action)
-        {
-            //_head.CollectIntersecting(region, onlyContainingItems, action);
-        }
-
         public void CollectAll(Action<IQuadtreeItem> action)
         {
             _head.CollectAll(action);
@@ -193,13 +185,10 @@ namespace XREngine.Data.Trees
             _head.Raycast(segment, items, directTest);
         }
 
-        ///// <summary>
-        ///// Renders the Quadtree using debug bounding boxes.
-        ///// </summary>
-        ///// <param name="f">The frustum to display intersections with. If null, does not show frustum intersections.</param>
-        ///// <param name="onlyContainingItems">Only renders subdivisions that contain one or more items.</param>
-        ///// <param name="lineWidth">The width of the bounding box lines.</param>
-        //public void DebugRender(BoundingRectangleF? f, bool onlyContainingItems, float lineWidth = 0.1f)
-        //    => _head.DebugRender(true, onlyContainingItems, f, lineWidth);
+        public void DebugRender(BoundingRectangleF? volume, bool onlyContainingItems, DelRenderBounds render)
+            => _head.DebugRender(true, onlyContainingItems, volume, render);
+
+        public void CollectVisibleNodes(BoundingRectangleF? cullingVolume, bool containsOnly, Action<(QuadtreeNodeBase node, bool intersects)> action)
+            => _head.CollectVisibleNodes(cullingVolume, containsOnly, action);
     }
 }

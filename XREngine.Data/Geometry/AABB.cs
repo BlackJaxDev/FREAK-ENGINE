@@ -340,21 +340,21 @@ namespace XREngine.Data.Geometry
                 Max = max
             };
 
-        public readonly bool Contains(Vector3 point)
-            => Vector3.Min(Min, point) == Min && Vector3.Max(Max, point) == Max;
+        public readonly bool ContainsPoint(Vector3 point, float tolerance = float.Epsilon) =>
+            Vector3.Min(Min - new Vector3(tolerance), point) == Min && 
+            Vector3.Max(Max + new Vector3(tolerance), point) == Max;
 
-        public readonly EContainment Contains(AABB box)
-        {
-            if (box.Min.X < Min.X || box.Max.X > Max.X)
-                return EContainment.Disjoint;
-            if (box.Min.Y < Min.Y || box.Max.Y > Max.Y)
-                return EContainment.Disjoint;
-            if (box.Min.Z < Min.Z || box.Max.Z > Max.Z)
-                return EContainment.Disjoint;
-            return EContainment.Contains;
-        }
+        public readonly EContainment ContainsAABB(AABB box, float tolerance = float.Epsilon) => 
+            box.Min.X < Min.X + tolerance ||
+            box.Max.X > Max.X - tolerance || 
+            box.Min.Y < Min.Y + tolerance || 
+            box.Max.Y > Max.Y - tolerance || 
+            box.Min.Z < Min.Z + tolerance || 
+            box.Max.Z > Max.Z - tolerance
+                ? EContainment.Disjoint
+                : EContainment.Contains;
 
-        public readonly EContainment Contains(Sphere sphere)
+        public readonly EContainment ContainsSphere(Sphere sphere)
         {
             static float DistSqr(float c, float min, float max)
             {
@@ -383,14 +383,29 @@ namespace XREngine.Data.Geometry
             return EContainment.Contains;
         }
 
-        public EContainment Contains(Cone cone)
+        public EContainment ContainsCone(Cone cone)
         {
             throw new NotImplementedException();
         }
 
-        public EContainment Contains(Capsule shape)
+        public readonly EContainment ContainsCapsule(Capsule shape)
         {
-            throw new NotImplementedException();
+            var top = shape.GetTopCenterPoint();
+            var bottom = shape.GetBottomCenterPoint();
+            var min = Min;
+            var max = Max;
+
+            if (top.X < min.X || top.X > max.X ||
+                top.Y < min.Y || top.Y > max.Y ||
+                top.Z < min.Z || top.Z > max.Z)
+                return EContainment.Disjoint;
+
+            if (bottom.X < min.X || bottom.X > max.X ||
+                bottom.Y < min.Y || bottom.Y > max.Y ||
+                bottom.Z < min.Z || bottom.Z > max.Z)
+                return EContainment.Disjoint;
+
+            return EContainment.Contains;
         }
 
         public readonly Vector3 ClosestPoint(Vector3 point, bool clampToEdge)
@@ -440,24 +455,24 @@ namespace XREngine.Data.Geometry
             return new AABB(min, max);
         }
 
-        public readonly bool Intersects(Segment segment, out Vector3[] points)
+        public readonly bool IntersectsSegment(Segment segment, out Vector3[] points)
         {
             List<Vector3> intersections = [];
             GetPlanes(out var up, out var down, out var right, out var left, out var back, out var front);
             Plane[] planes = { up, down, right, left, back, front };
             foreach (Plane plane in planes)
-                if (GeoUtil.RayIntersectsPlane(segment.Start, (segment.End - segment.Start).Normalize(), XRMath.GetPlanePoint(plane), plane.Normal, out Vector3 point) && Contains(point))
+                if (GeoUtil.RayIntersectsPlane(segment.Start, (segment.End - segment.Start).Normalize(), XRMath.GetPlanePoint(plane), plane.Normal, out Vector3 point) && ContainsPoint(point))
                     intersections.Add(point);
             points = [.. intersections];
             return points.Length > 0;
         }
 
-        public readonly bool Intersects(Segment segment)
+        public readonly bool IntersectsSegment(Segment segment)
         {
             GetPlanes(out var up, out var down, out var right, out var left, out var back, out var front);
             Plane[] planes = { up, down, right, left, back, front };
             foreach (Plane plane in planes)
-                if (GeoUtil.RayIntersectsPlane(segment.Start, (segment.End - segment.Start).Normalize(), XRMath.GetPlanePoint(plane), plane.Normal, out Vector3 point) && Contains(point))
+                if (GeoUtil.RayIntersectsPlane(segment.Start, (segment.End - segment.Start).Normalize(), XRMath.GetPlanePoint(plane), plane.Normal, out Vector3 point) && ContainsPoint(point))
                     return true;
             return false;
         }
@@ -474,6 +489,11 @@ namespace XREngine.Data.Geometry
             Vector3 min = Vector3.Min(Min, other.Min);
             Vector3 max = Vector3.Max(Max, other.Max);
             return new AABB(min, max);
+        }
+
+        public EContainment ContainsBox(Box box)
+        {
+            throw new NotImplementedException();
         }
     }
 }

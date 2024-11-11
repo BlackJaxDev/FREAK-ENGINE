@@ -1,19 +1,20 @@
-﻿using System.Drawing;
-using System.Numerics;
+﻿using System.Numerics;
+using XREngine.Data.Colors;
 using XREngine.Data.Geometry;
 
 namespace XREngine.Data.Trees
 {
-    public delegate void DelRenderBounds(Vector2 extents, Vector2 center, Color color);
+    public delegate void DelRenderBounds(Vector2 extents, Vector2 center, ColorF4 color);
     public interface I2DRenderTree : IRenderTree
     {
         void Remake(BoundingRectangleF newBounds);
-        void DebugRender(BoundingRectangleF volume, bool onlyContainingItems, DelRenderBounds render);
-        void CollectIntersecting(BoundingRectangleF region, bool onlyContainingItems, Action<IQuadtreeItem> action);
+        void DebugRender(BoundingRectangleF? volume, bool onlyContainingItems, DelRenderBounds render);
+        void CollectVisible(BoundingRectangleF? region, bool onlyContainingItems, Action<IQuadtreeItem> action, QuadtreeNode<IQuadtreeItem>.DelIntersectionTestGeneric intersectionTest);
         void CollectAll(Action<IQuadtreeItem> action);
+        void CollectVisibleNodes(BoundingRectangleF? cullingVolume, bool containsOnly, Action<(QuadtreeNodeBase node, bool intersects)> action);
     }
     public interface I2DRenderTree<T> : IRenderTree<T>, I2DRenderTree where T : class, IQuadtreeItem
     {
-        void CollectIntersecting(BoundingRectangleF region, bool onlyContainingItems, Action<T> action);
+        void CollectVisible(BoundingRectangleF? region, bool onlyContainingItems, Action<T> action, QuadtreeNode<T>.DelIntersectionTest intersectionTest);
     }
 }

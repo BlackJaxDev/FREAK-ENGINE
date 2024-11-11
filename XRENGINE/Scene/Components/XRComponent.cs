@@ -14,12 +14,12 @@ namespace XREngine.Components
         /// <summary>
         /// Global event for when a component is created.
         /// </summary>
-        public static XREvent<XRComponent> ComponentCreated;
+        public static event Action<XRComponent>? ComponentCreated;
 
         /// <summary>
         /// Global event for when a component is destroyed.
         /// </summary>
-        public static XREvent<XRComponent> ComponentDestroyed;
+        public static event Action<XRComponent>? ComponentDestroyed;
 
         private bool _isActive = true;
         public bool IsActive
@@ -57,7 +57,7 @@ namespace XREngine.Components
             component.Constructing();
             component.World = component.SceneNode.World;
 
-            ComponentCreated.Invoke(component);
+            ComponentCreated?.Invoke(component);
 
             return component;
         }
@@ -145,8 +145,8 @@ namespace XREngine.Components
         /// </summary>
         public TransformBase Transform => SceneNode.Transform;
 
-        public T TransformAs<T>() where T : TransformBase
-            => (T)Transform;
+        public T? TransformAs<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(bool forceConvert = false) where T : TransformBase, new()
+            => SceneNode.GetTransformAs<T>(forceConvert);
 
         public bool TransformIs<T>(out T? transform) where T : TransformBase
         {
@@ -288,7 +288,7 @@ namespace XREngine.Components
         protected override void OnDestroying()
         {
             base.OnDestroying();
-            ComponentDestroyed.Invoke(this);
+            ComponentDestroyed?.Invoke(this);
         }
 
         internal protected virtual void RemovedFromSceneNode(SceneNode sceneNode)

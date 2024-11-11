@@ -18,7 +18,7 @@ namespace XREngine.Rendering.Info
         protected RenderInfo3D(IRenderable owner, params RenderCommand[] renderCommands)
             : base(owner, renderCommands) { }
 
-        private IVolume? _cullingVolume;
+        private AABB? _localCullingVolume;
         private OctreeNodeBase? _octreeNode;
         private bool _receivesShadows = true;
         private bool _castsShadows = true;
@@ -42,10 +42,10 @@ namespace XREngine.Rendering.Info
         /// The shape the rendering octree will use to determine occlusion and offscreen culling (visibility).
         /// If null, the object will always be rendered.
         /// </summary>
-        public IVolume? CullingVolume
+        public AABB? LocalCullingVolume
         {
-            get => _cullingVolume;
-            set => SetField(ref _cullingVolume, value);
+            get => _localCullingVolume;
+            set => SetField(ref _localCullingVolume, value);
         }
 
         /// <summary>
@@ -85,14 +85,15 @@ namespace XREngine.Rendering.Info
         public virtual bool AllowRender(
             IVolume? cullingVolume,
             RenderCommandCollection passes,
-            XRCamera camera) => IsVisible && (!passes.IsShadowPass || CastsShadows) && (CullingVolume is null || (cullingVolume?.Contains(CullingVolume) ?? EContainment.Contains) != EContainment.Disjoint);
+            XRCamera? camera,
+            bool containsOnly) => (!passes.IsShadowPass || CastsShadows) && Intersects(cullingVolume, containsOnly);
 
-        public bool Intersects(IVolume cullingVolume, bool containsOnly)
+        public bool Intersects(IVolume? cullingVolume, bool containsOnly)
         {
-            if (CullingVolume is null)
+            if (LocalCullingVolume is null)
                 return true;
 
-            var containment = cullingVolume.Contains(CullingVolume);
+            var containment = cullingVolume?.ContainsAABB(LocalCullingVolume.Value) ?? EContainment.Contains;
             return containsOnly ? containment == EContainment.Contains : containment != EContainment.Disjoint;
         }
     }

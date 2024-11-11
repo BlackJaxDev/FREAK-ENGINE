@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using Assimp;
+using System.Numerics;
 using XREngine.Core.Attributes;
 using XREngine.Data.Vectors;
 using XREngine.Rendering;
@@ -19,7 +20,7 @@ namespace XREngine.Components
         /// <returns></returns>
         public UIInputComponent? GetInputComponent() => GetSiblingComponent<UIInputComponent>();
 
-        public UICanvasTransform CanvasTransform => TransformAs<UICanvasTransform>();
+        public UICanvasTransform CanvasTransform => TransformAs<UICanvasTransform>(true)!;
         public CameraComponent ScreenSpaceCamera => GetSiblingComponent<CameraComponent>(true)!;
 
         public XRWorldInstance ScreenSpaceWorld { get; } = new XRWorldInstance();
@@ -88,6 +89,28 @@ namespace XREngine.Components
             //ScreenSpaceWorld?.VisualScene.GlobalSwap();
             //ScreenSpaceRenderPasses?.SwapBuffers();
         }
+
+        public void Resize(IVector2 size)
+        {
+            CanvasTransform.Size = size;
+        }
+
+        public void CollectVisibleScreenSpace(XRViewport viewport)
+        {
+            if (DrawSpace != ECanvasDrawSpace.Screen || _renderPipeline is null)
+                return;
+
+            var cam = ScreenSpaceCamera;
+            var scene = ScreenSpaceWorld?.VisualScene;
+            scene?.CollectRenderedItems(
+                _renderPipeline.MeshRenderCommands,
+                cam.Camera,
+                cam?.CullWithFrustum ?? true,
+                cam?.CullingCameraOverride,
+                false);
+        }
+
+        private XRRenderPipelineInstance? _renderPipeline;
 
         internal List<IRenderable> FindAllIntersecting(Vector2 viewportPoint) => throw new NotImplementedException();
 
@@ -263,17 +286,6 @@ namespace XREngine.Components
         internal UIComponent? FindDeepestComponent(Vector2 viewportPoint)
         {
             return null;
-        }
-
-        public void Resize(IVector2 extents)
-        {
-
-        }
-
-        public void CollectVisible(XRViewport viewport)
-        {
-            var scene = ScreenSpaceWorld?.VisualScene;
-            //scene?.CollectRenderedItems(commands, null, CameraComponent?.UserInterfaceOverlay?.ScreenSpaceCamera);
         }
     }
 }
