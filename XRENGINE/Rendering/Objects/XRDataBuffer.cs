@@ -290,7 +290,7 @@ namespace XREngine.Rendering
                 EComponentType.UInt => sizeof(uint),
                 EComponentType.Float => sizeof(float),
                 EComponentType.Double => sizeof(double),
-                _ => 0,
+                _ => 1,
             };
 
         private uint? _bindingIndexOverride;
@@ -372,7 +372,7 @@ namespace XREngine.Rendering
         /// <typeparam name="T">The type of value to read.</typeparam>
         /// <param name="offset">The offset into the buffer, in bytes.</param>
         /// <returns>The T value at the given offset.</returns>
-        [RequiresDynamicCode("")]
+        [UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", Justification = "<Pending>")]
         public T? Get<T>(uint offset) where T : struct
             => _clientSideSource != null ? (T?)Marshal.PtrToStructure(_clientSideSource.Address + offset, typeof(T)) : default;
 
@@ -461,6 +461,15 @@ namespace XREngine.Rendering
             _normalize = false;
             _elementCount = listCount;
             _clientSideSource = DataSource.Allocate(Length);
+        }
+
+        public void Allocate(uint stride, uint count)
+        {
+            _elementCount = count;
+            _componentCount = stride;
+            _componentType = EComponentType.Struct;
+            _normalize = false;
+            _clientSideSource = DataSource.Allocate(stride * count);
         }
 
         public void SetDataRawAtIndex<T>(uint index, T data) where T : struct

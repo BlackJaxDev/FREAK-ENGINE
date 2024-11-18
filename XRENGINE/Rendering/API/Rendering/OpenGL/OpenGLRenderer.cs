@@ -21,14 +21,40 @@ namespace XREngine.Rendering.OpenGL
         public ExtSemaphoreWin32? EXTSemaphoreWin32 { get; }
         public ExtSemaphoreFd? EXTSemaphoreFd { get; }
         public ExtMemoryObjectFd? EXTMemoryObjectFd { get; }
-
+        
+        private static string? _version = null;
+        public string? Version
+        {
+            get
+            {
+                unsafe
+                {
+                    _version ??= new((sbyte*)Api.GetString(StringName.Version));
+                }
+                return _version;
+            }
+        }
         public OpenGLRenderer(XRWindow window) : base(window)
         {
+            string version;
+            unsafe
+            {
+                version = new((sbyte*)Api.GetString(StringName.Version));
+                string vendor = new((sbyte*)Api.GetString(StringName.Vendor));
+                string renderer = new((sbyte*)Api.GetString(StringName.Renderer));
+                string shadingLanguageVersion = new((sbyte*)Api.GetString(StringName.ShadingLanguageVersion));
+                Debug.Out($"OpenGL Version: {version}");
+                Debug.Out($"OpenGL Vendor: {vendor}");
+                Debug.Out($"OpenGL Renderer: {renderer}");
+                Debug.Out($"OpenGL Shading Language Version: {shadingLanguageVersion}");
+            }
+
+            GLRenderProgram.ReadBinaryShaderCache(version);
+
             Api.Enable(EnableCap.Multisample);
             Api.Enable(EnableCap.TextureCubeMapSeamless);
             Api.FrontFace(FrontFaceDirection.Ccw);
 
-            //TODO: Modify depth range so there is no loss of precision with scale and bias conversion
             Api.ClipControl(GLEnum.LowerLeft, GLEnum.NegativeOneToOne);
 
             //Fix gamma manually inside of the post process shader
@@ -78,6 +104,7 @@ namespace XREngine.Rendering.OpenGL
             //1281, //Invalid texture format
             //1282,
         ];
+
         public unsafe void DebugCallback(GLEnum source, GLEnum type, int id, GLEnum severity, int length, nint message, nint userParam)
         {
             if (_ignoredMessageIds.IndexOf(id) >= 0)
@@ -218,10 +245,13 @@ namespace XREngine.Rendering.OpenGL
         {
             Api.DepthMask(allow);
         }
-        public override void BindFrameBuffer(EFramebufferTarget fboTarget, int bindingId)
+        public override void BindFrameBuffer(EFramebufferTarget fboTarget, XRFrameBuffer? fbo)
         {
-            GLEnum target = GLObjectBase.ToGLEnum(fboTarget);
-            Api.BindFramebuffer(target, (uint)bindingId);
+            GLFrameBuffer? glFBO = GenericToAPI<GLFrameBuffer>(fbo);
+            if (glFBO is null)
+                return;
+
+            Api.BindFramebuffer(GLObjectBase.ToGLEnum(fboTarget), (uint)(glFBO?.BindingId ?? 0));
         }
         public override void Clear(bool color, bool depth, bool stencil)
         {
@@ -286,32 +316,62 @@ namespace XREngine.Rendering.OpenGL
             Api.ReadPixels((int)x, (int)y, 1, 1, PixelFormat.StencilIndex, PixelType.UnsignedByte, &stencil);
             return stencil;
         }
-        public override void SetReadBuffer(EDrawBuffersAttachment attachment)
+        public override void SetReadBuffer(EReadBufferMode mode)
         {
-            var att = attachment switch
+            Api.ReadBuffer(ToGLEnum(mode));
+        }
+        public override void SetReadBuffer(XRFrameBuffer? fbo, EReadBufferMode mode)
+        {
+            Api.NamedFramebufferReadBuffer(GenericToAPI<GLFrameBuffer>(fbo)?.BindingId ?? 0, ToGLEnum(mode));
+        }
+
+        private static GLEnum ToGLEnum(EReadBufferMode mode)
+        {
+            return mode switch
             {
-                EDrawBuffersAttachment.None => GLEnum.None,
-                EDrawBuffersAttachment.FrontLeft => GLEnum.FrontLeft,
-                EDrawBuffersAttachment.FrontRight => GLEnum.FrontRight,
-                EDrawBuffersAttachment.BackLeft => GLEnum.BackLeft,
-                EDrawBuffersAttachment.BackRight => GLEnum.BackRight,
-                EDrawBuffersAttachment.ColorAttachment0 => GLEnum.ColorAttachment0,
-                EDrawBuffersAttachment.ColorAttachment1 => GLEnum.ColorAttachment1,
-                EDrawBuffersAttachment.ColorAttachment2 => GLEnum.ColorAttachment2,
-                EDrawBuffersAttachment.ColorAttachment3 => GLEnum.ColorAttachment3,
-                EDrawBuffersAttachment.ColorAttachment4 => GLEnum.ColorAttachment4,
-                EDrawBuffersAttachment.ColorAttachment5 => GLEnum.ColorAttachment5,
-                EDrawBuffersAttachment.ColorAttachment6 => GLEnum.ColorAttachment6,
-                EDrawBuffersAttachment.ColorAttachment7 => GLEnum.ColorAttachment7,
-                EDrawBuffersAttachment.ColorAttachment8 => GLEnum.ColorAttachment8,
-                EDrawBuffersAttachment.ColorAttachment9 => GLEnum.ColorAttachment9,
-                EDrawBuffersAttachment.ColorAttachment10 => GLEnum.ColorAttachment10,
-                EDrawBuffersAttachment.ColorAttachment11 => GLEnum.ColorAttachment11,
-                EDrawBuffersAttachment.ColorAttachment12 => GLEnum.ColorAttachment12,
-                EDrawBuffersAttachment.ColorAttachment13 => GLEnum.ColorAttachment13,
-                _ => throw new ArgumentOutOfRangeException(nameof(attachment), attachment, null),
+                EReadBufferMode.None => GLEnum.None,
+                EReadBufferMode.Front => GLEnum.Front,
+                EReadBufferMode.Back => GLEnum.Back,
+                EReadBufferMode.Left => GLEnum.Left,
+                EReadBufferMode.Right => GLEnum.Right,
+                EReadBufferMode.FrontLeft => GLEnum.FrontLeft,
+                EReadBufferMode.FrontRight => GLEnum.FrontRight,
+                EReadBufferMode.BackLeft => GLEnum.BackLeft,
+                EReadBufferMode.BackRight => GLEnum.BackRight,
+                EReadBufferMode.ColorAttachment0 => GLEnum.ColorAttachment0,
+                EReadBufferMode.ColorAttachment1 => GLEnum.ColorAttachment1,
+                EReadBufferMode.ColorAttachment2 => GLEnum.ColorAttachment2,
+                EReadBufferMode.ColorAttachment3 => GLEnum.ColorAttachment3,
+                EReadBufferMode.ColorAttachment4 => GLEnum.ColorAttachment4,
+                EReadBufferMode.ColorAttachment5 => GLEnum.ColorAttachment5,
+                EReadBufferMode.ColorAttachment6 => GLEnum.ColorAttachment6,
+                EReadBufferMode.ColorAttachment7 => GLEnum.ColorAttachment7,
+                EReadBufferMode.ColorAttachment8 => GLEnum.ColorAttachment8,
+                EReadBufferMode.ColorAttachment9 => GLEnum.ColorAttachment9,
+                EReadBufferMode.ColorAttachment10 => GLEnum.ColorAttachment10,
+                EReadBufferMode.ColorAttachment11 => GLEnum.ColorAttachment11,
+                EReadBufferMode.ColorAttachment12 => GLEnum.ColorAttachment12,
+                EReadBufferMode.ColorAttachment13 => GLEnum.ColorAttachment13,
+                EReadBufferMode.ColorAttachment14 => GLEnum.ColorAttachment14,
+                EReadBufferMode.ColorAttachment15 => GLEnum.ColorAttachment15,
+                EReadBufferMode.ColorAttachment16 => GLEnum.ColorAttachment16,
+                EReadBufferMode.ColorAttachment17 => GLEnum.ColorAttachment17,
+                EReadBufferMode.ColorAttachment18 => GLEnum.ColorAttachment18,
+                EReadBufferMode.ColorAttachment19 => GLEnum.ColorAttachment19,
+                EReadBufferMode.ColorAttachment20 => GLEnum.ColorAttachment20,
+                EReadBufferMode.ColorAttachment21 => GLEnum.ColorAttachment21,
+                EReadBufferMode.ColorAttachment22 => GLEnum.ColorAttachment22,
+                EReadBufferMode.ColorAttachment23 => GLEnum.ColorAttachment23,
+                EReadBufferMode.ColorAttachment24 => GLEnum.ColorAttachment24,
+                EReadBufferMode.ColorAttachment25 => GLEnum.ColorAttachment25,
+                EReadBufferMode.ColorAttachment26 => GLEnum.ColorAttachment26,
+                EReadBufferMode.ColorAttachment27 => GLEnum.ColorAttachment27,
+                EReadBufferMode.ColorAttachment28 => GLEnum.ColorAttachment28,
+                EReadBufferMode.ColorAttachment29 => GLEnum.ColorAttachment29,
+                EReadBufferMode.ColorAttachment30 => GLEnum.ColorAttachment30,
+                EReadBufferMode.ColorAttachment31 => GLEnum.ColorAttachment31,
+                _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, null),
             };
-            Api.DrawBuffer(att);
         }
 
         public override void SetRenderArea(BoundingRectangle region)

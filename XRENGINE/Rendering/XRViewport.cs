@@ -22,7 +22,6 @@ namespace XREngine.Rendering
         public XRWindow? Window { get; set; }
 
         private XRCamera? _camera = null;
-        private readonly RayTraceClosest _closestPick = new(Vector3.Zero, Vector3.Zero, 0, 0xFFFF);
 
         private BoundingRectangle _region = new();
         private BoundingRectangle _internalResolutionRegion = new();
@@ -86,7 +85,8 @@ namespace XREngine.Rendering
 
         public void Destroy()
         {
-
+            Camera = null;
+            CameraComponent = null;
         }
 
         public XRViewport(XRWindow? window)
@@ -115,6 +115,10 @@ namespace XREngine.Rendering
 
         private void CollectVisible()
         {
+            XRCamera? camera = ActiveCamera;
+            if (camera is null)
+                return;
+
             World?.VisualScene?.CollectRenderedItems(
                 _renderPipeline.MeshRenderCommands,
                 ActiveCamera,
@@ -127,7 +131,11 @@ namespace XREngine.Rendering
 
         private void SwapBuffers()
         {
-            _renderPipeline.MeshRenderCommands.SwapBuffers();
+            XRCamera? camera = ActiveCamera;
+            if (camera is null)
+                return;
+
+            _renderPipeline.MeshRenderCommands.SwapBuffers(false);
             CameraComponent?.UserInterfaceOverlay?.SwapBuffersScreenSpace();
         }
 
@@ -195,6 +203,8 @@ namespace XREngine.Rendering
         }
 
         private readonly XRRenderPipelineInstance _renderPipeline = new();
+
+        public XRRenderPipelineInstance RenderPipelineInstance => _renderPipeline;
 
         protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
         {
@@ -326,75 +336,79 @@ namespace XREngine.Rendering
             => SetInternalResolution((int)(widthPercent * _region.Width), (int)(heightPercent * _region.Height), true);
 
         #region Coordinate conversion
-        public Vector3 ScreenToWorld(Vector2 viewportPoint, float depth)
-        {
-            if (_camera is null)
-                throw new InvalidOperationException("No camera is set to this viewport.");
-
-            return _camera.ScreenToWorld(ToInternalResolution(viewportPoint) / _internalResolutionRegion.Size, depth);
-        }
-        public Vector3 ScreenToWorld(Vector3 viewportPoint)
-            => ScreenToWorld(new Vector2(viewportPoint.X, viewportPoint.Y), viewportPoint.Z);
-        public Vector3 WorldToScreen(Vector3 worldPoint)
-        {
-            if (_camera is null)
-                throw new InvalidOperationException("No camera is set to this viewport.");
-
-            Vector3 normScreenPoint = _camera.WorldToScreen(worldPoint);
-            return new Vector3(FromInternalResolution(new Vector2(normScreenPoint.X, normScreenPoint.Y) * _internalResolutionRegion.Size), normScreenPoint.Z);
-        }
-
-        public Vector3 NormalizedScreenToWorld(Vector2 viewportPoint, float depth)
-        {
-            if (_camera is null)
-                throw new InvalidOperationException("No camera is set to this viewport.");
-
-            return _camera.ScreenToWorld(viewportPoint, depth);
-        }
-        public Vector3 NormalizedScreenToWorld(Vector3 viewportPoint)
-            => NormalizedScreenToWorld(new Vector2(viewportPoint.X, viewportPoint.Y), viewportPoint.Z);
-
-        public Vector3 WorldToNormalizedScreen(Vector3 worldPoint)
-        {
-            if (_camera is null)
-                throw new InvalidOperationException("No camera is set to this viewport.");
-
-            return _camera.WorldToScreen(worldPoint);
-        }
-
-        public Vector2 AbsoluteToRelative(Vector2 absolutePoint)
-            => new(absolutePoint.X - _region.X, absolutePoint.Y - _region.Y);
-
-        public Vector2 RelativeToAbsolute(Vector2 viewportPoint)
-            => new(viewportPoint.X + _region.X, viewportPoint.Y + _region.Y);
-
         /// <summary>
-        /// Converts a viewport point relative to actual screen resolution
-        /// to a point relative to the internal resolution.
+        /// Converts a window coordinate to a viewport coordinate.
         /// </summary>
-        public Vector2 ToInternalResolution(Vector2 viewportPoint)
-            => viewportPoint * (_internalResolutionRegion.Size / _region.Size);
-
+        /// <param name="coord"></param>
+        /// <returns></returns>
+        public Vector2 ScreenToViewportCoordinate(Vector2 coord)
+            => new(coord.X - _region.X, coord.Y - _region.Y);
+        public void ScreenToViewportCoordinate(ref Vector2 coord)
+            => coord = ScreenToViewportCoordinate(coord);
         /// <summary>
-        /// Converts a viewport point relative to the internal resolution
-        /// to a point relative to the actual screen resolution.
+        /// Converts a viewport coordinate to a window coordinate.
         /// </summary>
-        public Vector2 FromInternalResolution(Vector2 viewportPoint)
-            => viewportPoint * (_internalResolutionRegion.Size / _region.Size);
+        /// <param name="coord"></param>
+        /// <returns></returns>
+        public Vector2 ViewportToScreenCoordinate(Vector2 coord)
+            => new(coord.X + _region.X, coord.Y + _region.Y);
+        public void ViewportToScreenCoordinate(ref Vector2 coord)
+            => coord = ViewportToScreenCoordinate(coord);
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="viewportPoint"></param>
+        /// <returns></returns>
+        public Vector2 ViewportToInternalCoordinate(Vector2 viewportPoint)
+            => viewportPoint * (InternalResolutionRegion.Size / _region.Size);
+        public Vector2 InternalToViewportCoordinate(Vector2 viewportPoint)
+            => viewportPoint * (_region.Size / InternalResolutionRegion.Size);
+        public Vector2 NormalizeViewportCoordinate(Vector2 viewportPoint)
+            => viewportPoint / _region.Size;
+        public Vector2 NormalizeInternalCoordinate(Vector2 viewportPoint)
+            => viewportPoint / _internalResolutionRegion.Size;
+        public Vector3 NormalizedViewportToWorldCoordinate(Vector2 normalizedViewportPoint, float depth)
+        {
+            if (_camera is null)
+                throw new InvalidOperationException("No camera is set to this viewport.");
+
+            return _camera.NormalizedViewportToWorldCoordinate(normalizedViewportPoint, depth);
+        }
+        public Vector3 NormalizedViewportToWorldCoordinate(Vector3 normalizedViewportPoint)
+            => NormalizedViewportToWorldCoordinate(new Vector2(normalizedViewportPoint.X, normalizedViewportPoint.Y), normalizedViewportPoint.Z);
+        public Vector3 WorldToNormalizedViewportCoordinate(Vector3 worldPoint)
+        {
+            if (_camera is null)
+                throw new InvalidOperationException("No camera is set to this viewport.");
+
+            return _camera.WorldToNormalizedViewport(worldPoint);
+        }
 
         #endregion
 
         #region Picking
         public float GetDepth(Vector2 viewportPoint)
         {
-            State.BindFrameBuffer(EFramebufferTarget.ReadFramebuffer, 0);
-            State.SetReadBuffer(EDrawBuffersAttachment.None);
+            State.BindFrameBuffer(EFramebufferTarget.ReadFramebuffer, null);
+            State.SetReadBuffer(EReadBufferMode.None);
             return State.GetDepth(viewportPoint.X, viewportPoint.Y);
         }
         public byte GetStencil(Vector2 viewportPoint)
         {
-            State.BindFrameBuffer(EFramebufferTarget.ReadFramebuffer, 0);
-            State.SetReadBuffer(EDrawBuffersAttachment.None);
+            State.BindFrameBuffer(EFramebufferTarget.ReadFramebuffer, null);
+            State.SetReadBuffer(EReadBufferMode.None);
+            return State.GetStencilIndex(viewportPoint.X, viewportPoint.Y);
+        }
+        public float GetDepth(XRFrameBuffer fbo, Vector2 viewportPoint)
+        {
+            State.BindFrameBuffer(EFramebufferTarget.ReadFramebuffer, fbo);
+            State.SetReadBuffer(EReadBufferMode.None);
+            return State.GetDepth(viewportPoint.X, viewportPoint.Y);
+        }
+        public byte GetStencil(XRFrameBuffer fbo, Vector2 viewportPoint)
+        {
+            State.BindFrameBuffer(EFramebufferTarget.ReadFramebuffer, fbo);
+            State.SetReadBuffer(EReadBufferMode.None);
             return State.GetStencilIndex(viewportPoint.X, viewportPoint.Y);
         }
         /// <summary>
@@ -405,20 +419,21 @@ namespace XREngine.Rendering
             if (_camera is null)
                 throw new InvalidOperationException("No camera is set to this viewport.");
 
-            return _camera.GetWorldRay(ToInternalResolution(viewportPoint));
+            return _camera.GetWorldRay(viewportPoint / _region.Size);
         }
         /// <summary>
         /// Returns a segment projected from the given screen location.
         /// Endpoints are located on the NearZ and FarZ planes.
         /// </summary>
-        public Segment GetWorldSegment(Vector2 viewportPoint)
+        public Segment GetWorldSegment(Vector2 normalizedViewportPoint)
         {
             if (_camera is null)
                 throw new InvalidOperationException("No camera is set to this viewport.");
 
-            return _camera.GetWorldSegment(ToInternalResolution(viewportPoint));
+            return _camera.GetWorldSegment(normalizedViewportPoint);
         }
 
+        private readonly RayTraceClosest _closestPick = new(Vector3.Zero, Vector3.Zero, 0, 0xFFFF);
         /// <summary>
         /// Tests against the HUD and the world for a collision hit at the provided viewport point ray.
         /// </summary>

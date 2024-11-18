@@ -2,6 +2,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using XREngine.Data.Colors;
+using XREngine.Data.Core;
 using XREngine.Data.Rendering;
 using XREngine.Rendering.Models.Materials;
 using XREngine.Rendering.Models.Materials.Shaders.Parameters;
@@ -27,6 +28,25 @@ namespace XREngine.Rendering
         private string? _vertexShaderSource;
 
         public string? GeneratedVertexShaderSource => _vertexShaderSource ??= GenerateVertexShaderSource<DefaultVertexShaderGenerator>();
+
+        public class SubMesh : XRBase
+        {
+            private XRMesh? _mesh;
+            private XRMaterial? _material;
+
+            public XRMesh? Mesh
+            {
+                get => _mesh;
+                set => SetField(ref _mesh, value);
+            }
+            public XRMaterial? Material
+            {
+                get => _material;
+                set => SetField(ref _material, value);
+            }
+        }
+
+        public SubMesh[] Submeshes { get; set; } = [];
 
         public XRMesh? Mesh 
         {
@@ -151,6 +171,7 @@ namespace XREngine.Rendering
             _modifiedBonesUpdating.Clear();
         }
 
+        //TODO: use mapped buffer for constant streaming
         public void PushBoneMatricesToGPU()
         {
             if (BoneMatricesBuffer is null)
@@ -209,10 +230,10 @@ namespace XREngine.Rendering
         /// <summary>
         /// Use this to render the mesh.
         /// </summary>
-        /// <param name="worldMatrix"></param>
+        /// <param name="modelMatrix"></param>
         /// <param name="materialOverride"></param>
-        public void Render(Matrix4x4 worldMatrix, XRMaterial? materialOverride = null, uint instances = 1u)
-            => RenderRequested?.Invoke(worldMatrix, materialOverride, instances);
+        public void Render(Matrix4x4 modelMatrix, XRMaterial? materialOverride = null, uint instances = 1u)
+            => RenderRequested?.Invoke(modelMatrix, materialOverride, instances);
 
         public T? Parameter<T>(int index) where T : ShaderVar 
             => Material?.Parameter<T>(index);

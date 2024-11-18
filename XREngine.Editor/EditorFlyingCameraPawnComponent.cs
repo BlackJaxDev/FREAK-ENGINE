@@ -1,7 +1,9 @@
-﻿using ImageMagick;
+﻿using Extensions;
+using ImageMagick;
 using System.Numerics;
 using XREngine.Components;
 using XREngine.Data.Colors;
+using XREngine.Data.Core;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
 using XREngine.Data.Trees;
@@ -37,6 +39,11 @@ public class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent, IRende
             //Debug.Out($"Hit triangle: {_hitTriangle}");
             Engine.Rendering.Debug.RenderTriangle(_hitTriangle.Value, ColorF4.Yellow, true);
         }
+        if (LastDepthHit.HasValue && Viewport is not null)
+        {
+            Vector3 pos = Viewport.NormalizedViewportToWorldCoordinate(LastDepthHit.Value);
+            Engine.Rendering.Debug.RenderSphere(pos, (Viewport.Camera?.DistanceFromWorldPosition(pos) ?? 1.0f) * 0.1f, false, ColorF4.Yellow, true);
+        }
     }
 
     private readonly RenderCommandMethod3D _postRenderRC;
@@ -49,21 +56,36 @@ public class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent, IRende
     static void ScreenshotCallback(MagickImage img)
         => img?.Write(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "screenshot.png"));
 
+    public Vector3? LastDepthHit { get; private set; } = null;
+    public float LastHitDistance => XRMath.DepthToDistance(LastDepthHit.HasValue ? LastDepthHit.Value.Z : 0.0f, NearZ, FarZ);
+    public float NearZ => GetCamera()?.Camera.NearZ ?? 0.0f;
+    public float FarZ => GetCamera()?.Camera.FarZ ?? 0.0f;
+
+    public bool RenderFrustum { get; set; } = false;
+    public bool RenderRaycast { get; set; } = false;
+
     private void PostRender(bool shadowPass)
     {
         var rend = AbstractRenderer.Current;
-        if (rend is null || Engine.Rendering.State.PipelineState?.WindowViewport is null)
+        if (rend is null)
+            return;
+
+        var vp = Engine.Rendering.State.PipelineState?.WindowViewport;
+        if (vp is null)
             return;
 
         if (_wantsScreenshot)
         {
             _wantsScreenshot = false;
-            rend.GetScreenshotAsync(Engine.Rendering.State.PipelineState.WindowViewport.Region, false, ScreenshotCallback);
+            rend.GetScreenshotAsync(vp.Region, false, ScreenshotCallback);
         }
 
         var cam = GetCamera();
         if (cam is null)
             return;
+
+        if (RenderFrustum)
+            Engine.Rendering.Debug.RenderFrustum(cam.Camera.WorldFrustum(), ColorF4.Red);
 
         var input = LocalInput;
         if (input is null)
@@ -73,12 +95,42 @@ public class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent, IRende
         if (pos is null)
             return;
 
-        rend.BindFrameBuffer(EFramebufferTarget.ReadFramebuffer, 0);
-        //rend.SetReadBuffer(EDrawBuffersAttachment.None);
-        float? depth = rend.GetDepth(pos.Value.X, pos.Value.Y);
-        if (depth is not null && depth.Value > 0.0f && depth.Value < 1.0f)
+        Vector2 p = pos.Value;
+        p.Y = vp.Height - p.Y;
+        p = vp.ScreenToViewportCoordinate(p);
+        p = vp.ViewportToInternalCoordinate(p);
+
+        var fbo = vp.RenderPipelineInstance?.GetFBO<XRFrameBuffer>(DefaultRenderPipeline.ForwardPassFBOName);
+        float? depth = vp.GetDepth(fbo!, p);
+
+        p = vp.NormalizeInternalCoordinate(p);
+        LastDepthHit = depth is not null && depth.Value > 0.0f && depth.Value < 1.0f ? new Vector3(p.X, p.Y, depth.Value) : null;
+
+        _lastRaycastSegment = vp.GetWorldSegment(p);
+
+        if (RenderRaycast)
         {
-            Debug.Out($"Depth: {depth}");
+            Vector3 start = _lastRaycastSegment.Start;
+            Vector3 end = _lastRaycastSegment.End;
+            Engine.Rendering.Debug.RenderLine(start, end, ColorF4.Magenta, false);
+        }
+
+        SortedDictionary<float, List<(ITreeItem item, object? data)>>? result = World!.Raycast(_lastRaycastSegment);
+        Task.Run(() => SetRaycastResult(result));
+    }
+
+    private void SetRaycastResult(SortedDictionary<float, List<(ITreeItem item, object? data)>>? result)
+    {
+        lock (_raycastLock)
+            _lastRaycast = result;
+
+        if (result is null)
+            return;
+
+        foreach ((var dist, List<(ITreeItem item, object? data)> list) in result)
+        {
+            foreach (var (i, _) in list)
+                Debug.Out($"Hit: {i as RenderInfo} {dist}");
         }
     }
 
@@ -101,7 +153,7 @@ public class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent, IRende
     {
         base.Tick();
         Highlight();
-        if (CtrlPressed && (LocalInput?.Keyboard?.GetKeyState(EKey.S, EButtonInputType.Pressed) ?? false))
+        if (CtrlPressed && (Keyboard?.Pressed(EKey.S) ?? false))
             QueueScreenshot();
     }
 
@@ -115,43 +167,44 @@ public class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent, IRende
         input.RegisterMouseButtonEvent(EMouseButton.LeftClick, EButtonInputType.Pressed, Select);
     }
 
-    private SortedDictionary<float, ITreeItem>? _lastRaycast = null;
+    private SortedDictionary<float, List<(ITreeItem item, object? data)>>? _lastRaycast = null;
     private readonly object _raycastLock = new();
     private Triangle? _hitTriangle = null;
     private TransformBase? _hitTransform = null;
 
     private void Highlight()
     {
-        if (World is null)
+        if (World is not null && Viewport is not null)
         {
-            lock (_raycastLock)
-                _lastRaycast = null;
-            return;
+            var cam = GetCamera();
+            if (cam is not null)
+            {
+                var input = LocalInput;
+                if (input is not null)
+                {
+                    var pos = input?.Mouse?.CursorPosition;
+                    if (pos is not null)
+                    {
+                        Raycast(pos.Value);
+                        return;
+                    }
+                }
+            }
         }
 
-        var cam = GetCamera();
-        if (cam is null)
-            return;
-
-        var input = LocalInput;
-        if (input is null)
-            return;
-
-        var pos = input?.Mouse?.CursorPosition;
-        if (pos is null)
-            return;
-
-        Task.Run(() => Raycast(cam, pos.Value));
+        lock (_raycastLock)
+            _lastRaycast = null;
     }
 
-    private void Raycast(CameraComponent cam, Vector2 pos)
+    private Segment _lastRaycastSegment = new(Vector3.Zero, Vector3.Zero);
+    private void Raycast(Vector2 screenPoint)
     {
-        var result = World!.Raycast(cam, pos, out _hitTriangle, out _hitTransform);
-        lock (_raycastLock)
-            _lastRaycast = result;
+        if (World is null || Viewport is null)
+            return;
 
-        if (_hitTransform is not null)
-            Debug.Out($"Hit transform: {_hitTransform}");
+        //This code only works on the render thread, and I honestly don't understand why the math fails here but not there lol
+        screenPoint.Y = Viewport.Height - screenPoint.Y;
+        _lastRaycastSegment = Viewport.GetWorldSegment(screenPoint);
     }
 
     private void Select()
@@ -172,15 +225,18 @@ public class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent, IRende
         {
             if (_lastRaycast is not null)
             {
-                foreach (var hit in _lastRaycast.Values)
+                foreach (var x in _lastRaycast.Values)
                 {
-                    if (hit is not RenderInfo3D ri)
-                        continue;
-                    if (ri.Owner is not XRComponent comp)
-                        continue;
-                    if (comp.SceneNode is null)
-                        continue;
-                    currentHits.Add(comp.SceneNode);
+                    foreach (var (item, _) in x)
+                    {
+                        if (item is not RenderInfo3D ri)
+                            continue;
+                        if (ri.Owner is not XRComponent comp)
+                            continue;
+                        if (comp.SceneNode is null)
+                            continue;
+                        currentHits.Add(comp.SceneNode);
+                    }
                 }
             }
         }

@@ -205,7 +205,7 @@ namespace XREngine.Components.Lights
             if (collectVisibleNow)
             {
                 s3d.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, _influenceVolume, null, true);
-                _shadowRenderPipeline.MeshRenderCommands.SwapBuffers();
+                _shadowRenderPipeline.MeshRenderCommands.SwapBuffers(true);
             }
 
             _shadowRenderPipeline.Render(scene, null, null, ShadowMap, null, true, ShadowMap.Material);

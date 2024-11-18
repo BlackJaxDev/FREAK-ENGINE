@@ -1,13 +1,17 @@
 ﻿using Extensions;
 using System.Numerics;
 using XREngine.Components;
+using XREngine.Data.Colors;
 using XREngine.Data.Core;
+using XREngine.Data.Rendering;
 using XREngine.Data.Transforms.Rotations;
+using XREngine.Rendering.Commands;
+using XREngine.Rendering.Info;
 using XREngine.Scene.Transforms;
 
 namespace XREngine.Scene.Components.Animation
 {
-    public class HumanoidComponent : XRComponent
+    public class HumanoidComponent : XRComponent, IRenderable
     {
         protected internal override void OnComponentActivated()
         {
@@ -21,7 +25,32 @@ namespace XREngine.Scene.Components.Animation
             SetFromNode();
         }
 
-        public HumanoidComponent() { }
+        public HumanoidComponent() 
+        {
+            RenderedObjects = [RenderInfo3D.New(this, EDefaultRenderPass.OpaqueForward, Render)];
+        }
+
+        private void Render(bool shadowPass)
+        {
+            if (shadowPass)
+                return;
+
+            // Draw bones
+            //foreach (var bone in GetHipToHeadChain())
+            //    Engine.Rendering.Debug.RenderPoint(bone.WorldPosition, ColorF4.Red, false);
+
+            foreach (var bone in GetLeftShoulderToWristChain())
+                Engine.Rendering.Debug.RenderPoint(bone.WorldPosition, ColorF4.Red, false);
+
+            //foreach (var bone in GetRightShoulderToWristChain())
+            //    Engine.Rendering.Debug.RenderPoint(bone.WorldPosition, ColorF4.Red, false);
+
+            //foreach (var bone in GetLeftLegToAnkleChain())
+            //    Engine.Rendering.Debug.RenderPoint(bone.WorldPosition, ColorF4.Red, false);
+
+            //foreach (var bone in GetRightLegToAnkleChain())
+            //    Engine.Rendering.Debug.RenderPoint(bone.WorldPosition, ColorF4.Red, false);
+        }
 
         public class BoneDef : XRBase
         {
@@ -30,7 +59,7 @@ namespace XREngine.Scene.Components.Animation
             private Vector3 _minPositionOffset;
             private Vector3 _maxPositionOffset;
             private bool _isRoot;
-            private bool _isMovable;
+            private bool _isMovable = false;
             private SceneNode? _node;
 
             public SceneNode? Node
@@ -174,6 +203,8 @@ namespace XREngine.Scene.Components.Animation
         public TransformBase? LeftKneeTarget => Left.Wrist.Node?.Transform;
         public TransformBase? RightKneeTarget => Right.Wrist.Node?.Transform;
 
+        public RenderInfo[] RenderedObjects { get; }
+
         public void SolveFullBodyIK()
         {
             //using var d = Engine.Profiler.Start();
@@ -181,31 +212,31 @@ namespace XREngine.Scene.Components.Animation
             int maxIterations = 10;
             for (int i = 0; i < maxIterations; i++)
             {
-                if (HeadTarget is not null && HipsTarget is not null)
-                    SolveFABRIKWithFixedEnds(
-                        GetHipToHeadChain(),
-                        HipsTarget?.WorldTranslation ?? Vector3.Zero,
-                        HeadTarget?.WorldTranslation ?? Vector3.Zero);
+                //if (HeadTarget is not null && HipsTarget is not null)
+                //    SolveFABRIKWithFixedEnds(
+                //        GetHipToHeadChain(),
+                //        HipsTarget?.WorldTranslation ?? Vector3.Zero,
+                //        HeadTarget?.WorldTranslation ?? Vector3.Zero);
 
                 if (LeftHandTarget is not null)
                     SolveFABRIK(
                         GetLeftShoulderToWristChain(),
                         LeftHandTarget.WorldTranslation);
 
-                if (RightHandTarget is not null)
-                    SolveFABRIK(
-                        GetRightShoulderToWristChain(),
-                        RightHandTarget.WorldTranslation);
+                //if (RightHandTarget is not null)
+                //    SolveFABRIK(
+                //        GetRightShoulderToWristChain(),
+                //        RightHandTarget.WorldTranslation);
 
-                if (LeftFootTarget is not null)
-                    SolveFABRIK(
-                        GetLeftLegToAnkleChain(),
-                        LeftFootTarget.WorldTranslation);
+                //if (LeftFootTarget is not null)
+                //    SolveFABRIK(
+                //        GetLeftLegToAnkleChain(),
+                //        LeftFootTarget.WorldTranslation);
 
-                if (RightFootTarget is not null)
-                    SolveFABRIK(
-                        GetRightLegToAnkleChain(),
-                        RightFootTarget.WorldTranslation);
+                //if (RightFootTarget is not null)
+                //    SolveFABRIK(
+                //        GetRightLegToAnkleChain(),
+                //        RightFootTarget.WorldTranslation);
             }
         }
 
@@ -224,7 +255,8 @@ namespace XREngine.Scene.Components.Animation
             private BoneChainItem? _parentPrev;
             private BoneChainItem? _childNext;
             private BoneDef _def = def;
-            private Vector3 _localAxis;
+            private Vector3 _worldAxis;
+            private Vector3 _worldPosition = Vector3.Zero;
 
             public BoneChainItem? ParentPrev
             {
@@ -242,16 +274,17 @@ namespace XREngine.Scene.Components.Animation
                 set => SetField(ref _def, value);
             }
 
-            protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
-            {
-                base.OnPropertyChanged(propName, prev, field);
-                switch (propName)
-                {
-                    case nameof(ChildNext):
-                        LocalAxis = LocalDirToChild;
-                        break;
-                }
-            }
+            //protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+            //{
+            //    base.OnPropertyChanged(propName, prev, field);
+            //    switch (propName)
+            //    {
+            //        case nameof(ChildNext):
+            //            WorldAxis = (ChildPositionWorld - WorldPosition).Normalize();
+            //            //Debug.Out($"Local axis set to {WorldAxis}");
+            //            break;
+            //    }
+            //}
 
             public Vector3 LocalDirToChild
                 => (ChildPositionLocal - LocalPosition).Normalize();
@@ -265,7 +298,11 @@ namespace XREngine.Scene.Components.Animation
             public Vector3 ChildPositionWorld
                 => ChildNext?.WorldPosition ?? Vector3.Zero;
 
-            public Vector3 WorldPosition { get; set; } = Vector3.Zero;
+            public Vector3 WorldPosition
+            {
+                get => _worldPosition;
+                set => SetField(ref _worldPosition, value);
+            }
 
             public Vector3 LocalPosition
             {
@@ -297,13 +334,13 @@ namespace XREngine.Scene.Components.Animation
             /// <summary>
             /// Distance to the next child bone in the chain.
             /// </summary>
-            public float Length => WorldPosition.Distance(ChildNext?.WorldPosition ?? Vector3.Zero);
+            public float Length { get; set; }
             public Transform? Transform => SceneNode?.GetTransformAs<Transform>(true);
             public SceneNode? SceneNode => Def.Node;
-            public Vector3 LocalAxis
+            public Vector3 WorldAxis
             {
-                get => _localAxis;
-                set => SetField(ref _localAxis, value);
+                get => _worldAxis;
+                set => SetField(ref _worldAxis, value);
             }
         }
         public static void SolveFABRIK(
@@ -319,15 +356,14 @@ namespace XREngine.Scene.Components.Animation
             }
 
             float totalLength = Init(chain);
-
-            // Check if the chain has movable roots
             bool hasMovableRoot = chain[0].Def.IsMovable;
-
-            // Original root position
             Vector3 originalRootPosition = chain[0].WorldPosition;
+            float distanceToTarget = Vector3.Distance(originalRootPosition, targetPosition);
 
-            // Distance from root to target
-            //float distanceToTarget = Vector3.Distance(originalRootPosition, targetPosition);
+            //if (distanceToTarget > totalLength)
+            //{
+            //    //TODO: if any bones are movable, move them as much as possible to reach the target.
+            //}
 
             int iterations = 0;
             float diff = Vector3.Distance(chain[^1].WorldPosition, targetPosition);
@@ -347,7 +383,7 @@ namespace XREngine.Scene.Components.Animation
 
                     // If the bone is movable
                     if (parent.Def.IsMovable)
-                        parent.WorldPosition = child.WorldPosition - parent.WorldDirToChild * parent.Length;
+                        parent.WorldPosition = child.WorldPosition - DirFromTo(parent.WorldPosition, child.WorldPosition) * parent.Length;
                     else
                         break;
                 }
@@ -363,7 +399,7 @@ namespace XREngine.Scene.Components.Animation
                 {
                     BoneChainItem parent = chain[i];
                     BoneChainItem child = chain[i + 1];
-                    child.WorldPosition = parent.WorldPosition + parent.WorldDirToChild * parent.Length;
+                    child.WorldPosition = parent.WorldPosition + DirFromTo(parent.WorldPosition, child.WorldPosition) * parent.Length;
                 }
 
                 diff = Vector3.Distance(chain[^1].WorldPosition, targetPosition);
@@ -373,16 +409,37 @@ namespace XREngine.Scene.Components.Animation
             UpdateBones(chain);
         }
 
+        private static Vector3 DirFromTo(Vector3 from, Vector3 to)
+        {
+            Vector3 dir = to - from;
+            return dir.Normalize();
+        }
+
         private static float Init(BoneChainItem[] chain)
         {
             //Set the current positions of all bones
             for (int i = 0; i < chain.Length; i++)
-                chain[i].WorldPosition = chain[i].Transform?.WorldTranslation ?? Vector3.Zero;
+            {
+                var tfm = chain[i].Transform;
+                if (tfm is not null)
+                    chain[i].WorldPosition = tfm.WorldTranslation;
+                else
+                    Debug.LogWarning($"Bone {i} has no transform.");
+            }
+
+            foreach (var bone in chain)
+                bone.WorldAxis = (bone.ChildPositionWorld - bone.WorldPosition).Normalize();
 
             // Calculate total length
             float totalLength = 0;
+            chain[^1].Length = 0; // Last bone has no length
             for (int i = 0; i < chain.Length - 1; i++)
-                totalLength += chain[i].Length;
+            {
+                var parent = chain[i];
+                var child = chain[i + 1];
+                parent.WorldAxis = (child.WorldPosition - parent.WorldPosition).Normalize();
+                totalLength += parent.Length = parent.WorldPosition.Distance(child?.WorldPosition ?? Vector3.Zero);
+            }
             return totalLength;
         }
 
@@ -472,38 +529,40 @@ namespace XREngine.Scene.Components.Animation
             {
                 BoneChainItem parent = chain[i];
                 //parent.LocalPosition = parent.Transform?.WorldTranslation ?? Vector3.Zero;
-                parent.LocalRotator = ApplyJointConstraints(parent, XRMath.RotationBetweenVectors(parent.LocalAxis, parent.LocalDirToChild));
+                Quaternion worldRotation = XRMath.RotationBetweenVectors(parent.WorldAxis, parent.WorldDirToChild);
+                Quaternion localRotation = Quaternion.Inverse((parent.Transform?.Parent as Transform)?.Rotation ?? Quaternion.Identity) * worldRotation;
+                parent.LocalRotation = localRotation;
             }
         }
-        public static Rotator ApplyJointConstraints(BoneChainItem bone, Quaternion desiredRotation)
-        {
-            Rotator euler = Rotator.FromQuaternion(desiredRotation);
-            euler.NormalizeRotations180();
+        //public static Quaternion ApplyJointConstraints(BoneChainItem bone, Quaternion desiredRotation)
+        //{
+        //    //Rotator euler = Rotator.FromQuaternion(desiredRotation);
+        //    //euler.NormalizeRotations180();
+            
+        //    //var max = bone.Def.MaxRotation;
+        //    //var min = bone.Def.MinRotation;
 
-            var max = bone.Def.MaxRotation;
-            var min = bone.Def.MinRotation;
-
-            // Clamp each axis based on bone's rotation limits
-            if (min is not null && max is not null)
-            {
-                euler.Yaw = euler.Yaw.Clamp(min.Value.Yaw, max.Value.Yaw);
-                euler.Pitch = euler.Pitch.Clamp(min.Value.Pitch, max.Value.Pitch);
-                euler.Roll = euler.Roll.Clamp(min.Value.Roll, max.Value.Roll);
-            }
-            else if (min is not null)
-            {
-                euler.Yaw = euler.Yaw.ClampMin(min.Value.Yaw);
-                euler.Pitch = euler.Pitch.ClampMin(min.Value.Pitch);
-                euler.Roll = euler.Roll.ClampMin(min.Value.Roll);
-            }
-            else if (max is not null)
-            {
-                euler.Yaw = euler.Yaw.ClampMax(max.Value.Yaw);
-                euler.Pitch = euler.Pitch.ClampMax(max.Value.Pitch);
-                euler.Roll = euler.Roll.ClampMax(max.Value.Roll);
-            }
-            return euler;
-        }
+        //    //// Clamp each axis based on bone's rotation limits
+        //    //if (min is not null && max is not null)
+        //    //{
+        //    //    euler.Yaw = euler.Yaw.Clamp(min.Value.Yaw, max.Value.Yaw);
+        //    //    euler.Pitch = euler.Pitch.Clamp(min.Value.Pitch, max.Value.Pitch);
+        //    //    euler.Roll = euler.Roll.Clamp(min.Value.Roll, max.Value.Roll);
+        //    //}
+        //    //else if (min is not null)
+        //    //{
+        //    //    euler.Yaw = euler.Yaw.ClampMin(min.Value.Yaw);
+        //    //    euler.Pitch = euler.Pitch.ClampMin(min.Value.Pitch);
+        //    //    euler.Roll = euler.Roll.ClampMin(min.Value.Roll);
+        //    //}
+        //    //else if (max is not null)
+        //    //{
+        //    //    euler.Yaw = euler.Yaw.ClampMax(max.Value.Yaw);
+        //    //    euler.Pitch = euler.Pitch.ClampMax(max.Value.Pitch);
+        //    //    euler.Roll = euler.Roll.ClampMax(max.Value.Roll);
+        //    //}
+        //    return desiredRotation;
+        //}
         public static Vector3 ApplyDistanceCurve(Vector3 originalPosition, Vector3 currentPosition, float maxDistance, AnimationCurve curve)
             => originalPosition + (currentPosition - originalPosition) * curve.Evaluate(Vector3.Distance(originalPosition, currentPosition) / maxDistance);
 

@@ -44,7 +44,8 @@ namespace XREngine.Data.Trees
                 return;
 
             //Still within the same volume?
-            if (t.LocalCullingVolume is not null && _bounds.ContainsAABB(t.LocalCullingVolume.Value) == EContainment.Contains)
+            var worldCullingVolume = t.WorldCullingVolume;
+            if (worldCullingVolume is not null && _bounds.ContainsBox(worldCullingVolume.Value) == EContainment.Contains)
             {
                 //Try subdividing
                 for (int i = 0; i < OctreeBase.MaxChildNodeCount; ++i)
@@ -52,7 +53,7 @@ namespace XREngine.Data.Trees
                     AABB? bounds = GetSubdivision(i);
                     if (bounds is null)
                         return;
-                    if (bounds.Value.ContainsAABB(t.LocalCullingVolume.Value) == EContainment.Contains)
+                    if (bounds.Value.ContainsBox(worldCullingVolume.Value) == EContainment.Contains)
                     {
                         bool shouldDestroy = RemoveHereOrSmaller(t);
                         if (shouldDestroy)
@@ -122,7 +123,7 @@ namespace XREngine.Data.Trees
                 DebugRender(color, render);
         }
         public void DebugRender(Color color, DelRenderAABB render)
-            => render(_bounds.Extents, _bounds.Center, color);
+            => render(_bounds.HalfExtents, _bounds.Center, color);
         #endregion
 
         #region Visible collection 
@@ -285,14 +286,15 @@ namespace XREngine.Data.Trees
             if (item is null)
                 return false;
 
-            if (item.LocalCullingVolume != null && _bounds.ContainsAABB(item.LocalCullingVolume.Value) == EContainment.Contains)
+            var worldCullingVolume = item.WorldCullingVolume;
+            if (worldCullingVolume != null && _bounds.ContainsBox(worldCullingVolume.Value) == EContainment.Contains)
                 for (int i = 0; i < OctreeBase.MaxChildNodeCount; ++i)
                 {
                     if (i == ignoreSubNode)
                         continue;
 
                     AABB? subDiv = GetSubdivision(i);
-                    if (subDiv is not null && subDiv.Value.ContainsAABB(item.LocalCullingVolume.Value) == EContainment.Contains)
+                    if (subDiv is not null && subDiv.Value.ContainsBox(worldCullingVolume.Value) == EContainment.Contains)
                     {
                         CreateSubNode(subDiv.Value, i)?.AddHereOrSmaller(item);
                         return true;
@@ -306,11 +308,17 @@ namespace XREngine.Data.Trees
 
         internal void AddHere(T item)
         {
+            if (item is null || _items.Contains(item))
+                return;
+
             _items.Add(item);
             item.OctreeNode = this;
         }
         internal void RemoveHere(T item)
         {
+            if (item is null)
+                return;
+
             _items.Remove(item);
             item.OctreeNode = null;
         }
@@ -338,7 +346,7 @@ namespace XREngine.Data.Trees
             //IsLoopingItems = true;
             foreach (T item in _items)
             {
-                var cullingVolume = item?.LocalCullingVolume;
+                var cullingVolume = item?.WorldCullingVolume;
                 if (cullingVolume is null)
                     continue;
 
@@ -467,7 +475,7 @@ namespace XREngine.Data.Trees
         /// <param name="segment"></param>
         /// <param name="orderedItems"></param>
         /// <param name="directTest"></param>
-        public void Raycast(Segment segment, SortedDictionary<float, T> orderedItems, Func<T, Segment, float?> directTest)
+        public void Raycast(Segment segment, SortedDictionary<float, List<(T item, object? data)>> items, Func<T, Segment, (float? distance, object? data)> directTest)
         {
             if (!_bounds.IntersectsSegment(segment))
                 return;
@@ -475,16 +483,22 @@ namespace XREngine.Data.Trees
             for (int i = 0; i < _items.Count; ++i)
             {
                 T item = _items[i];
-                if (item?.LocalCullingVolume is null || !item.LocalCullingVolume.Value.IntersectsSegment(segment))
+
+                var worldCullingVolume = item.WorldCullingVolume;
+                if (worldCullingVolume is null || !worldCullingVolume.Value.IntersectsSegment(segment))
                     continue;
 
-                float? dist = directTest(item, segment);
+                (float? dist, object? data) = directTest(item, segment);
                 if (dist is not null)
-                    orderedItems.Add(dist.Value, item);
+                {
+                    if (!items.TryGetValue(dist.Value, out List<(T item, object? data)>? list))
+                        items.Add(dist.Value, list = []);
+                    list.Add((item, data));
+                }
             }
 
             for (int i = 0; i < _subNodes.Length; ++i)
-                _subNodes[i]?.Raycast(segment, orderedItems, directTest);
+                _subNodes[i]?.Raycast(segment, items, directTest);
         }
 
         /// <summary>
@@ -495,7 +509,7 @@ namespace XREngine.Data.Trees
         /// <param name="segment"></param>
         /// <param name="orderedItems"></param>
         /// <param name="directTest"></param>
-        public void Raycast(Segment segment, SortedDictionary<float, ITreeItem> orderedItems, Func<ITreeItem, Segment, float?> directTest)
+        public void Raycast(Segment segment, SortedDictionary<float, List<(ITreeItem item, object? data)>> items, Func<ITreeItem, Segment, (float? distance, object? data)> directTest)
         {
             if (!_bounds.IntersectsSegment(segment))
                 return;
@@ -503,16 +517,22 @@ namespace XREngine.Data.Trees
             for (int i = 0; i < _items.Count; ++i)
             {
                 T item = _items[i];
-                if (item?.LocalCullingVolume is null || !item.LocalCullingVolume.Value.IntersectsSegment(segment))
+
+                var worldCullingVolume = item.WorldCullingVolume;
+                if (worldCullingVolume is null || !worldCullingVolume.Value.IntersectsSegment(segment))
                     continue;
 
-                float? dist = directTest(item, segment);
-                if (dist is not null)
-                    orderedItems.Add(dist.Value, item);
+                (float? dist, object? data) = directTest(item, segment);
+                if (dist is not null && dist > 0.0f)
+                {
+                    if (!items.TryGetValue(dist.Value, out List<(ITreeItem item, object? data)>? list))
+                        items.Add(dist.Value, list = []);
+                    list.Add((item, data));
+                }
             }
 
             for (int i = 0; i < _subNodes.Length; ++i)
-                _subNodes[i]?.Raycast(segment, orderedItems, directTest);
+                _subNodes[i]?.Raycast(segment, items, directTest);
         }
 
         #endregion

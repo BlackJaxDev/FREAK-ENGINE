@@ -37,8 +37,8 @@ namespace XREngine.Rendering
         protected VisualScene _visualScene;
         public VisualScene VisualScene => _visualScene;
 
-        protected PhysicsScene _physicsScene;
-        public PhysicsScene PhysicsScene => _physicsScene;
+        protected AbstractPhysicsScene _physicsScene;
+        public AbstractPhysicsScene PhysicsScene => _physicsScene;
 
         protected RootNodeCollection _rootNodes = [];
         public RootNodeCollection RootNodes => _rootNodes;
@@ -51,7 +51,7 @@ namespace XREngine.Rendering
         public GameMode? GameMode { get; internal set; }
 
         public XRWorldInstance() : this(Engine.Rendering.NewVisualScene(), Engine.Rendering.NewPhysicsScene()) { }
-        public XRWorldInstance(VisualScene visualScene, PhysicsScene physicsScene)
+        public XRWorldInstance(VisualScene visualScene, AbstractPhysicsScene physicsScene)
         {
             _visualScene = visualScene;
             _physicsScene = physicsScene;
@@ -65,7 +65,7 @@ namespace XREngine.Rendering
 
         public XRWorldInstance(XRWorld world) : this()
             => TargetWorld = world;
-        public XRWorldInstance(XRWorld world, VisualScene visualScene, PhysicsScene physicsScene) : this(visualScene, physicsScene)
+        public XRWorldInstance(XRWorld world, VisualScene visualScene, AbstractPhysicsScene physicsScene) : this(visualScene, physicsScene)
             => TargetWorld = world;
 
         public void FixedUpdate()
@@ -399,50 +399,55 @@ namespace XREngine.Rendering
         }
 
         [RequiresDynamicCode("")]
-        public SortedDictionary<float, ITreeItem>? Raycast(CameraComponent cameraComponent, Vector2 screenPoint, out Triangle? triangle, out TransformBase? transform)
+        public SortedDictionary<float, List<(ITreeItem item, object? data)>>? Raycast(CameraComponent cameraComponent, Vector2 normalizedScreenPoint)
         {
-            //Debug.Out($"Raycasting from screen point: {screenPoint}");
-            Triangle? tri = null;
-            TransformBase? tfm = null;
-            VisualScene.Raycast(cameraComponent, screenPoint, out SortedDictionary<float, ITreeItem> items, (item, segment) => DirectItemTest(item, segment, out tri, out tfm));
+            VisualScene.Raycast(cameraComponent.Camera.GetWorldSegment(normalizedScreenPoint), out SortedDictionary<float, List<(ITreeItem item, object? data)>> items, DirectItemTest);
             //PhysicsScene.Raycast(cameraComponent, screenPoint, items);
-            triangle = tri;
-            transform = tfm;
+            return items;
+        }
+        [RequiresDynamicCode("")]
+        public SortedDictionary<float, List<(ITreeItem item, object? data)>>? Raycast(Segment worldSegment)
+        {
+            VisualScene.Raycast(worldSegment, out SortedDictionary<float, List<(ITreeItem item, object? data)>> items, DirectItemTest);
+            PhysicsScene.Raycast(worldSegment, items);
             return items;
         }
 
         [RequiresDynamicCode("Calls XREngine.Components.Scene.Mesh.ModelComponent.Intersect(Segment, out Triangle?)")]
-        private static float? DirectItemTest(ITreeItem item, Segment segment, out Triangle? triangle, out TransformBase? t)
+        private static (float? distance, object? data) DirectItemTest(ITreeItem item, Segment segment)
         {
-            triangle = null;
-            t = null;
-
             if (item is not RenderInfo renderable)
-                return null;
+                return (null, null);
             
             switch (renderable.Owner)
             {
-                case ModelComponent model:
-                    return model.Intersect(segment, out triangle);
+                //case ModelComponent model:
+                //    {
+                //        float? dist = model.Intersect(segment, out Triangle? tri);
+                //        return (dist ?? 0.0f, tri);
+                //    }
                 case TransformBase transform:
-                    t = transform;
-                    Capsule c = transform.Capsule;
-                    if (c.IntersectsSegment(segment, out Vector3[] points))
                     {
+                        Capsule c = transform.Capsule;
+                        if (!c.IntersectsSegment(segment, out Vector3[] points))
+                            break;
+                        
                         //Get closest point distance
                         float min = float.MaxValue;
+                        Vector3 bestPoint = Vector3.Zero;
                         for (int i = 0; i < points.Length; i++)
                         {
                             float dist = (points[i] - segment.Start).LengthSquared();
                             if (dist < min)
+                            {
                                 min = dist;
+                                bestPoint = points[i];
+                            }
                         }
-                        return (float)Math.Sqrt(min);
+                        return ((float)Math.Sqrt(min), bestPoint);
                     }
-                    break;
             }
-
-            return null;
+            return (null, null);
         }
     }
 }

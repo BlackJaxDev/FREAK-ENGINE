@@ -45,7 +45,7 @@ namespace XREngine.Data.Geometry
 
         [JsonIgnore]
         [YamlIgnore]
-        public Vector3 Extents
+        public Vector3 HalfExtents
         {
             readonly get => (Max - Min) / 2.0f;
             set
@@ -66,7 +66,7 @@ namespace XREngine.Data.Geometry
             {
 
                 Vector3 center = value;
-                Vector3 extents = Extents;
+                Vector3 extents = HalfExtents;
                 Min = center - extents;
                 Max = center + extents;
             }
@@ -87,7 +87,7 @@ namespace XREngine.Data.Geometry
             set => _max = value;
         }
 
-        public readonly bool Intersects(AABB other) => 
+        public readonly bool Intersects(AABB other) =>
             other.Min.X <= Max.X && other.Max.X >= Min.X &&
             other.Min.Y <= Max.Y && other.Max.Y >= Min.Y &&
             other.Min.Z <= Max.Z && other.Max.Z >= Min.Z;
@@ -135,10 +135,13 @@ namespace XREngine.Data.Geometry
             return new AABB(newMin, newMax);
         }
 
+        public readonly Box ToBox(Matrix4x4 matrix)
+            => new(Center, Size, matrix);
+
         public readonly void GetPlanes(out Plane up, out Plane down, out Plane right, out Plane left, out Plane back, out Plane front)
         {
             Vector3 center = Center;
-            Vector3 extents = Extents;
+            Vector3 extents = HalfExtents;
 
             up = XRMath.CreatePlaneFromPointAndNormal(center + Globals.Up * extents.Y, Globals.Up);
             down = XRMath.CreatePlaneFromPointAndNormal(center - Globals.Up * extents.Y, -Globals.Up);
@@ -221,7 +224,7 @@ namespace XREngine.Data.Geometry
             out Vector3 BBR,
             out Vector3 BFL,
             out Vector3 BFR)
-            => GetCorners(Extents, transform, out TBL, out TBR, out TFL, out TFR, out BBL, out BBR, out BFL, out BFR);
+            => GetCorners(HalfExtents, transform, out TBL, out TBR, out TFL, out TFR, out BBL, out BBR, out BFL, out BFR);
 
         /// <summary>
         /// Returns the corners of a box with the given half extents and transformed by the given matrix.
@@ -341,15 +344,15 @@ namespace XREngine.Data.Geometry
             };
 
         public readonly bool ContainsPoint(Vector3 point, float tolerance = float.Epsilon) =>
-            Vector3.Min(Min - new Vector3(tolerance), point) == Min && 
+            Vector3.Min(Min - new Vector3(tolerance), point) == Min &&
             Vector3.Max(Max + new Vector3(tolerance), point) == Max;
 
-        public readonly EContainment ContainsAABB(AABB box, float tolerance = float.Epsilon) => 
+        public readonly EContainment ContainsAABB(AABB box, float tolerance = float.Epsilon) =>
             box.Min.X < Min.X + tolerance ||
-            box.Max.X > Max.X - tolerance || 
-            box.Min.Y < Min.Y + tolerance || 
-            box.Max.Y > Max.Y - tolerance || 
-            box.Min.Z < Min.Z + tolerance || 
+            box.Max.X > Max.X - tolerance ||
+            box.Min.Y < Min.Y + tolerance ||
+            box.Max.Y > Max.Y - tolerance ||
+            box.Min.Z < Min.Z + tolerance ||
             box.Max.Z > Max.Z - tolerance
                 ? EContainment.Disjoint
                 : EContainment.Contains;
@@ -428,7 +431,8 @@ namespace XREngine.Data.Geometry
             return closest;
         }
 
-        readonly AABB Rendering.IVolume.GetAABB() => this;
+        readonly AABB Rendering.IVolume.GetAABB(bool transformed)
+            => transformed ? this : FromCenterSize(Vector3.Zero, Max - Min);
 
         public static AABB Union(AABB bounds1, AABB bounds2)
         {
@@ -491,9 +495,28 @@ namespace XREngine.Data.Geometry
             return new AABB(min, max);
         }
 
-        public EContainment ContainsBox(Box box)
+        public readonly EContainment ContainsBox(Box box)
         {
-            throw new NotImplementedException();
+            var corners = box.WorldCornersEnumerable;
+            int contained = 0;
+            bool allIn = true;
+            bool allOut = true;
+            foreach (Vector3 corner in corners)
+            {
+                bool inside = ContainsPoint(corner);
+                allIn &= inside;
+                allOut &= !inside;
+                if (!allIn && !allOut)
+                    break; //Early return
+                if (inside)
+                    contained++;
+            }
+            return contained switch
+            {
+                0 => EContainment.Disjoint,
+                8 => EContainment.Contains,
+                _ => EContainment.Intersects,
+            };
         }
     }
 }

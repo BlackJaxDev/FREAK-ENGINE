@@ -3,7 +3,6 @@ using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
 using XREngine.Data.Core;
-using XREngine.Input.Devices;
 using XREngine.Rendering.OpenGL;
 using XREngine.Rendering.Vulkan;
 

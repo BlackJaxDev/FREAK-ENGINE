@@ -212,9 +212,9 @@ namespace XREngine.Scene
                 {
 
                 };
-                RenderInfo = RenderInfo3D.New(this);
+                //RenderInfo = RenderInfo3D.New(this);
                 //RenderInfo.LocalCullingVolume = this;
-                RenderedObjects = [RenderInfo];
+                RenderedObjects = [];
             }
 
             private RenderCommandMesh3D _rc;
@@ -224,6 +224,7 @@ namespace XREngine.Scene
             public OctreeNodeBase? OctreeNode { get; set; }
             public bool ShouldRender { get; } = true;
             AABB? IOctreeItem.LocalCullingVolume { get; }
+            public Matrix4x4 CullingMatrix { get; }
 
             public bool Intersects(IVolume cullingVolume, bool containsOnly)
             {
@@ -276,6 +277,11 @@ namespace XREngine.Scene
             }
 
             public EContainment ContainsBox(Box box)
+            {
+                throw new NotImplementedException();
+            }
+
+            public AABB GetAABB(bool transformed)
             {
                 throw new NotImplementedException();
             }

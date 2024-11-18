@@ -128,7 +128,7 @@ namespace XREngine
 
             if (_async)
             {
-                void Complete(Task<ParallelLoopResult> x)
+                void Complete(object o)
                 {
 #if DEBUG
                     sw.Stop();
@@ -136,15 +136,7 @@ namespace XREngine
 #endif
                     _onCompleted?.Invoke();
                 }
-                void CompleteSequential(object o)
-                {
-#if DEBUG
-                    sw.Stop();
-                    Debug.Out($"Model imported asynchronously in {sw.ElapsedMilliseconds / 1000.0f} sec.");
-#endif
-                    _onCompleted?.Invoke();
-                }
-                Task.Run(ProcessMeshesSequential).ContinueWith(CompleteSequential);
+                Task.Run(ProcessMeshesSequential).ContinueWith(Complete);
             }
             else
             {

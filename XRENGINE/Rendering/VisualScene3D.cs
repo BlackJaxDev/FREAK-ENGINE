@@ -55,8 +55,12 @@ namespace XREngine.Scene
         private void RenderAABB(Vector3 extents, Vector3 center, Color color)
             => Engine.Rendering.Debug.RenderAABB(extents, center, false, color, true);
 
-        public void Raycast(CameraComponent cameraComponent, Vector2 screenPoint, out SortedDictionary<float, RenderInfo3D> items, Func<RenderInfo3D, Segment, float?> directTest)
-            => RenderTree.Raycast(cameraComponent.Camera.GetWorldSegment(screenPoint), out items, directTest);
+        public void Raycast(
+            CameraComponent cameraComponent,
+            Vector2 normalizedScreenPoint,
+            out SortedDictionary<float, List<(RenderInfo3D item, object? data)>> items,
+            Func<RenderInfo3D, Segment, (float? distance, object? data)> directTest)
+            => RenderTree.Raycast(cameraComponent.Camera.GetWorldSegment(normalizedScreenPoint), out items, directTest);
 
         public override void CollectRenderedItems(RenderCommandCollection meshRenderCommands, XRCamera? activeCamera, bool cullWithFrustum, Func<XRCamera>? cullingCameraOverride, bool shadowPass)
         {
@@ -73,7 +77,7 @@ namespace XREngine.Scene
             void AddRenderCommands(ITreeItem item)
             {
                 if (item is RenderInfo renderable)
-                    renderable.AddRenderCommands(commands, camera);
+                    renderable.AddRenderCommands(commands, camera, shadowPass);
             }
 
             RenderTree.CollectVisible(collectionVolume, false, AddRenderCommands, IntersectionTest);

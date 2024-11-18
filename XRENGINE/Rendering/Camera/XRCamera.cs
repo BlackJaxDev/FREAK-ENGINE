@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using Extensions;
+using System.Numerics;
 using XREngine.Data.Core;
 using XREngine.Data.Geometry;
 using XREngine.Scene.Transforms;
@@ -107,8 +108,8 @@ namespace XREngine.Rendering
         private XRCameraParameters? _parameters;
         public XRCameraParameters Parameters
         {
-            get => _parameters ?? SetFieldReturn(ref _parameters, GetDefaultCameraParameters(), UnregisterProjectionMatrixChanged, RegisterProjectionMatrixChanged)!;
-            set => SetField(ref _parameters, value, UnregisterProjectionMatrixChanged, RegisterProjectionMatrixChanged);
+            get => _parameters ?? SetFieldReturn(ref _parameters, GetDefaultCameraParameters())!;
+            set => SetField(ref _parameters, value);
         }
 
         public Matrix4x4 ProjectionMatrix
@@ -130,85 +131,62 @@ namespace XREngine.Rendering
         private static XRPerspectiveCameraParameters GetDefaultCameraParameters()
             => new(90.0f, null, 0.1f, 10000.0f);
 
-        protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
-        {
-            bool canChange = base.OnPropertyChanging(propName, field, @new);
-            if (canChange)
-            {
-                switch (propName)
-                {
-                    case nameof(Transform):
-                        UnregisterWorldMatrixChanged();
-                        break;
-                }
-            }
-            return canChange;
-        }
-        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
-        {
-            switch (propName)
-            {
-                case nameof(Transform):
-                    RegisterWorldMatrixChanged();
-                    break;
-            }
-            base.OnPropertyChanged(propName, prev, field);
-        }
-
-        private void RegisterProjectionMatrixChanged(XRCameraParameters? parameters)
-            => parameters?.ProjectionMatrixChanged.AddListener(ProjectionMatrixChanged);
-        private void UnregisterProjectionMatrixChanged(XRCameraParameters? parameters)
-            => parameters?.ProjectionMatrixChanged.RemoveListener(ProjectionMatrixChanged);
-
-        private void RegisterWorldMatrixChanged()
-        {
-            if (_transform is null)
-                return;
-
-            _transform.WorldMatrixChanged += WorldMatrixChanged;
-        }
-        private void UnregisterWorldMatrixChanged()
-        {
-            if (_transform is null)
-                return;
-
-            _transform.WorldMatrixChanged -= WorldMatrixChanged;
-        }
-
-        private void ProjectionMatrixChanged(XRCameraParameters parameters)
-        {
-            //InvalidateMVP();
-        }
-        private void WorldMatrixChanged(TransformBase transform)
-        {
-            //InvalidateMVP();
-        }
-
-        //private bool _mvpInvalidated = true;
-        private PostProcessingSettings? _postProcessing = new();
-        private XRMaterial? _postProcessMaterial;
-
-        ///// <summary>
-        ///// Called any time the camera's world matrix or projection matrix changes.
-        ///// </summary>
-        //private void InvalidateMVP()
-        //    => _mvpInvalidated = true;
-        ///// <summary>
-        ///// Recalculates the model-view-projection matrix.
-        ///// </summary>
-        //private void RecalcMVP()
-        //    => WorldViewProjectionMatrix = Transform.InverseWorldMatrix * ProjectionMatrix;
-        ///// <summary>
-        ///// Checks if the model-view-projection matrix has been invalidated and recalculates it if so.
-        ///// </summary>
-        //private void VerifyMVP()
+        //protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
         //{
-        //    if (!_mvpInvalidated)
+        //    bool canChange = base.OnPropertyChanging(propName, field, @new);
+        //    if (canChange)
+        //    {
+        //        switch (propName)
+        //        {
+        //            case nameof(Transform):
+        //                UnregisterWorldMatrixChanged();
+        //                break;
+        //        }
+        //    }
+        //    return canChange;
+        //}
+        //protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+        //{
+        //    switch (propName)
+        //    {
+        //        case nameof(Transform):
+        //            RegisterWorldMatrixChanged();
+        //            break;
+        //    }
+        //    base.OnPropertyChanged(propName, prev, field);
+        //}
+
+        //private void RegisterProjectionMatrixChanged(XRCameraParameters? parameters)
+        //    => parameters?.ProjectionMatrixChanged.AddListener(ProjectionMatrixChanged);
+        //private void UnregisterProjectionMatrixChanged(XRCameraParameters? parameters)
+        //    => parameters?.ProjectionMatrixChanged.RemoveListener(ProjectionMatrixChanged);
+
+        //private void RegisterWorldMatrixChanged()
+        //{
+        //    if (_transform is null)
         //        return;
 
-        //    RecalcMVP();
-        //    _mvpInvalidated = false;
+        //    _transform.WorldMatrixChanged += WorldMatrixChanged;
         //}
+        //private void UnregisterWorldMatrixChanged()
+        //{
+        //    if (_transform is null)
+        //        return;
+
+        //    _transform.WorldMatrixChanged -= WorldMatrixChanged;
+        //}
+
+        //private void ProjectionMatrixChanged(XRCameraParameters parameters)
+        //{
+        //    //InvalidateMVP();
+        //}
+        //private void WorldMatrixChanged(TransformBase transform)
+        //{
+        //    //InvalidateMVP();
+        //}
+
+        private PostProcessingSettings? _postProcessing = new();
+        private XRMaterial? _postProcessMaterial;
 
         public float FarZ
         {
@@ -320,20 +298,28 @@ namespace XREngine.Rendering
             => Parameters.GetUntransformedFrustum();
 
         /// <summary>
-        /// Returns a scale value that maintains the size of an object relative to the camera's distance.
+        /// Returns a scale value that maintains the size of an object relative to the camera's near plane.
         /// </summary>
         /// <param name="worldPoint">The point to evaluate scale at</param>
         /// <param name="refDistance">The distance from the camera to be at a scale of 1.0</param>
-        public float DistanceScale(Vector3 worldPoint, float refDistance)
+        public float DistanceScaleOrthographic(Vector3 worldPoint, float refDistance)
             => DistanceFromNearPlane(worldPoint) / refDistance;
+        /// <summary>
+        /// Returns a scale value that maintains the size of an object relative to the camera's position.
+        /// </summary>
+        /// <param name="worldPoint"></param>
+        /// <param name="refDistance"></param>
+        /// <returns></returns>
+        public float DistanceScalePerspective(Vector3 worldPoint, float refDistance)
+            => DistanceFromWorldPosition(worldPoint) / refDistance;
 
         /// <summary>
         /// Returns a normalized X, Y coordinate relative to the camera's origin (center for perspective, bottom-left for orthographic) 
         /// with Z being the normalized depth (0.0f - 1.0f) from NearDepth (0.0f) to FarDepth (1.0f).
         /// </summary>
-        public void WorldToScreen(Vector3 worldPoint, out Vector2 screenPoint, out float depth)
+        public void WorldToNormalizedViewportCoordinate(Vector3 worldPoint, out Vector2 screenPoint, out float depth)
         {
-            Vector3 xyd = WorldToScreen(worldPoint);
+            Vector3 xyd = WorldToNormalizedViewport(worldPoint);
             screenPoint = new Vector2(xyd.X, xyd.Y);
             depth = xyd.Z;
         }
@@ -341,9 +327,9 @@ namespace XREngine.Rendering
         /// Returns a normalized X, Y coordinate relative to the camera's origin (center for perspective, bottom-left for orthographic) 
         /// with Z being the normalized depth (0.0f - 1.0f) from NearDepth (0.0f) to FarDepth (1.0f).
         /// </summary>
-        public void WorldToScreen(Vector3 worldPoint, out float x, out float y, out float depth)
+        public void WorldToNormalizedViewportCoordinate(Vector3 worldPoint, out float x, out float y, out float depth)
         {
-            Vector3 xyd = WorldToScreen(worldPoint);
+            Vector3 xyd = WorldToNormalizedViewport(worldPoint);
             x = xyd.X;
             y = xyd.Y;
             depth = xyd.Z;
@@ -352,41 +338,63 @@ namespace XREngine.Rendering
         /// Returns a normalized X, Y coordinate relative to the camera's origin (center for perspective, bottom-left for orthographic) 
         /// with Z being the normalized depth (0.0f - 1.0f) from NearDepth (0.0f) to FarDepth (1.0f).
         /// </summary>
-        public Vector3 WorldToScreen(Vector3 worldPoint)
-            => (((Vector3.Transform(worldPoint, Transform.InverseWorldMatrix * ProjectionMatrix)) + Vector3.One) * new Vector3(0.5f));
+        public Vector3 WorldToNormalizedViewport(Vector3 worldPoint)
+            => ((Vector3.Transform(Vector3.Transform(worldPoint, Transform.InverseWorldMatrix), ProjectionMatrix) + Vector3.One) * new Vector3(0.5f));
 
         /// <summary>
         /// Takes an X, Y coordinate relative to the camera's origin along with the normalized depth (0.0f - 1.0f) from NearDepth (0.0f) to FarDepth (1.0f), and returns a position in the world.
         /// </summary>
-        public Vector3 ScreenToWorld(Vector2 normalizedScreenPoint, float depth)
-            => ScreenToWorld(normalizedScreenPoint.X, normalizedScreenPoint.Y, depth);
+        public Vector3 NormalizedViewportToWorldCoordinate(Vector2 normalizedViewportPoint, float depth)
+            => ScreenToWorld(normalizedViewportPoint.X, normalizedViewportPoint.Y, depth);
         /// <summary>
         /// Takes an X, Y coordinate relative to the camera's Origin along with the normalized depth (0.0f - 1.0f) from NearDepth (0.0f) to FarDepth (1.0f), and returns a position in the world.
         /// </summary>
-        public Vector3 ScreenToWorld(float x, float y, float depth)
-            => ScreenToWorld(new Vector3(x, y, depth));
+        public Vector3 ScreenToWorld(float normalizedX, float normalizedY, float depth)
+            => ScreenToWorld(new Vector3(normalizedX, normalizedY, depth));
         /// <summary>
         /// Takes an X, Y coordinate relative to the camera's Origin, with Z being the normalized depth (0.0f - 1.0f) from NearDepth (0.0f) to FarDepth (1.0f), and returns a position in the world.
         /// </summary>
-        public Vector3 ScreenToWorld(Vector3 normalizedPointDepth)
-            => Vector3.Transform(normalizedPointDepth * new Vector3(2.0f) - Vector3.One, InverseProjectionMatrix * Transform.WorldMatrix);
-
-        public Segment GetWorldSegment(Vector2 screenPoint)
+        public Vector3 ScreenToWorld(Vector3 normalizedPointDepth, ERange xyRange = ERange.ZeroToOne, ERange depthRange = ERange.ZeroToOne)
         {
-            Vector3 start = ScreenToWorld(screenPoint, 0.0f);
-            Vector3 end = ScreenToWorld(screenPoint, 1.0f);
+            Vector3 clipSpacePos = normalizedPointDepth;
+
+            if (xyRange == ERange.ZeroToOne)
+            {
+                clipSpacePos.X = normalizedPointDepth.X * 2.0f - 1.0f;
+                clipSpacePos.Y = normalizedPointDepth.Y * 2.0f - 1.0f;
+            }
+
+            if (depthRange == ERange.ZeroToOne)
+                clipSpacePos.Z = normalizedPointDepth.Z * 2.0f - 1.0f;
+
+            Vector4 viewSpacePos = Vector4.Transform(clipSpacePos, InverseProjectionMatrix * Transform.WorldMatrix);
+            if (viewSpacePos.W != 0.0f)
+                viewSpacePos /= viewSpacePos.W;
+            return viewSpacePos.XYZ();
+        }
+
+        public enum ERange
+        {
+            NegativeOneToOne,
+            ZeroToOne
+        }
+
+        public Segment GetWorldSegment(Vector2 normalizedScreenPoint)
+        {
+            Vector3 start = NormalizedViewportToWorldCoordinate(normalizedScreenPoint, 0.0f);
+            Vector3 end = NormalizedViewportToWorldCoordinate(normalizedScreenPoint, 1.0f);
             return new Segment(start, end);
         }
-        public Ray GetWorldRay(Vector2 screenPoint)
+        public Ray GetWorldRay(Vector2 normalizedScreenPoint)
         {
-            Vector3 start = ScreenToWorld(screenPoint, 0.0f);
-            Vector3 end = ScreenToWorld(screenPoint, 1.0f);
+            Vector3 start = NormalizedViewportToWorldCoordinate(normalizedScreenPoint, 0.0f);
+            Vector3 end = NormalizedViewportToWorldCoordinate(normalizedScreenPoint, 1.0f);
             return new Ray(start, end - start);
         }
-        public Vector3 GetPointAtDepth(Vector2 screenPoint, float depth)
-            => ScreenToWorld(screenPoint, depth);
-        public Vector3 GetPointAtDistance(Vector2 screenPoint, float distance)
-            => GetWorldSegment(screenPoint).PointAtLineDistance(distance);
+        public Vector3 GetPointAtDepth(Vector2 normalizedScreenPoint, float depth)
+            => NormalizedViewportToWorldCoordinate(normalizedScreenPoint, depth);
+        public Vector3 GetPointAtDistance(Vector2 normalizedScreenPoint, float distance)
+            => GetWorldSegment(normalizedScreenPoint).PointAtLineDistance(distance);
 
         /// <summary>
         /// Sets RenderDistance by calculating the distance between the provided camera and point.

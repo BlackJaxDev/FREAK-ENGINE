@@ -70,12 +70,12 @@ namespace XREngine.Rendering.Commands
             list.ForEach(x => x.Render(shadowPass));
             IsShadowPass = false;
         }
-        public void SwapBuffers()
+        public void SwapBuffers(bool shadowPass)
         {
             static void Clear(ICollection<RenderCommand> x)
                 => x.Clear();
-            static void Swap(ICollection<RenderCommand> x)
-                => x.ForEach(y => y.SwapBuffers());
+            void Swap(ICollection<RenderCommand> x)
+                => x.ForEach(y => y.SwapBuffers(shadowPass));
             
             _renderingPasses.Values.ForEach(Clear);
             (_updatingPasses, _renderingPasses) = (_renderingPasses, _updatingPasses);

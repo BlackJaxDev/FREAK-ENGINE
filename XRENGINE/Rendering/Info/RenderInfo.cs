@@ -18,10 +18,13 @@ namespace XREngine.Rendering.Info
         public abstract ITreeNode? TreeNode { get; }
         public IRenderable? Owner { get; }
 
-        public delegate void DelPreRenderCallback(RenderInfo info, RenderCommand command, XRCamera? camera);
+        public override string ToString()
+            => $"{Owner?.ToString() ?? "Unknown"}";
+
+        public delegate void DelPreRenderCallback(RenderInfo info, RenderCommand command, XRCamera? camera, bool shadowPass);
         public event DelPreRenderCallback? PreRenderCallback;
 
-        public delegate void DelSwapBuffersCallback(RenderInfo info, RenderCommand command);
+        public delegate void DelSwapBuffersCallback(RenderInfo info, RenderCommand command, bool shadowPass);
         public event DelSwapBuffersCallback? SwapBuffersCallback;
 
         protected RenderInfo(IRenderable owner, params RenderCommand[] renderCommands)
@@ -44,11 +47,11 @@ namespace XREngine.Rendering.Info
             item.OnSwapBuffers += SwapBuffers;
         }
 
-        private void SwapBuffers(RenderCommand command)
-            => SwapBuffersCallback?.Invoke(this, command);
+        private void SwapBuffers(RenderCommand command, bool swapBuffers)
+            => SwapBuffersCallback?.Invoke(this, command, swapBuffers);
 
-        private void PreRender(RenderCommand command, XRCamera? camera)
-            => PreRenderCallback?.Invoke(this, command, camera);
+        private void PreRender(RenderCommand command, XRCamera? camera, bool shadowPass)
+            => PreRenderCallback?.Invoke(this, command, camera, shadowPass);
 
         private EventList<RenderCommand> _renderCommands = [];
         public EventList<RenderCommand> RenderCommands
@@ -108,13 +111,13 @@ namespace XREngine.Rendering.Info
         public delegate void DelAddRenderCommandsCallback(RenderInfo info, RenderCommandCollection passes, XRCamera? camera);
         public DelAddRenderCommandsCallback? PreAddRenderCommandsCallback { get; set; }
 
-        public void AddRenderCommands(RenderCommandCollection passes, XRCamera? camera)
+        public void AddRenderCommands(RenderCommandCollection passes, XRCamera? camera, bool shadowPass)
         {
             PreAddRenderCommandsCallback?.Invoke(this, passes, camera);
             for (int i = 0; i < RenderCommands.Count; i++)
             {
                 RenderCommand cmd = RenderCommands[i];
-                cmd.PreRender(camera);
+                cmd.PreRender(camera, shadowPass);
                 passes.Add(cmd);   
             }
         }

@@ -66,12 +66,14 @@ namespace XREngine
                     else
                         Clear(true, true, true);
                 }
-
-                public static void BindFrameBuffer(EFramebufferTarget fboTarget, int bindingId)
-                    => AbstractRenderer.Current?.BindFrameBuffer(fboTarget, bindingId);
-
-                public static void SetReadBuffer(EDrawBuffersAttachment attachment)
-                    => AbstractRenderer.Current?.SetReadBuffer(attachment);
+                
+                public static void BindFrameBuffer(EFramebufferTarget fboTarget, XRFrameBuffer? fbo)
+                    => AbstractRenderer.Current?.BindFrameBuffer(fboTarget, fbo);
+                public static void SetReadBuffer(EReadBufferMode mode)
+                    => AbstractRenderer.Current?.SetReadBuffer(mode);
+                
+                public static void SetReadBuffer(XRFrameBuffer? fbo, EReadBufferMode mode)
+                    => AbstractRenderer.Current?.SetReadBuffer(fbo, mode);
 
                 public static float GetDepth(float x, float y)
                     => AbstractRenderer.Current?.GetDepth(x, y) ?? 0.0f;

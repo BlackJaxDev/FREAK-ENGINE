@@ -1,5 +1,7 @@
 ﻿using Extensions;
+using System.Collections.Concurrent;
 using System.Numerics;
+using System.Transactions;
 using XREngine.Data.Colors;
 using XREngine.Data.Core;
 using XREngine.Data.Geometry;
@@ -26,6 +28,162 @@ namespace XREngine
                 public const float DefaultPointSize = 10.0f;
                 public const float DefaultLineSize = 1.0f;
 
+                private static ConcurrentQueue<IShapeData> _debugShapesRendering = new();
+                private static ConcurrentQueue<IShapeData> _debugShapesUpdating = new();
+
+                public static void EnqueueShape(IShapeData shape)
+                {
+                    _debugShapesUpdating.Enqueue(shape);
+                }
+
+                public static void SwapBuffers()
+                {
+                    _debugShapesRendering.Clear();
+                    (_debugShapesUpdating, _debugShapesRendering) = (_debugShapesRendering, _debugShapesUpdating);
+                }
+
+                public static void RenderShapes()
+                {
+                    foreach (IShapeData shape in _debugShapesRendering)
+                    {
+                        switch (shape)
+                        {
+                            case PointData p:
+                                RenderPoint(p.Position, p.Color, p.DepthTestEnabled);
+                                break;
+                            case LineData l:
+                                RenderLine(l.Start, l.End, l.Color, l.DepthTestEnabled);
+                                break;
+                            case CircleData c:
+                                RenderCircle(c.Center, c.Rotation, c.Radius, c.Solid, c.Color, c.DepthTestEnabled);
+                                break;
+                            case QuadData q:
+                                RenderQuad(q.Center, q.Rotation, q.Extents, q.Solid, q.Color, q.DepthTestEnabled);
+                                break;
+                            case SphereData s:
+                                RenderSphere(s.Center, s.Radius, s.Solid, s.Color, s.DepthTestEnabled);
+                                break;
+                            case AABBData a:
+                                RenderAABB(a.HalfExtents, a.Translation, a.Solid, a.Color, a.DepthTestEnabled);
+                                break;
+                            case BoxData b:
+                                RenderBox(b.HalfExtents, b.Center, b.Transform, b.Solid, b.Color, b.DepthTestEnabled);
+                                break;
+                            case CapsuleData c:
+                                RenderCapsule(c.Capsule, c.Color, c.DepthTestEnabled);
+                                break;
+                            case TriangleData t:
+                                RenderTriangle(t.Value, t.Color, t.Solid, t.DepthTestEnabled);
+                                break;
+                            case CylinderData c:
+                                RenderCylinder(c.Transform, c.LocalUpAxis, c.Radius, c.HalfHeight, c.Solid, c.Color);
+                                break;
+                            case ConeData c:
+                                RenderCone(c.Transform, c.LocalUpAxis, c.Radius, c.Height, c.Solid, c.Color);
+                                break;
+                        }
+                    }
+                }
+
+                public interface IShapeData
+                {
+                    public ColorF4 Color { get; }
+                    public bool DepthTestEnabled { get; }
+                    public bool Solid { get; }
+                }
+                public struct PointData(Vector3 position, ColorF4 color, bool depthTestEnabled = true) : IShapeData
+                {
+                    public Vector3 Position = position;
+                    public ColorF4 Color { get; } = color;
+                    public bool DepthTestEnabled { get; } = depthTestEnabled;
+                    public bool Solid { get; } = false;
+                }
+                public struct LineData(Vector3 start, Vector3 end, ColorF4 color, bool depthTestEnabled = true) : IShapeData
+                {
+                    public Vector3 Start = start;
+                    public Vector3 End = end;
+                    public ColorF4 Color { get; } = color;
+                    public bool DepthTestEnabled { get; } = depthTestEnabled;
+                    public bool Solid { get; } = false;
+                }
+                public struct CircleData(bool solid, Vector3 center, Rotator rotation, float radius, ColorF4 color, bool depthTestEnabled = true) : IShapeData
+                {
+                    public Vector3 Center = center;
+                    public Rotator Rotation = rotation;
+                    public float Radius = radius;
+                    public ColorF4 Color { get; } = color;
+                    public bool Solid { get; } = solid;
+                    public bool DepthTestEnabled { get; } = depthTestEnabled;
+                }
+                public struct QuadData(bool solid, Vector3 center, Rotator rotation, Vector2 extents, ColorF4 color, bool depthTestEnabled = true) : IShapeData
+                {
+                    public Vector3 Center = center;
+                    public Rotator Rotation = rotation;
+                    public Vector2 Extents = extents;
+                    public ColorF4 Color { get; } = color;
+                    public bool Solid { get; } = solid;
+                    public bool DepthTestEnabled { get; } = depthTestEnabled;
+                }
+                public struct SphereData(bool solid, Vector3 center, float radius, ColorF4 color, bool depthTestEnabled = true) : IShapeData
+                {
+                    public Vector3 Center = center;
+                    public float Radius = radius;
+                    public ColorF4 Color { get; } = color;
+                    public bool Solid { get; } = solid;
+                    public bool DepthTestEnabled { get; } = depthTestEnabled;
+                }
+                public struct AABBData(bool solid, Vector3 halfExtents, Vector3 translation, ColorF4 color, bool depthTestEnabled = true) : IShapeData
+                {
+                    public Vector3 HalfExtents = halfExtents;
+                    public Vector3 Translation = translation;
+                    public ColorF4 Color { get; } = color;
+                    public bool Solid { get; } = solid;
+                    public bool DepthTestEnabled { get; } = depthTestEnabled;
+                }
+                public struct BoxData(bool solid, Vector3 halfExtents, Vector3 center, Matrix4x4 transform, ColorF4 color, bool depthTestEnabled = true) : IShapeData
+                {
+                    public Vector3 HalfExtents = halfExtents;
+                    public Vector3 Center = center;
+                    public Matrix4x4 Transform = transform;
+                    public ColorF4 Color { get; } = color;
+                    public bool Solid { get; } = solid;
+                    public bool DepthTestEnabled { get; } = depthTestEnabled;
+                }
+                public struct CapsuleData(bool solid, Capsule capsule, ColorF4 color, bool depthTestEnabled = true) : IShapeData
+                {
+                    public Capsule Capsule = capsule;
+                    public ColorF4 Color { get; } = color;
+                    public bool DepthTestEnabled { get; } = depthTestEnabled;
+                    public bool Solid { get; } = solid;
+                }
+                public struct TriangleData(bool solid, Triangle value, ColorF4 color, bool depthTestEnabled = true) : IShapeData
+                {
+                    public Triangle Value = value;
+                    public ColorF4 Color { get; } = color;
+                    public bool Solid { get; } = solid;
+                    public bool DepthTestEnabled { get; } = depthTestEnabled;
+                }
+                public struct CylinderData(bool solid, Matrix4x4 transform, Vector3 localUpAxis, float radius, float halfHeight, ColorF4 color, bool depthTestEnabled = true) : IShapeData
+                {
+                    public Matrix4x4 Transform = transform;
+                    public Vector3 LocalUpAxis = localUpAxis;
+                    public float Radius = radius;
+                    public float HalfHeight = halfHeight;
+                    public ColorF4 Color { get; } = color;
+                    public bool Solid { get; } = solid;
+                    public bool DepthTestEnabled { get; } = depthTestEnabled;
+                }
+                public struct ConeData(bool solid, Matrix4x4 transform, Vector3 localUpAxis, float radius, float height, ColorF4 color, bool depthTestEnabled = true) : IShapeData
+                {
+                    public Matrix4x4 Transform = transform;
+                    public Vector3 LocalUpAxis = localUpAxis;
+                    public float Radius = radius;
+                    public float Height = height;
+                    public ColorF4 Color { get; } = color;
+                    public bool Solid { get; } = solid;
+                    public bool DepthTestEnabled { get; } = depthTestEnabled;
+                }
+
                 private static unsafe void SetOptions(bool? depthTestEnabled, float? lineWidth, float? pointSize, XRMeshRenderer renderer)
                 {
                     var opts = renderer.Material!.RenderOptions;
@@ -46,6 +204,12 @@ namespace XREngine
                     bool depthTestEnabled = true,
                     float pointSize = DefaultPointSize)
                 {
+                    if (!IsRenderThread)
+                    {
+                        _debugShapesUpdating.Enqueue(new PointData(position, color, depthTestEnabled));
+                        return;
+                    }
+
                     XRMeshRenderer renderer = GetDebugPrimitive(EDebugPrimitiveType.Point, out _);
                     SetOptions(depthTestEnabled, null, pointSize, renderer);
                     renderer.SetParameter(0, color);
@@ -59,6 +223,12 @@ namespace XREngine
                     bool depthTestEnabled = true,
                     float lineWidth = DefaultLineSize)
                 {
+                    if (!IsRenderThread)
+                    {
+                        _debugShapesUpdating.Enqueue(new LineData(start, end, color, depthTestEnabled));
+                        return;
+                    }
+
                     XRMeshRenderer renderer = GetDebugPrimitive(EDebugPrimitiveType.Line, out _);
                     SetOptions(depthTestEnabled, lineWidth, null, renderer);
                     renderer.SetParameter(0, color);
@@ -79,6 +249,12 @@ namespace XREngine
                     bool depthTestEnabled = true,
                     float lineWidth = DefaultLineSize)
                 {
+                    if (!IsRenderThread)
+                    {
+                        _debugShapesUpdating.Enqueue(new CircleData(solid, centerTranslation, rotation, radius, color, depthTestEnabled));
+                        return;
+                    }
+
                     XRMeshRenderer renderer = GetDebugPrimitive(solid ? EDebugPrimitiveType.SolidCircle : EDebugPrimitiveType.WireCircle, out _);
                     SetOptions(depthTestEnabled, lineWidth, null, renderer);
                     renderer.SetParameter(0, color);
@@ -97,6 +273,12 @@ namespace XREngine
                     bool depthTestEnabled = true,
                     float lineWidth = DefaultLineSize)
                 {
+                    if (!IsRenderThread)
+                    {
+                        _debugShapesUpdating.Enqueue(new QuadData(solid, centerTranslation, rotation, extents, color, depthTestEnabled));
+                        return;
+                    }
+
                     var renderer = GetDebugPrimitive(solid ? EDebugPrimitiveType.SolidQuad : EDebugPrimitiveType.WireQuad, out _);
                     SetOptions(depthTestEnabled, lineWidth, null, renderer);
                     renderer.SetParameter(0, color);
@@ -114,6 +296,12 @@ namespace XREngine
                     bool depthTestEnabled = true,
                     float lineWidth = DefaultLineSize)
                 {
+                    if (!IsRenderThread)
+                    {
+                        _debugShapesUpdating.Enqueue(new SphereData(solid, center, radius, color, depthTestEnabled));
+                        return;
+                    }
+
                     XRMeshRenderer renderer = GetDebugPrimitive(solid ? EDebugPrimitiveType.SolidSphere : EDebugPrimitiveType.WireSphere, out _);
                     SetOptions(depthTestEnabled, lineWidth, null, renderer);
                     renderer.SetParameter(0, color);
@@ -132,7 +320,8 @@ namespace XREngine
                     float lineWidth = DefaultLineSize)
                     => RenderBox(
                         halfExtents,
-                        Matrix4x4.CreateTranslation(translation),
+                        translation,
+                        Matrix4x4.Identity,
                         solid,
                         color,
                         depthTestEnabled,
@@ -140,18 +329,26 @@ namespace XREngine
 
                 public static void RenderBox(
                     Vector3 halfExtents,
+                    Vector3 center,
                     Matrix4x4 transform,
                     bool solid,
                     ColorF4 color,
                     bool depthTestEnabled = true,
                     float lineWidth = DefaultLineSize)
                 {
+                    if (!IsRenderThread)
+                    {
+                        _debugShapesUpdating.Enqueue(new BoxData(solid, halfExtents, center, transform, color, depthTestEnabled));
+                        return;
+                    }
+
                     var renderer = GetDebugPrimitive(solid ? EDebugPrimitiveType.SolidBox : EDebugPrimitiveType.WireBox, out _);
                     SetOptions(depthTestEnabled, lineWidth, null, renderer);
                     renderer.SetParameter(0, color);
                     //halfExtents doesn't need to be multiplied by 2.0f; the box is already 1.0f in each direction of each dimension (2.0f extents)
                     renderer.Render(
                         Matrix4x4.CreateScale(halfExtents) *
+                        Matrix4x4.CreateTranslation(center) *
                         transform);
                 }
                 public static void RenderCapsule(
@@ -167,6 +364,23 @@ namespace XREngine
                         color,
                         depthTestEnabled);
                 public static void RenderCapsule(
+                    Vector3 start,
+                    Vector3 end,
+                    float radius,
+                    bool solid,
+                    ColorF4 color,
+                    bool depthTestEnabled = true,
+                    float lineWidth = DefaultLineSize)
+                    => RenderCapsule(
+                        (start + end) * 0.5f,
+                        (end - start).Normalize(),
+                        radius,
+                        Vector3.Distance(start, end) * 0.5f,
+                        solid,
+                        color,
+                        depthTestEnabled,
+                        lineWidth);
+                public static void RenderCapsule(
                     Vector3 center,
                     Vector3 localUpAxis,
                     float radius,
@@ -176,6 +390,12 @@ namespace XREngine
                     bool depthTestEnabled = true,
                     float lineWidth = DefaultLineSize)
                 {
+                    if (!IsRenderThread)
+                    {
+                        _debugShapesUpdating.Enqueue(new CapsuleData(solid, new Capsule(center, localUpAxis, radius, halfHeight), color, depthTestEnabled));
+                        return;
+                    }
+
                     string cylStr = "_CYLINDER";
                     string topStr = "_TOPHALF";
                     string botStr = "_BOTTOMHALF";
@@ -193,8 +413,11 @@ namespace XREngine
                         mTop ??= AssignDebugPrimitive(topStr, new XRMeshRenderer(topData, XRMaterial.CreateUnlitColorMaterialForward()));
                         mBot ??= AssignDebugPrimitive(botStr, new XRMeshRenderer(botData, XRMaterial.CreateUnlitColorMaterialForward()));
                     }
-
-                    Matrix4x4 tfm = Matrix4x4.CreateWorld(center, Vector3.Cross(localUpAxis, Vector3.UnitX), localUpAxis);
+                    Vector3 arb = Vector3.UnitX;
+                    if (Vector3.Dot(localUpAxis, Vector3.UnitX) > 0.99f || Vector3.Dot(localUpAxis, Vector3.UnitX) < -0.99f)
+                        arb = Vector3.UnitZ;
+                    Vector3 perp = Vector3.Cross(localUpAxis, arb).Normalize();
+                    Matrix4x4 tfm = Matrix4x4.CreateWorld(center, perp, localUpAxis);
                     Matrix4x4 radiusMtx = Matrix4x4.CreateScale(radius);
                     Matrix4x4 cylTransform = Matrix4x4.CreateScale(radius, halfHeight, radius) * tfm;
                     Matrix4x4 topTransform = radiusMtx * Matrix4x4.CreateTranslation(0.0f, halfHeight, 0.0f) * tfm;
@@ -217,6 +440,12 @@ namespace XREngine
                     bool solid,
                     bool depthTestEnabled = true)
                 {
+                    if (!IsRenderThread)
+                    {
+                        _debugShapesUpdating.Enqueue(new TriangleData(solid, value, color, depthTestEnabled));
+                        return;
+                    }
+
                     EDebugPrimitiveType type = solid ? EDebugPrimitiveType.SolidTriangle : EDebugPrimitiveType.WireTriangle;
                     XRMeshRenderer renderer = GetDebugPrimitive(type, out bool created);
                     if (created)
@@ -251,10 +480,22 @@ namespace XREngine
 
                 public static void RenderCylinder(Matrix4x4 transform, Vector3 localUpAxis, float radius, float halfHeight, bool solid, ColorF4 color, float lineWidth = DefaultLineSize)
                 {
+                    if (!IsRenderThread)
+                    {
+                        _debugShapesUpdating.Enqueue(new CylinderData(solid, transform, localUpAxis, radius, halfHeight, color));
+                        return;
+                    }
+
                     throw new NotImplementedException();
                 }
                 public static void RenderCone(Matrix4x4 transform, Vector3 localUpAxis, float radius, float height, bool solid, ColorF4 color, float lineWidth = DefaultLineSize)
                 {
+                    if (!IsRenderThread)
+                    {
+                        _debugShapesUpdating.Enqueue(new ConeData(solid, transform, localUpAxis, radius, height, color));
+                        return;
+                    }
+
                     //SetLineSize(lineWidth);
                     XRMeshRenderer m = GetDebugPrimitive(solid ? EDebugPrimitiveType.SolidCone : EDebugPrimitiveType.WireCone, out _);
                     m.Parameter<ShaderVector4>(0)!.Value = color;
@@ -336,6 +577,22 @@ namespace XREngine
                         EDebugPrimitiveType.SolidCone => XRMesh.Shapes.SolidCone(Vector3.Zero, Globals.Forward, 1.0f, 1.0f, 20, true),
                         _ => throw new InvalidOperationException(),
                     };
+
+                public static void RenderFrustum(Frustum frustum, ColorF4 color)
+                {
+                    RenderLine(frustum.LeftTopNear, frustum.RightTopNear, color);
+                    RenderLine(frustum.RightTopNear, frustum.RightBottomNear, color);
+                    RenderLine(frustum.RightBottomNear, frustum.LeftBottomNear, color);
+                    RenderLine(frustum.LeftBottomNear, frustum.LeftTopNear, color);
+                    RenderLine(frustum.LeftTopFar, frustum.RightTopFar, color);
+                    RenderLine(frustum.RightTopFar, frustum.RightBottomFar, color);
+                    RenderLine(frustum.RightBottomFar, frustum.LeftBottomFar, color);
+                    RenderLine(frustum.LeftBottomFar, frustum.LeftTopFar, color);
+                    RenderLine(frustum.LeftTopNear, frustum.LeftTopFar, color);
+                    RenderLine(frustum.RightTopNear, frustum.RightTopFar, color);
+                    RenderLine(frustum.RightBottomNear, frustum.RightBottomFar, color);
+                    RenderLine(frustum.LeftBottomNear, frustum.LeftBottomFar, color);
+                }
             }
         }
     }

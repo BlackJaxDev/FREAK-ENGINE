@@ -102,8 +102,8 @@ namespace XREngine.Rendering.UI
                 CreateSSBOs(rend);
                 _rc.Mesh = rend;
             }
-
-            Font.GetQuads(Text, out _glyphs);
+            lock (_glyphLock)
+                Font.GetQuads(Text, out _glyphs);
             _rc.Instances = (uint)_glyphs.Count;
             UpdateSSBOs();
         }
@@ -192,17 +192,22 @@ namespace XREngine.Rendering.UI
             PushFull = true;
         }
 
+        private object _glyphLock = new();
         private unsafe void WriteData()
         {
-            if (_glyphs is null || _transformsBuffer is null || _uvsBuffer is null)
+            if (_transformsBuffer is null || _uvsBuffer is null)
                 return;
+            
+            (Vector4 transform, Vector4 uvs)[] glyphsCopy;
+            lock (_glyphLock)
+                glyphsCopy = [.. _glyphs];
 
             float* tfmPtr = (float*)_transformsBuffer.Source!.Address.Pointer;
             float* uvsPtr = (float*)_uvsBuffer.Source!.Address.Pointer;
 
-            for (int i = 0; i < _glyphs.Count; i++)
+            for (int i = 0; i < glyphsCopy.Length; i++)
             {
-                var (transform, uvs) = _glyphs[i];
+                var (transform, uvs) = glyphsCopy[i];
 
                 *tfmPtr++ = transform.X;
                 *tfmPtr++ = transform.Y;

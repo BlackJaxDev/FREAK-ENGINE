@@ -1,6 +1,5 @@
 ﻿using XREngine.Core.Files;
 using XREngine.Data.Geometry;
-using XREngine.Data.Rendering;
 using XREngine.Scene.Transforms;
 
 namespace XREngine.Rendering.Models
@@ -14,6 +13,7 @@ namespace XREngine.Rendering.Models
 
         private AABB _bounds;
         private AABB? _cullingVolumeOverride;
+        private TransformBase? _rootBone;
 
         /// <summary>
         /// The true bind-pose bounding box of this mesh.
@@ -22,6 +22,12 @@ namespace XREngine.Rendering.Models
         {
             get => _bounds;
             set => SetField(ref _bounds, value);
+        }
+
+        public TransformBase? RootBone
+        {
+            get => _rootBone;
+            set => SetField(ref _rootBone, value);
         }
 
         /// <summary>
@@ -34,6 +40,15 @@ namespace XREngine.Rendering.Models
         }
 
         public TransformBase? RootTransform { get; set; }
+
+        public void DetermineRootBone()
+        {
+            RootBone = TransformBase.FindCommonAncestor(
+                LODs.SelectMany(x => x.Mesh?.UtilizedBones ?? [])
+                    .Select(x => x.tfm)
+                    .Distinct()
+                    .ToArray());
+        }
 
         public SubMesh() { }
 
@@ -48,6 +63,7 @@ namespace XREngine.Rendering.Models
             foreach (SubMeshLOD lod in lods)
                 LODs.Add(lod);
             Bounds = CalculateBoundingBox();
+            DetermineRootBone();
         }
 
         /// <summary>

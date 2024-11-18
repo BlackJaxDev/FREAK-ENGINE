@@ -42,82 +42,82 @@
 
   <ItemGroup>
     <PackageReference Include="DotnetNoise" Version="1.0.0" />
-    <PackageReference Include="JoltPhysicsSharp" Version="2.9.13" />
+    <PackageReference Include="JoltPhysicsSharp" Version="2.10.4" />
     <PackageReference Include="LZMA-SDK" Version="22.1.1" />
-    <PackageReference Include="Magick.NET-Q16-HDRI-OpenMP-x64" Version="14.0.0" />
-    <PackageReference Include="Magick.NET.Core" Version="14.0.0" />
-    <PackageReference Include="Magick.NET.SystemDrawing" Version="8.0.0" />
+    <PackageReference Include="Magick.NET-Q16-HDRI-OpenMP-x64" Version="14.1.0" />
+    <PackageReference Include="Magick.NET.Core" Version="14.1.0" />
+    <PackageReference Include="Magick.NET.SystemDrawing" Version="8.0.1" />
     <PackageReference Include="MagicPhysX" Version="1.0.0" />
     <PackageReference Include="MathNet.Numerics" Version="5.0.0" />
     <PackageReference Include="MathNet.Numerics.Providers.CUDA" Version="5.0.0" />
     <PackageReference Include="MIConvexHull" Version="1.1.19.1019" />
     <PackageReference Include="NAudio" Version="2.2.1" />
     <PackageReference Include="NAudio.Lame" Version="2.1.0" />
-    <PackageReference Include="NAudio.Sdl2" Version="2.2.5" />
+    <PackageReference Include="NAudio.Sdl2" Version="2.2.6" />
     <PackageReference Include="NAudio.Vorbis" Version="1.5.0" />
     <PackageReference Include="NDILibDotNetCoreBase" Version="2024.7.22.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="NVorbis" Version="0.10.5" />
     <PackageReference Include="RestSharp" Version="112.1.0" />
     <PackageReference Include="SharpFont.NetStandard" Version="1.0.5" />
-    <PackageReference Include="Silk.NET" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.Core" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.Core.Win32Extras" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.DirectStorage" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.DirectStorage.Native" Version="1.2.2" />
-    <PackageReference Include="Silk.NET.GLFW" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.Input" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.Input.Common" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.Input.Extensions" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.Input.Glfw" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.Input.Sdl" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.OpenAL" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.OpenAL.Extensions.Creative" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.OpenAL.Extensions.Enumeration" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.OpenAL.Extensions.EXT" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.OpenAL.Extensions.Soft" Version="2.21.0" />
+    <PackageReference Include="Silk.NET" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.Core" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.Core.Win32Extras" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.DirectStorage" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.DirectStorage.Native" Version="1.2.3" />
+    <PackageReference Include="Silk.NET.GLFW" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.Input" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.Input.Common" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.Input.Extensions" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.Input.Glfw" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.Input.Sdl" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.OpenAL" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.OpenAL.Extensions.Creative" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.OpenAL.Extensions.Enumeration" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.OpenAL.Extensions.EXT" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.OpenAL.Extensions.Soft" Version="2.22.0" />
     <PackageReference Include="Silk.NET.OpenAL.Soft.Native" Version="1.23.1" />
-    <PackageReference Include="Silk.NET.OpenGL" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.OpenGL.Extensions.ARB" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.OpenGL.Extensions.EXT" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.OpenGL.Extensions.INTEL" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.OpenGL.Extensions.KHR" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.OpenGLES.Extensions.EXT" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.OpenXR" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.OpenXR.Extensions.EXT" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.OpenXR.Extensions.HTC" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.OpenXR.Extensions.HTCX" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.OpenXR.Extensions.KHR" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.OpenXR.Extensions.MSFT" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.OpenXR.Extensions.VALVE" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.SDL" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.Vulkan" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.Vulkan.Extensions.AMD" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.Vulkan.Extensions.ARM" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.Vulkan.Extensions.EXT" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.Vulkan.Extensions.FB" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.Vulkan.Extensions.HUAWEI" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.Vulkan.Extensions.INTEL" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.Vulkan.Extensions.KHR" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.Vulkan.Extensions.NV" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.Vulkan.Extensions.NVX" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.Vulkan.Extensions.QNX" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.Vulkan.Extensions.VALVE" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.Vulkan.Loader.Native" Version="2024.4.15" />
-    <PackageReference Include="Silk.NET.WGL.Extensions.ARB" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.Windowing" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.Windowing.Common" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.Windowing.Extensions" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.Windowing.Glfw" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.Windowing.Sdl" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.XInput" Version="2.21.0" />
-    <PackageReference Include="SkiaSharp" Version="2.88.8" />
+    <PackageReference Include="Silk.NET.OpenGL" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.OpenGL.Extensions.ARB" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.OpenGL.Extensions.EXT" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.OpenGL.Extensions.INTEL" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.OpenGL.Extensions.KHR" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.OpenGLES.Extensions.EXT" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.OpenXR" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.OpenXR.Extensions.EXT" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.OpenXR.Extensions.HTC" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.OpenXR.Extensions.HTCX" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.OpenXR.Extensions.KHR" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.OpenXR.Extensions.MSFT" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.OpenXR.Extensions.VALVE" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.SDL" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.Vulkan" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.AMD" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.ARM" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.EXT" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.FB" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.HUAWEI" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.INTEL" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.KHR" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.NV" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.NVX" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.QNX" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.VALVE" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.Vulkan.Loader.Native" Version="2024.10.25" />
+    <PackageReference Include="Silk.NET.WGL.Extensions.ARB" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.Windowing" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.Windowing.Common" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.Windowing.Extensions" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.Windowing.Glfw" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.Windowing.Sdl" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.XInput" Version="2.22.0" />
+    <PackageReference Include="SkiaSharp" Version="2.88.9" />
     <PackageReference Include="Steamworks.NET" Version="2024.8.0" />
     <PackageReference Include="StirlingLabs.Assimp.Net" Version="23.4.1" />
-    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.2.0" />
-    <PackageReference Include="Vecc.YamlDotNet.Analyzers.StaticGenerator" Version="16.1.3" />
-    <PackageReference Include="YamlDotNet" Version="16.1.3" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.2.1" />
+    <PackageReference Include="Vecc.YamlDotNet.Analyzers.StaticGenerator" Version="16.2.0" />
+    <PackageReference Include="YamlDotNet" Version="16.2.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -140,6 +140,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="runtimes\win-x64\native\libmagicphysx.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="openvr_api.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

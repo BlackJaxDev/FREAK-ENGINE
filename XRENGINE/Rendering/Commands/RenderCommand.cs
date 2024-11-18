@@ -8,10 +8,10 @@ namespace XREngine.Rendering.Commands
         public RenderCommand() { }
         public RenderCommand(int renderPass) => RenderPass = renderPass;
 
-        public delegate void DelPreRender(RenderCommand command, XRCamera? camera);
+        public delegate void DelPreRender(RenderCommand command, XRCamera? camera, bool shadowPass);
         public event DelPreRender? OnPreRender;
 
-        public delegate void DelSwapBuffers(RenderCommand command);
+        public delegate void DelSwapBuffers(RenderCommand command, bool shadowPass);
         public event DelSwapBuffers? OnSwapBuffers;
 
         private int _renderPass = (int)EDefaultRenderPass.OpaqueForward;
@@ -29,9 +29,9 @@ namespace XREngine.Rendering.Commands
 
         public abstract void Render(bool shadowPass);
 
-        public virtual void PreRender(XRCamera? camera)
-            => OnPreRender?.Invoke(this, camera);
-        public void SwapBuffers()
-            => OnSwapBuffers?.Invoke(this);
+        public virtual void PreRender(XRCamera? camera, bool shadowPass)
+            => OnPreRender?.Invoke(this, camera, shadowPass);
+        public void SwapBuffers(bool shadowPass)
+            => OnSwapBuffers?.Invoke(this, shadowPass);
     }
 }

@@ -625,7 +625,7 @@ namespace XREngine.Data.Trees
             }
         }
 
-        public void Raycast(Segment segment, SortedDictionary<float, T> items, Func<T, Segment, float?> directTest)
+        public void Raycast(Segment segment, SortedDictionary<float, List<(T item, object? data)>> items, Func<T, Segment, (float? distance, object? data)> directTest)
         {
             //if (!_bounds.Intersects(segment))
             //    return;
@@ -645,7 +645,7 @@ namespace XREngine.Data.Trees
             ////IsLoopingSubNodes = false;
         }
 
-        public void Raycast(Segment segment, SortedDictionary<float, ITreeItem> items, Func<ITreeItem, Segment, float?> directTest)
+        public void Raycast(Segment segment, SortedDictionary<float, List<(ITreeItem item, object? data)>> items, Func<ITreeItem, Segment, (float? distance, object? data)> directTest)
         {
 
         }

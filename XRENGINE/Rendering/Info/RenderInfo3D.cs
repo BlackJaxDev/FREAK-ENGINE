@@ -1,4 +1,5 @@
-﻿using XREngine.Data;
+﻿using System.Numerics;
+using XREngine.Data;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
 using XREngine.Data.Trees;
@@ -15,16 +16,43 @@ namespace XREngine.Rendering.Info
         public static RenderInfo3D New(IRenderable owner, params RenderCommand[] renderCommands)
             => ConstructorOverride?.Invoke(owner, renderCommands) ?? new RenderInfo3D(owner, renderCommands);
 
+        public static RenderInfo3D New(IRenderable owner, int renderPass, RenderCommandMethod3D.DelRender renderMethod)
+            => New(owner, new RenderCommandMethod3D(renderPass, renderMethod));
+        public static RenderInfo3D New(IRenderable owner, EDefaultRenderPass renderPass, RenderCommandMethod3D.DelRender renderMethod)
+            => New(owner, new RenderCommandMethod3D((int)renderPass, renderMethod));
+
+        public static RenderInfo3D New(IRenderable owner, params (int renderPass, RenderCommandMethod3D.DelRender renderMethod)[] methods)
+            => New(owner, methods.Select((x, y) => new RenderCommandMethod3D(x.renderPass, x.renderMethod)).ToArray());
+        public static RenderInfo3D New(IRenderable owner, params (EDefaultRenderPass renderPass, RenderCommandMethod3D.DelRender renderMethod)[] methods)
+            => New(owner, methods.Select((x, y) => new RenderCommandMethod3D((int)x.renderPass, x.renderMethod)).ToArray());
+
+        public static RenderInfo3D New(IRenderable owner, int renderPass, XRMeshRenderer manager, Matrix4x4 worldMatrix, XRMaterial? materialOverride)
+            => New(owner, new RenderCommandMesh3D(renderPass, manager, worldMatrix, materialOverride));
+        public static RenderInfo3D New(IRenderable owner, EDefaultRenderPass renderPass, XRMeshRenderer manager, Matrix4x4 worldMatrix, XRMaterial? materialOverride)
+            => New(owner, new RenderCommandMesh3D((int)renderPass, manager, worldMatrix, materialOverride));
+
+        public static RenderInfo3D New(IRenderable owner, params (int renderPass, XRMeshRenderer manager, Matrix4x4 worldMatrix, XRMaterial? materialOverride)[] meshes)
+            => New(owner, meshes.Select((x, y) => new RenderCommandMesh3D(x.renderPass, x.manager, x.worldMatrix, x.materialOverride)).ToArray());
+        public static RenderInfo3D New(IRenderable owner, params (EDefaultRenderPass renderPass, XRMeshRenderer manager, Matrix4x4 worldMatrix, XRMaterial? materialOverride)[] meshes)
+            => New(owner, meshes.Select((x, y) => new RenderCommandMesh3D((int)x.renderPass, x.manager, x.worldMatrix, x.materialOverride)).ToArray());
+
         protected RenderInfo3D(IRenderable owner, params RenderCommand[] renderCommands)
             : base(owner, renderCommands) { }
 
         private AABB? _localCullingVolume;
+        private Matrix4x4 _cullingMatrix = Matrix4x4.Identity;
         private OctreeNodeBase? _octreeNode;
         private bool _receivesShadows = true;
         private bool _castsShadows = true;
         private bool _visibleInLightingProbes = true;
         private bool _hiddenFromOwner = false;
         private bool _visibleToOwnerOnly = false;
+
+        public Matrix4x4 CullingMatrix
+        {
+            get => _cullingMatrix;
+            set => SetField(ref _cullingMatrix, value);
+        }
 
         public bool HiddenFromOwner
         {
@@ -90,10 +118,11 @@ namespace XREngine.Rendering.Info
 
         public bool Intersects(IVolume? cullingVolume, bool containsOnly)
         {
-            if (LocalCullingVolume is null)
+            var worldCullingVolume = LocalCullingVolume?.ToBox(CullingMatrix);
+            if (worldCullingVolume is null)
                 return true;
 
-            var containment = cullingVolume?.ContainsAABB(LocalCullingVolume.Value) ?? EContainment.Contains;
+            var containment = cullingVolume?.ContainsBox(worldCullingVolume.Value) ?? EContainment.Contains;
             return containsOnly ? containment == EContainment.Contains : containment != EContainment.Disjoint;
         }
     }

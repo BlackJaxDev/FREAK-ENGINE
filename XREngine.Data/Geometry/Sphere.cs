@@ -73,7 +73,7 @@ namespace XREngine.Data.Geometry
             throw new NotImplementedException();
         }
 
-        public readonly AABB GetAABB() 
+        public readonly AABB GetAABB(bool transformed) 
             => new(Center - new Vector3(Radius), Center + new Vector3(Radius));
 
         public bool IntersectsSegment(Segment segment, out Vector3[] points)

@@ -109,11 +109,11 @@ public unsafe struct IVector2(int x, int y) : IBufferable, IUniformable
         => new(left.X - right.X, left.Y - right.Y);
     public static IVector2 operator *(IVector2 left, IVector2 right)
         => new(left.X * right.X, left.Y * right.Y);
-    public static IVector2 operator /(IVector2 left, IVector2 right)
-        => new(left.X / right.X, left.Y / right.Y);
+    public static Vector2 operator /(IVector2 left, IVector2 right)
+        => new((float)left.X / right.X, (float)left.Y / right.Y);
 
-    public static IVector2 operator /(IVector2 left, int right)
-        => new(left.X / right, left.Y / right);
+    public static Vector2 operator /(IVector2 left, int right)
+        => new((float)left.X / right, (float)left.Y / right);
     public static IVector2 operator *(IVector2 left, int right)
         => new(left.X * right, left.Y * right);
     public static IVector2 operator +(IVector2 left, int right)

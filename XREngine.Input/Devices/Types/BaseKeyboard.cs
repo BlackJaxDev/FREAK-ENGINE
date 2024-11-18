@@ -42,6 +42,10 @@
             => RegisterButtonEvent(unregister ? _buttonStates[(int)key] : FindOrCacheKey(key), type, func, unregister);
         public bool GetKeyState(EKey key, EButtonInputType type)
             => FindOrCacheKey(key)?.GetState(type) ?? false;
+        public bool Pressed(EKey key)
+            => GetKeyState(key, EButtonInputType.Pressed);
+        public bool Released(EKey key)
+            => GetKeyState(key, EButtonInputType.Released);
     }
     public enum EKey
     {

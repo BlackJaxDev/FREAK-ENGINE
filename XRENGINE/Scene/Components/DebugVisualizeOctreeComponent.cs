@@ -12,23 +12,28 @@ namespace XREngine.Data.Components
         private static List<(OctreeNodeBase node, bool intersects)> _octreeNodesUpdating = [];
         private static List<(OctreeNodeBase node, bool intersects)> _octreeNodesRendering = [];
 
-        protected override void RenderInfo_SwapBuffersCallback(RenderInfo info, RenderCommand command)
+        protected override void RenderInfo_SwapBuffersCallback(RenderInfo info, RenderCommand command, bool shadowPass)
         {
-            base.RenderInfo_SwapBuffersCallback(info, command);
+            if (shadowPass)
+                return;
 
+            base.RenderInfo_SwapBuffersCallback(info, command, shadowPass);
+
+            //Debug.LogWarning("DebugVisualizeOctreeComponent.RenderInfo_SwapBuffersCallback");
             _octreeNodesRendering.Clear();
             (_octreeNodesUpdating, _octreeNodesRendering) = (_octreeNodesRendering, _octreeNodesUpdating);
         }
-        protected override void RenderInfo_PreRenderCallback(RenderInfo info, RenderCommand command, XRCamera? camera)
+        protected override void RenderInfo_PreRenderCallback(RenderInfo info, RenderCommand command, XRCamera? camera, bool shadowPass)
         {
-            base.RenderInfo_PreRenderCallback(info, command, camera);
+            base.RenderInfo_PreRenderCallback(info, command, camera, shadowPass);
 
-            if (World?.VisualScene is not VisualScene3D scene)
+            if (shadowPass || World?.VisualScene is not VisualScene3D scene)
                 return;
 
             static void AddNodes((OctreeNodeBase node, bool intersects) d)
                 => _octreeNodesUpdating.Add(d);
 
+            //Debug.LogWarning("DebugVisualizeOctreeComponent.RenderInfo_PreRenderCallback");
             scene.RenderTree.CollectVisibleNodes(camera?.WorldFrustum(), false, AddNodes);
         }
 
@@ -36,9 +41,12 @@ namespace XREngine.Data.Components
         {
             base.Render(shadowPass);
 
-            if (!shadowPass)
-                foreach ((OctreeNodeBase node, bool intersects) in _octreeNodesRendering)
-                    Engine.Rendering.Debug.RenderAABB(node.Bounds.Extents, node.Center, false, intersects ? ColorF4.Red : ColorF4.White, false);
+            if (shadowPass)
+                return;
+
+            //Debug.LogWarning("DebugVisualizeOctreeComponent.Render");
+            foreach ((OctreeNodeBase node, bool intersects) in _octreeNodesRendering)
+                Engine.Rendering.Debug.RenderAABB(node.Bounds.HalfExtents, node.Center, false, intersects ? ColorF4.Red : ColorF4.White, false);
         }
     }
 }

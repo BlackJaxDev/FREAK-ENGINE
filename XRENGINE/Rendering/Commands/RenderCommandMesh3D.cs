@@ -10,6 +10,7 @@ namespace XREngine.Data.Rendering
         private Matrix4x4 _worldMatrix = Matrix4x4.Identity;
         private XRMaterial? _materialOverride;
         private uint _instances = 1;
+        private bool _worldMatrixIsModelMatrix = true;
 
         public XRMeshRenderer? Mesh
         {
@@ -20,6 +21,11 @@ namespace XREngine.Data.Rendering
         {
             get => _worldMatrix;
             set => SetField(ref _worldMatrix, value);
+        }
+        public bool WorldMatrixIsModelMatrix
+        {
+            get => _worldMatrixIsModelMatrix;
+            set => SetField(ref _worldMatrixIsModelMatrix, value);
         }
         public XRMaterial? MaterialOverride
         {
@@ -46,11 +52,11 @@ namespace XREngine.Data.Rendering
         }
 
         public override void Render(bool shadowPass)
-            => Mesh?.Render(WorldMatrix, MaterialOverride, Instances);
+            => Mesh?.Render(WorldMatrixIsModelMatrix ? WorldMatrix : Matrix4x4.Identity, MaterialOverride, Instances);
 
-        public override void PreRender(XRCamera? camera)
+        public override void PreRender(XRCamera? camera, bool shadowPass)
         {
-            base.PreRender(camera);
+            base.PreRender(camera, shadowPass);
             if (camera != null)
                 UpdateRenderDistance(WorldMatrix.Translation, camera);
         }

@@ -90,10 +90,15 @@ namespace XREngine.Data.Geometry
             return Ray.PointAtLineDistance(colinearPoint, point, _radius);
         }
 
-        public readonly AABB GetAABB()
+        public readonly AABB GetAABB(bool transformedByCenter)
         {
             Vector3 top = GetTopCenterPoint();
             Vector3 bot = GetBottomCenterPoint();
+            if (!transformedByCenter)
+            {
+                top -= Center;
+                bot -= Center;
+            }
             float radius = Radius;
             return new(
                 Vector3.Min(top, bot) - new Vector3(radius),

@@ -10,5 +10,6 @@
         UInt = 5,
         Float = 6,
         Double = 10,
+        Struct = 11,
     }
 }

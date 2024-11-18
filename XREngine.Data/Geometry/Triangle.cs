@@ -1,12 +1,19 @@
-﻿using System.Numerics;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Numerics;
 
 namespace XREngine.Data.Geometry
 {
-    public struct Triangle(Vector3 a, Vector3 b, Vector3 c)
+    public struct Triangle(Vector3 a, Vector3 b, Vector3 c) : IEquatable<Triangle>
     {
         public Vector3 A = a;
         public Vector3 B = b;
         public Vector3 C = c;
+
+        public override readonly int GetHashCode()
+            => HashCode.Combine(A, B, C);
+
+        public override readonly bool Equals([NotNullWhen(true)] object? obj)
+            => obj is Triangle t && A == t.A && B == t.B && C == t.C;
 
         public readonly Plane GetPlane()
             => Plane.CreateFromVertices(A, B, C);
@@ -69,5 +76,13 @@ namespace XREngine.Data.Geometry
             float w = vc * denom;
             return A + ab * v + ac * w;
         }
+
+        public readonly bool Equals(Triangle other)
+            => A == other.A && B == other.B && C == other.C;
+
+        public static bool operator ==(Triangle left, Triangle right)
+            => left.Equals(right);
+        public static bool operator !=(Triangle left, Triangle right)
+            => !(left == right);
     }
 }

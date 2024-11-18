@@ -73,7 +73,17 @@ namespace XREngine.Scene
         public virtual void GlobalSwapBuffers()
             => RenderablesTree.Swap();
 
-        public void Raycast(CameraComponent cameraComponent, Vector2 screenPoint, out SortedDictionary<float, ITreeItem> items, Func<ITreeItem, Segment, float?> directTest)
-            => RenderablesTree.Raycast(cameraComponent.Camera.GetWorldSegment(screenPoint), out items, directTest);
+        public void Raycast(
+            CameraComponent cameraComponent,
+            Vector2 normalizedScreenPoint,
+            out SortedDictionary<float, List<(ITreeItem item, object? data)>> items,
+            Func<ITreeItem, Segment, (float? distance, object? data)> directTest)
+            => Raycast(cameraComponent.Camera.GetWorldSegment(normalizedScreenPoint), out items, directTest);
+
+        public void Raycast(
+            Segment worldSegment,
+            out SortedDictionary<float, List<(ITreeItem item, object? data)>> items,
+            Func<ITreeItem, Segment, (float? distance, object? data)> directTest)
+            => RenderablesTree.Raycast(worldSegment, out items, directTest);
     }
 }

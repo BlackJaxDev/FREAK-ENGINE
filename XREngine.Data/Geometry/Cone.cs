@@ -86,7 +86,7 @@ namespace XREngine.Data.Geometry
         public override readonly string ToString()
             => $"Cone (Center: {Center}, Up: {Up}, Height: {Height}, Radius: {Radius})";
 
-        public AABB GetAABB()
+        public AABB GetAABB(bool transformed)
         {
             throw new NotImplementedException();
         }

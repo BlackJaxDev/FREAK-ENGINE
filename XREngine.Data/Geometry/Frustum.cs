@@ -488,7 +488,7 @@ namespace XREngine.Data.Geometry
             throw new NotImplementedException();
         }
 
-        public AABB GetAABB()
+        public AABB GetAABB(bool transformed)
         {
             var corners = _corners;
             Vector3 min = new(float.MaxValue);

@@ -317,6 +317,8 @@ namespace XREngine.Rendering
         public void ResizeAllViewportsAccordingToPlayers()
         {
             LocalPlayerController[] players = [.. Viewports.Select(x => x.AssociatedPlayer).Where(x => x is not null).Distinct().OrderBy(x => (int)x!.LocalPlayerIndex)];
+            foreach (var viewport in Viewports)
+                viewport.Destroy();
             Viewports.Clear();
             for (int i = 0; i < players.Length; i++)
                 AddViewportForPlayer(players[i], false);
@@ -348,9 +350,10 @@ namespace XREngine.Rendering
             => CalcDotLuminance(texture, out float dotLum, generateMipmapsNow) ? dotLum : 1.0f;
 
         public abstract void Clear(bool color, bool depth, bool stencil);
-        public abstract void BindFrameBuffer(EFramebufferTarget fboTarget, int bindingId);
+        public abstract void BindFrameBuffer(EFramebufferTarget fboTarget, XRFrameBuffer? fbo);
         public abstract void ClearColor(ColorF4 color);
-        public abstract void SetReadBuffer(EDrawBuffersAttachment attachment);
+        public abstract void SetReadBuffer(EReadBufferMode mode);
+        public abstract void SetReadBuffer(XRFrameBuffer? fbo, EReadBufferMode mode);
         public abstract float GetDepth(float x, float y);
         public abstract byte GetStencilIndex(float x, float y);
         public abstract void EnableDepthTest(bool enable);

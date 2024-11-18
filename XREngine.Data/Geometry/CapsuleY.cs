@@ -62,7 +62,7 @@ namespace XREngine.Data.Geometry
             throw new NotImplementedException();
         }
 
-        public AABB GetAABB()
+        public AABB GetAABB(bool transformed)
         {
             throw new NotImplementedException();
         }

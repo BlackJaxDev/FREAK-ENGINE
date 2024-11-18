@@ -176,7 +176,7 @@ namespace XREngine.Components.Lights
         }
 
         public void SwapBuffers()
-            => _shadowRenderPipeline.MeshRenderCommands.SwapBuffers();
+            => _shadowRenderPipeline.MeshRenderCommands.SwapBuffers(true);
 
         public abstract void CollectVisibleItems(VisualScene scene);
         public abstract void RenderShadowMap(VisualScene scene, bool collectVisibleNow = false);

@@ -189,8 +189,8 @@ namespace XREngine.Data.Geometry
         /// </summary>
         public IVector2 Center
         {
-            readonly get => _translation + (_bounds / 2);
-            set => _translation = value - (_bounds / 2);
+            readonly get => (IVector2)(_translation + (_bounds / 2));
+            set => _translation = (IVector2)(value - (_bounds / 2));
         }
         /// <summary>
         /// The width and height of this rectangle.

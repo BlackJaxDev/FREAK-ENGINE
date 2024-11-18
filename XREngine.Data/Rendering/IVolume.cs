@@ -44,7 +44,7 @@ namespace XREngine.Data.Rendering
         /// <param name="point"></param>
         /// <returns></returns>
         bool ContainsPoint(Vector3 point, float tolerance = float.Epsilon);
-        AABB GetAABB();
+        AABB GetAABB(bool transformed);
         bool IntersectsSegment(Segment segment, out Vector3[] points);
         bool IntersectsSegment(Segment segment);
     }

@@ -2,44 +2,38 @@
 
 namespace XREngine.Data.Geometry
 {
-    public struct Segment
+    public struct Segment(Vector3 start, Vector3 end)
     {
-        private Vector3 start;
-        private Vector3 end;
-
-        public Segment(Vector3 start, Vector3 end)
-        {
-            Start = start;
-            End = end;
-        }
+        private Vector3 _start = start;
+        private Vector3 _end = end;
 
         public Vector3 Start
         {
-            readonly get => start;
-            set => start = value;
+            readonly get => _start;
+            set => _start = value;
         }
 
         public Vector3 End
         {
-            readonly get => end;
-            set => end = value;
+            readonly get => _end;
+            set => _end = value;
         }
 
         public float Length
         {
-            readonly get => (end - start).Length();
-            set => end = start + Vector3.Normalize(end - start) * value;
+            readonly get => Vector3.Distance(_start, _end);
+            set => _end = _start + Vector3.Normalize(_end - _start) * value;
         }
 
         public readonly Vector3 ClosestPoint(Vector3 point)
         {
-            Vector3 direction = end - start;
-            float t = Vector3.Dot(point - start, direction) / Vector3.Dot(direction, direction);
-            return start + t * direction;
+            Vector3 direction = _end - _start;
+            float t = Vector3.Dot(point - _start, direction) / Vector3.Dot(direction, direction);
+            return _start + t * direction;
         }
 
         public readonly float DistanceToPoint(Vector3 point)
-            => Vector3.Cross(end - start, (point - start)).Length() / (end - start).Length();
+            => Vector3.Cross(_end - _start, (point - _start)).Length() / (_end - _start).Length();
 
         public readonly float DistanceToSegment(Segment segment)
             => DistanceToSegment(segment.Start, segment.End);
@@ -47,7 +41,7 @@ namespace XREngine.Data.Geometry
         public readonly float DistanceToSegment(Vector3 start, Vector3 end)
         {
             Vector3 direction = end - start;
-            Vector3 diff = start - this.start;
+            Vector3 diff = start - _start;
             float a = Vector3.Dot(direction, direction);
             float b = Vector3.Dot(diff, direction);
             float c = Vector3.Dot(diff, diff);
@@ -56,9 +50,9 @@ namespace XREngine.Data.Geometry
             {
                 float t = Math.Max(0.0f, Math.Min(1.0f, (b / a)));
                 Vector3 closest = start + t * direction;
-                return (closest - this.start).Length();
+                return (closest - _start).Length();
             }
-            return (start - this.start).Length();
+            return (start - _start).Length();
         }
 
         /// <summary>
@@ -80,6 +74,6 @@ namespace XREngine.Data.Geometry
         }
 
         public readonly Segment TransformedBy(Matrix4x4 transform)
-            => new Segment(Vector3.Transform(start, transform), Vector3.Transform(end, transform));
+            => new Segment(Vector3.Transform(_start, transform), Vector3.Transform(_end, transform));
     }
 }

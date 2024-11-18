@@ -173,13 +173,13 @@ namespace XREngine.Data.Trees
             _head.CollectAll(action);
         }
 
-        public void Raycast(Segment segment, out SortedDictionary<float, T> items, Func<T, Segment, float?> directTest)
+        public void Raycast(Segment segment, out SortedDictionary<float, List<(T item, object? data)>> items, Func<T, Segment, (float? distance, object? data)> directTest)
         {
             items = [];
             _head.Raycast(segment, items, directTest);
         }
 
-        public void Raycast(Segment segment, out SortedDictionary<float, ITreeItem> items, Func<ITreeItem, Segment, float?> directTest)
+        public void Raycast(Segment segment, out SortedDictionary<float, List<(ITreeItem item, object? data)>> items, Func<ITreeItem, Segment, (float? distance, object? data)> directTest)
         {
             items = [];
             _head.Raycast(segment, items, directTest);

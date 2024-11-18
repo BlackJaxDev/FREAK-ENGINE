@@ -38,28 +38,28 @@ public class DefaultRenderPipeline : RenderPipeline
     }
 
     //FBOs
-    const string SSAOFBOName = "SSAOFBO";
-    const string SSAOBlurFBOName = "SSAOBlurFBO";
-    const string GBufferFBOName = "GBufferFBO";
-    const string LightCombineFBOName = "LightCombineFBO";
-    const string ForwardPassFBOName = "ForwardPassFBO";
-    const string PostProcessFBOName = "PostProcessFBO";
-    const string UserInterfaceFBOName = "UserInterfaceFBO";
+    public const string SSAOFBOName = "SSAOFBO";
+    public const string SSAOBlurFBOName = "SSAOBlurFBO";
+    public const string GBufferFBOName = "GBufferFBO";
+    public const string LightCombineFBOName = "LightCombineFBO";
+    public const string ForwardPassFBOName = "ForwardPassFBO";
+    public const string PostProcessFBOName = "PostProcessFBO";
+    public const string UserInterfaceFBOName = "UserInterfaceFBO";
 
     //Textures
-    const string SSAONoiseTextureName = "SSAONoiseTexture";
-    const string SSAOIntensityTextureName = "SSAOIntensityTexture";
-    const string NormalTextureName = "Normal";
-    const string DepthViewTextureName = "DepthView";
-    const string StencilViewTextureName = "StencilView";
-    const string AlbedoOpacityTextureName = "AlbedoOpacity";
-    const string RMSITextureName = "RMSI";
-    const string DepthStencilTextureName = "DepthStencil";
-    const string DiffuseTextureName = "LightingTexture";
-    const string HDRSceneTextureName = "HDRSceneTex";
-    const string BloomBlurTextureName = "BloomBlurTexture";
-    const string HUDTextureName = "HUDTex";
-    const string BRDFTextureName = "BRDF";
+    public const string SSAONoiseTextureName = "SSAONoiseTexture";
+    public const string SSAOIntensityTextureName = "SSAOIntensityTexture";
+    public const string NormalTextureName = "Normal";
+    public const string DepthViewTextureName = "DepthView";
+    public const string StencilViewTextureName = "StencilView";
+    public const string AlbedoOpacityTextureName = "AlbedoOpacity";
+    public const string RMSITextureName = "RMSI";
+    public const string DepthStencilTextureName = "DepthStencil";
+    public const string DiffuseTextureName = "LightingTexture";
+    public const string HDRSceneTextureName = "HDRSceneTex";
+    public const string BloomBlurTextureName = "BloomBlurTexture";
+    public const string HUDTextureName = "HUDTex";
+    public const string BRDFTextureName = "BRDF";
 
     protected override ViewportRenderCommandContainer GenerateCommandChain()
     {
@@ -168,15 +168,10 @@ public class DefaultRenderPipeline : RenderPipeline
                 c.Add<VPRC_DepthTest>().Enable = false;
                 c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.Background;
 
-                //Normal depth test for opaque forward
                 c.Add<VPRC_DepthTest>().Enable = true;
                 c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.OpaqueForward;
-
-                //Render forward transparent objects next, normal depth testing
-                //c.Add<VPRC_DepthTest>().Enable = true;
+                c.Add<VPRC_RenderDebugShapes>();
                 c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.TransparentForward;
-
-                //Render forward on-top objects last
                 c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.OnTopForward;
             }
 

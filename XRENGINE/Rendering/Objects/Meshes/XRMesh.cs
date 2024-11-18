@@ -1,23 +1,21 @@
-﻿using Extensions;
+﻿using Assimp;
+using Extensions;
+using SimpleScene.Util.ssBVH;
 using System.Collections.Concurrent;
 using System.ComponentModel;
-using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using XREngine.Core.Files;
+using XREngine.Data;
 using XREngine.Data.Core;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
 using XREngine.Data.Vectors;
+using XREngine.Rendering.Models.Materials;
 using XREngine.Scene;
 using XREngine.Scene.Transforms;
 using YamlDotNet.Serialization;
-using Assimp;
 using Matrix4x4 = System.Numerics.Matrix4x4;
-using SimpleScene.Util.ssBVH;
-using System.Diagnostics.CodeAnalysis;
-using Silk.NET.Maths;
-using XREngine.Rendering.Models.Materials;
-using XREngine.Data;
 
 namespace XREngine.Rendering
 {
@@ -62,9 +60,7 @@ namespace XREngine.Rendering
                 action.Invoke(i, i, vtx);
         }
 
-        private void InitBuffers(
-            ref Dictionary<TransformBase, float>?[]? weightsPerVertex,
-            bool hasSkinning,
+        private void InitMeshBuffers(
             bool hasNormals,
             bool hasTangents,
             int colorCount,
@@ -73,12 +69,6 @@ namespace XREngine.Rendering
             PositionsBuffer = new XRDataBuffer(ECommonBufferType.Position.ToString(), EBufferTarget.ArrayBuffer, false);
             PositionsBuffer.Allocate<Vector3>((uint)VertexCount);
             Buffers.Add(ECommonBufferType.Position.ToString(), PositionsBuffer);
-
-            if (hasSkinning)
-            {
-                weightsPerVertex = new Dictionary<TransformBase, float>?[VertexCount];
-                //weights.Fill(x => new ConcurrentDictionary<TransformBase, float>());
-            }
 
             if (hasNormals)
             {
@@ -874,9 +864,6 @@ namespace XREngine.Rendering
                 else
                     bounds.Value.ExpandToInclude(v.Position);
 
-                //if (v.Weights is not null && v.Weights.Count > 0 && !vertexActions.ContainsKey(0))
-                //    vertexActions.TryAdd(0, (i, x, vtx) => weights![i] = vtx?.Weights ?? []);
-
                 if (v.Normal is not null && !vertexActions.ContainsKey(1))
                     vertexActions.TryAdd(1, (i, x, vtx) => NormalsBuffer!.SetDataRawAtIndex((uint)i, vtx?.Normal ?? Vector3.Zero));
 
@@ -961,6 +948,8 @@ namespace XREngine.Rendering
                 }
             }
 
+            Dictionary<TransformBase, float>?[]? weights = null;
+
             _bounds = bounds ?? new AABB(Vector3.Zero, Vector3.Zero);
 
             //Remap vertices to unique indices for each type of simple primitive
@@ -1004,10 +993,7 @@ namespace XREngine.Rendering
                 firstAppearanceArray = remapper.ImplementationTable!;
             VertexCount = firstAppearanceArray.Length;
 
-            Dictionary<TransformBase, float>?[]? weights = null;
-            InitBuffers(
-                ref weights,
-                vertexActions.ContainsKey(0),
+            InitMeshBuffers(
                 vertexActions.ContainsKey(1),
                 vertexActions.ContainsKey(2),
                 maxColorCount,
@@ -1040,11 +1026,6 @@ namespace XREngine.Rendering
             ArgumentNullException.ThrowIfNull(assimp);
             ArgumentNullException.ThrowIfNull(nodeCache);
 
-#if DEBUG
-            Stopwatch sw = new();
-            sw.Start();
-#endif
-
             //Convert all primitives to simple primitives
             List<Vertex> points = [];
             List<Vertex> lines = [];
@@ -1070,12 +1051,6 @@ namespace XREngine.Rendering
                     bounds = new AABB(v.Position, v.Position);
                 else
                     bounds.Value.ExpandToInclude(v.Position);
-
-                //if (v.Weights is not null && v.Weights.Count > 0 && !vertexActions.ContainsKey(0))
-                //    vertexActions.TryAdd(0, (i, x, vtx) =>
-                //    {
-                //        weights![i] = vtx?.Weights ?? [];
-                //    });
 
                 if (v.Normal is not null && !vertexActions.ContainsKey(1))
                     vertexActions.TryAdd(1, (i, x, vtx) => NormalsBuffer!.SetDataRawAtIndex((uint)i, Vector3.TransformNormal(vtx?.Normal ?? Vector3.Zero, dataTransform).Normalize()));
@@ -1204,8 +1179,6 @@ namespace XREngine.Rendering
                 }
             }
 
-            _bounds = bounds?.Transformed(x => Vector3.Transform(x, dataTransform)) ?? new AABB(Vector3.Zero, Vector3.Zero);
-
             SetTriangleIndices(triangles, false);
             SetLineIndices(lines, false);
             SetPointIndices(points, false);
@@ -1233,12 +1206,15 @@ namespace XREngine.Rendering
             }
             VertexCount = count;
 
-            Dictionary<TransformBase, float>?[]? weightsPerVertex = null;
-            Dictionary<TransformBase, Matrix4x4> invBindMatrices = [];
+            if (boneCount > 0)
+                CollectBoneWeights(
+                    mesh,
+                    nodeCache,
+                    faceRemap);
 
-            InitBuffers(
-                ref weightsPerVertex,
-                boneCount > 0,
+            _bounds = bounds ?? new AABB(Vector3.Zero, Vector3.Zero);
+
+            InitMeshBuffers(
                 vertexActions.ContainsKey(1),
                 vertexActions.ContainsKey(2),
                 maxColorCount,
@@ -1246,33 +1222,11 @@ namespace XREngine.Rendering
 
             vertexActions.TryAdd(6, (i, x, vtx) => PositionsBuffer!.SetDataRawAtIndex((uint)i, Vector3.Transform(vtx?.Position ?? Vector3.Zero, dataTransform)));
 
-            //if (boneCount == 1)
-            //    dataTransform = GetSingleBind(mesh, nodeCache);
-            //else if (boneCount > 1)
-
-            if (boneCount > 0)
-                CollectBoneWeights(
-                    parentTransform,
-                    mesh,
-                    nodeCache,
-                    weightsPerVertex,
-                    invBindMatrices,
-                    boneCount,
-                    faceRemap,
-                    invRootMatrix);
-
             //MakeFaceIndices(weights, count);
 
             //Fill the buffers with the vertex data using the command list
             //We can do this in parallel since each vertex is independent
             PopulateVertexData(vertexActions.Values, sourceList, count, true);
-
-#if DEBUG
-            sw.Stop();
-            float sec = sw.ElapsedMilliseconds / 1000.0f;
-            if (sec > 1.0f)
-                Debug.Out($"Mesh creation took {sw.ElapsedMilliseconds / 1000.0f} sec.");
-#endif
         }
 
         //private unsafe Matrix4x4 GetSingleBind(Mesh mesh, Dictionary<string, List<SceneNode>> nodeCache)
@@ -1299,18 +1253,16 @@ namespace XREngine.Rendering
         //}
 
         private void CollectBoneWeights(
-            TransformBase parentTransform,
             Mesh mesh,
             Dictionary<string, List<SceneNode>> nodeCache,
-            Dictionary<TransformBase, float>?[]? weightsPerVertex,
-            Dictionary<TransformBase, Matrix4x4> invBindMatrices,
-            int boneCount,
-            Dictionary<int, List<int>> faceRemap,
-            Matrix4x4 invRootMatrix)
+            Dictionary<int, List<int>> faceRemap)
         {
             //using var time = Engine.Profiler.Start();
 
             //Debug.Out($"Collecting bone weights for {mesh.Name}.");
+
+            Dictionary<TransformBase, float>?[]? weightsPerVertex = new Dictionary<TransformBase, float>?[VertexCount];
+            Dictionary<TransformBase, Matrix4x4> invBindMatrices = [];
 
             int boneIndex = 0;
             Dictionary<TransformBase, int> boneToIndexTable = [];
@@ -1329,9 +1281,7 @@ namespace XREngine.Rendering
                     continue;
                 }
 
-                Matrix4x4 mtx = bone.OffsetMatrix.ToNumerics().Transposed()/* * invRootMatrix*/;
-                //Matrix4x4 mtx = transform.InverseWorldMatrix;
-                invBindMatrices.Add(transform!, mtx);
+                invBindMatrices.Add(transform!, bone.OffsetMatrix.ToNumerics().Transposed());
 
                 int weightCount = bone.VertexWeightCount;
                 for (int j = 0; j < weightCount; j++)
@@ -1374,6 +1324,71 @@ namespace XREngine.Rendering
         /// This is the maximum number of weights used for one or more vertices.
         /// </summary>
         public int MaxWeightCount { get; private set; } = 0;
+
+        //private void PopulateBlendshapeBuffers(Dictionary<string, List<Blendshape>> blendshapes)
+        //{
+        //    //using var timer = Engine.Profiler.Start();
+
+        //    uint vertCount = (uint)VertexCount;
+
+        //    BlendshapeOffsets = new XRDataBuffer(ECommonBufferType.BlendshapeOffset.ToString(), EBufferTarget.ArrayBuffer, vertCount, EComponentType.Int, 1, false, true)
+        //    {
+        //        Usage = EBufferUsage.StaticCopy
+        //    };
+        //    BlendshapeCounts = new XRDataBuffer(ECommonBufferType.BlendshapeCount.ToString(), EBufferTarget.ArrayBuffer, vertCount, EComponentType.Int, 1, false, true)
+        //    {
+        //        Usage = EBufferUsage.StaticCopy
+        //    };
+
+        //    //Blendshape weights
+        //    BlendshapeWeights = new XRDataBuffer(ECommonBufferType.BlendshapeWeights.ToString(), EBufferTarget.ArrayBuffer, vertCount, EComponentType.Float, 1, false, false)
+        //    {
+        //        Usage = EBufferUsage.DynamicDraw
+        //    };
+        //    //Blendshape indices
+        //    BlendshapeIndices = new XRDataBuffer(ECommonBufferType.BlendshapeIndices.ToString(), EBufferTarget.ArrayBuffer, vertCount, EComponentType.Int, 1, false, false)
+        //    {
+        //        Usage = EBufferUsage.StaticCopy
+        //    };
+
+        //    //Blendshape deltas
+        //    BlendshapePositionDeltasBuffer = new XRDataBuffer(ECommonBufferType.BlendshapePositionDeltas.ToString(), EBufferTarget.ArrayBuffer, vertCount, EComponentType.Float, 3, false, false)
+        //    {
+        //        Usage = EBufferUsage.StaticCopy
+        //    };
+        //    BlendshapeNormalDeltasBuffer = new XRDataBuffer(ECommonBufferType.BlendshapeNormalDeltas.ToString(), EBufferTarget.ArrayBuffer, vertCount, EComponentType.Float, 3, false, false)
+        //    {
+        //        Usage = EBufferUsage.StaticCopy
+        //    };
+        //    BlendshapeTangentDeltasBuffer = new XRDataBuffer(ECommonBufferType.BlendshapeTangentDeltas.ToString(), EBufferTarget.ArrayBuffer, vertCount, EComponentType.Float, 3, false, false)
+        //    {
+        //        Usage = EBufferUsage.StaticCopy
+        //    };
+
+        //    ////Blendshape color deltas
+        //    //BlendshapeColorDeltaBuffers = new XRDataBuffer[blendshapes.Count];
+        //    //for (int i = 0; i < blendshapes.Count; i++)
+        //    //{
+        //    //    BlendshapeColorDeltaBuffers[i] = new XRDataBuffer($"{ECommonBufferType.BlendshapeColorDeltas}{i}", EBufferTarget.ArrayBuffer, vertCount, EComponentType.Float, 4, false, false)
+        //    //    {
+        //    //        Usage = EBufferUsage.StaticCopy
+        //    //    };
+        //    //}
+
+        //    ////Blendshape texcoord deltas
+        //    //BlendshapeTexCoordDeltaBuffers = new XRDataBuffer[blendshapes.Count];
+        //    //for (int i = 0; i < blendshapes.Count; i++)
+        //    //{
+        //    //    BlendshapeTexCoordDeltaBuffers[i] = new XRDataBuffer($"{ECommonBufferType.BlendshapeTexCoordDeltas}{i}", EBufferTarget.ArrayBuffer, vertCount, EComponentType.Float, 2, false, false)
+        //    //    {
+        //    //        Usage = EBufferUsage.StaticCopy
+        //    //    };
+        //    //}
+
+
+        //    //Populate the buffers with the blendshape data
+        //    PopulateBlendshapeData(blendshapes);
+        //}
 
         private void PopulateSkinningBuffers(Dictionary<TransformBase, int> boneToIndexTable, Dictionary<TransformBase, float>?[] weightsPerVertex)
         {
@@ -1619,13 +1634,17 @@ namespace XREngine.Rendering
         }
 
         private BVH<Triangle>? _bvhTree = null;
+        private bool _generating = false;
         public BVH<Triangle>? BVHTree
         {
             [RequiresDynamicCode("")]
             get
             {
                 if (_bvhTree is null)
-                    GenerateBVH();
+                {
+                    _generating = true;
+                    Task.Run(GenerateBVH);
+                }
                 return _bvhTree!;
             }
             internal set => _bvhTree = value;
@@ -1638,6 +1657,7 @@ namespace XREngine.Rendering
                 return;
 
             _bvhTree = new(new TriangleAdapter(), Triangles.Select(GetTriangle).ToList());
+            _generating = false;
         }
 
         [RequiresDynamicCode("Calls XREngine.Rendering.XRDataBuffer.Get<T>(UInt32)")]
@@ -1729,7 +1749,7 @@ namespace XREngine.Rendering
             => _triangleToLeaf.TryGetValue(obj, out BVHNode<Triangle>? leaf) ? leaf : null;
 
         public void MapObjectToBVHLeaf(Triangle obj, BVHNode<Triangle> leaf)
-            => _triangleToLeaf.Add(obj, leaf);
+            => _triangleToLeaf.TryAdd(obj, leaf);
 
         public Vector3 ObjectPos(Triangle obj)
             => (obj.A + obj.B + obj.C) / 3.0f;

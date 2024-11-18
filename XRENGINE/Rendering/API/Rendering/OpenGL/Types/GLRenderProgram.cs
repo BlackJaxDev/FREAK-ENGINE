@@ -1,7 +1,9 @@
 ﻿using Extensions;
+using SharpFont;
 using Silk.NET.OpenGL;
 using System.Collections;
 using System.Collections.Concurrent;
+using System.Management;
 using System.Numerics;
 using XREngine.Data.Vectors;
 
@@ -256,46 +258,48 @@ namespace XREngine.Rendering.OpenGL
                 Reset();
             }
 
-            static GLRenderProgram()
-            {
-                ReadBinaryShaderCache();
-            }
-
             //TODO: serialize this cache and load on startup
-            private static readonly ConcurrentDictionary<ulong, BinaryProgram> _binaryCache = new();
+            private static ConcurrentDictionary<ulong, BinaryProgram>? BinaryCache = null;
 
-            private void WriteToBinaryShaderCache(BinaryProgram binary)
+            internal static void ReadBinaryShaderCache(string currentVer)
             {
-                string dir = Environment.CurrentDirectory;
-                string path = Path.Combine(dir, "ShaderCache");
-                if (!Directory.Exists(path))
-                    Directory.CreateDirectory(path);
-                path = Path.Combine(path, $"{Hash}-{binary.Format}.bin");
-                File.WriteAllBytes(path, binary.Binary);
-            }
+                if (BinaryCache is not null)
+                    return;
 
-            public static void ReadBinaryShaderCache()
-            {
+                BinaryCache = new();
+
                 string dir = Environment.CurrentDirectory;
                 string path = Path.Combine(dir, "ShaderCache");
                 if (!Directory.Exists(path))
                     return;
 
-                foreach (string file in Directory.EnumerateFiles(path, "*.bin"))
+                foreach (string filePath in Directory.EnumerateFiles(path, "*.bin"))
                 {
-                    string name = Path.GetFileNameWithoutExtension(file);
+                    string name = Path.GetFileNameWithoutExtension(filePath);
                     string[] parts = name.Split('-');
-                    if (parts.Length != 2)
+                    if (parts.Length != 3)
+                    {
+                        Debug.LogWarning($"Invalid binary shader cache file name, deleting: {name}");
+                        File.Delete(filePath);
                         continue;
+                    }
+
+                    string fileVer = parts[2];
+                    if (!string.Equals(currentVer, fileVer, StringComparison.OrdinalIgnoreCase))
+                    {
+                        Debug.LogWarning($"Binary shader cache file version mismatch, deleting: {fileVer} / {currentVer}");
+                        File.Delete(filePath);
+                        continue;
+                    }
 
                     try
                     {
                         if (ulong.TryParse(parts[0], out ulong hash))
                         {
-                            byte[] binary = File.ReadAllBytes(file);
+                            byte[] binary = File.ReadAllBytes(filePath);
                             GLEnum format = (GLEnum)Enum.Parse(typeof(GLEnum), parts[1]);
                             BinaryProgram binaryProgram = (binary, format, (uint)binary.Length);
-                            _binaryCache.TryAdd(hash, binaryProgram);
+                            BinaryCache.TryAdd(hash, binaryProgram);
                         }
                     }
                     catch
@@ -304,10 +308,25 @@ namespace XREngine.Rendering.OpenGL
                     }
                 }
             }
+            private void WriteToBinaryShaderCache(BinaryProgram binary)
+            {
+                string ver;
+                unsafe
+                {
+                    ver = new((sbyte*)Api.GetString(StringName.Version));
+                }
 
+                string dir = Environment.CurrentDirectory;
+                string path = Path.Combine(dir, "ShaderCache");
+                if (!Directory.Exists(path))
+                    Directory.CreateDirectory(path);
+                path = Path.Combine(path, $"{Hash}-{binary.Format}-{ver}.bin");
+                File.WriteAllBytes(path, binary.Binary);
+            }
+            
             public static void DeleteFromBinaryShaderCache(ulong hash, GLEnum format)
             {
-                _binaryCache.TryRemove(hash, out _);
+                BinaryCache?.TryRemove(hash, out _);
                 //Delete the file
                 string dir = Environment.CurrentDirectory;
                 string path = Path.Combine(dir, "ShaderCache");
@@ -361,12 +380,10 @@ namespace XREngine.Rendering.OpenGL
 
                 //lock (HashLock)
                 //{
+                    Hash = GetDeterministicHashCode(string.Join(' ', Data.Shaders.Select(x => x.Source.Text ?? string.Empty)));
                     if (Engine.Rendering.Settings.AllowBinaryProgramCaching)
-                    {
-                        Hash = GetDeterministicHashCode(string.Join(' ', Data.Shaders.Select(x => x.Source.Text ?? string.Empty)));
-                        isCached = _binaryCache.TryGetValue(Hash, out binProg);
-                    }
-
+                        isCached = BinaryCache?.TryGetValue(Hash, out binProg) ?? false;
+                    
                     if (isCached)
                     {
                         //Debug.Out($"Using cached program binary with hash {Hash}.");
@@ -401,7 +418,7 @@ namespace XREngine.Rendering.OpenGL
 
                         if (_shaderCache.Values.Any(x => !x.IsCompiled))
                         {
-                            Debug.Out($"Failed to compile program with hash {Hash}.");
+                            Debug.LogWarning($"Failed to compile program with hash {Hash}.");
                             Failed.Add(Hash);
                             //TODO: return invalid material until shaders are compiled
                             return false;
@@ -500,7 +517,7 @@ namespace XREngine.Rendering.OpenGL
                     Api.GetProgramBinary(bindingId, (uint)len, &binaryLength, &format, ptr);
                 }
                 BinaryProgram bin = (binary, format, binaryLength);
-                _binaryCache.TryAdd(Hash, bin);
+                BinaryCache.TryAdd(Hash, bin);
                 WriteToBinaryShaderCache(bin);
             }
 

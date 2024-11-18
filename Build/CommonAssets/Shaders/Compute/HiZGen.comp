@@ -1,0 +1,26 @@
+#version 450
+
+layout(local_size_x = 16, local_size_y = 16) in;
+
+layout(binding = 0) uniform sampler2D depthTexture; // Original depth buffer
+layout(binding = 1, rgba32f) uniform image2D hiZBuffer; // Hi-Z target mip level
+
+uniform ivec2 mipLevelSize; // Size of the current mip level
+
+void main()
+{
+    ivec2 coord = ivec2(gl_GlobalInvocationID.xy);
+    if (coord.x >= mipLevelSize.x || coord.y >= mipLevelSize.y)
+        return;
+
+    // Fetch 2x2 block of depth values from the previous level
+    ivec2 baseCoord = coord * 2;
+    float d0 = texelFetch(depthTexture, baseCoord, 0).r;
+    float d1 = texelFetch(depthTexture, baseCoord + ivec2(1, 0), 0).r;
+    float d2 = texelFetch(depthTexture, baseCoord + ivec2(0, 1), 0).r;
+    float d3 = texelFetch(depthTexture, baseCoord + ivec2(1, 1), 0).r;
+
+    // Store the maximum depth value
+    float maxDepth = max(max(d0, d1), max(d2, d3));
+    imageStore(hiZBuffer, coord, vec4(maxDepth));
+}

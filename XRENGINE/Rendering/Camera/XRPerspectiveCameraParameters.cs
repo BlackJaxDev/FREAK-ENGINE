@@ -1,6 +1,8 @@
-﻿using System.Numerics;
+﻿using Silk.NET.OpenXR;
+using System.Numerics;
 using XREngine.Data.Core;
 using XREngine.Data.Geometry;
+using static Google.Api.Distribution.Types.BucketOptions.Types;
 
 namespace XREngine.Rendering
 {
@@ -55,7 +57,14 @@ namespace XREngine.Rendering
             => AspectRatio = width / height;
 
         protected override Matrix4x4 CalculateProjectionMatrix()
-            => Matrix4x4.CreatePerspectiveFieldOfView(XRMath.DegToRad(VerticalFieldOfView), AspectRatio, NearZ, FarZ);
+        {
+            float fovY = XRMath.DegToRad(VerticalFieldOfView);
+            float yMax = NearZ * (float)MathF.Tan(0.5f * fovY);
+            float yMin = -yMax;
+            float xMin = yMin * AspectRatio;
+            float xMax = yMax * AspectRatio;
+            return Matrix4x4.CreatePerspectiveOffCenter(xMin, xMax, yMin, yMax, NearZ, FarZ);
+        }
 
         protected override Frustum CalculateUntransformedFrustum()
             => new(VerticalFieldOfView, AspectRatio, NearZ, FarZ, Globals.Forward, Globals.Up, Vector3.Zero);

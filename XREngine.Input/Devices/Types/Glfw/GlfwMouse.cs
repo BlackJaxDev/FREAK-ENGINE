@@ -1,5 +1,4 @@
 ﻿using Silk.NET.Input;
-using System.Diagnostics;
 using System.Numerics;
 using MouseButton = Silk.NET.Input.MouseButton;
 
@@ -69,7 +68,7 @@ namespace XREngine.Input.Devices.Glfw
 
         public override void TickStates(float delta)
         {
-            _cursor.Tick(_mouse.Position.X, _mouse.Position.Y);
+            _cursor.Tick(CursorPosition.X, CursorPosition.Y);
             _wheel.Tick(_lastScroll);
             _lastScroll = 0.0f;
             LeftClick?.Tick(_mouse.IsButtonPressed(MouseButton.Left), delta);

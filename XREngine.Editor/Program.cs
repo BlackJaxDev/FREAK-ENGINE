@@ -138,7 +138,7 @@ internal class Program
         //orbitTransform.RegisterAnimationTick<OrbitTransform>(t => t.Angle += Engine.DilatedDelta * 0.5f);
 
         var laggedTransform = cameraNode.GetTransformAs<SmoothedTransform>(true)!;
-        laggedTransform.Translation = new Vector3(0.0f, 0.0f, 5.0f);
+        //laggedTransform.Translation = new Vector3(0.0f, 0.0f, 5.0f);
         laggedTransform.RotationSmoothingSpeed = 15.0f;
         laggedTransform.TranslationSmoothingSpeed = 15.0f;
         laggedTransform.ScaleSmoothingSpeed = 15.0f;
@@ -146,9 +146,9 @@ internal class Program
         if (cameraNode.TryAddComponent<CameraComponent>(out var cameraComp))
         {
             cameraComp!.Name = "TestCamera";
-            cameraComp.Camera.Parameters = new XRPerspectiveCameraParameters(60.0f, null, 0.1f, 99999.0f);
+            cameraComp.Camera.Parameters = new XRPerspectiveCameraParameters(60.0f, null, 0.1f, 100000.0f);
             cameraComp.Camera.RenderPipeline = new DefaultRenderPipeline();
-            cameraComp.CullWithFrustum = false;
+            //cameraComp.CullWithFrustum = false;
         }
 
         return cameraNode;
@@ -337,15 +337,14 @@ internal class Program
 
         ModelImporter.ImportAsync(fbxPathDesktop, flags, null, MaterialFactory, importedModelsNode, 1, true).ContinueWith(OnFinishedAvatar);
 
-        //string sponzaPath = Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj");
-        //ModelImporter.ImportAsync(sponzaPath, flags, null, MaterialFactory, importedModelsNode, 1, false).ContinueWith(OnFinishedWorld);
+        //ModelImporter.ImportAsync(Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj"), flags, null, MaterialFactory, importedModelsNode, 1, false).ContinueWith(OnFinishedWorld);
     }
 
     private static void AddSkybox(SceneNode rootNode, XRTexture2D skyEquirect)
     {
         var skybox = new SceneNode(rootNode) { Name = "TestSkyboxNode" };
-        var skyboxTransform = skybox.SetTransform<Transform>();
-        skyboxTransform.Translation = new Vector3(0.0f, 0.0f, 0.0f);
+        //var skyboxTransform = skybox.SetTransform<Transform>();
+        //skyboxTransform.Translation = new Vector3(0.0f, 0.0f, 0.0f);
         if (!skybox.TryAddComponent<ModelComponent>(out var skyboxComp))
             return;
         
@@ -388,15 +387,15 @@ internal class Program
         //rootNode.GetTransformAs<Transform>()?.ApplyTranslation(new Vector3(5.0f, 0.0f, 0.0f));
 
         var comp = rootNode.AddComponent<HumanoidComponent>()!;
-        comp.IsActive = false;
+        //comp.IsActive = false;
 
         //TransformTool3D.GetInstance(comp.Transform, ETransformType.Translate);
 
-        var knee = comp!.Right.Knee?.Node?.Transform;
-        var leg = comp!.Right.Leg?.Node?.Transform;
+        //var knee = comp!.Right.Knee?.Node?.Transform;
+        //var leg = comp!.Right.Leg?.Node?.Transform;
 
-        leg?.RegisterAnimationTick<Transform>(t => t.Rotation = Quaternion.CreateFromAxisAngle(Globals.Right, XRMath.DegToRad(180 - 90.0f * (MathF.Cos(Engine.ElapsedTime) * 0.5f + 0.5f))));
-        knee?.RegisterAnimationTick<Transform>(t => t.Rotation = Quaternion.CreateFromAxisAngle(Globals.Right, XRMath.DegToRad(90.0f * (MathF.Cos(Engine.ElapsedTime) * 0.5f + 0.5f))));
+        //leg?.RegisterAnimationTick<Transform>(t => t.Rotation = Quaternion.CreateFromAxisAngle(Globals.Right, XRMath.DegToRad(180 - 90.0f * (MathF.Cos(Engine.ElapsedTime) * 0.5f + 0.5f))));
+        //knee?.RegisterAnimationTick<Transform>(t => t.Rotation = Quaternion.CreateFromAxisAngle(Globals.Right, XRMath.DegToRad(90.0f * (MathF.Cos(Engine.ElapsedTime) * 0.5f + 0.5f))));
     }
     private static readonly ConcurrentDictionary<string, XRTexture2D> _textureCache = new();
 

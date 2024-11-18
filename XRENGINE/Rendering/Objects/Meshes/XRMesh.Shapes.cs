@@ -494,7 +494,7 @@ namespace XREngine.Rendering
             public static XRMesh GetSolidAABB(AABB aabb, bool includeTranslation)
                 => includeTranslation
                     ? SolidBox(aabb.Min, aabb.Max)
-                    : SolidBox(-aabb.Extents, aabb.Extents);
+                    : SolidBox(-aabb.HalfExtents, aabb.HalfExtents);
 
             /// <summary>
             /// Creates a mesh representing this bounding box.
@@ -504,7 +504,7 @@ namespace XREngine.Rendering
             public static XRMesh GetWireframeAABB(AABB aabb, bool includeTranslation)
                 => includeTranslation
                     ? WireframeBox(aabb.Min, aabb.Max)
-                    : WireframeBox(-aabb.Extents, aabb.Extents);
+                    : WireframeBox(-aabb.HalfExtents, aabb.HalfExtents);
 
             public static XRMesh WireframePlane(Vector3 position, Vector3 normal, float xExtent, float yExtent)
             {

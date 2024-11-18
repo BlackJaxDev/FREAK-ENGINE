@@ -761,7 +761,7 @@ namespace XREngine.Actors.Types
                         else if (_hiSphere)
                         {
                             Vector3 worldPoint = Transform.WorldTranslation;
-                            float radius = camera.DistanceScale(worldPoint, _orbRadius);
+                            float radius = camera.DistanceScaleOrthographic(worldPoint, _orbRadius);
 
                             if (GeoUtil.RayIntersectsSphere(localRay.StartPoint, localRay.Direction, Vector3.Zero, radius * _circOrbScale, out localDragPoint))
                             {
@@ -781,7 +781,7 @@ namespace XREngine.Actors.Types
         private bool HighlightRotation(XRCamera camera, Ray localRay)
         {
             Vector3 worldPoint = Transform.WorldTranslation;
-            float radius = camera.DistanceScale(worldPoint, _orbRadius);
+            float radius = camera.DistanceScaleOrthographic(worldPoint, _orbRadius);
 
             if (!GeoUtil.RayIntersectsSphere(localRay.StartPoint, localRay.Direction, Vector3.Zero, radius * _circOrbScale, out Vector3 point))
             {
@@ -820,7 +820,7 @@ namespace XREngine.Actors.Types
         private bool HighlightTranslation(XRCamera camera, Ray localRay)
         {
             Vector3 worldPoint = Transform.WorldTranslation;
-            float radius = camera.DistanceScale(worldPoint, _orbRadius);
+            float radius = camera.DistanceScaleOrthographic(worldPoint, _orbRadius);
 
             List<Vector3> intersectionPoints = new(3);
 
@@ -877,7 +877,7 @@ namespace XREngine.Actors.Types
         private bool HighlightScale(XRCamera camera, Ray localRay)
         {
             Vector3 worldPoint = Transform.WorldTranslation;
-            float radius = camera.DistanceScale(worldPoint, _orbRadius);
+            float radius = camera.DistanceScaleOrthographic(worldPoint, _orbRadius);
 
             List<Vector3> intersectionPoints = new(3);
 
@@ -1057,7 +1057,7 @@ namespace XREngine.Actors.Types
             Vector3 worldNormal = Vector3.TransformNormal(_localDragPlaneNormal, Transform.WorldMatrix);
             var camera = Engine.Rendering.State.PipelineState?.RenderingCamera;
             if (camera != null)
-                Engine.Rendering.Debug.RenderLine(_lastPointWorld, _lastPointWorld + worldNormal * camera.DistanceScale(Transform.WorldTranslation, 2.0f), ColorF4.Black, false);
+                Engine.Rendering.Debug.RenderLine(_lastPointWorld, _lastPointWorld + worldNormal * camera.DistanceScaleOrthographic(Transform.WorldTranslation, 2.0f), ColorF4.Black, false);
         }
     }
 }

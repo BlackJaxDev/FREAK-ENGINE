@@ -134,7 +134,7 @@ namespace XREngine.Components.Lights
             if (collectVisibleNow)
             {
                 s3d.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, ShadowCamera.WorldFrustum(), ShadowCamera, true);
-                _shadowRenderPipeline.MeshRenderCommands.SwapBuffers();
+                _shadowRenderPipeline.MeshRenderCommands.SwapBuffers(true);
             }
 
             _shadowRenderPipeline.Render(scene, ShadowCamera, null, ShadowMap, null, true, ShadowMap.Material);

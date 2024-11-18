@@ -1,4 +1,6 @@
-﻿using XREngine.Data.Core;
+﻿using System.Numerics;
+using XREngine.Data.Core;
+using XREngine.Data.Geometry;
 using XREngine.Input;
 using XREngine.Input.Devices;
 using XREngine.Rendering;
@@ -27,7 +29,35 @@ namespace XREngine.Components
         }
 
         public LocalInputInterface? LocalInput => (Controller as LocalPlayerController)?.Input;
-        
+        /// <summary>
+        /// The local gamepad input device for this pawn.
+        /// </summary>
+        public BaseGamePad? Gamepad => LocalInput?.Gamepad;
+        /// <summary>
+        /// The local keyboard input device for this pawn.
+        /// </summary>
+        public BaseKeyboard? Keyboard => LocalInput?.Keyboard;
+        /// <summary>
+        /// The local mouse input device for this pawn.
+        /// </summary>
+        public BaseMouse? Mouse => LocalInput?.Mouse;
+        /// <summary>
+        /// The position of the cursor on the window in screen coordinates.
+        /// </summary>
+        public Vector2 CursorPositionScreen => Mouse?.CursorPosition ?? Vector2.Zero;
+        /// <summary>
+        /// The position of the cursor on the window in viewport-relative coordinates.
+        /// </summary>
+        public Vector2 CursorPositionViewport => Viewport?.ScreenToViewportCoordinate(CursorPositionScreen) ?? Vector2.Zero;
+        /// <summary>
+        /// The position of the cursor on the window in viewport-relative internal coordinates.
+        /// </summary>
+        public Vector2 CursorPositionInternalCoordinates => Viewport?.ViewportToInternalCoordinate(CursorPositionViewport) ?? Vector2.Zero;
+        /// <summary>
+        /// The position of the cursor in the world, represented as a ray from the camera's NearZ to FarZ.
+        /// </summary>
+        public Segment CursorPositionWorld => Viewport?.GetWorldSegment(CursorPositionViewport) ?? new Segment(Vector3.Zero, Vector3.Zero);
+
         protected virtual void PostPossess()
             => PostPossessed.Invoke(this);
         protected virtual void PrePossess()

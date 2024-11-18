@@ -118,11 +118,15 @@ namespace XREngine.Rendering.Vulkan
         {
             throw new NotImplementedException();
         }
-        public override void SetReadBuffer(EDrawBuffersAttachment attachment)
+        public override void SetReadBuffer(EReadBufferMode mode)
         {
             throw new NotImplementedException();
         }
-        public override void BindFrameBuffer(EFramebufferTarget fboTarget, int bindingId)
+        public override void SetReadBuffer(XRFrameBuffer? fbo, EReadBufferMode mode)
+        {
+            throw new NotImplementedException();
+        }
+        public override void BindFrameBuffer(EFramebufferTarget fboTarget, XRFrameBuffer? fbo)
         {
             throw new NotImplementedException();
         }

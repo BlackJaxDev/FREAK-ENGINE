@@ -29,6 +29,9 @@ namespace XREngine
         private static readonly ConcurrentQueue<Action> _asyncTaskQueue = new();
         private static readonly ConcurrentQueue<Action> _mainThreadTaskQueue = new();
 
+        public static bool IsRenderThread => Environment.CurrentManagedThreadId == RenderThreadId;
+        public static int RenderThreadId { get; private set; }
+
         /// <summary>
         /// These tasks will be executed on a separate dedicated thread.
         /// </summary>
@@ -115,7 +118,7 @@ namespace XREngine
             GameState state)
         {
             StartingUp = true;
-
+            RenderThreadId = Environment.CurrentManagedThreadId;
             GameSettings = startupSettings;
             UserSettings = GameSettings.DefaultUserSettings;
 
@@ -145,14 +148,15 @@ namespace XREngine
                     startupSettings.UdpMulticastServerPort,
                     startupSettings.TcpListenerPort);
 
-            Time.Timer.SwapBuffers += DequeueAsyncTasks;
+            Time.Timer.SwapBuffers += SwapBuffers;
             Time.Timer.RenderFrame += DequeueMainThreadTasks;
 
             StartingUp = false;
         }
 
-        private static void DequeueAsyncTasks()
+        private static void SwapBuffers()
         {
+            Rendering.Debug.SwapBuffers();
             while (_asyncTaskQueue.TryDequeue(out var task))
                 task.Invoke();
         }

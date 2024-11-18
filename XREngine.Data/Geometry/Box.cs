@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using Extensions;
+using System.Numerics;
 
 namespace XREngine.Data.Geometry
 {
@@ -129,17 +130,23 @@ namespace XREngine.Data.Geometry
             throw new NotImplementedException();
         }
 
-        public readonly AABB GetAABB()
-            => new(WorldMinimum, WorldMaximum);
+        public readonly AABB GetAABB(bool transformed)
+            => transformed 
+            ? new(WorldMinimum, WorldMaximum)
+            : new(LocalMinimum, LocalMaximum);
 
-        public bool IntersectsSegment(Segment segment, out Vector3[] points)
+        public readonly bool IntersectsSegment(Segment segment, out Vector3[] points)
         {
-            throw new NotImplementedException();
+            segment = segment.TransformedBy(Transform.Inverted());
+            bool intersects = GeoUtil.SegmentIntersectsAABB(segment.Start, segment.End, LocalMinimum, LocalMaximum, out Vector3 enter, out Vector3 exit);
+            points = intersects ? [PointToWorldSpace(enter), PointToWorldSpace(exit)] : [];
+            return intersects;
         }
 
-        public bool IntersectsSegment(Segment segment)
+        public readonly bool IntersectsSegment(Segment segment)
         {
-            throw new NotImplementedException();
+            segment = segment.TransformedBy(Transform.Inverted());
+            return GeoUtil.SegmentIntersectsAABB(segment.Start, segment.End, LocalMinimum, LocalMaximum, out _, out _);
         }
 
         public EContainment ContainsBox(Box box)
@@ -160,7 +167,10 @@ namespace XREngine.Data.Geometry
         ];
 
         public readonly Vector3[] WorldCorners
-            => LocalCorners.Select(PointToWorldSpace).ToArray();
+            => WorldCornersEnumerable.ToArray();
+        
+        public readonly IEnumerable<Vector3> WorldCornersEnumerable
+            => LocalCorners.Select(PointToWorldSpace);
 
         public readonly Plane[] LocalPlanes =>
         [

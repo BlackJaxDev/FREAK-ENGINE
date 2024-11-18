@@ -305,14 +305,14 @@ namespace XREngine.Components.Lights
             _environmentTextureEquirect?.GenerateMipmapsGPU();
 
             uint res = IrradianceTexture.Extent;
-            using (_irradianceFBO!.BindForWriting())
+            //AbstractRenderer.Current?.SetRenderArea(new BoundingRectangle(IVector2.Zero, new IVector2((int)res, (int)res)));
+            using (Engine.Rendering.State.PipelineState?.PushRenderArea(new BoundingRectangle(IVector2.Zero, new IVector2((int)res, (int)res))))
             {
-                //AbstractRenderer.Current?.SetRenderArea(new BoundingRectangle(IVector2.Zero, new IVector2((int)res, (int)res)));
-                using (Engine.Rendering.State.PipelineState?.PushRenderArea(new BoundingRectangle(IVector2.Zero, new IVector2((int)res, (int)res))))
+                for (int i = 0; i < 6; ++i)
                 {
-                    for (int i = 0; i < 6; ++i)
+                    _irradianceFBO!.SetRenderTargets((IrradianceTexture, EFrameBufferAttachment.ColorAttachment0, 0, i));
+                    using (_irradianceFBO!.BindForWriting())
                     {
-                        _irradianceFBO!.SetRenderTargets((IrradianceTexture, EFrameBufferAttachment.ColorAttachment0, 0, i));
                         Engine.Rendering.State.ClearByBoundFBO();
                         //Engine.Rendering.State.EnableDepthTest(false);
                         //Engine.Rendering.State.StencilMask(~0u);
@@ -338,22 +338,22 @@ namespace XREngine.Components.Lights
 
             int maxMipLevels = 5;
             int res = _prefilterFBO!.Material!.Parameter<ShaderInt>(1)!.Value;
-            using (_prefilterFBO.BindForWriting())
+            for (int mip = 0; mip < maxMipLevels; ++mip)
             {
-                for (int mip = 0; mip < maxMipLevels; ++mip)
+                int mipWidth = (int)(res * Math.Pow(0.5, mip));
+                int mipHeight = (int)(res * Math.Pow(0.5, mip));
+                float roughness = (float)mip / (maxMipLevels - 1);
+
+                _prefilterFBO.Material.Parameter<ShaderFloat>(0)!.Value = roughness;
+                _prefilterFBO.Material.Parameter<ShaderInt>(1)!.Value = (int)ColorResolution;
+
+                using (Engine.Rendering.State.PipelineState?.PushRenderArea(new BoundingRectangle(IVector2.Zero, new IVector2(mipWidth, mipHeight))))
                 {
-                    int mipWidth = (int)(res * Math.Pow(0.5, mip));
-                    int mipHeight = (int)(res * Math.Pow(0.5, mip));
-                    float roughness = (float)mip / (maxMipLevels - 1);
-
-                    _prefilterFBO.Material.Parameter<ShaderFloat>(0)!.Value = roughness;
-                    _prefilterFBO.Material.Parameter<ShaderInt>(1)!.Value = (int)ColorResolution;
-
-                    using (Engine.Rendering.State.PipelineState?.PushRenderArea(new BoundingRectangle(IVector2.Zero, new IVector2(mipWidth, mipHeight))))
+                    for (int i = 0; i < 6; ++i)
                     {
-                        for (int i = 0; i < 6; ++i)
+                        _prefilterFBO.SetRenderTargets((PrefilterTex, EFrameBufferAttachment.ColorAttachment0, mip, i));
+                        using (_prefilterFBO.BindForWriting())
                         {
-                            _prefilterFBO.SetRenderTargets((PrefilterTex, EFrameBufferAttachment.ColorAttachment0, mip, i));
                             Engine.Rendering.State.ClearByBoundFBO();
                             //Engine.Rendering.State.EnableDepthTest(false);
                             //Engine.Rendering.State.StencilMask(~0u);
@@ -362,6 +362,7 @@ namespace XREngine.Components.Lights
                     }
                 }
             }
+            
         }
 
         private void CachePreviewSphere()

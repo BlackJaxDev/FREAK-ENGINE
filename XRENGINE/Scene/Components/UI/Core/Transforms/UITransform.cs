@@ -26,8 +26,8 @@ namespace XREngine.Rendering.UI
             _debugRC = new RenderCommandMethod2D(0, RenderVisualGuides);
             Children.PostAnythingAdded += OnChildAdded;
             Children.PostAnythingRemoved += OnChildRemoved;
-            RenderInfo2D = RenderInfo2D.New(this);
-            RenderInfo3D = RenderInfo3D.New(this);
+            //RenderInfo2D = RenderInfo2D.New(this);
+            //RenderInfo3D = RenderInfo3D.New(this);
         }
         ~UITransform()
         {

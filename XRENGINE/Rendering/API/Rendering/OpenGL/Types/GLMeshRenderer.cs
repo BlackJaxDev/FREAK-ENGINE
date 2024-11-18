@@ -473,6 +473,162 @@ namespace XREngine.Rendering.OpenGL
                 BuffersBound = true;
             }
 
+            struct DrawElementsIndirectCommand
+            {
+                public uint count;
+                public uint instanceCount;
+                public uint firstIndex;
+                public uint baseVertex;
+                public uint baseInstance;
+            };
+
+            private GLDataBuffer _indirectBuffer;
+            private GLDataBuffer _combinedVertexBuffer;
+            private GLDataBuffer _combinedIndexBuffer;
+            private delegate uint DelVertexAction(XRMesh mesh, uint vertexIndex, uint destOffset);
+            public void InitializeIndirectBuffer()
+            {
+                _combinedVertexBuffer = new GLDataBuffer(Renderer, new XRDataBuffer("CombinedVertexBuffer", EBufferTarget.ArrayBuffer, false) { Usage = EBufferUsage.StaticDraw });
+                _combinedIndexBuffer = new GLDataBuffer(Renderer, new XRDataBuffer("CombinedIndexBuffer", EBufferTarget.ElementArrayBuffer, true) { Usage = EBufferUsage.StaticDraw });
+
+                _indirectBuffer = new GLDataBuffer(Renderer, new XRDataBuffer("IndirectBuffer", EBufferTarget.DrawIndirectBuffer, true) { Usage = EBufferUsage.StaticDraw });
+                _indirectBuffer.Data.Allocate((uint)sizeof(DrawElementsIndirectCommand), (uint)Data.Submeshes.Length);
+
+                List<DelVertexAction> vertexActions = [];
+                List<XRMesh> meshes = [];
+
+                CalcIndirectBufferSizes(out int stride, vertexActions, out int totalVertexCount, meshes, out uint totalIndexCount);
+
+                _combinedVertexBuffer.Data.Allocate((uint)stride, (uint)totalVertexCount);
+                _combinedIndexBuffer.Data.Allocate(sizeof(uint), totalIndexCount);
+
+                WriteIndirectBufferData(vertexActions, meshes);
+
+                _bufferCache.Add("IndirectBuffer", _indirectBuffer);
+                _bufferCache.Add("CombinedVertexBuffer", _combinedVertexBuffer);
+                _bufferCache.Add("CombinedIndexBuffer", _combinedIndexBuffer);
+            }
+
+            private void CalcIndirectBufferSizes(out int stride, List<DelVertexAction> vertexActions, out int totalVertexCount, List<XRMesh> meshes, out uint totalIndexCount)
+            {
+                stride = 0;
+                totalVertexCount = 0;
+                totalIndexCount = 0u;
+                for (int i = 0; i < Data.Submeshes.Length; i++)
+                {
+                    var mesh = Data.Submeshes[i].Mesh;
+                    if (mesh is null)
+                        continue;
+
+                    totalVertexCount += mesh.VertexCount;
+                    meshes.Add(mesh);
+
+                    var triangleIndices = mesh.Triangles;
+                    if (triangleIndices is null)
+                        continue;
+
+                    uint indexCount = (uint)triangleIndices.Count * 3u;
+                    _indirectBuffer.Data.SetDataRawAtIndex((uint)i, new DrawElementsIndirectCommand
+                    {
+                        count = indexCount,
+                        instanceCount = Instances,
+                        firstIndex = totalIndexCount,
+                        baseVertex = 0,
+                        baseInstance = 0
+                    });
+                    totalIndexCount += indexCount;
+
+                    VoidPtr? pos = mesh.PositionsBuffer?.Source?.Address;
+                    VoidPtr? nrm = mesh.NormalsBuffer?.Source?.Address;
+                    VoidPtr? tan = mesh.TangentsBuffer?.Source?.Address;
+                    var uvs = mesh.TexCoordBuffers;
+                    var clr = mesh.ColorBuffers;
+                    if (pos.HasValue)
+                    {
+                        stride += sizeof(Vector3);
+                        vertexActions.Add((mesh, index, offset) =>
+                        {
+                            Vector3? value = mesh.PositionsBuffer!.Get<Vector3>(index * (uint)sizeof(Vector3));
+                            if (value.HasValue)
+                                _combinedVertexBuffer.Data.SetByOffset(offset, value.Value);
+                            return (uint)sizeof(Vector3);
+                        });
+                    }
+                    if (nrm.HasValue)
+                    {
+                        stride += sizeof(Vector3);
+                        vertexActions.Add((mesh, index, offset) =>
+                        {
+                            Vector3? value = mesh.NormalsBuffer!.Get<Vector3>(index * (uint)sizeof(Vector3));
+                            if (value.HasValue)
+                                _combinedVertexBuffer.Data.SetByOffset(offset, value.Value);
+                            return (uint)sizeof(Vector3);
+                        });
+                    }
+                    if (tan.HasValue)
+                    {
+                        stride += sizeof(Vector3);
+                        vertexActions.Add((mesh, index, offset) =>
+                        {
+                            Vector3? value = mesh.TangentsBuffer!.Get<Vector3>(index * (uint)sizeof(Vector3));
+                            if (value.HasValue)
+                                _combinedVertexBuffer.Data.SetByOffset(offset, value.Value);
+                            return (uint)sizeof(Vector3);
+                        });
+                    }
+                    if (uvs is not null)
+                    {
+                        stride += uvs.Length * sizeof(Vector2);
+                        for (int x = 0; x < uvs.Length; x++)
+                        {
+                            vertexActions.Add((mesh, index, offset) =>
+                            {
+                                Vector2? value = mesh.TexCoordBuffers?[x].Get<Vector2>(index * (uint)sizeof(Vector2));
+                                if (value.HasValue)
+                                    _combinedVertexBuffer.Data.SetByOffset(offset, value.Value);
+                                return (uint)sizeof(Vector2);
+                            });
+                        }
+                    }
+                    if (clr is not null)
+                    {
+                        stride += clr.Length * sizeof(Vector4);
+                        for (int x = 0; x < clr.Length; x++)
+                        {
+                            vertexActions.Add((mesh, index, offset) =>
+                            {
+                                Vector4? value = mesh.ColorBuffers?[x].Get<Vector4>(index * (uint)sizeof(Vector4));
+                                if (value.HasValue)
+                                    _combinedVertexBuffer.Data.SetByOffset(offset, value.Value);
+                                return (uint)sizeof(Vector4);
+                            });
+                        }
+                    }
+                }
+            }
+
+            private void WriteIndirectBufferData(List<DelVertexAction> vertexActions, List<XRMesh> meshes)
+            {
+                uint indexOffset = 0u;
+                uint vertexOffset = 0u;
+                foreach (var mesh in meshes)
+                {
+                    for (uint x = 0; x < mesh.VertexCount; x++)
+                        foreach (var action in vertexActions)
+                            vertexOffset += action(mesh, x, vertexOffset);
+
+                    var triangleIndices = mesh.Triangles!;
+                    for (int x = 0; x < triangleIndices.Count; x++)
+                    {
+                        IndexTriangle? triangle = triangleIndices[x];
+                        _combinedIndexBuffer.Data.SetDataRawAtIndex(indexOffset + (uint)(x * 3 + 0), triangle.Point0);
+                        _combinedIndexBuffer.Data.SetDataRawAtIndex(indexOffset + (uint)(x * 3 + 1), triangle.Point1);
+                        _combinedIndexBuffer.Data.SetDataRawAtIndex(indexOffset + (uint)(x * 3 + 2), triangle.Point2);
+                    }
+                    indexOffset += (uint)triangleIndices.Count * 3u;
+                }
+            }
+
             protected internal override void PostDeleted()
             {
                 TriangleIndicesBuffer?.Dispose();
@@ -541,6 +697,20 @@ namespace XREngine.Rendering.OpenGL
             }
 
             //Api.MemoryBarrier(MemoryBarrierMask.ShaderStorageBarrierBit | MemoryBarrierMask.ClientMappedBufferBarrierBit);
+        }
+
+        public void RenderCurrentMeshIndirect()
+        {
+            if (ActiveMeshRenderer?.Data?.Mesh is null)
+                return;
+
+            uint triangles = ActiveMeshRenderer.TriangleIndicesBuffer?.Data?.ElementCount ?? 0u;
+            uint lines = ActiveMeshRenderer.LineIndicesBuffer?.Data?.ElementCount ?? 0u;
+            uint points = ActiveMeshRenderer.PointIndicesBuffer?.Data?.ElementCount ?? 0u;
+            uint meshCount = 1u;
+
+            //Api.BindBuffer(GLEnum.DrawIndirectBuffer, ActiveMeshRenderer.IndirectBuffer);
+            Api.MultiDrawElementsIndirect(GLEnum.Triangles, ToGLEnum(ActiveMeshRenderer.TrianglesElementType), null, meshCount, 0);
         }
 
         public IGLTexture? BoundTexture { get; set; }

@@ -7,7 +7,7 @@ namespace XREngine.Data.Components
     public abstract class CollidableShape3DComponent : Shape3DComponent, ICollidable
     {
         public CollidableShape3DComponent() : base() { }
-        
+
         public void RigidBodyUpdated()
         {
             if (World is null || _collisionObject == null)
@@ -38,7 +38,7 @@ namespace XREngine.Data.Components
         {
             if (_collisionObject is null)
                 return;
-            
+
             _collisionObject.Owner = this;
             _collisionObject.TransformChanged += BodyMoved;
 
@@ -88,9 +88,9 @@ namespace XREngine.Data.Components
                     case SoftBodyConstructionInfo s:
                         CollisionObject = XRSoftBody.New(s);
                         break;
-                    //case TGhostBodyConstructionInfo g:
-                    //    CollisionObject = TGhostBody.New(g);
-                    //    break;
+                        //case TGhostBodyConstructionInfo g:
+                        //    CollisionObject = TGhostBody.New(g);
+                        //    break;
                 }
             }
             else

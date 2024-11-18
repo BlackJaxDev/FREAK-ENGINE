@@ -48,8 +48,8 @@ namespace XREngine.Data.Components
 
         public MirrorComponent()
         {
-            _renderInfo = RenderInfo3D.New(this);
-            RenderedObjects = [_renderInfo];
+            //_renderInfo = RenderInfo3D.New(this);
+            RenderedObjects = [];
         }
         public RenderInfo[] RenderedObjects { get; }
     }

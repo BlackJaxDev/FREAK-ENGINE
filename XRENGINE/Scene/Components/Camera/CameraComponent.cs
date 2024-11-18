@@ -2,8 +2,6 @@
 using System.ComponentModel;
 using System.Numerics;
 using XREngine.Data.Geometry;
-using XREngine.Data.Rendering;
-using XREngine.Input;
 using XREngine.Rendering;
 
 namespace XREngine.Components

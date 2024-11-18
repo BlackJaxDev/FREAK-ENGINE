@@ -48,9 +48,8 @@ namespace XREngine.Scene.Transforms
             _inverseLocalMatrix = new MatrixInfo { NeedsRecalc = true };
             _inverseWorldMatrix = new MatrixInfo { NeedsRecalc = true };
 
+            RenderInfo = RenderInfo3D.New(this, new RenderCommandMethod3D((int)EDefaultRenderPass.OpaqueForward, RenderDebugLineToParent));
             RenderedObjects = GetDebugRenderInfo();
-            MakeCapsule();
-
             DebugRender = false;
         }
 
@@ -74,8 +73,15 @@ namespace XREngine.Scene.Transforms
             }
         }
 
+        private RenderInfo3D RenderInfo { get; set; }
+
         protected virtual RenderInfo[] GetDebugRenderInfo()
-            => [RenderInfo3D.New(this, new RenderCommandMethod3D((int)EDefaultRenderPass.OpaqueForward, RenderDebugLineToParent))];
+        {
+            MakeCapsule();
+            RenderInfo.LocalCullingVolume = Capsule.GetAABB(false);
+            RenderInfo.CullingMatrix = WorldMatrix;
+            return [RenderInfo];
+        }
 
         protected virtual void RenderDebugLineToParent(bool shadowPass)
         {
@@ -196,7 +202,7 @@ namespace XREngine.Scene.Transforms
 
             //if (recalcWorld)
             _worldMatrix.NeedsRecalc = false;
-                RecalcWorld(false);
+            RecalcWorld(false);
 
             if (World is null)
                 return false;
@@ -260,28 +266,28 @@ namespace XREngine.Scene.Transforms
         /// <summary>
         /// This transform's world up vector.
         /// </summary>
-        public Vector3 WorldUp => Vector3.TransformNormal(Globals.Up, WorldMatrix);
+        public Vector3 WorldUp => Vector3.Transform(Globals.Up, WorldMatrix);
         /// <summary>
         /// This transform's world right vector.
         /// </summary>
-        public Vector3 WorldRight => Vector3.TransformNormal(Globals.Right, WorldMatrix);
+        public Vector3 WorldRight => Vector3.Transform(Globals.Right, WorldMatrix);
         /// <summary>
         /// This transform's world forward vector.
         /// </summary>
-        public Vector3 WorldForward => Vector3.TransformNormal(Globals.Forward, WorldMatrix);
+        public Vector3 WorldForward => Vector3.Transform(Globals.Forward, WorldMatrix);
 
         /// <summary>
         /// This transform's local up vector.
         /// </summary>
-        public Vector3 LocalUp => Vector3.TransformNormal(Globals.Up, LocalMatrix);
+        public Vector3 LocalUp => Vector3.Transform(Globals.Up, LocalMatrix);
         /// <summary>
         /// This transform's local right vector.
         /// </summary>
-        public Vector3 LocalRight => Vector3.TransformNormal(Globals.Right, LocalMatrix);
+        public Vector3 LocalRight => Vector3.Transform(Globals.Right, LocalMatrix);
         /// <summary>
         /// This transform's local forward vector.
         /// </summary>
-        public Vector3 LocalForward => Vector3.TransformNormal(Globals.Forward, LocalMatrix);
+        public Vector3 LocalForward => Vector3.Transform(Globals.Forward, LocalMatrix);
 
         /// <summary>
         /// This transform's position in world space.
@@ -382,6 +388,8 @@ namespace XREngine.Scene.Transforms
         protected virtual void OnWorldMatrixChanged()
         {
             MakeCapsule();
+            RenderInfo.LocalCullingVolume = Capsule.GetAABB(false);
+            RenderInfo.CullingMatrix = WorldMatrix;
             WorldMatrixChanged?.Invoke(this);
         }
 

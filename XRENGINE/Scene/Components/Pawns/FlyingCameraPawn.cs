@@ -25,7 +25,7 @@ namespace XREngine.Components
             //        ShiftSpeedModifier *= 1.5f;
             //}
 
-            TransformAs<Transform>().TranslateRelative(0.0f, 0.0f, diff * -ScrollSpeed * ScrollSpeedModifier);
+            TransformAs<Transform>()?.TranslateRelative(0.0f, 0.0f, diff * -ScrollSpeed * ScrollSpeedModifier);
         }
 
         protected override void MouseMove(float x, float y)
@@ -52,7 +52,7 @@ namespace XREngine.Components
         }
 
         protected virtual void MouseTranslate(float x, float y)
-            => TransformAs<Transform>().TranslateRelative(
+            => TransformAs<Transform>()?.TranslateRelative(
                 -x * MouseTranslateSpeed,
                 -y * MouseTranslateSpeed,
                 0.0f);
@@ -71,10 +71,11 @@ namespace XREngine.Components
             //All rotation is done within local component space
 
             var tfm = TransformAs<Transform>();
-            tfm.Translation = XRMath.ArcballTranslation(
-                pitch, yaw, focusPoint,
-                tfm.Translation,
-                tfm.LocalRight);
+            if (tfm is not null)
+                tfm.Translation = XRMath.ArcballTranslation(
+                    pitch, yaw, focusPoint,
+                    tfm.Translation,
+                    tfm.LocalRight);
 
             AddYawPitch(yaw, pitch);
         }
@@ -101,7 +102,7 @@ namespace XREngine.Components
             //Don't time dilate user inputs
             float delta = Engine.UndilatedDelta;
             //Vector2 dir = Vector2.Normalize(new(_incRight, _incUp));
-            TransformAs<Transform>().TranslateRelative(
+            TransformAs<Transform>()?.TranslateRelative(
                 incRight * delta,
                 incUp * delta,
                 -incForward * delta);
@@ -121,6 +122,10 @@ namespace XREngine.Components
         }
 
         protected override void YawPitchUpdated()
-            => TransformAs<Transform>().Rotation = Quaternion.CreateFromYawPitchRoll(Yaw, Pitch, 0.0f);
+        {
+            var tfm = TransformAs<Transform>();
+            if (tfm is not null)
+                tfm.Rotation = Quaternion.CreateFromYawPitchRoll(Yaw, Pitch, 0.0f);
+        }
     }
 }

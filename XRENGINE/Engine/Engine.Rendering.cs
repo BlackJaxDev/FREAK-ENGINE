@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using XREngine.Rendering;
+using XREngine.Rendering.Physics.Physx;
 using XREngine.Scene;
 
 namespace XREngine
@@ -56,8 +57,8 @@ namespace XREngine
                             obj.RemoveWrapper(apiRO);
             }
 
-            public static PhysicsScene NewPhysicsScene()
-                => new DefaultPhysxScene();
+            public static AbstractPhysicsScene NewPhysicsScene()
+                => new PhysxScene();
 
             public static VisualScene NewVisualScene()
                 => new VisualScene3D();
