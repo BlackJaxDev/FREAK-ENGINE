@@ -3,7 +3,7 @@ using System.Numerics;
 
 namespace XREngine.Rendering.Physics.Physx.Joints
 {
-    public unsafe class PhysxJoint_Contact(PxContactJoint* joint) : PhysxJointBase
+    public unsafe class PhysxJoint_Contact(PxContactJoint* joint) : PhysxJoint
     {
         public PxContactJoint* _joint = joint;
         public override unsafe PxJoint* JointBase => (PxJoint*)_joint;

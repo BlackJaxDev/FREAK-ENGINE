@@ -470,7 +470,7 @@ namespace XREngine.Actors.Types
                         XRCamera? camera = Engine.State.MainPlayer.Viewport?.ActiveCamera;
                         if (camera != null)
                         {
-                            Vector3 forward = (camera.Transform.WorldTranslation - point).Normalize();
+                            Vector3 forward = (camera.Transform.WorldTranslation - point).Normalized();
                             Vector3 up = camera.Transform.WorldUp;
                             return Matrix4x4.CreateWorld(point, forward, up);
                         }
@@ -507,7 +507,7 @@ namespace XREngine.Actors.Types
                         XRCamera? camera = Engine.State.MainPlayer.Viewport?.ActiveCamera;
                         if (camera != null)
                         {
-                            Vector3 forward = (camera.Transform.WorldTranslation - point).Normalize();
+                            Vector3 forward = (camera.Transform.WorldTranslation - point).Normalized();
                             Vector3 up = camera.Transform.WorldUp;
                             return Matrix4x4.CreateWorld(point, forward, up).Inverted();
                         }
@@ -657,7 +657,7 @@ namespace XREngine.Actors.Types
                         if (_hiCam)
                         {
                             _localDragPlaneNormal = localCamPoint;
-                            _localDragPlaneNormal.Normalize();
+                            _localDragPlaneNormal.Normalized();
                         }
                         else if (_hiAxis.X)
                         {
@@ -674,7 +674,7 @@ namespace XREngine.Actors.Types
                                 unit = Vector3.UnitX;
                                 Vector3 perpPoint = Ray.GetClosestColinearPoint(Vector3.Zero, unit, localCamPoint);
                                 _localDragPlaneNormal = localCamPoint - perpPoint;
-                                _localDragPlaneNormal.Normalize();
+                                _localDragPlaneNormal.Normalized();
 
                                 if (!GeoUtil.RayIntersectsPlane(localRay.StartPoint, localRay.Direction, Vector3.Zero, _localDragPlaneNormal, out localDragPoint))
                                     return _lastPointWorld;
@@ -697,7 +697,7 @@ namespace XREngine.Actors.Types
                                 unit = Vector3.UnitY;
                                 Vector3 perpPoint = Ray.GetClosestColinearPoint(Vector3.Zero, unit, localCamPoint);
                                 _localDragPlaneNormal = localCamPoint - perpPoint;
-                                _localDragPlaneNormal.Normalize();
+                                _localDragPlaneNormal.Normalized();
 
                                 if (!GeoUtil.RayIntersectsPlane(localRay.StartPoint, localRay.Direction, Vector3.Zero, _localDragPlaneNormal, out localDragPoint))
                                     return _lastPointWorld;
@@ -720,7 +720,7 @@ namespace XREngine.Actors.Types
                                 unit = Vector3.UnitZ;
                                 Vector3 perpPoint = Ray.GetClosestColinearPoint(Vector3.Zero, unit, localCamPoint);
                                 _localDragPlaneNormal = localCamPoint - perpPoint;
-                                _localDragPlaneNormal.Normalize();
+                                _localDragPlaneNormal.Normalized();
 
                                 if (!GeoUtil.RayIntersectsPlane(localRay.StartPoint, localRay.Direction, Vector3.Zero, _localDragPlaneNormal, out localDragPoint))
                                     return _lastPointWorld;
@@ -738,7 +738,7 @@ namespace XREngine.Actors.Types
                         if (_hiCam)
                         {
                             _localDragPlaneNormal = localCamPoint;
-                            _localDragPlaneNormal.Normalize();
+                            _localDragPlaneNormal.Normalized();
 
                             if (GeoUtil.RayIntersectsPlane(localRay.StartPoint, localRay.Direction, Vector3.Zero, _localDragPlaneNormal, out localDragPoint))
                                 return localDragPoint;
@@ -753,7 +753,7 @@ namespace XREngine.Actors.Types
                                 unit = Vector3.UnitZ;
 
                             _localDragPlaneNormal = unit;
-                            _localDragPlaneNormal.Normalize();
+                            _localDragPlaneNormal.Normalized();
 
                             if (GeoUtil.RayIntersectsPlane(localRay.StartPoint, localRay.Direction, Vector3.Zero, _localDragPlaneNormal, out localDragPoint))
                                 return localDragPoint;
@@ -765,7 +765,7 @@ namespace XREngine.Actors.Types
 
                             if (GeoUtil.RayIntersectsSphere(localRay.StartPoint, localRay.Direction, Vector3.Zero, radius * _circOrbScale, out localDragPoint))
                             {
-                                _localDragPlaneNormal = localDragPoint.Normalize();
+                                _localDragPlaneNormal = localDragPoint.Normalized();
                                 return localDragPoint;
                             }
                         }
@@ -799,7 +799,7 @@ namespace XREngine.Actors.Types
             }
             else
             {
-                point = point.Normalize();
+                point = point.Normalized();
 
                 _hiSphere = true;
 

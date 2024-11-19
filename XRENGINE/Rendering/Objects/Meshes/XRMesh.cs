@@ -1047,16 +1047,21 @@ namespace XREngine.Rendering
 
                 vertices.Add(v);
 
-                if (bounds is null)
-                    bounds = new AABB(v.Position, v.Position);
-                else
-                    bounds.Value.ExpandToInclude(v.Position);
+                if (!vertexActions.ContainsKey(0))
+                    vertexActions.TryAdd(0, (i, x, vtx) =>
+                    {
+                        Vector3 worldPos = vtx.GetWorldPosition();
+                        if (bounds is null)
+                            bounds = new AABB(worldPos, worldPos);
+                        else
+                            bounds.Value.ExpandToInclude(worldPos);
+                    });
 
                 if (v.Normal is not null && !vertexActions.ContainsKey(1))
-                    vertexActions.TryAdd(1, (i, x, vtx) => NormalsBuffer!.SetDataRawAtIndex((uint)i, Vector3.TransformNormal(vtx?.Normal ?? Vector3.Zero, dataTransform).Normalize()));
+                    vertexActions.TryAdd(1, (i, x, vtx) => NormalsBuffer!.SetDataRawAtIndex((uint)i, Vector3.TransformNormal(vtx?.Normal ?? Vector3.Zero, dataTransform).Normalized()));
 
                 if (v.Tangent is not null && !vertexActions.ContainsKey(2))
-                    vertexActions.TryAdd(2, (i, x, vtx) => TangentsBuffer!.SetDataRawAtIndex((uint)i, Vector3.TransformNormal(vtx?.Tangent ?? Vector3.Zero, dataTransform).Normalize()));
+                    vertexActions.TryAdd(2, (i, x, vtx) => TangentsBuffer!.SetDataRawAtIndex((uint)i, Vector3.TransformNormal(vtx?.Tangent ?? Vector3.Zero, dataTransform).Normalized()));
 
                 Interlocked.Exchange(ref maxTexCoordCount, Math.Max(maxTexCoordCount, v.TextureCoordinateSets.Count));
                 if (v.TextureCoordinateSets is not null && v.TextureCoordinateSets.Count > 0 && !vertexActions.ContainsKey(3))
@@ -1204,15 +1209,15 @@ namespace XREngine.Rendering
                 count = points.Count;
                 sourceList = points;
             }
+
             VertexCount = count;
 
             if (boneCount > 0)
                 CollectBoneWeights(
                     mesh,
                     nodeCache,
-                    faceRemap);
-
-            _bounds = bounds ?? new AABB(Vector3.Zero, Vector3.Zero);
+                    faceRemap,
+                    sourceList);
 
             InitMeshBuffers(
                 vertexActions.ContainsKey(1),
@@ -1227,6 +1232,8 @@ namespace XREngine.Rendering
             //Fill the buffers with the vertex data using the command list
             //We can do this in parallel since each vertex is independent
             PopulateVertexData(vertexActions.Values, sourceList, count, true);
+
+            _bounds = bounds ?? new AABB(Vector3.Zero, Vector3.Zero);
         }
 
         //private unsafe Matrix4x4 GetSingleBind(Mesh mesh, Dictionary<string, List<SceneNode>> nodeCache)
@@ -1255,13 +1262,14 @@ namespace XREngine.Rendering
         private void CollectBoneWeights(
             Mesh mesh,
             Dictionary<string, List<SceneNode>> nodeCache,
-            Dictionary<int, List<int>> faceRemap)
+            Dictionary<int, List<int>> faceRemap,
+            List<Vertex> sourceList)
         {
             //using var time = Engine.Profiler.Start();
 
             //Debug.Out($"Collecting bone weights for {mesh.Name}.");
 
-            Dictionary<TransformBase, float>?[]? weightsPerVertex = new Dictionary<TransformBase, float>?[VertexCount];
+            Dictionary<TransformBase, (float weight, Matrix4x4 invBindMatrix)>?[]? weightsPerVertex = new Dictionary<TransformBase, (float weight, Matrix4x4 invBindMatrix)>?[VertexCount];
             Dictionary<TransformBase, Matrix4x4> invBindMatrices = [];
 
             int boneIndex = 0;
@@ -1281,7 +1289,8 @@ namespace XREngine.Rendering
                     continue;
                 }
 
-                invBindMatrices.Add(transform!, bone.OffsetMatrix.ToNumerics().Transposed());
+                Matrix4x4 invBind = bone.OffsetMatrix.ToNumerics().Transposed();
+                invBindMatrices.Add(transform!, invBind);
 
                 int weightCount = bone.VertexWeightCount;
                 for (int j = 0; j < weightCount; j++)
@@ -1294,13 +1303,14 @@ namespace XREngine.Rendering
                     foreach (var newId in list)
                     {
                         weightsPerVertex![newId] ??= [];
-                        if (!weightsPerVertex[newId]!.TryGetValue(transform!, out float existingWeight))
-                            weightsPerVertex[newId]!.Add(transform!, weight);
-                        else if (existingWeight != weight)
+                        if (!weightsPerVertex[newId]!.TryGetValue(transform!, out (float weight, Matrix4x4 invBindMatrix) existingPair))
+                            weightsPerVertex[newId]!.Add(transform!, (weight, invBind));
+                        else if (existingPair.weight != weight)
                         {
                             Debug.Out($"Vertex {newId} has multiple different weights for bone {name}.");
-                            weightsPerVertex[newId]![transform] = (existingWeight + weight) / 2.0f;
+                            weightsPerVertex[newId]![transform] = ((existingPair.weight + weight) / 2.0f, existingPair.invBindMatrix);
                         }
+                        sourceList[newId].Weights ??= weightsPerVertex[newId];
                     }
                 }
 
@@ -1390,7 +1400,7 @@ namespace XREngine.Rendering
         //    PopulateBlendshapeData(blendshapes);
         //}
 
-        private void PopulateSkinningBuffers(Dictionary<TransformBase, int> boneToIndexTable, Dictionary<TransformBase, float>?[] weightsPerVertex)
+        private void PopulateSkinningBuffers(Dictionary<TransformBase, int> boneToIndexTable, Dictionary<TransformBase, (float weight, Matrix4x4 invBindMatrix)>?[] weightsPerVertex)
         {
             //using var timer = Engine.Profiler.Start();
 
@@ -1438,7 +1448,7 @@ namespace XREngine.Rendering
 
         private void PopulateWeightBuffers(
             Dictionary<TransformBase, int> boneToIndexTable,
-            Dictionary<TransformBase, float>?[] weightsPerVertex,
+            Dictionary<TransformBase, (float weight, Matrix4x4 invBindMatrix)>?[] weightsPerVertex,
             bool optimizeTo4Weights,
             out List<int> boneIndices,
             out List<float> boneWeights)
@@ -1468,57 +1478,54 @@ namespace XREngine.Rendering
                         BoneWeightCounts?.Set(vertexIndex, 0);
                     }
                 }
+                else if (optimizeTo4Weights)
+                {
+                    VertexWeightGroup.Optimize(weightGroup, 4);
+                    int count = weightGroup.Count;
+                    MaxWeightCount = Math.Max(MaxWeightCount, count);
+
+                    IVector4 indices = new();
+                    Vector4 weights = new();
+                    int i = 0;
+                    foreach (var pair in weightGroup)
+                    {
+                        int boneIndex = boneToIndexTable[pair.Key];
+                        float boneWeight = pair.Value.weight;
+                        if (boneIndex < 0)
+                        {
+                            boneIndex = -1;
+                            boneWeight = 0.0f;
+                        }
+                        indices[i] = boneIndex + 1; //+1 because 0 is reserved for the identity matrix
+                        weights[i] = boneWeight;
+                        i++;
+                    }
+
+                    BoneWeightOffsets?.Set(vertexIndex, indices);
+                    BoneWeightCounts?.Set(vertexIndex, weights);
+                }
                 else
                 {
-                    if (optimizeTo4Weights)
-                    {
-                        VertexWeightGroup.Optimize(weightGroup, 4);
-                        int count = weightGroup.Count;
-                        MaxWeightCount = Math.Max(MaxWeightCount, count);
+                    VertexWeightGroup.Normalize(weightGroup);
+                    int count = weightGroup.Count;
+                    MaxWeightCount = Math.Max(MaxWeightCount, count);
 
-                        IVector4 indices = new();
-                        Vector4 weights = new();
-                        int i = 0;
-                        foreach (var pair in weightGroup)
+                    foreach (var pair in weightGroup)
+                    {
+                        int boneIndex = boneToIndexTable[pair.Key];
+                        float boneWeight = pair.Value.weight;
+                        if (boneIndex < 0)
                         {
-                            int boneIndex = boneToIndexTable[pair.Key];
-                            float boneWeight = pair.Value;
-                            if (boneIndex < 0)
-                            {
-                                boneIndex = -1;
-                                boneWeight = 0.0f;
-                            }
-                            indices[i] = boneIndex + 1; //+1 because 0 is reserved for the identity matrix
-                            weights[i] = boneWeight;
-                            i++;
+                            boneIndex = -1;
+                            boneWeight = 0.0f;
                         }
 
-                        BoneWeightOffsets?.Set(vertexIndex, indices);
-                        BoneWeightCounts?.Set(vertexIndex, weights);
+                        boneIndices.Add(boneIndex + 1); //+1 because 0 is reserved for the identity matrix
+                        boneWeights.Add(boneWeight);
                     }
-                    else
-                    {
-                        VertexWeightGroup.Normalize(weightGroup);
-                        int count = weightGroup.Count;
-                        MaxWeightCount = Math.Max(MaxWeightCount, count);
-
-                        foreach (var pair in weightGroup)
-                        {
-                            int boneIndex = boneToIndexTable[pair.Key];
-                            float boneWeight = pair.Value;
-                            if (boneIndex < 0)
-                            {
-                                boneIndex = -1;
-                                boneWeight = 0.0f;
-                            }
-
-                            boneIndices.Add(boneIndex + 1); //+1 because 0 is reserved for the identity matrix
-                            boneWeights.Add(boneWeight);
-                        }
-                        BoneWeightOffsets?.Set(vertexIndex, offset);
-                        BoneWeightCounts?.Set(vertexIndex, count);
-                        offset += count;
-                    }
+                    BoneWeightOffsets?.Set(vertexIndex, offset);
+                    BoneWeightCounts?.Set(vertexIndex, count);
+                    offset += count;
                 }
             }
 

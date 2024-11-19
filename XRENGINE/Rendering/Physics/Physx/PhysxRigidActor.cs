@@ -5,10 +5,10 @@ using static MagicPhysX.NativeMethods;
 
 namespace XREngine.Rendering.Physics.Physx
 {
-    public unsafe abstract class PhysxRigidActor : PhysxActor
+    public unsafe abstract class PhysxRigidActor(PhysxScene scene) : PhysxActor(scene)
     {
-        public abstract PxRigidActor* RigidActor { get; }
-        public override unsafe PxActor* Actor => (PxActor*)RigidActor;
+        public abstract PxRigidActor* RigidActorPtr { get; }
+        public override unsafe PxActor* ActorPtr => (PxActor*)RigidActorPtr;
 
         public void ApplyTransformTo(RigidBodyTransform transform)
         {
@@ -35,33 +35,33 @@ namespace XREngine.Rendering.Physics.Physx
 
         private void GetTransform(out Vector3 position, out Quaternion rotation)
         {
-            var pose = PxRigidActor_getGlobalPose(RigidActor);
+            var pose = PxRigidActor_getGlobalPose(RigidActorPtr);
             position = new Vector3(pose.p.x, pose.p.y, pose.p.z);
             rotation = new Quaternion(pose.q.x, pose.q.y, pose.q.z, pose.q.w);
         }
 
         private void SetTransform(PxTransform pose, bool wake)
-            => PxRigidActor_setGlobalPose_mut(RigidActor, &pose, wake);
+            => PxRigidActor_setGlobalPose_mut(RigidActorPtr, &pose, wake);
 
         public void SetTransform(Vector3 position, Quaternion rotation, bool wake)
             => SetTransform(new() { p = position, q = rotation }, wake);
 
         public uint ConstraintCount
-            => PxRigidActor_getNbConstraints(RigidActor);
+            => PxRigidActor_getNbConstraints(RigidActorPtr);
 
         public uint ShapeCount
-            => PxRigidActor_getNbShapes(RigidActor);
+            => PxRigidActor_getNbShapes(RigidActorPtr);
 
         public uint GetConstraints(PxConstraint** constraints, uint maxConstraints, uint startIndex)
-            => PxRigidActor_getConstraints(RigidActor, constraints, maxConstraints, startIndex);
+            => PxRigidActor_getConstraints(RigidActorPtr, constraints, maxConstraints, startIndex);
 
         public uint GetShapes(PxShape** shapes, uint maxShapes, uint startIndex)
-            => PxRigidActor_getShapes(RigidActor, shapes, maxShapes, startIndex);
+            => PxRigidActor_getShapes(RigidActorPtr, shapes, maxShapes, startIndex);
 
         public void AttachShape(PxShape shape)
-            => PxRigidActor_attachShape_mut(RigidActor, &shape);
+            => PxRigidActor_attachShape_mut(RigidActorPtr, &shape);
 
         public void DetachShape(PxShape shape, bool wakeOnLostTouch)
-            => PxRigidActor_detachShape_mut(RigidActor, &shape, wakeOnLostTouch);
+            => PxRigidActor_detachShape_mut(RigidActorPtr, &shape, wakeOnLostTouch);
     }
 }

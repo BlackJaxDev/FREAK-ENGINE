@@ -111,7 +111,7 @@ internal class Program
         var rootNode = new SceneNode(scene) { Name = "TestRootNode" };
 
         //Visualize the octree
-        rootNode.AddComponent<DebugVisualizeOctreeComponent>();
+        //rootNode.AddComponent<DebugVisualizeOctreeComponent>();
         SceneNode cameraNode = CreateCamera(rootNode);
         AddFPSText(font, cameraNode);
         CreatePlayerPawn(cameraNode);
@@ -137,11 +137,11 @@ internal class Program
         //orbitTransform.IgnoreRotation = false;
         //orbitTransform.RegisterAnimationTick<OrbitTransform>(t => t.Angle += Engine.DilatedDelta * 0.5f);
 
-        var laggedTransform = cameraNode.GetTransformAs<SmoothedTransform>(true)!;
+        var laggedTransform = cameraNode.GetTransformAs<Transform>(true)!;
         //laggedTransform.Translation = new Vector3(0.0f, 0.0f, 5.0f);
-        laggedTransform.RotationSmoothingSpeed = 15.0f;
-        laggedTransform.TranslationSmoothingSpeed = 15.0f;
-        laggedTransform.ScaleSmoothingSpeed = 15.0f;
+        //laggedTransform.RotationSmoothingSpeed = 15.0f;
+        //laggedTransform.TranslationSmoothingSpeed = 15.0f;
+        //laggedTransform.ScaleSmoothingSpeed = 15.0f;
 
         if (cameraNode.TryAddComponent<CameraComponent>(out var cameraComp))
         {
@@ -396,6 +396,14 @@ internal class Program
 
         //leg?.RegisterAnimationTick<Transform>(t => t.Rotation = Quaternion.CreateFromAxisAngle(Globals.Right, XRMath.DegToRad(180 - 90.0f * (MathF.Cos(Engine.ElapsedTime) * 0.5f + 0.5f))));
         //knee?.RegisterAnimationTick<Transform>(t => t.Rotation = Quaternion.CreateFromAxisAngle(Globals.Right, XRMath.DegToRad(90.0f * (MathF.Cos(Engine.ElapsedTime) * 0.5f + 0.5f))));
+
+        var chest = comp!.Chest?.Node?.Transform;
+        //Find breast bone
+        var breast = chest!.FindChild(x =>
+        (x.Name?.Contains("breast", StringComparison.InvariantCultureIgnoreCase) ?? false) ||
+        (x.Name?.Contains("boob", StringComparison.InvariantCultureIgnoreCase) ?? false));
+        if (breast?.SceneNode is not null)
+            breast.SceneNode.AddComponent<PhysicsChainComponent>();
     }
     private static readonly ConcurrentDictionary<string, XRTexture2D> _textureCache = new();
 

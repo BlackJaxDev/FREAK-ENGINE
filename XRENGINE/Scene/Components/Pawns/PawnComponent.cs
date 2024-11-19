@@ -145,7 +145,7 @@ namespace XREngine.Components
         /// <summary>
         /// Dictates the component controlling the view of this pawn's controller.
         /// </summary>
-        public CameraComponent? Camera
+        public CameraComponent? CameraComponent
         {
             get => _camera;
             set => SetField(ref _camera, value);
@@ -175,6 +175,6 @@ namespace XREngine.Components
             => Engine.State.GetOrCreateLocalPlayer(one).ControlledPawn = this;
 
         public CameraComponent? GetCamera()
-            => Camera is not null ? Camera : GetSiblingComponent<CameraComponent>();
+            => CameraComponent is not null ? CameraComponent : GetSiblingComponent<CameraComponent>();
     }
 }

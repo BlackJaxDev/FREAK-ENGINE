@@ -2,9 +2,10 @@
 
 namespace XREngine.Rendering.Physics.Physx.Joints
 {
-    public unsafe class PhysxJoint_Revolute : PhysxJointBase
+    public unsafe class PhysxJoint_Revolute(PxRevoluteJoint* joint) : PhysxJoint, IHingeJoint
     {
-        public PxRevoluteJoint* _joint;
+        public PxRevoluteJoint* _joint = joint;
+
         public override unsafe PxJoint* JointBase => (PxJoint*)_joint;
 
         public float GetAngle()

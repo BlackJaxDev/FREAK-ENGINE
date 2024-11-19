@@ -148,6 +148,15 @@ namespace XREngine.Components
         public T? TransformAs<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(bool forceConvert = false) where T : TransformBase, new()
             => SceneNode.GetTransformAs<T>(forceConvert);
 
+        /// <summary>
+        /// Returns the transform of the scene node this component is attached to, or null if the scene node doesn't have a default transform.
+        /// </summary>
+        public Transform? DefaultTransform => SceneNode.GetTransformAs<Transform>(false);
+        /// <summary>
+        /// Returns the transform of the scene node this component is attached to as a default transform.
+        /// </summary>
+        public Transform ForcedDefaultTransform => SceneNode.GetTransformAs<Transform>(true)!;
+
         public bool TransformIs<T>(out T? transform) where T : TransformBase
         {
             if (Transform is T t)
@@ -279,11 +288,6 @@ namespace XREngine.Components
                 }
             }
         }
-
-        /// <summary>
-        /// Called when the component is ticked in the scene.
-        /// </summary>
-        protected internal virtual void Update() { }
 
         protected override void OnDestroying()
         {

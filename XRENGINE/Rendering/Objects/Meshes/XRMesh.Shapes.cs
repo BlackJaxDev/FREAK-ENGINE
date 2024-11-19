@@ -267,6 +267,80 @@ namespace XREngine.Rendering
                     bottomCircleDown, bottomHalfCircleAway, bottomHalfCircleRight,
                     right, left, front, back);
             }
+            public static void SolidCapsuleParts(
+                Vector3 center, Vector3 upAxis, float radius, float halfHeight, int pointCountHalfCircle,
+                out XRMesh cylinder, out XRMesh topSphereHalf, out XRMesh bottomSphereHalf)
+            {
+                Vector3.Normalize(upAxis);
+
+                Vector3 topPoint = center + upAxis * halfHeight;
+                Vector3 bottomPoint = center - upAxis * halfHeight;
+
+                VertexTriangle[] cylinderTriangles = new VertexTriangle[pointCountHalfCircle * 2];
+                VertexTriangle[] topSphereTriangles = new VertexTriangle[pointCountHalfCircle * pointCountHalfCircle];
+                VertexTriangle[] bottomSphereTriangles = new VertexTriangle[pointCountHalfCircle * pointCountHalfCircle];
+
+                Quaternion offset = XRMath.RotationBetweenVectors(Globals.Up, upAxis);
+
+                float angleInc = PI / pointCountHalfCircle;
+                float rad = 0.0f;
+
+                //Create the cylinder
+                for (int i = 0, x = 0; i < pointCountHalfCircle; ++i, rad += angleInc)
+                {
+                    Vector3 v1 = new(Cos(rad), Sin(rad), 0.0f);
+                    Vector3 v2 = new(0.0f, Sin(rad), Cos(rad));
+                    Vertex top1 = new(Vector3.Transform(radius * v1, offset) + topPoint);
+                    Vertex top2 = new(Vector3.Transform(radius * v2, offset) + topPoint);
+                    Vertex bot1 = new(-Vector3.Transform(radius * v1, offset) + bottomPoint);
+                    Vertex bot2 = new(-Vector3.Transform(radius * v2, offset) + bottomPoint);
+
+                    cylinderTriangles[x++] = new VertexTriangle(top1, top2, bot1);
+                    cylinderTriangles[x++] = new VertexTriangle(top2, bot2, bot1);
+                }
+
+                //Create the top sphere
+                for (int i = 0, x = 0; i < pointCountHalfCircle; ++i, rad += angleInc)
+                {
+                    Vector3 v1 = new(Cos(rad), Sin(rad), 0.0f);
+                    Vector3 v2 = new(0.0f, Sin(rad), Cos(rad));
+                    Vertex top1 = new(Vector3.Transform(radius * v1, offset) + topPoint);
+                    Vertex top2 = new(Vector3.Transform(radius * v2, offset) + topPoint);
+
+                    for (int j = 0; j < pointCountHalfCircle; ++j)
+                    {
+                        float theta = j * PI / pointCountHalfCircle;
+                        Vector3 normal = new(Cos(theta) * Cos(rad), Sin(theta), Cos(theta) * Sin(rad));
+                        Vertex v = new(top1.Position, normal);
+                        topSphereTriangles[x++] = new VertexTriangle(top1, top2, v);
+                        top1 = top2;
+                        top2 = v;
+                    }
+                }
+
+                //Create the bottom sphere
+                for (int i = 0, x = 0; i < pointCountHalfCircle; ++i, rad += angleInc)
+                {
+                    Vector3 v1 = new(Cos(rad), Sin(rad), 0.0f);
+                    Vector3 v2 = new(0.0f, Sin(rad), Cos(rad));
+                    Vertex bot1 = new(-Vector3.Transform(radius * v1, offset) + bottomPoint);
+                    Vertex bot2 = new(-Vector3.Transform(radius * v2, offset) + bottomPoint);
+
+                    for (int j = 0; j < pointCountHalfCircle; ++j)
+                    {
+                        float theta = j * PI / pointCountHalfCircle;
+                        Vector3 normal = new(Cos(theta) * Cos(rad), Sin(theta), Cos(theta) * Sin(rad));
+                        Vertex v = new(bot1.Position, normal);
+                        bottomSphereTriangles[x++] = new VertexTriangle(bot1, bot2, v);
+                        bot1 = bot2;
+                        bot2 = v;
+                    }
+                }
+
+                cylinder = Create(cylinderTriangles);
+                topSphereHalf = Create(topSphereTriangles);
+                bottomSphereHalf = Create(bottomSphereTriangles);
+            }
             public static void WireframeCapsuleParts(
                 Vector3 center, Vector3 upAxis, float radius, float halfHeight, int pointCountHalfCircle,
                 out XRMesh cylinder, out XRMesh topSphereHalf, out XRMesh bottomSphereHalf)

@@ -8,6 +8,9 @@ namespace XREngine
 {
     public static partial class Engine
     {
+        public static bool IsEditor { get; private set; } = true;
+        public static bool IsPlaying { get; private set; } = true;
+
         public static GameState LoadOrGenerateGameState(Func<GameState>? generateFactory = null, string assetName = "state")
             => LoadOrGenerateAsset(() => generateFactory?.Invoke() ?? new GameState(), assetName);
         public static GameStartupSettings LoadOrGenerateGameSettings(Func<GameStartupSettings>? generateFactory = null, string assetName = "startup")

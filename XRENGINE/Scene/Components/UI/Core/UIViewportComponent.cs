@@ -22,7 +22,7 @@ namespace XREngine.Rendering.UI
             RenderCommand.Mesh.SettingUniforms += SetUniforms;
 
             Engine.Time.Timer.SwapBuffers += SwapBuffers;
-            Engine.Time.Timer.UpdateFrame += Update;
+            //Engine.Time.Timer.UpdateFrame += Update;
             Engine.Time.Timer.RenderFrame += Render;
         }
 

@@ -1,9 +1,7 @@
 ﻿using Extensions;
-using SharpFont;
 using Silk.NET.OpenGL;
 using System.Collections;
 using System.Collections.Concurrent;
-using System.Management;
 using System.Numerics;
 using XREngine.Data.Vectors;
 

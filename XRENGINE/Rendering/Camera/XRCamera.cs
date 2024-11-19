@@ -319,7 +319,7 @@ namespace XREngine.Rendering
         /// </summary>
         public void WorldToNormalizedViewportCoordinate(Vector3 worldPoint, out Vector2 screenPoint, out float depth)
         {
-            Vector3 xyd = WorldToNormalizedViewport(worldPoint);
+            Vector3 xyd = WorldToNormalizedViewportCoordinate(worldPoint);
             screenPoint = new Vector2(xyd.X, xyd.Y);
             depth = xyd.Z;
         }
@@ -329,7 +329,7 @@ namespace XREngine.Rendering
         /// </summary>
         public void WorldToNormalizedViewportCoordinate(Vector3 worldPoint, out float x, out float y, out float depth)
         {
-            Vector3 xyd = WorldToNormalizedViewport(worldPoint);
+            Vector3 xyd = WorldToNormalizedViewportCoordinate(worldPoint);
             x = xyd.X;
             y = xyd.Y;
             depth = xyd.Z;
@@ -338,23 +338,23 @@ namespace XREngine.Rendering
         /// Returns a normalized X, Y coordinate relative to the camera's origin (center for perspective, bottom-left for orthographic) 
         /// with Z being the normalized depth (0.0f - 1.0f) from NearDepth (0.0f) to FarDepth (1.0f).
         /// </summary>
-        public Vector3 WorldToNormalizedViewport(Vector3 worldPoint)
+        public Vector3 WorldToNormalizedViewportCoordinate(Vector3 worldPoint)
             => ((Vector3.Transform(Vector3.Transform(worldPoint, Transform.InverseWorldMatrix), ProjectionMatrix) + Vector3.One) * new Vector3(0.5f));
 
         /// <summary>
         /// Takes an X, Y coordinate relative to the camera's origin along with the normalized depth (0.0f - 1.0f) from NearDepth (0.0f) to FarDepth (1.0f), and returns a position in the world.
         /// </summary>
         public Vector3 NormalizedViewportToWorldCoordinate(Vector2 normalizedViewportPoint, float depth)
-            => ScreenToWorld(normalizedViewportPoint.X, normalizedViewportPoint.Y, depth);
+            => NormalizedViewportToWorldCoordinate(normalizedViewportPoint.X, normalizedViewportPoint.Y, depth);
         /// <summary>
         /// Takes an X, Y coordinate relative to the camera's Origin along with the normalized depth (0.0f - 1.0f) from NearDepth (0.0f) to FarDepth (1.0f), and returns a position in the world.
         /// </summary>
-        public Vector3 ScreenToWorld(float normalizedX, float normalizedY, float depth)
-            => ScreenToWorld(new Vector3(normalizedX, normalizedY, depth));
+        public Vector3 NormalizedViewportToWorldCoordinate(float normalizedX, float normalizedY, float depth)
+            => NormalizedViewportToWorldCoordinate(new Vector3(normalizedX, normalizedY, depth));
         /// <summary>
         /// Takes an X, Y coordinate relative to the camera's Origin, with Z being the normalized depth (0.0f - 1.0f) from NearDepth (0.0f) to FarDepth (1.0f), and returns a position in the world.
         /// </summary>
-        public Vector3 ScreenToWorld(Vector3 normalizedPointDepth, ERange xyRange = ERange.ZeroToOne, ERange depthRange = ERange.ZeroToOne)
+        public Vector3 NormalizedViewportToWorldCoordinate(Vector3 normalizedPointDepth, ERange xyRange = ERange.ZeroToOne, ERange depthRange = ERange.ZeroToOne)
         {
             Vector3 clipSpacePos = normalizedPointDepth;
 

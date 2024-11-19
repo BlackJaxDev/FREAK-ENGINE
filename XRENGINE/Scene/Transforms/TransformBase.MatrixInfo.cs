@@ -40,6 +40,24 @@ namespace XREngine.Scene.Transforms
             
         }
 
+        public Vector3 InverseTransformPoint(Vector3 worldPosition)
+        {
+            return Vector3.Transform(worldPosition, InverseWorldMatrix);
+        }
+        public Vector3 TransformPoint(Vector3 localPosition)
+        {
+            return Vector3.Transform(localPosition, WorldMatrix);
+        }
+
+        public Vector3 TransformDirection(Vector3 localDirection)
+        {
+            return Vector3.TransformNormal(localDirection, WorldMatrix);
+        }
+        public Vector3 InverseTransformDirection(Vector3 worldDirection)
+        {
+            return Vector3.TransformNormal(worldDirection, InverseWorldMatrix);
+        }
+
         private class MatrixInfo
         {
             private readonly ReaderWriterLockSlim _modifiedLock = new();

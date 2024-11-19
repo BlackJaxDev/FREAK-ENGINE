@@ -29,6 +29,14 @@ public class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent, IRende
         ];
     }
 
+    public Vector3? DragPoint { get; set; } = null;
+
+    protected override void OnRightClick(bool pressed)
+    {
+        base.OnRightClick(pressed);
+        DragPoint = pressed ? DepthHitNormalizedViewportPoint : null;
+    }
+
     private void RenderHighlight(bool shadowPass)
     {
         if (shadowPass)
@@ -39,10 +47,16 @@ public class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent, IRende
             //Debug.Out($"Hit triangle: {_hitTriangle}");
             Engine.Rendering.Debug.RenderTriangle(_hitTriangle.Value, ColorF4.Yellow, true);
         }
-        if (LastDepthHit.HasValue && Viewport is not null)
+        if (DepthHitNormalizedViewportPoint.HasValue && Viewport is not null)
         {
-            Vector3 pos = Viewport.NormalizedViewportToWorldCoordinate(LastDepthHit.Value);
+            Vector3 pos = Viewport.NormalizedViewportToWorldCoordinate(DepthHitNormalizedViewportPoint.Value);
             Engine.Rendering.Debug.RenderSphere(pos, (Viewport.Camera?.DistanceFromWorldPosition(pos) ?? 1.0f) * 0.1f, false, ColorF4.Yellow, true);
+        }
+        if (RenderFrustum)
+        {
+            var cam = GetCamera();
+            if (cam is not null)
+                Engine.Rendering.Debug.RenderFrustum(cam.Camera.WorldFrustum(), ColorF4.Red);
         }
     }
 
@@ -56,8 +70,17 @@ public class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent, IRende
     static void ScreenshotCallback(MagickImage img)
         => img?.Write(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "screenshot.png"));
 
-    public Vector3? LastDepthHit { get; private set; } = null;
-    public float LastHitDistance => XRMath.DepthToDistance(LastDepthHit.HasValue ? LastDepthHit.Value.Z : 0.0f, NearZ, FarZ);
+    public Vector3? LastDepthHitNormalizedViewportPoint => _lastDepthHitNormalizedViewportPoint;
+    public Vector3? DepthHitNormalizedViewportPoint
+    {
+        get => _depthHitNormalizedViewportPoint;
+        private set
+        {
+            _lastDepthHitNormalizedViewportPoint = _depthHitNormalizedViewportPoint;
+            _depthHitNormalizedViewportPoint = value;
+        }
+    }
+    public float LastHitDistance => XRMath.DepthToDistance(DepthHitNormalizedViewportPoint.HasValue ? DepthHitNormalizedViewportPoint.Value.Z : 0.0f, NearZ, FarZ);
     public float NearZ => GetCamera()?.Camera.NearZ ?? 0.0f;
     public float FarZ => GetCamera()?.Camera.FarZ ?? 0.0f;
 
@@ -84,9 +107,6 @@ public class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent, IRende
         if (cam is null)
             return;
 
-        if (RenderFrustum)
-            Engine.Rendering.Debug.RenderFrustum(cam.Camera.WorldFrustum(), ColorF4.Red);
-
         var input = LocalInput;
         if (input is null)
             return;
@@ -104,19 +124,63 @@ public class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent, IRende
         float? depth = vp.GetDepth(fbo!, p);
 
         p = vp.NormalizeInternalCoordinate(p);
-        LastDepthHit = depth is not null && depth.Value > 0.0f && depth.Value < 1.0f ? new Vector3(p.X, p.Y, depth.Value) : null;
+        DepthHitNormalizedViewportPoint = depth is not null && depth.Value > 0.0f && depth.Value < 1.0f ? new Vector3(p.X, p.Y, depth.Value) : null;
 
         _lastRaycastSegment = vp.GetWorldSegment(p);
 
-        if (RenderRaycast)
-        {
-            Vector3 start = _lastRaycastSegment.Start;
-            Vector3 end = _lastRaycastSegment.End;
-            Engine.Rendering.Debug.RenderLine(start, end, ColorF4.Magenta, false);
-        }
+        //if (RenderRaycast)
+        //{
+        //    Vector3 start = _lastRaycastSegment.Start;
+        //    Vector3 end = _lastRaycastSegment.End;
+        //    Engine.Rendering.Debug.RenderLine(start, end, ColorF4.Magenta, false);
+        //}
 
         SortedDictionary<float, List<(ITreeItem item, object? data)>>? result = World!.Raycast(_lastRaycastSegment);
         Task.Run(() => SetRaycastResult(result));
+
+        var tfm = TransformAs<Transform>();
+        if (tfm is null)
+            return;
+
+        if (_lastScrollDelta.HasValue && DepthHitNormalizedViewportPoint.HasValue)
+        {
+            //Zoom towards the hit point
+            float scrollSpeed = _lastScrollDelta.Value;
+            _lastScrollDelta = null;
+            Vector3 worldCoord = vp.NormalizedViewportToWorldCoordinate(DepthHitNormalizedViewportPoint.Value);
+            float dist = Transform.WorldTranslation.Distance(worldCoord);
+            tfm.Translation = Segment.PointAtLineDistance(Transform.WorldTranslation, worldCoord, scrollSpeed * dist * 0.1f * ScrollSpeed);
+        }
+        if (_lastMouseTranslationDelta.HasValue && DragPoint.HasValue)
+        {
+            Vector3 normCoord = DragPoint.Value;
+            Vector3 worldCoord = vp.NormalizedViewportToWorldCoordinate(normCoord);
+            Vector2 screenCoord = vp.DenormalizeViewportCoordinate(normCoord.XY());
+            Vector2 newScreenCoord = screenCoord + _lastMouseTranslationDelta.Value;
+            _lastMouseTranslationDelta = null;
+            Vector3 newNormCoord = new(vp.NormalizeViewportCoordinate(newScreenCoord), normCoord.Z);
+            Vector3 worldDelta = vp.NormalizedViewportToWorldCoordinate(newNormCoord) - worldCoord;
+            tfm.ApplyTranslation(worldDelta);
+        }
+        if (_lastRotateDelta.HasValue)
+        {
+            if (_lastRotatePoint.HasValue)
+            {
+                float x = _lastRotateDelta.Value.X;
+                float y = _lastRotateDelta.Value.Y;
+                ArcBallRotate(y, x, _lastRotatePoint.Value);
+                _lastRotateDelta = null;
+            }
+            else if (DragPoint.HasValue)
+            {
+                Vector3 normCoord = DragPoint.Value;
+                Vector3 worldCoord = vp.NormalizedViewportToWorldCoordinate(normCoord);
+                float x = _lastRotateDelta.Value.X;
+                float y = _lastRotateDelta.Value.Y;
+                ArcBallRotate(y, x, worldCoord);
+                _lastRotateDelta = null;
+            }
+        }
     }
 
     private void SetRaycastResult(SortedDictionary<float, List<(ITreeItem item, object? data)>>? result)
@@ -133,20 +197,51 @@ public class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent, IRende
                 Debug.Out($"Hit: {i as RenderInfo} {dist}");
         }
     }
-
+    private Vector2? _lastRotateDelta = null;
+    private Vector3? _lastRotatePoint = null;
     protected override void MouseRotate(float x, float y)
     {
-        //Rotate about selected nodes, if any
-        if (Selection.SceneNodes.Length > 0)
+        if (DragPoint.HasValue)
+        {
+            _lastRotateDelta = new Vector2(-x * MouseRotateSpeed, y * MouseRotateSpeed);
+        }
+        else if (Selection.SceneNodes.Length > 0)
         {
             Vector3 avgPoint = Vector3.Zero;
             foreach (var node in Selection.SceneNodes)
                 avgPoint += node.Transform.WorldTranslation;
             avgPoint /= Selection.SceneNodes.Length;
-            ArcBallRotate(y, x, avgPoint);
+
+            _lastRotatePoint = avgPoint;
+            _lastRotateDelta = new Vector2(-x * MouseRotateSpeed, y * MouseRotateSpeed);
         }
         else
             base.MouseRotate(x, y);
+    }
+    private Vector2? _lastMouseTranslationDelta = null;
+    protected override void MouseTranslate(float x, float y)
+    {
+        if (DragPoint.HasValue)
+        {
+            //This fixes stationary jitter caused by float imprecision
+            //when recalculating the same hit point every update
+            if (Math.Abs(x) < 0.00001f &&
+                Math.Abs(y) < 0.00001f)
+                return;
+
+            _lastMouseTranslationDelta = new Vector2(-x, -y);
+        }
+        else
+            base.MouseTranslate(x, y);
+    }
+
+    private float? _lastScrollDelta = null;
+    protected override void OnScrolled(float diff)
+    {
+        if (DepthHitNormalizedViewportPoint is not null)
+            _lastScrollDelta = diff;
+        else
+            base.OnScrolled(diff);
     }
 
     protected override void Tick()
@@ -197,6 +292,9 @@ public class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent, IRende
     }
 
     private Segment _lastRaycastSegment = new(Vector3.Zero, Vector3.Zero);
+    private Vector3? _depthHitNormalizedViewportPoint = null;
+    private Vector3? _lastDepthHitNormalizedViewportPoint = null;
+
     private void Raycast(Vector2 screenPoint)
     {
         if (World is null || Viewport is null)

@@ -465,7 +465,7 @@ namespace XREngine.Data.Geometry
             GetPlanes(out var up, out var down, out var right, out var left, out var back, out var front);
             Plane[] planes = { up, down, right, left, back, front };
             foreach (Plane plane in planes)
-                if (GeoUtil.RayIntersectsPlane(segment.Start, (segment.End - segment.Start).Normalize(), XRMath.GetPlanePoint(plane), plane.Normal, out Vector3 point) && ContainsPoint(point))
+                if (GeoUtil.RayIntersectsPlane(segment.Start, (segment.End - segment.Start).Normalized(), XRMath.GetPlanePoint(plane), plane.Normal, out Vector3 point) && ContainsPoint(point))
                     intersections.Add(point);
             points = [.. intersections];
             return points.Length > 0;
@@ -476,7 +476,7 @@ namespace XREngine.Data.Geometry
             GetPlanes(out var up, out var down, out var right, out var left, out var back, out var front);
             Plane[] planes = { up, down, right, left, back, front };
             foreach (Plane plane in planes)
-                if (GeoUtil.RayIntersectsPlane(segment.Start, (segment.End - segment.Start).Normalize(), XRMath.GetPlanePoint(plane), plane.Normal, out Vector3 point) && ContainsPoint(point))
+                if (GeoUtil.RayIntersectsPlane(segment.Start, (segment.End - segment.Start).Normalized(), XRMath.GetPlanePoint(plane), plane.Normal, out Vector3 point) && ContainsPoint(point))
                     return true;
             return false;
         }

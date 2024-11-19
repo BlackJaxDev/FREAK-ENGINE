@@ -28,7 +28,7 @@ namespace Extensions
         public static Vector4 Min(this Vector4 value, Vector4 other) =>
             Vector4.Min(value, other);
 
-        public static Vector4 Normalize(this Vector4 value) =>
+        public static Vector4 Normalized(this Vector4 value) =>
             Vector4.Normalize(value);
 
         public static Vector4 Transform(this Vector4 value, Matrix4x4 matrix) =>
@@ -110,6 +110,6 @@ namespace Extensions
             new(value.Z, value.Y, value.X);
 
         public static Vector4 ClampMagnitude(this Vector4 value, float maxLength) =>
-            value.LengthSquared() > maxLength * maxLength ? value.Normalize() * maxLength : value;
+            value.LengthSquared() > maxLength * maxLength ? value.Normalized() * maxLength : value;
     }
 }

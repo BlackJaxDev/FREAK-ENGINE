@@ -41,8 +41,11 @@ namespace XREngine.Rendering
 
         private void Window_Load()
         {
-            Input = Window.CreateInput();
-            Input.ConnectionChanged += Input_ConnectionChanged;
+            //Task.Run(() =>
+            //{
+                Input = Window.CreateInput();
+                Input.ConnectionChanged += Input_ConnectionChanged;
+            //});
         }
 
         private void Input_ConnectionChanged(IInputDevice device, bool connected)

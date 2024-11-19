@@ -34,14 +34,7 @@ namespace XREngine.Components
                 MouseRotate(x, y);
 
             if (Translating)
-            {
-                if (ShiftPressed)
-                {
-                    x *= ShiftSpeedModifier;
-                    y *= ShiftSpeedModifier;
-                }
                 MouseTranslate(x, y);
-            }
         }
 
         private float _shiftSpeedModifier = 3.0f;
@@ -52,10 +45,17 @@ namespace XREngine.Components
         }
 
         protected virtual void MouseTranslate(float x, float y)
-            => TransformAs<Transform>()?.TranslateRelative(
+        {
+            if (ShiftPressed)
+            {
+                x *= ShiftSpeedModifier;
+                y *= ShiftSpeedModifier;
+            }
+            TransformAs<Transform>()?.TranslateRelative(
                 -x * MouseTranslateSpeed,
                 -y * MouseTranslateSpeed,
                 0.0f);
+        }
 
         protected virtual void MouseRotate(float x, float y)
             => AddYawPitch(-x * MouseRotateSpeed, y * MouseRotateSpeed);
@@ -63,19 +63,21 @@ namespace XREngine.Components
         public void Pivot(float pitch, float yaw, float distance)
         {
             var tfm = TransformAs<Transform>();
-            ArcBallRotate(pitch, yaw, tfm.Translation + tfm.LocalForward * distance);
+            if (tfm != null)
+                ArcBallRotate(pitch, yaw, tfm.Translation + tfm.LocalForward * distance);
         }
         public void ArcBallRotate(float pitch, float yaw, Vector3 focusPoint)
         {
-            //"Arcball" rotation
-            //All rotation is done within local component space
-
             var tfm = TransformAs<Transform>();
             if (tfm is not null)
+            {
                 tfm.Translation = XRMath.ArcballTranslation(
-                    pitch, yaw, focusPoint,
+                    pitch,
+                    yaw,
+                    Vector3.Transform(focusPoint, tfm.ParentInverseWorldMatrix),
                     tfm.Translation,
-                    tfm.LocalRight);
+                    Vector3.Transform(Globals.Right, tfm.Rotation));
+            }
 
             AddYawPitch(yaw, pitch);
         }
@@ -125,7 +127,7 @@ namespace XREngine.Components
         {
             var tfm = TransformAs<Transform>();
             if (tfm is not null)
-                tfm.Rotation = Quaternion.CreateFromYawPitchRoll(Yaw, Pitch, 0.0f);
+                tfm.Rotation = Quaternion.CreateFromYawPitchRoll(XRMath.DegToRad(Yaw), XRMath.DegToRad(Pitch), 0.0f);
         }
     }
 }

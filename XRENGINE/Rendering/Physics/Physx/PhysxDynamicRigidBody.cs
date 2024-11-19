@@ -1,47 +1,47 @@
 ﻿using MagicPhysX;
+using System.Numerics;
 using XREngine.Scene;
-using static MagicPhysX.NativeMethods;
 
 namespace XREngine.Rendering.Physics.Physx
 {
     public unsafe class PhysxDynamicRigidBody : PhysxRigidBody, IAbstractDynamicRigidBody
     {
         private readonly unsafe PxRigidDynamic* _obj;
-        private readonly PhysxScene _scene;
+        public PxRigidDynamic* DynamicPtr => _obj;
+        public override PxRigidBody* BodyPtr => (PxRigidBody*)_obj;
 
-        public PhysxDynamicRigidBody(PhysxScene scene, PhysxMaterial material, PhysxShape shape, float density)
+        public PhysxDynamicRigidBody(
+            PhysxScene scene,
+            PhysxMaterial material,
+            PhysxShape shape,
+            float density,
+            Vector3? position = null,
+            Quaternion? rotation = null,
+            Vector3? shapeOffsetTranslation = null,
+            Quaternion? shapeOffsetRotation = null) : base(scene)
         {
-            _scene = scene;
-
-            var identity = PxTransform_new_2(PxIDENTITY.PxIdentity);
-            _scene.Physics->PhysPxCreateDynamic(&identity, shape.Geometry, material.Material, density, &identity);
+            var tfm = PhysxScene.MakeTransform(position, rotation);
+            var shapeTfm = PhysxScene.MakeTransform(shapeOffsetTranslation, shapeOffsetRotation);
+            Scene.PhysicsPtr->PhysPxCreateDynamic(&tfm, shape.GeometryPtr, material.Material, density, &shapeTfm);
         }
-
-        public PhysxScene Scene => _scene;
-
-        public PxRigidDynamic* Dynamic => _obj;
-        public override PxRigidBody* Body => (PxRigidBody*)_obj;
-
-        public void Destroy()
+        public PhysxDynamicRigidBody(
+            PhysxScene scene,
+            PhysxShape shape,
+            float density,
+            Vector3? position = null,
+            Quaternion? rotation = null) : base(scene)
         {
-            Scene.RemoveActor(this);
+            var tfm = PhysxScene.MakeTransform(position, rotation);
+            Scene.PhysicsPtr->PhysPxCreateDynamic1(&tfm, shape.ShapePtr, density);
         }
-    }
-    public unsafe class PhysxStaticRigidBody : PhysxRigidActor, IAbstractStaticRigidBody
-    {
-        private readonly unsafe PxRigidStatic* _obj;
-        private readonly PhysxScene _scene;
-
-        public PhysxStaticRigidBody(PhysxScene scene)
+        public PhysxDynamicRigidBody(
+            PhysxScene scene,
+            Vector3? position = null,
+            Quaternion? rotation = null) : base(scene)
         {
-            _scene = scene;
+            var tfm = PhysxScene.MakeTransform(position, rotation);
+            Scene.PhysicsPtr->CreateRigidDynamicMut(&tfm);
         }
-
-        public PhysxScene Scene => _scene;
-
-        public override unsafe PxRigidActor* RigidActor => (PxRigidActor*)_obj;
-        public override unsafe PxActor* Actor => (PxActor*)_obj;
-        public override unsafe PxBase* Base => (PxBase*)_obj;
 
         public void Destroy()
         {

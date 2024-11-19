@@ -36,7 +36,7 @@ namespace XREngine.Data.Geometry
             Vector3 arb = Vector3.UnitX;
             if (Vector3.Dot(UpAxis, Vector3.UnitX) > 0.99f || Vector3.Dot(UpAxis, Vector3.UnitX) < -0.99f)
                 arb = Vector3.UnitZ;
-            Vector3 perp = Vector3.Cross(UpAxis, arb).Normalize();
+            Vector3 perp = Vector3.Cross(UpAxis, arb).Normalized();
             return Matrix4x4.CreateWorld(Center, UpAxis, Vector3.Cross(UpAxis, perp));
         }
 

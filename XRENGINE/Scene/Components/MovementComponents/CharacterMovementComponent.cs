@@ -336,7 +336,7 @@ namespace XREngine.Components
             }
             else
             {
-                finalInput = finalInput.Normalize();
+                finalInput = finalInput.Normalized();
                 float dot = Vector3.Dot(normal, finalInput);
                 if (dot < 0.0f)
                 {
@@ -352,7 +352,7 @@ namespace XREngine.Components
         private bool PhysicsMoveNonBlocking(ref Vector3 movementInput, Vector3 finalInput)
         {
             Vector3 hitNormal = _closestTrace.HitNormalWorld;
-            finalInput.Normalize();
+            finalInput.Normalized();
             float dot = Vector3.Dot(hitNormal, finalInput);
             if (dot < 0.0f)
             {

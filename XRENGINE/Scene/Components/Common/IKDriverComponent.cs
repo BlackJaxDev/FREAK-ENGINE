@@ -28,13 +28,13 @@ namespace XREngine.Data.Components
                 current = current.Parent as Transform;
             }
 
-            RegisterTick(ETickGroup.PrePhysics, ETickOrder.Logic, Update);
+            //RegisterTick(ETickGroup.PrePhysics, ETickOrder.Logic, Update);
         }
         protected internal override void OnComponentDeactivated()
         {
             SocketChain.Clear();
 
-            UnregisterTick(ETickGroup.PrePhysics, ETickOrder.Logic, Update);
+            //UnregisterTick(ETickGroup.PrePhysics, ETickOrder.Logic, Update);
         }
 
         private void Update(float delta)

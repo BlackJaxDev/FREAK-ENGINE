@@ -214,7 +214,7 @@ namespace XREngine.Scene.Transforms
         private Func<Matrix4x4>? _localMatrixGen;
         protected override Matrix4x4 CreateLocalMatrix()
             => _localMatrixGen?.Invoke() ?? Matrix4x4.Identity;
-        
+
         protected virtual Matrix4x4 STR() =>
             Matrix4x4.CreateFromQuaternion(Rotation) *
             Matrix4x4.CreateTranslation(Translation) *
@@ -403,5 +403,41 @@ namespace XREngine.Scene.Transforms
             (float)BitConverter.ToHalf(arr, offset),
             (float)BitConverter.ToHalf(arr, offset + 2),
             (float)BitConverter.ToHalf(arr, offset + 4));
+
+        //public override Vector3 WorldTranslation
+        //{
+        //    get => base.WorldTranslation;
+        //    set
+        //    {
+        //        Translation = Vector3.Transform(value, ParentInverseWorldMatrix);
+        //    }
+        //}
+        //public override Quaternion WorldRotation
+        //{
+        //    get => base.WorldRotation;
+        //    set
+        //    {
+        //        Rotation = Quaternion.Normalize(ParentInverseWorldRotation * value);
+        //    }
+        //}
+
+        public void SetWorldRotation(Quaternion value)
+        {
+            Rotation = Quaternion.Normalize(value * ParentInverseWorldRotation);
+        }
+        public void SetWorldTranslation(Vector3 value)
+        {
+            Translation = Vector3.Transform(value, ParentInverseWorldMatrix);
+        }
+
+        public Quaternion ParentWorldRotation
+            => Parent?.WorldRotation ?? Quaternion.Identity;
+        public Vector3 ParentWorldTranslation
+            => Parent?.WorldTranslation ?? Vector3.Zero;
+
+        public Quaternion ParentInverseWorldRotation
+            => Quaternion.Inverse(ParentWorldRotation);
+        public Vector3 ParentInverseWorldTranslation
+            => Vector3.Transform(Vector3.Zero, ParentInverseWorldMatrix);
     }
 }

@@ -2,9 +2,10 @@
 
 namespace XREngine.Rendering.Physics.Physx.Joints
 {
-    public unsafe class PhysxJoint_Spherical : PhysxJointBase
+    public unsafe class PhysxJoint_Spherical(PxSphericalJoint* joint) : PhysxJoint
     {
-        public PxSphericalJoint* _joint;
+        public PxSphericalJoint* _joint = joint;
+
         public override unsafe PxJoint* JointBase => (PxJoint*)_joint;
 
         public (float zAngle, float yAngle, float restitution, float bounceThreshold, float stiffness, float damping) LimitCone

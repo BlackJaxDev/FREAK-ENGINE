@@ -74,6 +74,6 @@ namespace XREngine.Data.Geometry
         }
 
         public readonly Segment TransformedBy(Matrix4x4 transform)
-            => new Segment(Vector3.Transform(_start, transform), Vector3.Transform(_end, transform));
+            => new(Vector3.Transform(_start, transform), Vector3.Transform(_end, transform));
     }
 }

@@ -2,19 +2,23 @@
 
 namespace XREngine.Rendering.Physics.Physx
 {
-    public unsafe abstract class PhysxShape : PhysxRefCounted
+    public interface IAbstractPhysicsShape
+    {
+
+    }
+    public unsafe abstract class PhysxShape : PhysxRefCounted, IAbstractPhysicsShape
     {
         private readonly unsafe PxShape* _obj;
+        public PxShape* ShapePtr => _obj;
 
         public PhysxShape(PxShape* shape)
         {
             _obj = shape;
         }
 
-        public override unsafe PxBase* Base => (PxBase*)_obj;
+        public override unsafe PxBase* BasePtr => (PxBase*)_obj;
+        public override unsafe PxRefCounted* RefCountedPtr => (PxRefCounted*)_obj;
 
-        public override unsafe PxRefCounted* RefCounted => (PxRefCounted*)_obj;
-
-        public abstract PxGeometry* Geometry { get; }
+        public abstract PxGeometry* GeometryPtr { get; }
     }
 }

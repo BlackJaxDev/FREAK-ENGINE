@@ -2,9 +2,10 @@
 
 namespace XREngine.Rendering.Physics.Physx.Joints
 {
-    public unsafe class PhysxJoint_Prismatic : PhysxJointBase
+    public unsafe class PhysxJoint_Prismatic(PxPrismaticJoint* joint) : PhysxJoint, IPrismaticJoint
     {
-        public PxPrismaticJoint* _joint;
+        public PxPrismaticJoint* _joint = joint;
+
         public override unsafe PxJoint* JointBase => (PxJoint*)_joint;
 
         public float Velocity => _joint->GetVelocity();

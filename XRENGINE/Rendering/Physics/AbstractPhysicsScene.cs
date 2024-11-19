@@ -4,6 +4,7 @@ using XREngine.Data.Geometry;
 using XREngine.Data.Trees;
 using XREngine.Physics;
 using XREngine.Physics.ShapeTracing;
+using XREngine.Rendering.Physics.Physx;
 
 namespace XREngine.Scene
 {
@@ -17,8 +18,38 @@ namespace XREngine.Scene
         public abstract void Initialize();
         public abstract void Destroy();
         public abstract void StepSimulation();
-        public abstract IAbstractDynamicRigidBody? NewDynamicRigidBody();
-        public abstract IAbstractStaticRigidBody? NewStaticRigidBody();
+
+        public abstract IAbstractDynamicRigidBody? NewDynamicRigidBody(
+            AbstractPhysicsMaterial material,
+            IAbstractPhysicsShape shape,
+            float density,
+            Vector3? position = null,
+            Quaternion? rotation = null,
+            Vector3? shapeOffsetTranslation = null,
+            Quaternion? shapeOffsetRotation = null);
+        public abstract IAbstractDynamicRigidBody? NewDynamicRigidBody(
+            IAbstractPhysicsShape shape,
+            float density,
+            Vector3? position = null,
+            Quaternion? rotation = null);
+        public abstract IAbstractDynamicRigidBody? NewDynamicRigidBody(
+            Vector3? position = null,
+            Quaternion? rotation = null);
+
+        public abstract IAbstractStaticRigidBody? NewStaticRigidBody(
+            Vector3? position = null,
+            Quaternion? rotation = null);
+        public abstract IAbstractStaticRigidBody? NewStaticRigidBody(
+            IAbstractPhysicsShape shape,
+            Vector3? position = null,
+            Quaternion? rotation = null);
+        public abstract IAbstractStaticRigidBody? NewStaticRigidBody(
+            AbstractPhysicsMaterial material,
+            IAbstractPhysicsShape shape,
+            Vector3? position = null,
+            Quaternion? rotation = null,
+            Vector3? shapeOffsetTranslation = null,
+            Quaternion? shapeOffsetRotation = null);
 
         public void Raycast(Segment worldSegment, SortedDictionary<float, List<(ITreeItem item, object? data)>> items)
         {

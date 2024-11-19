@@ -21,6 +21,7 @@ namespace XREngine.Scene.Transforms
     public abstract partial class TransformBase : XRWorldObjectBase, IList, IList<TransformBase>, IEnumerable<TransformBase>, IRenderable
     {
         public RenderInfo[] RenderedObjects { get; }
+        public bool HasChanged { get; protected set; } = false;
 
         public override string ToString()
             => $"{GetType().GetFriendlyName()} ({SceneNode?.Name ?? Name ?? "<no name>"})";
@@ -30,7 +31,7 @@ namespace XREngine.Scene.Transforms
         public event Action<TransformBase>? WorldMatrixChanged;
         public event Action<TransformBase>? InverseWorldMatrixChanged;
 
-        public float SelectionRadius { get; set; } = 0.015f;
+        public float SelectionRadius { get; set; } = 0.01f;
         public Capsule Capsule { get; set; } = new(Vector3.Zero, Vector3.UnitY, 0.015f, 0.5f);
 
         protected TransformBase() : this(null) { }
@@ -50,7 +51,7 @@ namespace XREngine.Scene.Transforms
 
             RenderInfo = RenderInfo3D.New(this, new RenderCommandMethod3D((int)EDefaultRenderPass.OpaqueForward, RenderDebugLineToParent));
             RenderedObjects = GetDebugRenderInfo();
-            DebugRender = false;
+            DebugRender = true;
         }
 
         private void MakeCapsule()
@@ -58,7 +59,7 @@ namespace XREngine.Scene.Transforms
             Vector3 parentPos = Parent?.WorldTranslation ?? Vector3.Zero;
             Vector3 thisPos = WorldTranslation;
             Vector3 center = (parentPos + thisPos) / 2.0f;
-            Vector3 dir = (thisPos - parentPos).Normalize();
+            Vector3 dir = (thisPos - parentPos).Normalized();
             float halfHeight = Vector3.Distance(parentPos, thisPos) / 2.0f;
             Capsule = new Capsule(center, dir, SelectionRadius, halfHeight);
         }
@@ -225,13 +226,38 @@ namespace XREngine.Scene.Transforms
         //TODO: thread-safe event list class
         public EventList<TransformBase> Children => _children;
 
-        public TransformBase? FindChild(string name)
+        public TransformBase? FindChild(string name, StringComparison comp = StringComparison.Ordinal)
         {
             lock (_children)
-                return _children.FirstOrDefault(x => x.Name == name);
+                return _children.FirstOrDefault(x => x.Name?.Equals(name, comp) ?? false);
+        }
+        public TransformBase? FindChild(Func<TransformBase, bool> predicate)
+        {
+            lock (_children)
+                return _children.FirstOrDefault(predicate);
+        }
+        public TransformBase? FindChildStartsWith(string name, StringComparison comp = StringComparison.Ordinal)
+        {
+            lock (_children)
+                return _children.FirstOrDefault(x => x.Name?.StartsWith(name, comp) ?? false);
+        }
+        public TransformBase? FindChildEndsWith(string name, StringComparison comp = StringComparison.Ordinal)
+        {
+            lock (_children)
+                return _children.FirstOrDefault(x => x.Name?.EndsWith(name, comp) ?? false);
+        }
+        public TransformBase? FindChildContains(string name, StringComparison comp = StringComparison.Ordinal)
+        {
+            lock (_children)
+                return _children.FirstOrDefault(x => x.Name?.Contains(name, comp) ?? false);
         }
 
-        public TransformBase? FindChildRecursive(string name)
+        public TransformBase? GetChild(int index)
+        {
+            lock (_children)
+                return _children.IndexInRange(index) ? _children[index] : null;
+        }
+        public TransformBase? FindDescendant(string name)
         {
             lock (_children)
             {
@@ -240,7 +266,7 @@ namespace XREngine.Scene.Transforms
                     return child;
                 foreach (TransformBase c in _children)
                 {
-                    child = c.FindChildRecursive(name);
+                    child = c.FindDescendant(name);
                     if (child is not null)
                         return child;
                 }
@@ -266,37 +292,49 @@ namespace XREngine.Scene.Transforms
         /// <summary>
         /// This transform's world up vector.
         /// </summary>
-        public Vector3 WorldUp => Vector3.Transform(Globals.Up, WorldMatrix);
+        public Vector3 WorldUp => Vector3.TransformNormal(Globals.Up, WorldMatrix);
         /// <summary>
         /// This transform's world right vector.
         /// </summary>
-        public Vector3 WorldRight => Vector3.Transform(Globals.Right, WorldMatrix);
+        public Vector3 WorldRight => Vector3.TransformNormal(Globals.Right, WorldMatrix);
         /// <summary>
         /// This transform's world forward vector.
         /// </summary>
-        public Vector3 WorldForward => Vector3.Transform(Globals.Forward, WorldMatrix);
+        public Vector3 WorldForward => Vector3.TransformNormal(Globals.Forward, WorldMatrix);
 
         /// <summary>
         /// This transform's local up vector.
         /// </summary>
-        public Vector3 LocalUp => Vector3.Transform(Globals.Up, LocalMatrix);
+        public Vector3 LocalUp => Vector3.TransformNormal(Globals.Up, LocalMatrix);
         /// <summary>
         /// This transform's local right vector.
         /// </summary>
-        public Vector3 LocalRight => Vector3.Transform(Globals.Right, LocalMatrix);
+        public Vector3 LocalRight => Vector3.TransformNormal(Globals.Right, LocalMatrix);
         /// <summary>
         /// This transform's local forward vector.
         /// </summary>
-        public Vector3 LocalForward => Vector3.Transform(Globals.Forward, LocalMatrix);
+        public Vector3 LocalForward => Vector3.TransformNormal(Globals.Forward, LocalMatrix);
 
         /// <summary>
         /// This transform's position in world space.
         /// </summary>
-        public Vector3 WorldTranslation => WorldMatrix.Translation;
+        public virtual Vector3 WorldTranslation => WorldMatrix.Translation;
         /// <summary>
         /// This transform's position in local space relative to the parent.
         /// </summary>
         public Vector3 LocalTranslation => LocalMatrix.Translation;
+        public virtual Quaternion LocalRotation => Quaternion.CreateFromRotationMatrix(LocalMatrix);
+        public virtual Quaternion WorldRotation => Quaternion.CreateFromRotationMatrix(WorldMatrix);
+        public Vector3 LossyWorldScale => ExtractScale(WorldMatrix);
+
+        private static Vector3 ExtractScale(Matrix4x4 matrix)
+        {
+            Vector3 scale;
+            scale.X = new Vector3(matrix.M11, matrix.M12, matrix.M13).Length();
+            scale.Y = new Vector3(matrix.M21, matrix.M22, matrix.M23).Length();
+            scale.Z = new Vector3(matrix.M31, matrix.M32, matrix.M33).Length();
+            return scale;
+        }
 
         #region Local Matrix
         private readonly MatrixInfo _localMatrix;
@@ -502,6 +540,7 @@ namespace XREngine.Scene.Transforms
             _localMatrix.NeedsRecalc = true;
             MarkWorldModified();
             World?.AddDirtyTransform(this, out _, false);
+            HasChanged = true;
         }
 
         /// <summary>
@@ -514,6 +553,7 @@ namespace XREngine.Scene.Transforms
             //    foreach (TransformBase child in _children)
             //        child.MarkWorldModified();
             World?.AddDirtyTransform(this, out _, false);
+            HasChanged = true;
         }
 
         ///// <summary>

@@ -232,11 +232,11 @@ namespace XREngine
                     XRMeshRenderer renderer = GetDebugPrimitive(EDebugPrimitiveType.Line, out _);
                     SetOptions(depthTestEnabled, lineWidth, null, renderer);
                     renderer.SetParameter(0, color);
-                    Vector3 dir = (end - start).Normalize();
+                    Vector3 dir = (end - start).Normalized();
                     Vector3 arb = Vector3.UnitX;
                     if (Vector3.Dot(dir, Vector3.UnitX) > 0.99f || Vector3.Dot(dir, Vector3.UnitX) < -0.99f)
                         arb = Vector3.UnitZ;
-                    Vector3 perp = Vector3.Cross(dir, arb).Normalize();
+                    Vector3 perp = Vector3.Cross(dir, arb).Normalized();
                     renderer.Render(Matrix4x4.CreateScale(Vector3.Distance(start, end)) * Matrix4x4.CreateWorld(start, dir, perp));
                 }
 
@@ -373,7 +373,7 @@ namespace XREngine
                     float lineWidth = DefaultLineSize)
                     => RenderCapsule(
                         (start + end) * 0.5f,
-                        (end - start).Normalize(),
+                        (end - start).Normalized(),
                         radius,
                         Vector3.Distance(start, end) * 0.5f,
                         solid,
@@ -406,7 +406,6 @@ namespace XREngine
 
                     if (mCyl is null || mTop is null || mBot is null)
                     {
-                        //TODO: solid capsule parts
                         XRMesh.Shapes.WireframeCapsuleParts(Vector3.Zero, Globals.Up, 1.0f, 1.0f, 30,
                             out XRMesh cylData, out XRMesh topData, out XRMesh botData);
                         mCyl ??= AssignDebugPrimitive(cylStr, new XRMeshRenderer(cylData, XRMaterial.CreateUnlitColorMaterialForward()));
@@ -416,7 +415,7 @@ namespace XREngine
                     Vector3 arb = Vector3.UnitX;
                     if (Vector3.Dot(localUpAxis, Vector3.UnitX) > 0.99f || Vector3.Dot(localUpAxis, Vector3.UnitX) < -0.99f)
                         arb = Vector3.UnitZ;
-                    Vector3 perp = Vector3.Cross(localUpAxis, arb).Normalize();
+                    Vector3 perp = Vector3.Cross(localUpAxis, arb).Normalized();
                     Matrix4x4 tfm = Matrix4x4.CreateWorld(center, perp, localUpAxis);
                     Matrix4x4 radiusMtx = Matrix4x4.CreateScale(radius);
                     Matrix4x4 cylTransform = Matrix4x4.CreateScale(radius, halfHeight, radius) * tfm;

@@ -60,8 +60,8 @@ namespace XREngine.Scene.Transforms
                 out Vector3 resultUp, out Vector3 resultForward)
             {
                 Vector3 posOnConstrainLine = GeoUtil.SegmentClosestColinearPointToPoint(transformPos, Target.WorldTranslation, cameraPos);
-                resultUp = (Target.WorldTranslation - transformPos).Normalize();
-                resultForward = (cameraPos - posOnConstrainLine).Normalize();
+                resultUp = (Target.WorldTranslation - transformPos).Normalized();
+                resultForward = (cameraPos - posOnConstrainLine).Normalized();
             }
         }
         public class DirectionConstrainer(BillboardTransform transform, Vector3 direction) : Constrainer(transform)
@@ -73,11 +73,11 @@ namespace XREngine.Scene.Transforms
                 Vector3 cameraPos, Vector3 cameraUp, Vector3 cameraRight,
                 out Vector3 resultUp, out Vector3 resultForward)
             {
-                Vector3 worldDir = Vector3.TransformNormal(Direction.Normalize(), Transform.ParentWorldMatrix);
+                Vector3 worldDir = Vector3.TransformNormal(Direction.Normalized(), Transform.ParentWorldMatrix);
                 Vector3 posOnConstrainLine = GeoUtil.RayClosestColinearPointToPoint(transformPos, worldDir, cameraPos);
 
-                resultUp = worldDir.Normalize();
-                resultForward = (cameraPos - posOnConstrainLine).Normalize();
+                resultUp = worldDir.Normalized();
+                resultForward = (cameraPos - posOnConstrainLine).Normalized();
             }
         }
         //public class PlaneConstrainer(BillboardTransform transform, Plane plane) : Constrainer(transform)
@@ -189,7 +189,7 @@ namespace XREngine.Scene.Transforms
                         out resultUp, out resultForward);
                 }
                 else
-                    resultUp = Vector3.Cross(cameraRight, resultForward = (cameraPos - pos).Normalize()).Normalize();
+                    resultUp = Vector3.Cross(cameraRight, resultForward = (cameraPos - pos).Normalized()).Normalized();
                 
                 transform = Matrix4x4.CreateWorld(pos, resultForward, resultUp);
             }

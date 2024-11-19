@@ -1,5 +1,4 @@
 ﻿using Extensions;
-using MathNet.Numerics.Random;
 using System.ComponentModel;
 using XREngine.Input.Devices;
 
@@ -75,7 +74,7 @@ namespace XREngine.Components
         public float ScrollSpeed { get; set; } = 0.7f;
 
         [Category("Movement")]
-        public float MouseRotateSpeed { get; set; } = 0.0075f;
+        public float MouseRotateSpeed { get; set; } = 0.75f;
 
         [Category("Movement")]
         public float MouseTranslateSpeed { get; set; } = 0.01f;

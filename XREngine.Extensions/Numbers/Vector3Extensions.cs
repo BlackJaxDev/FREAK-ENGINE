@@ -37,8 +37,17 @@ namespace Extensions
         public static Vector3 Min(this Vector3 value, Vector3 other) =>
             Vector3.Min(value, other);
 
-        public static Vector3 Normalize(this Vector3 value) =>
-            Vector3.Normalize(value);
+        public static Vector3 Normalized(this Vector3 value, bool safe = true, float safeLengthTolerance = 0.0001f)
+        {
+            if (!safe)
+                return Vector3.Normalize(value);
+           
+            var len = value.Length();
+            if (len < safeLengthTolerance)
+                return Vector3.Zero;
+            else
+                return value / len;
+        }
 
         public static Vector3 Reflect(this Vector3 value, Vector3 normal) =>
             Vector3.Reflect(value, normal);
@@ -89,6 +98,6 @@ namespace Extensions
             new(value.X, value.Z, value.Y);
 
         public static Vector3 ClampMagnitude(this Vector3 value, float maxLength) =>
-            value.LengthSquared() > maxLength * maxLength ? value.Normalize() * maxLength : value;
+            value.LengthSquared() > maxLength * maxLength ? value.Normalized() * maxLength : value;
     }
 }

@@ -2,17 +2,60 @@
 using Extensions;
 using System.Numerics;
 using XREngine.Scene.Transforms;
+using Matrix4x4 = System.Numerics.Matrix4x4;
 
 namespace XREngine.Data.Rendering
 {
     public class Vertex : VertexData, IEquatable<Vertex>
     {
+        private Dictionary<TransformBase, (float weight, Matrix4x4 bindInvWorldMatrix)>? _weights;
+
         public override FaceType Type => FaceType.Points;
 
         /// <summary>
         /// Contains weights for each bone that influences the position of this vertex.
         /// </summary>
-        public Dictionary<TransformBase, float>? Weights { get; set; }
+        public Dictionary<TransformBase, (float weight, Matrix4x4 bindInvWorldMatrix)>? Weights
+        {
+            get => _weights;
+            set => SetField(ref _weights, value);
+        }
+
+        public Vector3 GetWorldPosition()
+        {
+            if (Weights is null || Weights.Count == 0)
+                return Position;
+
+            Vector3 pos = Vector3.Zero;
+            foreach ((TransformBase bone, (float weight, Matrix4x4 bindInvWorldMatrix) pair) in Weights)
+                pos += Vector3.Transform(Position, pair.bindInvWorldMatrix * bone.WorldMatrix) * pair.weight;
+
+            return pos;
+        }
+
+        public Matrix4x4 GetBoneTransformMatrix()
+        {
+            if (Weights is null || Weights.Count == 0)
+                return Matrix4x4.Identity;
+
+            Matrix4x4 matrix = new();
+            foreach ((TransformBase bone, (float weight, Matrix4x4 bindInvWorldMatrix) pair) in Weights)
+                matrix += (pair.bindInvWorldMatrix * bone.WorldMatrix) * pair.weight;
+
+            return matrix;
+        }
+        public Matrix4x4 GetInverseBoneTransformMatrix()
+        {
+            if (Weights is null || Weights.Count == 0)
+                return Matrix4x4.Identity;
+
+            Matrix4x4 matrix = new();
+            foreach ((TransformBase bone, (float weight, Matrix4x4 bindInvWorldMatrix) pair) in Weights)
+                matrix += (bone.InverseWorldMatrix * pair.bindInvWorldMatrix.Inverted()) * pair.weight;
+
+            return matrix;
+        }
+
         /// <summary>
         /// Data this vertex can morph to, indexed by blendshape name.
         /// Data here is absolute, not deltas, for simplicity.
@@ -21,7 +64,7 @@ namespace XREngine.Data.Rendering
 
         public Vertex() { }
 
-        public Vertex(Dictionary<TransformBase, float>? weights)
+        public Vertex(Dictionary<TransformBase, (float weight, Matrix4x4 bindInvWorldMatrix)>? weights)
             => Weights = weights;
 
         public Vertex(Vector3 position)
@@ -33,22 +76,22 @@ namespace XREngine.Data.Rendering
             ColorSets.Add(color);
         }
 
-        public Vertex(Vector3 position, Dictionary<TransformBase, float>? weights)
+        public Vertex(Vector3 position, Dictionary<TransformBase, (float weight, Matrix4x4 bindInvWorldMatrix)>? weights)
             : this(position) => Weights = weights;
 
-        public Vertex(Vector3 position, Dictionary<TransformBase, float>? weights, Vector3 normal)
+        public Vertex(Vector3 position, Dictionary<TransformBase, (float weight, Matrix4x4 bindInvWorldMatrix)>? weights, Vector3 normal)
             : this(position, weights) => Normal = normal;
 
-        public Vertex(Vector3 position, Dictionary<TransformBase, float>? inf, Vector3 normal, Vector2 texCoord)
+        public Vertex(Vector3 position, Dictionary<TransformBase, (float weight, Matrix4x4 bindInvWorldMatrix)>? inf, Vector3 normal, Vector2 texCoord)
             : this(position, inf, normal) => TextureCoordinateSets.Add(texCoord);
 
-        public Vertex(Vector3 position, Dictionary<TransformBase, float>? inf, Vector3 normal, Vector2 texCoord, Vector4 color)
+        public Vertex(Vector3 position, Dictionary<TransformBase, (float weight, Matrix4x4 bindInvWorldMatrix)>? inf, Vector3 normal, Vector2 texCoord, Vector4 color)
             : this(position, inf, normal, texCoord) => ColorSets.Add(color);
 
-        public Vertex(Vector3 position, Dictionary<TransformBase, float>? inf, Vector3 normal, Vector3 tangent, Vector2 texCoord, Vector4 color)
+        public Vertex(Vector3 position, Dictionary<TransformBase, (float weight, Matrix4x4 bindInvWorldMatrix)>? inf, Vector3 normal, Vector3 tangent, Vector2 texCoord, Vector4 color)
             : this(position, inf, normal, texCoord, color) => Tangent = tangent;
 
-        public Vertex(Vector3 position, Dictionary<TransformBase, float>? inf, Vector2 texCoord)
+        public Vertex(Vector3 position, Dictionary<TransformBase, (float weight, Matrix4x4 bindInvWorldMatrix)>? inf, Vector2 texCoord)
             : this(position, inf) => TextureCoordinateSets.Add(texCoord);
 
         public Vertex(Vector3 position, Vector2 texCoord)
@@ -90,7 +133,7 @@ namespace XREngine.Data.Rendering
         public Vertex HardCopy()
             => new()
             {
-                Weights = Weights is null ? null : new Dictionary<TransformBase, float>(Weights),
+                Weights = Weights is null ? null : new Dictionary<TransformBase, (float weight, Matrix4x4 bindInvWorldMatrix)>(Weights),
                 Position = Position,
                 Normal = Normal,
                 Tangent = Tangent,

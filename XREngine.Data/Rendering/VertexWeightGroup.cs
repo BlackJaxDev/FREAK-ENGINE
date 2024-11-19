@@ -1,5 +1,6 @@
 ﻿using Extensions;
 using System.Diagnostics;
+using System.Numerics;
 using XREngine.Data.Core;
 
 namespace XREngine.Data.Rendering
@@ -137,20 +138,21 @@ namespace XREngine.Data.Rendering
             return true;
         }
 
-        public static bool Optimize<T>(IDictionary<T, float> weights, int maxWeightCount) where T : notnull
+        public static bool Optimize<T>(IDictionary<T, (float weight, Matrix4x4 invBindMatrix)> weights, int maxWeightCount) where T : notnull
         {
             var boneIndices = weights.Keys.ToList();
             for (int i = 0; i < boneIndices.Count; i++)
             {
                 T? boneIndex = boneIndices[i];
-                float weight = MathF.Round(weights[boneIndex], 3);
+                var pair = weights[boneIndex];
+                float weight = MathF.Round(pair.weight, 3);
                 if (weight < 0.001f)
                 {
                     weights.Remove(boneIndex);
                     boneIndices.RemoveAt(i);
                 }
                 else
-                    weights[boneIndex] = weight;
+                    weights[boneIndex] = (weight, pair.invBindMatrix);
             }
 
             if (maxWeightCount < weights.Count && maxWeightCount >= 0)
@@ -166,10 +168,10 @@ namespace XREngine.Data.Rendering
                     for (int j = 0; j < boneIndices.Count; ++j)
                     {
                         var boneIndex = boneIndices[j];
-
-                        if (weights[boneIndex] <= minWeight && !keysToRemove.Contains(j))
+                        var (weight, _) = weights[boneIndex];
+                        if (weight <= minWeight && !keysToRemove.Contains(j))
                         {
-                            minWeight = weights[boneIndex];
+                            minWeight = weight;
                             minIndex = j;
                         }
                     }
@@ -185,21 +187,24 @@ namespace XREngine.Data.Rendering
             return true;
         }
 
-        public static void Normalize<T>(IDictionary<T, float> weights, int weightDecimalPlaces = 6) where T : notnull
+        public static void Normalize<T>(IDictionary<T, (float weight, Matrix4x4 invBindMatrix)> weights, int weightDecimalPlaces = 6) where T : notnull
         {
             if (weights.Count == 0)
                 return;
 
             float denom = 0.0f, num = 1.0f;
             foreach (T boneIndex in weights.Keys)
-                denom += weights[boneIndex];
+                denom += weights[boneIndex].weight;
             
             //Don't do anything if all weights are locked
             if (denom <= 0.0f || num <= 0.0f)
                 return;
 
             foreach (T boneIndex in weights.Keys)
-                weights[boneIndex] = MathF.Round(weights[boneIndex] / denom * num, weightDecimalPlaces);
+            {
+                var (weight, invBindMatrix) = weights[boneIndex];
+                weights[boneIndex] = (MathF.Round(weight / denom * num, weightDecimalPlaces), invBindMatrix);
+            }
             
             //if (weights.Any(w => float.IsNaN(w.Value) || float.IsInfinity(w.Value)))
             //    throw new InvalidOperationException("Vertex weight normalization resulted in NaN or Infinity.");

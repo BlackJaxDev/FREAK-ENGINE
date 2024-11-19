@@ -365,8 +365,12 @@ namespace XREngine.Rendering
             => viewportPoint * (_region.Size / InternalResolutionRegion.Size);
         public Vector2 NormalizeViewportCoordinate(Vector2 viewportPoint)
             => viewportPoint / _region.Size;
+        public Vector2 DenormalizeViewportCoordinate(Vector2 normalizedViewportPoint)
+            => normalizedViewportPoint * _region.Size;
         public Vector2 NormalizeInternalCoordinate(Vector2 viewportPoint)
             => viewportPoint / _internalResolutionRegion.Size;
+        public Vector2 DenormalizeInternalCoordinate(Vector2 normalizedViewportPoint)
+            => normalizedViewportPoint * _internalResolutionRegion.Size;
         public Vector3 NormalizedViewportToWorldCoordinate(Vector2 normalizedViewportPoint, float depth)
         {
             if (_camera is null)
@@ -381,7 +385,7 @@ namespace XREngine.Rendering
             if (_camera is null)
                 throw new InvalidOperationException("No camera is set to this viewport.");
 
-            return _camera.WorldToNormalizedViewport(worldPoint);
+            return _camera.WorldToNormalizedViewportCoordinate(worldPoint);
         }
 
         #endregion

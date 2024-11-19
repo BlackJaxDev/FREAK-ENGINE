@@ -171,8 +171,7 @@ namespace XREngine.Data.Core
             Vector3 cameraPoint,
             Vector3 cameraRightDir)
             => ArcballTranslation(
-                Quaternion.CreateFromAxisAngle(Globals.Up, yaw) *
-                Quaternion.CreateFromAxisAngle(cameraRightDir, pitch),
+                Quaternion.CreateFromAxisAngle(cameraRightDir, DegToRad(pitch)) * Quaternion.CreateFromAxisAngle(Globals.Up, DegToRad(yaw)),
                 focusPoint,
                 cameraPoint);
 
@@ -663,7 +662,7 @@ namespace XREngine.Data.Core
         /// </summary>
         public static Vector3 ReflectionVector(Vector3 normal, Vector3 vector)
         {
-            normal = normal.Normalize();
+            normal = normal.Normalized();
             return vector - 2.0f * Vector3.Dot(vector, normal) * normal;
         }
 
@@ -672,7 +671,7 @@ namespace XREngine.Data.Core
         /// </summary>
         public static Vector3 ParallelComponent(Vector3 value, Vector3 normal)
         {
-            normal = normal.Normalize();
+            normal = normal.Normalized();
             return normal * Vector3.Dot(value, normal);
         }
 

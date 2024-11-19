@@ -287,10 +287,10 @@ namespace XREngine.Scene.Components.Animation
             //}
 
             public Vector3 LocalDirToChild
-                => (ChildPositionLocal - LocalPosition).Normalize();
+                => (ChildPositionLocal - LocalPosition).Normalized();
 
             public Vector3 WorldDirToChild
-                => (ChildPositionWorld - WorldPosition).Normalize();
+                => (ChildPositionWorld - WorldPosition).Normalized();
 
             public Vector3 ChildPositionLocal
                 => Vector3.Transform(ChildNext?.WorldPosition ?? Vector3.Zero, Transform?.InverseWorldMatrix ?? Matrix4x4.Identity);
@@ -412,7 +412,7 @@ namespace XREngine.Scene.Components.Animation
         private static Vector3 DirFromTo(Vector3 from, Vector3 to)
         {
             Vector3 dir = to - from;
-            return dir.Normalize();
+            return dir.Normalized();
         }
 
         private static float Init(BoneChainItem[] chain)
@@ -428,7 +428,7 @@ namespace XREngine.Scene.Components.Animation
             }
 
             foreach (var bone in chain)
-                bone.WorldAxis = (bone.ChildPositionWorld - bone.WorldPosition).Normalize();
+                bone.WorldAxis = (bone.ChildPositionWorld - bone.WorldPosition).Normalized();
 
             // Calculate total length
             float totalLength = 0;
@@ -437,7 +437,7 @@ namespace XREngine.Scene.Components.Animation
             {
                 var parent = chain[i];
                 var child = chain[i + 1];
-                parent.WorldAxis = (child.WorldPosition - parent.WorldPosition).Normalize();
+                parent.WorldAxis = (child.WorldPosition - parent.WorldPosition).Normalized();
                 totalLength += parent.Length = parent.WorldPosition.Distance(child?.WorldPosition ?? Vector3.Zero);
             }
             return totalLength;
@@ -487,7 +487,7 @@ namespace XREngine.Scene.Components.Animation
                     for (int i = 0; i < numBones - 1; i++)
                     {
                         float length = chain[i].Length;
-                        Vector3 dir = (chain[i + 1].WorldPosition - chain[i].WorldPosition).Normalize();
+                        Vector3 dir = (chain[i + 1].WorldPosition - chain[i].WorldPosition).Normalized();
                         chain[i + 1].WorldPosition = chain[i].WorldPosition + dir * length;
                     }
 
@@ -496,7 +496,7 @@ namespace XREngine.Scene.Components.Animation
                     for (int i = numBones - 2; i >= 0; i--)
                     {
                         float length = chain[i].Length;
-                        Vector3 dir = (chain[i].WorldPosition - chain[i + 1].WorldPosition).Normalize();
+                        Vector3 dir = (chain[i].WorldPosition - chain[i + 1].WorldPosition).Normalized();
                         chain[i].WorldPosition = chain[i + 1].WorldPosition + dir * length;
                     }
 

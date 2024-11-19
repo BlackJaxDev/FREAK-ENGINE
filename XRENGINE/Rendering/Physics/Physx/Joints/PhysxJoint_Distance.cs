@@ -3,7 +3,7 @@
 namespace XREngine.Rendering.Physics.Physx.Joints
 {
 
-    public unsafe class PhysxJoint_Distance(PxDistanceJoint* joint) : PhysxJointBase
+    public unsafe class PhysxJoint_Distance(PxDistanceJoint* joint) : PhysxJoint
     {
         public PxDistanceJoint* _joint = joint;
         public override unsafe PxJoint* JointBase => (PxJoint*)_joint;
@@ -46,7 +46,7 @@ namespace XREngine.Rendering.Physics.Physx.Joints
             set => _joint->SetContactDistanceMut(value);
         }
 
-        public PxDistanceJointFlags Flags
+        public PxDistanceJointFlags DistanceFlags
         {
             get => _joint->GetDistanceJointFlags();
             set => _joint->SetDistanceJointFlagsMut(value);

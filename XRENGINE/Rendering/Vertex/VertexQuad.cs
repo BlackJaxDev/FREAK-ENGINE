@@ -235,10 +235,10 @@ namespace XREngine.Data.Rendering
         }
 
         public static VertexQuad Make(
-            Vector3 bottomLeft,     Dictionary<TransformBase, float>? bottomLeftInf,
-            Vector3 bottomRight,    Dictionary<TransformBase, float>? bottomRightInf,
-            Vector3 topRight,       Dictionary<TransformBase, float>? topRightInf,
-            Vector3 topLeft,        Dictionary<TransformBase, float>? topLeftInf,
+            Vector3 bottomLeft,     Dictionary<TransformBase, (float, Matrix4x4 invBindMatrix)>? bottomLeftInf,
+            Vector3 bottomRight,    Dictionary<TransformBase, (float, Matrix4x4 invBindMatrix)>? bottomRightInf,
+            Vector3 topRight,       Dictionary<TransformBase, (float, Matrix4x4 invBindMatrix)>? topRightInf,
+            Vector3 topLeft,        Dictionary<TransformBase, (float, Matrix4x4 invBindMatrix)>? topLeftInf,
             Vector3 normal, bool flipVerticalUVCoord = false)
         {
             return new VertexQuad(
@@ -249,10 +249,10 @@ namespace XREngine.Data.Rendering
         }
 
         public static VertexQuad Make(
-           Vector3 bottomLeft,  Dictionary<TransformBase, float>? bottomLeftInf,    Vector3 bottomLeftNormal,
-           Vector3 bottomRight, Dictionary<TransformBase, float>? bottomRightInf,   Vector3 bottomRightNormal,
-           Vector3 topRight,    Dictionary<TransformBase, float>? topRightInf,      Vector3 topRightNormal,
-           Vector3 topLeft,     Dictionary<TransformBase, float>? topLeftInf,       Vector3 topLeftNormal, bool flipVerticalUVCoord = false)
+           Vector3 bottomLeft,  Dictionary<TransformBase, (float, Matrix4x4 invBindMatrix)>? bottomLeftInf,    Vector3 bottomLeftNormal,
+           Vector3 bottomRight, Dictionary<TransformBase, (float, Matrix4x4 invBindMatrix)>? bottomRightInf,   Vector3 bottomRightNormal,
+           Vector3 topRight,    Dictionary<TransformBase, (float, Matrix4x4 invBindMatrix)>? topRightInf,      Vector3 topRightNormal,
+           Vector3 topLeft,     Dictionary<TransformBase, (float, Matrix4x4 invBindMatrix)>? topLeftInf,       Vector3 topLeftNormal, bool flipVerticalUVCoord = false)
         {
             return new VertexQuad(
                 new Vertex(bottomLeft,  bottomLeftInf,  bottomLeftNormal,   new Vector2(0.0f, flipVerticalUVCoord ? 1.0f : 0.0f)),
@@ -262,10 +262,10 @@ namespace XREngine.Data.Rendering
         }
 
         public static VertexQuad Make(
-           Vector3 bottomLeft,  Dictionary<TransformBase, float>? bottomLeftInf,
-           Vector3 bottomRight, Dictionary<TransformBase, float>? bottomRightInf,
-           Vector3 topRight,    Dictionary<TransformBase, float>? topRightInf,
-           Vector3 topLeft,     Dictionary<TransformBase, float>? topLeftInf,
+           Vector3 bottomLeft,  Dictionary<TransformBase, (float, Matrix4x4 invBindMatrix)>? bottomLeftInf,
+           Vector3 bottomRight, Dictionary<TransformBase, (float, Matrix4x4 invBindMatrix)>? bottomRightInf,
+           Vector3 topRight,    Dictionary<TransformBase, (float, Matrix4x4 invBindMatrix)>? topRightInf,
+           Vector3 topLeft,     Dictionary<TransformBase, (float, Matrix4x4 invBindMatrix)>? topLeftInf,
            bool addAutoNormal = false, bool flipVerticalUVCoord = false)
         {
             if (addAutoNormal)

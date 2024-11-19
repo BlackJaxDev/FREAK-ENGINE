@@ -134,7 +134,7 @@ namespace XREngine.Animation
                         Vector3 inTan = Vector3.Normalize(InTangent);
                         Vector3 outTan = Vector3.Normalize(OutTangent);
                         Vector3 avg = (-inTan + outTan) * 0.5f;
-                        avg.Normalize();
+                        avg.Normalized();
                         InTangent = -avg * inLength;
                         OutTangent = avg * outLength;
                     }
@@ -142,14 +142,14 @@ namespace XREngine.Animation
                 case EUnifyBias.In:
                     {
                         float outLength = OutTangent.Length();
-                        Vector3 inTan = InTangent.Normalize();
+                        Vector3 inTan = InTangent.Normalized();
                         OutTangent = -inTan * outLength;
                     }
                     break;
                 case EUnifyBias.Out:
                     {
                         float inLength = InTangent.Length();
-                        Vector3 outTan = OutTangent.Normalize();
+                        Vector3 outTan = OutTangent.Normalized();
                         InTangent = -outTan * inLength;
                     }
                     break;
@@ -165,8 +165,8 @@ namespace XREngine.Animation
                         float inLength = InTangent.Length();
                         float outLength = OutTangent.Length();
                         float avgLength = (inLength + outLength) * 0.5f;
-                        Vector3 inTan = InTangent.Normalize();
-                        Vector3 outTan = OutTangent.Normalize();
+                        Vector3 inTan = InTangent.Normalized();
+                        Vector3 outTan = OutTangent.Normalized();
                         InTangent = inTan * avgLength;
                         OutTangent = outTan * avgLength;
                     }
@@ -174,14 +174,14 @@ namespace XREngine.Animation
                 case EUnifyBias.In:
                     {
                         float inLength = InTangent.Length();
-                        Vector3 outTan = OutTangent.Normalize();
+                        Vector3 outTan = OutTangent.Normalized();
                         OutTangent = -outTan * inLength;
                         break;
                     }
                 case EUnifyBias.Out:
                     {
                         float outLength = OutTangent.Length();
-                        Vector3 inTan = InTangent.Normalize();
+                        Vector3 inTan = InTangent.Normalized();
                         InTangent = -inTan * outLength;
                         break;
                     }
