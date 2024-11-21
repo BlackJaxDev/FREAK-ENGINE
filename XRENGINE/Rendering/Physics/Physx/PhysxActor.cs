@@ -72,7 +72,7 @@ namespace XREngine.Rendering.Physics.Physx
 
         public PxActorType ActorType => NativeMethods.PxActor_getType(ActorPtr);
 
-        public void Release()
+        public virtual void Release()
             => ActorPtr->ReleaseMut();
     }
 }

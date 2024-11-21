@@ -60,7 +60,7 @@ namespace XREngine
             public static AbstractPhysicsScene NewPhysicsScene()
                 => new PhysxScene();
 
-            public static VisualScene NewVisualScene()
+            public static VisualScene3D NewVisualScene()
                 => new VisualScene3D();
 
             public static RenderPipeline NewRenderPipeline()

@@ -1,217 +1,101 @@
-﻿using System.Collections;
-using System.Numerics;
-using XREngine.Input.Devices;
-using XREngine.Rendering.Commands;
-using XREngine.Rendering.Info;
+﻿using System.Numerics;
+using XREngine.Data.Geometry;
+using XREngine.Scene;
 using XREngine.Scene.Transforms;
 
 namespace XREngine.Rendering.UI
 {
     public class UICanvasTransform : UIBoundableTransform
     {
-        public UICanvasTransform()
+        protected override Matrix4x4 CreateLocalMatrix()
         {
-            ScreenSpaceCamera = new XRCamera(new Transform());
-            var param = new XROrthographicCameraParameters(1.0f, 1.0f, -0.5f, 0.5f);
-            param.SetOriginBottomLeft();
-            ScreenSpaceCamera.Parameters = param;
-            ScreenSpaceUIScene = new XRWorldInstance();
-
-            RenderInfo3D.IsVisible = false;
-            RenderInfo2D.IsVisible = false;
+            return base.CreateLocalMatrix();
         }
 
-        private UIInteractableComponent? _focusedComponent;
+        public UICanvasTransform()
+        {
+            Camera2D = new XRCamera(new Transform());
+            var param = new XROrthographicCameraParameters(1.0f, 1.0f, -0.5f, 0.5f);
+            param.SetOriginBottomLeft();
+            Camera2D.Parameters = param;
+            Scene2D = new VisualScene2D();
+        }
 
         private ECanvasDrawSpace _drawSpace = ECanvasDrawSpace.Screen;
+        /// <summary>
+        /// This is the space in which the canvas is drawn.
+        /// Screen means the canvas is drawn on top of the viewport, and it will always be visible.
+        /// Camera means the canvas is drawn in front of the camera, and will only be visible as long as nothing is clipping into it.
+        /// World means the canvas is drawn in the world like any other actor, and the camera is irrelevant.
+        /// </summary>
         public ECanvasDrawSpace DrawSpace
         {
             get => _drawSpace;
             set => SetField(ref _drawSpace, value);
         }
 
-        private float _cameraDrawSpaceDistance = 0.1f;
+        private float _cameraDrawSpaceDistance = 1.0f;
+        /// <summary>
+        /// When DrawSpace is set to Camera, this is the distance from the camera.
+        /// Make sure the distance lies between NearZ and FarZ of the camera, or else the UI will seem to not render.
+        /// </summary>
         public float CameraDrawSpaceDistance
         {
             get => _cameraDrawSpaceDistance;
             set => SetField(ref _cameraDrawSpaceDistance, value);
         }
 
-        public XRCamera ScreenSpaceCamera { get; } = new XRCamera();
-        public XRWorldInstance ScreenSpaceUIScene { get; }
-        public RenderCommandCollection ScreenSpaceRenderPasses { get; set; } = new RenderCommandCollection();
-        
-        public Vector2 LastCursorPositionWorld { get; private set; }
-        public Vector2 CursorPositionWorld { get; private set; }
-
-        public bool PreRenderEnabled { get; }
-
-        //protected override void OnResizeLayout(BoundingRectangleF parentRegion)
-        //{
-        //    ScreenSpaceUIScene?.Resize(parentRegion.Extents);
-        //    ScreenSpaceCamera?.Resize(parentRegion.Width, parentRegion.Height);
-
-        //    base.OnResizeLayout(parentRegion);
-        //}
-
-        //public void RenderScreenSpace(XRViewport viewport, QuadFrameBuffer fbo)
-        //    => ScreenSpaceUIScene?.Render(ScreenSpaceRenderPasses, ScreenSpaceCamera, viewport, fbo);
-        //public void UpdateScreenSpace()
-        //    => ScreenSpaceUIScene?.PreRenderUpdate(ScreenSpaceRenderPasses, null, ScreenSpaceCamera);
-        //public void SwapBuffersScreenSpace()
-        //{
-        //    ScreenSpaceUIScene?.GlobalSwap();
-        //    ScreenSpaceRenderPasses?.SwapBuffers();
-        //}
-
-        protected internal override void RegisterInputs(InputInterface input)
-        {
-            input.RegisterMouseMove(MouseMove, EMouseMoveType.Absolute);
-            input.RegisterMouseButtonEvent(EMouseButton.LeftClick, EButtonInputType.Pressed, OnClick);
-
-            //input.RegisterAxisUpdate(GamePadAxis.LeftThumbstickX, OnLeftStickX, false, EInputPauseType.TickOnlyWhenPaused);
-            //input.RegisterAxisUpdate(GamePadAxis.LeftThumbstickY, OnLeftStickY, false, EInputPauseType.TickOnlyWhenPaused);
-            //input.RegisterButtonEvent(GamePadButton.DPadUp, ButtonInputType.Pressed, OnDPadUp, EInputPauseType.TickOnlyWhenPaused);
-            //input.RegisterButtonEvent(GamePadButton.FaceDown, ButtonInputType.Pressed, OnGamepadSelect, InputPauseType.TickOnlyWhenPaused);
-            //input.RegisterButtonEvent(GamePadButton.FaceRight, ButtonInputType.Pressed, OnBackInput, EInputPauseType.TickOnlyWhenPaused);
-
-            base.RegisterInputs(input);
-        }
-
-        protected virtual void OnLeftStickX(float value) { }
-        protected virtual void OnLeftStickY(float value) { }
-
         /// <summary>
-        /// Called on either left click or A button.
-        /// Default behavior will OnClick the currently focused/highlighted UI component, if anything.
+        /// This is the camera used to render the 2D canvas.
         /// </summary>
-        //protected virtual void OnSelectInput()
+        public XRCamera Camera2D { get; } = new XRCamera();
+        /// <summary>
+        /// This is the scene that contains all the 2D renderables.
+        /// </summary>
+        public VisualScene2D Scene2D { get; }
+
+        protected void OnResizeLayout(BoundingRectangleF parentRegion)
+        {
+            Scene2D?.RenderTree.Remake(parentRegion);
+            if (Camera2D.Parameters is not XROrthographicCameraParameters orthoParams)
+                Camera2D.Parameters = orthoParams = new XROrthographicCameraParameters(parentRegion.Width, parentRegion.Height, -0.5f, 0.5f);
+            orthoParams.SetOriginBottomLeft();
+            orthoParams.Resize(parentRegion.Width, parentRegion.Height);
+        }
+
+        protected virtual void ResizeLayout()
+        {
+            OnResizeLayout(new BoundingRectangleF(Translation, Size));
+        }
+
+        public bool IsLayoutInvalidated { get; private set; }
+        public override void InvalidateLayout()
+        {
+            base.InvalidateLayout();
+            IsLayoutInvalidated = true;
+            //World?.AddDirtyTransform(this, out _, false);
+        }
+        //protected internal override bool ParallelDepthRecalculate()
         //{
-        //_focusedComponent?.OnSelect();
+        //    return base.ParallelDepthRecalculate();
         //}
-        protected virtual void OnScrolledInput(bool up)
+
+        public event Action<UICanvasTransform>? ResizeStarted;
+        public event Action<UICanvasTransform>? ResizeFinished;
+        public bool IsResizing { get; private set; }
+
+        public virtual void UpdateLayout()
         {
-            //_focusedComponent?.OnScrolled(up);
-        }
-        protected virtual void OnBackInput()
-        {
-            //_focusedComponent?.OnBack();
-        }
-        protected virtual void OnDPadUp()
-        {
-
-        }
-
-        private class Comparer : IComparer<RenderInfo2D>, IComparer
-        {
-            public int Compare(RenderInfo2D? x, RenderInfo2D? y)
-            {
-                if (x is not RenderInfo2D left || 
-                    y is not RenderInfo2D right)
-                    return 0;
-
-                if (left.LayerIndex > right.LayerIndex)
-                    return -1;
-
-                if (right.LayerIndex > left.LayerIndex)
-                    return 1;
-
-                if (left.IndexWithinLayer > right.IndexWithinLayer)
-                    return -1;
-
-                if (right.IndexWithinLayer > left.IndexWithinLayer)
-                    return 1;
-
-                return 0;
-            }
-            public int Compare(object x, object y)
-                => Compare((IRenderable)x, (IRenderable)y);
-        }
-        public UIInteractableComponent? FocusedComponent
-        {
-            get => _focusedComponent;
-            set
-            {
-                if (_focusedComponent != null)
-                    _focusedComponent.IsFocused = false;
-                _focusedComponent = value;
-                if (_focusedComponent != null)
-                    _focusedComponent.IsFocused = true;
-            }
-        }
-
-        public UIInteractableComponent? DeepestInteractable { get; private set; }
-
-        private SortedSet<RenderInfo2D> LastInteractableIntersections = new(new Comparer());
-        private SortedSet<RenderInfo2D> InteractableIntersections = new(new Comparer());
-
-        protected bool InteractablePredicate(IRenderable item) => item is UIInteractableComponent;
-        protected virtual void MouseMove(float x, float y)
-        {
-            //Vector2 newPos = GetCursorPositionWorld();
-            //if (CursorPositionWorld.DistanceSquared(newPos) < 0.001f)
-            //    return;
-
-            //LastCursorPositionWorld = CursorPositionWorld;
-            //CursorPositionWorld = newPos;
-
-            //var tree = ScreenSpaceUIScene?.VisualScene;
-            //if (tree is null)
-            //    return;
-            
-            ////tree.FindAllIntersectingSorted(CursorPositionWorld, InteractableIntersections, InteractablePredicate);
-            ////DeepestInteractable = InteractableIntersections.Min as UIInteractableComponent;
-
-            ////LastInteractableIntersections.ForEach(ValidateIntersection);
-            ////InteractableIntersections.ForEach(ValidateIntersection);
-
-            //(LastInteractableIntersections, InteractableIntersections) = (InteractableIntersections, LastInteractableIntersections);
-        }
-        private void ValidateIntersection(IRenderable obj)
-        {
-            if (obj is not UIInteractableComponent inter)
+            if (!IsLayoutInvalidated)
                 return;
             
-            //if (LastInteractableIntersections.Contains(obj))
-            //{
-            //    //Mouse was over this renderable last update
-
-            //    //if (!InteractableIntersections.Contains(obj))
-            //    //{
-            //    //    //Lost mouse over
-            //    //    inter.IsMouseOver = false;
-            //    //    inter.IsMouseDirectlyOver = false;
-            //    //}
-            //    //else
-            //    //{
-            //    //    //Had mouse over and still does now
-            //    //    //inter.MouseMove(
-            //    //    //    inter.ScreenToLocal(LastCursorPositionWorld),
-            //    //    //    inter.ScreenToLocal(CursorPositionWorld));
-            //    //}
-            //}
-            //else
-            //{
-            //    //Mouse was not over this renderable last update
-
-            //    //if (InteractableIntersections.Contains(obj))
-            //    //{
-            //    //    Got mouse over
-            //    //    inter.IsMouseOver = true;
-            //    //    inter.IsMouseDirectlyOver = obj == DeepestInteractable;
-            //    //}
-            //}
+            IsResizing = true;
+            ResizeStarted?.Invoke(this);
+            ResizeLayout();
+            IsLayoutInvalidated = false;
+            IsResizing = false;
+            ResizeFinished?.Invoke(this);
         }
-        private void OnClick() => FocusedComponent = DeepestInteractable;
-        //private Vector2 GetCursorPositionWorld()
-        //{
-        //    LocalPlayerController controller = pawn is UserInterfaceInputComponent ui && ui.OwningPawn is PawnComponent uiOwner
-        //        ? uiOwner.LocalPlayerController ?? pawn.LocalPlayerController
-        //        : OwningUserInterface.LocalPlayerController;
-
-        //    XRViewport? v = controller?.Viewport;
-        //    return v?.ScreenToWorld(v.CursorPosition, 0.0f).XY() ?? Vector2.Zero;
-        //}
 
         protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
         {
@@ -222,21 +106,15 @@ namespace XREngine.Rendering.UI
                     switch (_drawSpace)
                     {
                         case ECanvasDrawSpace.Camera:
-                            RenderInfo3D.IsVisible = true;
-                            RenderInfo2D.IsVisible = true;
+                            
                             break;
                         case ECanvasDrawSpace.Screen:
-                            RenderInfo3D.IsVisible = false;
-                            RenderInfo2D.IsVisible = false;
+
                             break;
                         case ECanvasDrawSpace.World:
-                            RenderInfo3D.IsVisible = true;
-                            RenderInfo2D.IsVisible = true;
+
                             break;
                     }
-                    break;
-                case nameof(CameraDrawSpaceDistance):
-                    //ScreenSpaceCamera.Transform.LocalTranslation = new Vector3(0, 0, CameraDrawSpaceDistance);
                     break;
             }
         }

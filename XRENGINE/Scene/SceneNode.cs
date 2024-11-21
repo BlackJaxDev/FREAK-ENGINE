@@ -225,7 +225,7 @@ namespace XREngine.Scene
                 transform.Parent = _transform?.Parent;
             if (_transform is not null)
                 UnlinkTransform();
-            _transform = transform;
+            SetField(ref _transform, transform);
             if (_transform is not null)
                 LinkTransform();
         }

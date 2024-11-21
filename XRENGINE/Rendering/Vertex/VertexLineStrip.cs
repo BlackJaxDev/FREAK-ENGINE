@@ -4,6 +4,9 @@
     {
         public override FaceType Type => ClosedLoop ? FaceType.LineLoop : FaceType.LineStrip;
 
+        public VertexLineStrip(bool closedLoop, IEnumerable<Vertex> vertices)
+            : this(closedLoop, vertices.ToArray()) { }
+
         public bool ClosedLoop { get; set; } = closedLoop;
 
         public override VertexLine[] ToLines()

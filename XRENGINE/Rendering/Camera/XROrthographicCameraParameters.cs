@@ -41,6 +41,13 @@ namespace XREngine.Rendering
             set => SetField(ref _height, value);
         }
 
+        public void Resize(float width, float height)
+        {
+            _width = width;
+            _height = height;
+            Resized();
+        }
+
         public void SetOriginCentered()
             => SetOriginPercentages(0.5f, 0.5f);
         public void SetOriginBottomLeft()

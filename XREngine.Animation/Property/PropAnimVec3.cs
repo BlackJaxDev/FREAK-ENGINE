@@ -14,9 +14,9 @@ namespace XREngine.Animation
             : base(frameCount, FPS, looped, useKeyframes) { }
 
         protected override Vector3 LerpValues(Vector3 t1, Vector3 t2, float time) => Vector3.Lerp(t1, t2, time);
-        protected override float[] GetComponents(Vector3 value) => new float[] { value.X, value.Y, value.Z };
-        protected override Vector3 GetMaxValue() => new Vector3(float.MaxValue);
-        protected override Vector3 GetMinValue() => new Vector3(float.MinValue);
+        protected override float[] GetComponents(Vector3 value) => [value.X, value.Y, value.Z];
+        protected override Vector3 GetMaxValue() => new(float.MaxValue);
+        protected override Vector3 GetMinValue() => new(float.MinValue);
         protected override float GetVelocityMagnitude()
         {
             Vector3 b = CurrentVelocity;

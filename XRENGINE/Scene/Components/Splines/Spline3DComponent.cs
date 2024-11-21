@@ -1,362 +1,393 @@
-﻿//using System.Drawing;
-//using System.Numerics;
-//using XREngine.Animation;
-//using XREngine.Rendering;
-//using XREngine.Rendering.Models.Materials;
+﻿using Extensions;
+using System.Drawing;
+using System.Numerics;
+using XREngine.Animation;
+using XREngine.Data.Core;
+using XREngine.Data.Geometry;
+using XREngine.Data.Rendering;
+using XREngine.Rendering;
+using XREngine.Rendering.Info;
+using XREngine.Rendering.Models.Materials;
+using XREngine.Scene.Transforms;
 
-//namespace XREngine.Components.Scene
-//{
-//    public class Spline3DComponent : TransformComponent, I3DRenderable
-//    {
-//        public IRenderInfo3D RenderInfo { get; } = new RenderInfo3D(true, true) { CastsShadows = false, ReceivesShadows = false };
-        
-//        [TSerialize]
-//        public bool RenderBounds { get; set; } = true;
-//        [TSerialize]
-//        public bool RenderSpline { get; set; } = true;
-//        [TSerialize]
-//        public bool RenderTangents { get; set; } = false;
-//        [TSerialize]
-//        public bool RenderKeyframeTangentLines { get; set; } = true;
-//        [TSerialize]
-//        public bool RenderKeyframeTangentPoints { get; set; } = true;
-//        [TSerialize]
-//        public bool RenderKeyframePoints { get; set; } = true;
-//        [TSerialize]
-//        public bool RenderCurrentTimePoint { get; set; } = true;
-//        [TSerialize]
-//        public bool RenderExtrema { get; set; } = true;
-        
-//        private LocalFileRef<PropAnimVector3> _spline = new LocalFileRef<PropAnimVector3>();
-//        private XRMeshRenderer _splinePrimitive;
-//        private XRMeshRenderer _velocityTangentsPrimitive;
-//        private XRMeshRenderer _pointPrimitive;
-//        private XRMeshRenderer _tangentPrimitive;
-//        private XRMeshRenderer _keyframeLinesPrimitive;
-//        private XRMeshRenderer _timePointPrimitive;
-//        private XRMeshRenderer _extremaPrimitive;
+namespace XREngine.Components.Scene
+{
+    public class Spline3DComponent : XRComponent, IRenderable
+    {
+        public RenderInfo3D RenderInfo { get; }
 
-//        [TSerialize]
-//        public LocalFileRef<PropAnimVector3> SplineRef
-//        {
-//            get => _spline;
-//            set
-//            {
-//                if (_spline != null)
-//                {
-//                    _spline.Loaded -= _spline_Loaded;
-//                    _spline.Unloaded -= _spline_Unloaded;
-//                }
-//                _spline = value ?? new LocalFileRef<PropAnimVector3>();
-//                if (_spline != null)
-//                {
-//                    _spline.Loaded += _spline_Loaded;
-//                    _spline.Unloaded += _spline_Unloaded;
-//                }
-//            }
-//        }
+        private readonly RenderCommandMesh3D _rcKfLines = new(EDefaultRenderPass.OpaqueForward);
+        private readonly RenderCommandMesh3D _rcCurrentPoint = new(EDefaultRenderPass.OpaqueForward);
+        private readonly RenderCommandMesh3D _rcSpline = new(EDefaultRenderPass.OpaqueForward);
+        private readonly RenderCommandMesh3D _rcVelocityTangents = new(EDefaultRenderPass.OpaqueForward);
+        private readonly RenderCommandMesh3D _rcPoints = new(EDefaultRenderPass.OpaqueForward);
+        private readonly RenderCommandMesh3D _rcKeyframeTangents = new(EDefaultRenderPass.OpaqueForward);
+        private readonly RenderCommandMesh3D _rcExtrema = new(EDefaultRenderPass.OpaqueForward);
 
-//        public PropAnimVector3 Spline => SplineRef.File;
+        public bool RenderBounds
+        {
+            get => RenderInfo.LocalCullingVolume is not null;
+            set
+            {
+                if (value)
+                    RenderInfo.LocalCullingVolume = new AABB(Vector3.Zero, Vector3.Zero);
+                else
+                    RenderInfo.LocalCullingVolume = null;
+            }
+        }
+        public bool RenderSpline
+        {
+            get => _rcSpline.Enabled;
+            set => _rcSpline.Enabled = value;
+        }
+        public bool RenderTangents
+        {
+            get => _rcVelocityTangents.Enabled;
+            set => _rcVelocityTangents.Enabled = value;
+        }
+        public bool RenderKeyframeTangentLines
+        {
+            get => _rcKfLines.Enabled;
+            set => _rcKfLines.Enabled = value;
+        }
+        public bool RenderKeyframeTangentPoints
+        {
+            get => _rcKeyframeTangents.Enabled;
+            set => _rcKeyframeTangents.Enabled = value;
+        }
+        public bool RenderKeyframePoints
+        {
+            get => _rcPoints.Enabled;
+            set => _rcPoints.Enabled = value;
+        }
+        public bool RenderCurrentTimePoint
+        {
+            get => _rcCurrentPoint.Enabled;
+            set => _rcCurrentPoint.Enabled = value;
+        }
+        public bool RenderExtrema
+        {
+            get => _rcExtrema.Enabled;
+            set => _rcExtrema.Enabled = value;
+        }
 
-//        protected override async void OnSpawned()
-//        {
-//            base.OnSpawned();
-//            await SplineRef.GetInstanceAsync();
-//        }
+        private PropAnimVector3? _spline = null;
+        private XRMeshRenderer? _splinePrimitive;
+        private XRMeshRenderer? _velocityTangentsPrimitive;
+        private XRMeshRenderer? _pointPrimitive;
+        private XRMeshRenderer? _tangentPrimitive;
+        private XRMeshRenderer? _keyframeLinesPrimitive;
+        private XRMeshRenderer? _timePointPrimitive;
+        private XRMeshRenderer? _extremaPrimitive;
 
-//        private void _spline_Unloaded(PropAnimVector3 spline)
-//        {
-//            spline.Keyframes.Changed -= Keyframes_Changed;
-//            spline.ConstrainKeyframedFPSChanged -= _position_ConstrainKeyframedFPSChanged;
-//            spline.BakedFPSChanged -= _position_BakedFPSChanged1;
-//            spline.LengthChanged -= _position_LengthChanged;
-//            spline.CurrentPositionChanged -= _position_CurrentPositionChanged;
-//            //spline.AnimationStarted -= _spline_AnimationStarted;
-//            //spline.AnimationPaused -= _spline_AnimationEnded;
-//            //spline.AnimationEnded -= _spline_AnimationEnded;
-//        }
-//        private void _spline_Loaded(PropAnimVector3 spline)
-//        {
-//            spline.Keyframes.Changed += Keyframes_Changed;
-//            spline.ConstrainKeyframedFPSChanged += _position_ConstrainKeyframedFPSChanged;
-//            spline.BakedFPSChanged += _position_BakedFPSChanged1;
-//            spline.LengthChanged += _position_LengthChanged;
-//            spline.CurrentPositionChanged += _position_CurrentPositionChanged;
-//            //spline.AnimationStarted += _spline_AnimationStarted;
-//            //spline.AnimationPaused += _spline_AnimationEnded;
-//            //spline.AnimationEnded += _spline_AnimationEnded;
+        public PropAnimVector3? Spline
+        {
+            get => _spline;
+            set => SetField(ref _spline, value, Spline_Unloaded, Spline_Loaded);
+        }
+        public RenderInfo[] RenderedObjects { get; }
 
-//            RecalcLocalTransform();
-//            RegenerateSplinePrimitive();
-//        }
+        private void Spline_Unloaded(PropAnimVector3? spline)
+        {
+            if (spline is null)
+                return;
 
-//        private void _position_BakedFPSChanged1(BasePropAnimBakeable obj)
-//        {
-//            RegenerateSplinePrimitive();
-//        }
-//        private void _position_CurrentPositionChanged(PropAnimVector<Vector3, Vector3Keyframe> obj)
-//        {
-//            RecalcLocalTransform();
-//            //RegenerateSplinePrimitive();
-//        }
-//        private void _position_LengthChanged(BaseAnimation obj)
-//        {
-//            RegenerateSplinePrimitive();
-//        }
-//        private void _position_ConstrainKeyframedFPSChanged(PropAnimVector<Vector3, Vector3Keyframe> obj)
-//        {
-//            RegenerateSplinePrimitive();
-//        }
-//        private void Keyframes_Changed(BaseKeyframeTrack obj)
-//        {
-//            RegenerateSplinePrimitive();
-//        }
+            spline.Keyframes.Changed -= Keyframes_Changed;
+            spline.ConstrainKeyframedFPSChanged -= _position_ConstrainKeyframedFPSChanged;
+            spline.BakedFPSChanged -= _position_BakedFPSChanged1;
+            spline.LengthChanged -= _position_LengthChanged;
+            spline.CurrentPositionChanged -= _position_CurrentPositionChanged;
+            //spline.AnimationStarted -= _spline_AnimationStarted;
+            //spline.AnimationPaused -= _spline_AnimationEnded;
+            //spline.AnimationEnded -= _spline_AnimationEnded;
+        }
+        private void Spline_Loaded(PropAnimVector3? spline)
+        {
+            if (spline is null)
+                return;
 
-//        public Spline3DComponent() : this(null) { }
-//        public Spline3DComponent(PropAnimVector3 spline) : base() => SplineRef = spline;
-        
-//        EventVector3 _cullingVolumeTranslation = null;
-//        public void RegenerateSplinePrimitive()
-//        {
-//            var spline = Spline;
+            spline.Keyframes.Changed += Keyframes_Changed;
+            spline.ConstrainKeyframedFPSChanged += _position_ConstrainKeyframedFPSChanged;
+            spline.BakedFPSChanged += _position_BakedFPSChanged1;
+            spline.LengthChanged += _position_LengthChanged;
+            spline.CurrentPositionChanged += _position_CurrentPositionChanged;
+            //spline.AnimationStarted += _spline_AnimationStarted;
+            //spline.AnimationPaused += _spline_AnimationEnded;
+            //spline.AnimationEnded += _spline_AnimationEnded;
 
-//            _splinePrimitive?.Dispose();
-//            _splinePrimitive = null;
-//            _velocityTangentsPrimitive?.Dispose();
-//            _velocityTangentsPrimitive = null;
-//            _pointPrimitive?.Dispose();
-//            _pointPrimitive = null;
-//            _tangentPrimitive?.Dispose();
-//            _tangentPrimitive = null;
-//            _timePointPrimitive?.Dispose();
-//            _timePointPrimitive = null;
-//            _extremaPrimitive?.Dispose();
-//            _extremaPrimitive = null;
+            //RecalcLocalTransform();
+            RegenerateSplinePrimitive();
+        }
 
-//            if (spline is null || spline.LengthInSeconds <= 0.0f)
-//                return;
+        private void _position_BakedFPSChanged1(BasePropAnimBakeable obj)
+        {
+            RegenerateSplinePrimitive();
+        }
+        private void _position_CurrentPositionChanged(PropAnimVector<Vector3, Vector3Keyframe> obj)
+        {
+            //RecalcLocalTransform();
+            //RegenerateSplinePrimitive();
+        }
+        private void _position_LengthChanged(BaseAnimation obj)
+        {
+            RegenerateSplinePrimitive();
+        }
+        private void _position_ConstrainKeyframedFPSChanged(PropAnimVector<Vector3, Vector3Keyframe> obj)
+        {
+            RegenerateSplinePrimitive();
+        }
+        private void Keyframes_Changed(BaseKeyframeTrack obj)
+        {
+            RegenerateSplinePrimitive();
+        }
 
-//            //TODO: when the FPS is unconstrained, use adaptive vertex points based on velocity/acceleration
-//            float fps = spline.ConstrainKeyframedFPS || spline.IsBaked ?
-//                spline.BakedFramesPerSecond :
-//                (Engine.TargetFramesPerSecond == 0 ? 30.0f : Engine.TargetFramesPerSecond);
+        public Spline3DComponent() : this(null) { }
+        public Spline3DComponent(PropAnimVector3? spline) : base()
+        {
+            Spline = spline;
+            RenderInfo = RenderInfo3D.New(this, _rcCurrentPoint, _rcSpline, _rcVelocityTangents, _rcPoints, _rcKeyframeTangents, _rcKfLines, _rcExtrema);
+            RenderedObjects = [RenderInfo];
+        }
 
-//            int frameCount = (int)Math.Ceiling(spline.LengthInSeconds * fps) + 1;
-//            float invFps = 1.0f / fps;
-//            int kfCount = spline.Keyframes.Count << 1;
+        private Vector3? _cullingVolumeTranslation = null;
 
-//            TVertex[] splinePoints = new TVertex[frameCount];
-//            TVertexLine[] velocity = new TVertexLine[frameCount];
-//            Vector3[] keyframePositions = new Vector3[kfCount];
-//            TVertexLine[] keyframeLines = new TVertexLine[kfCount];
-//            Vector3[] tangentPositions = new Vector3[kfCount];
+        public void RegenerateSplinePrimitive()
+        {
+            var spline = Spline;
 
-//            int i;
-//            float sec;
-//            for (i = 0; i < splinePoints.Length; ++i)
-//            {
-//                sec = i * invFps;
-//                Vector3 val = spline.GetValue(sec);
-//                Vector3 vel = spline.GetVelocityKeyframed(sec);
-//                float velLength = vel.LengthFast;
-//                Vector3 velColor = Vector3.Lerp(Vector3.UnitZ, Vector3.UnitX, 1.0f / (1.0f + 0.1f * (velLength * velLength)));
-//                TVertex pos = new TVertex(val) { Color = velColor };
-//                splinePoints[i] = pos;
-//                velocity[i] = new TVertexLine(pos, new TVertex(pos.Position + vel.Normalized()));
-//            }
-//            i = 0;
-//            Vector3 p0, p1;
-//            foreach (Vector3Keyframe kf in spline)
-//            {
-//                keyframePositions[i] = p0 = kf.InValue;
-//                tangentPositions[i] = p1 = p0 + kf.InTangent;
-//                keyframeLines[i] = new TVertexLine(p0, p1);
-//                ++i;
+            _splinePrimitive?.Destroy();
+            _splinePrimitive = null;
+            _velocityTangentsPrimitive?.Destroy();
+            _velocityTangentsPrimitive = null;
+            _pointPrimitive?.Destroy();
+            _pointPrimitive = null;
+            _tangentPrimitive?.Destroy();
+            _tangentPrimitive = null;
+            _timePointPrimitive?.Destroy();
+            _timePointPrimitive = null;
+            _extremaPrimitive?.Destroy();
+            _extremaPrimitive = null;
 
-//                keyframePositions[i] = p0 = kf.OutValue;
-//                tangentPositions[i] = p1 = p0 + kf.OutTangent;
-//                keyframeLines[i] = new TVertexLine(p0, p1);
-//                ++i;
-//            }
-//            //Fill the rest in case of non-matching keyframe counts
-//            while (i < kfCount)
-//            {
-//                keyframePositions[i] = p0 = Vector3.Zero;
-//                tangentPositions[i] = p1 = Vector3.Zero;
-//                keyframeLines[i] = new TVertexLine(p0, p1);
-//                ++i;
-//            }
+            if (spline is null || spline.LengthInSeconds <= 0.0f)
+                return;
 
-//            VertexLineStrip strip = new VertexLineStrip(false, splinePoints);
+            float fps = spline.ConstrainKeyframedFPS || spline.IsBaked ?
+                spline.BakedFramesPerSecond :
+                Engine.Time.Timer.TargetRenderFrequency;
 
-//            spline.GetMinMax(false,
-//                out (float Time, float Value)[] min, 
-//                out (float Time, float Value)[] max);
+            int frameCount = (int)Math.Ceiling(spline.LengthInSeconds * fps) + 1;
+            int kfCount = spline.Keyframes.Count << 1;
 
-//            Vector3[] extrema = new Vector3[6];
-//            for (int x = 0, index = 0; x < 3; ++x)
-//            {
-//                var (TimeMin, ValueMin) = min[x];
-//                Vector3 minPos = spline.GetValue(TimeMin);
-//                minPos[x] = ValueMin;
-                
-//                var (TimeMax, ValueMax) = max[x];
-//                Vector3 maxPos = spline.GetValue(TimeMax);
-//                maxPos[x] = ValueMax;
-                
-//                extrema[index++] = minPos;
-//                extrema[index++] = maxPos;
-//            }
+            List<Vertex> splinePoints = [];
+            List<VertexLine> velocity = [];
 
-//            TMath.ComponentMinMax(out Vector3 minVal, out Vector3 maxVal, extrema);
-//            var box = BoundingBox.FromMinMax(minVal, maxVal);
-//            _cullingVolumeTranslation = box.Translation;
-//            RenderInfo.CullingVolume = box.GetVolume() == 0 ? null : box;
+            Vector3[] keyframePositions = new Vector3[kfCount];
+            VertexLine[] keyframeLines = new VertexLine[kfCount];
+            Vector3[] tangentPositions = new Vector3[kfCount];
 
-//            RenderingParameters p = new RenderingParameters
-//            {
-//                LineWidth = 1.0f,
-//                PointSize = 5.0f
-//            };
+            float velScale = 0.5f;
 
-//            TMesh splineData = TMesh.Create(XRMeshDescriptor.PosColor(), strip);
-//            XRMaterial mat = new XRMaterial("SplineColor", new XRShader(EShaderType.Fragment,
-//@"
-//#version 450
+            int i;
+            float sec;
+            if (frameCount == 1)
+            {
+                float density = 0.5f;
 
-//layout (location = 0) out Vector4 OutColor;
-//layout (location = 4) in Vector4 FragColor0;
+                sec = 0.0f;
+                while (sec <= spline.LengthInSeconds)
+                {
+                    AddPoint(spline, splinePoints, velocity, sec, velScale);
+                    Vector3 acc = spline.GetAccelerationKeyframed(sec);
+                    //adaptive step based on acceleration
+                    sec += 1.0f / (1.0f + density * acc.Length());
+                    //verify the last point is added
+                    if (sec > spline.LengthInSeconds)
+                        AddPoint(spline, splinePoints, velocity, spline.LengthInSeconds, velScale);
+                }
+            }
+            else
+            {
+                float invFps = 1.0f / fps;
+                for (i = 0; i < frameCount; ++i)
+                {
+                    sec = i * invFps;
+                    AddPoint(spline, splinePoints, velocity, sec, velScale);
+                }
+            }
 
-//void main()
-//{
-//    OutColor = FragColor0;
-//}
-//"))
-//            {
-//                RenderParams = p
-//            };
-//            _splinePrimitive = new MeshRenderer(splineData, mat);
+            i = 0;
+            Vector3 p0, p1;
+            foreach (Vector3Keyframe kf in spline)
+            {
+                keyframePositions[i] = p0 = kf.InValue;
+                tangentPositions[i] = p1 = p0 + kf.InTangent;
+                keyframeLines[i] = new VertexLine(p0, p1);
+                ++i;
 
-//            TMesh velocityData = TMesh.Create(XRMeshDescriptor.JustPositions(), velocity);
-//            mat = XRMaterial.CreateUnlitColorMaterialForward(Color.Blue);
-//            mat.RenderParams = p;
-//            _velocityTangentsPrimitive = new MeshRenderer(velocityData, mat);
+                keyframePositions[i] = p0 = kf.OutValue;
+                tangentPositions[i] = p1 = p0 + kf.OutTangent;
+                keyframeLines[i] = new VertexLine(p0, p1);
+                ++i;
+            }
 
-//            TMesh pointData = TMesh.Create(keyframePositions);
-//            mat = XRMaterial.CreateUnlitColorMaterialForward(Color.Green);
-//            mat.RenderParams = p;
-//            _pointPrimitive = new MeshRenderer(pointData, mat);
+            //Fill the rest in case of non-matching keyframe counts
+            while (i < kfCount)
+            {
+                keyframePositions[i] = p0 = Vector3.Zero;
+                tangentPositions[i] = p1 = Vector3.Zero;
+                keyframeLines[i] = new VertexLine(p0, p1);
+                ++i;
+            }
 
-//            TMesh extremaData = TMesh.Create(extrema);
-//            mat = XRMaterial.CreateUnlitColorMaterialForward(Color.Red);
-//            mat.RenderParams = p;
-//            _extremaPrimitive = new MeshRenderer(extremaData, mat);
+            VertexLineStrip strip = new(false, splinePoints);
 
-//            TMesh tangentData = TMesh.Create(tangentPositions);
-//            mat = XRMaterial.CreateUnlitColorMaterialForward(Color.Purple);
-//            mat.RenderParams = p;
-//            _tangentPrimitive = new MeshRenderer(tangentData, mat);
+            spline.GetMinMax(false,
+                out (float Time, float Value)[] min,
+                out (float Time, float Value)[] max);
 
-//            TMesh kfLineData = TMesh.Create(XRMeshDescriptor.JustPositions(), keyframeLines);
-//            mat = XRMaterial.CreateUnlitColorMaterialForward(Color.Orange);
-//            mat.RenderParams = p;
-//            _keyframeLinesPrimitive = new MeshRenderer(kfLineData, mat);
+            Vector3[] extrema = new Vector3[6];
+            for (int x = 0, index = 0; x < 3; ++x)
+            {
+                var (TimeMin, ValueMin) = min[x];
+                Vector3 minPos = spline.GetValue(TimeMin);
+                minPos[x] = ValueMin;
 
-//            TMesh timePointData = TMesh.Create(Vector3.Zero);
-//            mat = XRMaterial.CreateUnlitColorMaterialForward(Color.White);
-//            mat.RenderParams = p;
-//            _timePointPrimitive = new MeshRenderer(timePointData, mat);
+                var (TimeMax, ValueMax) = max[x];
+                Vector3 maxPos = spline.GetValue(TimeMax);
+                maxPos[x] = ValueMax;
 
-//            _rcVelocityTangents.Mesh = _velocityTangentsPrimitive;
-//            _rcPoints.Mesh = _pointPrimitive;
-//            _rcKeyframeTangents.Mesh = _tangentPrimitive;
-//            _rcSpline.Mesh = _splinePrimitive;
-//            _rcKfLines.Mesh = _keyframeLinesPrimitive;
-//            _rcCurrentPoint.Mesh = _timePointPrimitive;
-//            _rcExtrema.Mesh = _extremaPrimitive;
-//        }
-//        private Matrix4 _localTRS = Matrix4.Identity;
-//        protected override void OnRecalcLocalTransform(out Matrix4 localTransform, out Matrix4 inverseLocalTransform)
-//        {
-//            base.OnRecalcLocalTransform(out localTransform, out inverseLocalTransform);
+                extrema[index++] = minPos;
+                extrema[index++] = maxPos;
+            }
 
-//            Matrix4 splinePosMtx, invSplinePosMtx;
-//            if (_spline.IsLoaded)
-//            {
-//                var spline = Spline;
-//                var pos = spline.CurrentPosition;
-//                splinePosMtx = pos.AsTranslationMatrix();
-//                invSplinePosMtx = pos.AsInverseTranslationMatrix();
-//            }
-//            else
-//            {
-//                splinePosMtx = Matrix4.Identity;
-//                invSplinePosMtx = Matrix4.Identity;
-//            }
+            XRMath.ComponentMinMax(out Vector3 minVal, out Vector3 maxVal, extrema);
+            var box = new AABB(minVal, maxVal);
+            _cullingVolumeTranslation = box.Center;
+            RenderInfo.LocalCullingVolume = box.Volume == 0 ? null : box;
 
-//            _localTRS = localTransform;
+            RenderingParameters p = new()
+            {
+                LineWidth = 1.0f,
+                PointSize = 5.0f
+            };
 
-//            localTransform = _localTRS * splinePosMtx;
-//            inverseLocalTransform = invSplinePosMtx * inverseLocalTransform;
-//        }
-//        //protected override void DeriveMatrix()
-//        //{
-//        //    _localTRS.DeriveTRS(out Vector3 t, out Vector3 s, out Quat r);
-//        //    _translation.SetValueSilent(t);
-//        //    _scale.SetValueSilent(s);
-//        //    _rotation.SetRotationsNoUpdate(r.ToRotator());
-//        //}
-//        protected override void OnWorldTransformChanged(bool recalcChildWorldTransformsNow = true)
-//        {
-//            Matrix4 mtx = ParentWorldMatrix * _localTRS;
-//            _rcKfLines.WorldMatrix = mtx;
-//            _rcSpline.WorldMatrix = mtx;
-//            _rcVelocityTangents.WorldMatrix = mtx;
-//            _rcPoints.WorldMatrix = mtx;
-//            _rcKeyframeTangents.WorldMatrix = mtx;
-//            _rcExtrema.WorldMatrix = mtx;
-//            _rcCurrentPoint.WorldMatrix = WorldMatrix;
+            XRMesh splineData = XRMesh.Create(strip);
+            XRMaterial mat = new(new XRShader(EShaderType.Fragment,
+@"
+#version 460
 
-//            RenderInfo.CullingVolume?.SetTransformMatrix(mtx * _cullingVolumeTranslation.AsTranslationMatrix());
+layout (location = 0) out vec4 OutColor;
+layout (location = 12) in vec4 FragColor0;
 
-//            base.OnWorldTransformChanged(recalcChildWorldTransformsNow);
-//        }
-        
-//        private readonly RenderCommandMesh3D _rcKfLines = new RenderCommandMesh3D(ERenderPass.OpaqueForward);
-//        private readonly RenderCommandMesh3D _rcCurrentPoint = new RenderCommandMesh3D(ERenderPass.OpaqueForward);
-//        private readonly RenderCommandMesh3D _rcSpline = new RenderCommandMesh3D(ERenderPass.OpaqueForward);
-//        private readonly RenderCommandMesh3D _rcVelocityTangents = new RenderCommandMesh3D(ERenderPass.OpaqueForward);
-//        private readonly RenderCommandMesh3D _rcPoints = new RenderCommandMesh3D(ERenderPass.OpaqueForward);
-//        private readonly RenderCommandMesh3D _rcKeyframeTangents = new RenderCommandMesh3D(ERenderPass.OpaqueForward);
-//        private readonly RenderCommandMesh3D _rcExtrema = new RenderCommandMesh3D(ERenderPass.OpaqueForward);
-//        public void AddRenderables(RenderPasses passes, ICamera camera)
-//        {
-//            if (_spline is null)
-//                return;
+void main()
+{
+    OutColor = FragColor0;
+}
+"))
+            {
+                RenderOptions = p
+            };
+            _splinePrimitive = new XRMeshRenderer(splineData, mat);
 
-//            if (RenderSpline)
-//                passes.Add(_rcSpline);
+            XRMesh velocityData = XRMesh.Create(velocity);
+            mat = XRMaterial.CreateUnlitColorMaterialForward(Color.Blue);
+            mat.RenderOptions = p;
+            _velocityTangentsPrimitive = new XRMeshRenderer(velocityData, mat);
 
-//            if (RenderTangents)
-//                passes.Add(_rcVelocityTangents);
+            XRMesh pointData = XRMesh.CreatePoints(keyframePositions);
+            mat = XRMaterial.CreateUnlitColorMaterialForward(Color.Green);
+            mat.RenderOptions = p;
+            _pointPrimitive = new XRMeshRenderer(pointData, mat);
 
-//            if (RenderKeyframePoints)
-//                passes.Add(_rcPoints);
+            XRMesh extremaData = XRMesh.CreatePoints(extrema);
+            mat = XRMaterial.CreateUnlitColorMaterialForward(Color.Red);
+            mat.RenderOptions = p;
+            _extremaPrimitive = new XRMeshRenderer(extremaData, mat);
 
-//            if (RenderKeyframeTangentPoints)
-//                passes.Add(_rcKeyframeTangents);
+            XRMesh tangentData = XRMesh.CreateLines(tangentPositions);
+            mat = XRMaterial.CreateUnlitColorMaterialForward(Color.Purple);
+            mat.RenderOptions = p;
+            _tangentPrimitive = new XRMeshRenderer(tangentData, mat);
+            
+            XRMesh kfLineData = XRMesh.Create(keyframeLines);
+            mat = XRMaterial.CreateUnlitColorMaterialForward(Color.Orange);
+            mat.RenderOptions = p;
+            _keyframeLinesPrimitive = new XRMeshRenderer(kfLineData, mat);
 
-//            if (RenderKeyframeTangentLines)
-//                passes.Add(_rcKfLines);
+            XRMesh timePointData = XRMesh.CreatePoints(Vector3.Zero);
+            mat = XRMaterial.CreateUnlitColorMaterialForward(Color.White);
+            mat.RenderOptions = p;
+            _timePointPrimitive = new XRMeshRenderer(timePointData, mat);
 
-//            if (RenderExtrema)
-//                passes.Add(_rcExtrema);
+            _rcVelocityTangents.Mesh = _velocityTangentsPrimitive;
+            _rcPoints.Mesh = _pointPrimitive;
+            _rcKeyframeTangents.Mesh = _tangentPrimitive;
+            _rcSpline.Mesh = _splinePrimitive;
+            _rcKfLines.Mesh = _keyframeLinesPrimitive;
+            _rcCurrentPoint.Mesh = _timePointPrimitive;
+            _rcExtrema.Mesh = _extremaPrimitive;
 
-//            if (RenderBounds)
-//                RenderInfo.CullingVolume?.AddRenderables(passes, camera);
+            RenderTangents = false;
+        }
 
-//            if (RenderCurrentTimePoint)
-//                passes.Add(_rcCurrentPoint);
-//        }
-//    }
-//}
+        private static void AddPoint(PropAnimVector3 spline, List<Vertex> splinePoints, List<VertexLine> velocity, float sec, float velocityScale = 1.0f)
+        {
+            Vector3 val = spline.GetValue(sec);
+            Vector3 vel = spline.GetVelocityKeyframed(sec);
+            float velLength = vel.Length();
+            float t = 1.0f / (1.0f + 0.5f * (velLength * velLength));
+            Vertex pos = new(val);
+            pos.ColorSets.Add(new Vector4(Vector3.Lerp(Vector3.UnitZ, Vector3.UnitX, t), 1.0f));
+            splinePoints.Add(pos);
+            velocity.Add(new VertexLine(pos, new Vertex(pos.Position + vel.Normalized() * velocityScale)));
+        }
+
+        private Matrix4x4 _localTRS = Matrix4x4.Identity;
+
+        //protected override void OnRecalcLocalTransform(out Matrix4x4 localTransform, out Matrix4x4 inverseLocalTransform)
+        //{
+        //    base.OnRecalcLocalTransform(out localTransform, out inverseLocalTransform);
+
+        //    Matrix4x4 splinePosMtx, invSplinePosMtx;
+        //    var spline = _spline;
+        //    if (spline is not null)
+        //    {
+        //        var pos = spline.CurrentPosition;
+        //        splinePosMtx = Matrix4x4.CreateTranslation(pos);
+        //        invSplinePosMtx = Matrix4x4.CreateTranslation(-pos);
+        //    }
+        //    else
+        //    {
+        //        splinePosMtx = Matrix4x4.Identity;
+        //        invSplinePosMtx = Matrix4x4.Identity;
+        //    }
+
+        //    _localTRS = localTransform;
+
+        //    localTransform = _localTRS * splinePosMtx;
+        //    inverseLocalTransform = invSplinePosMtx * inverseLocalTransform;
+        //}
+        //protected override void DeriveMatrix()
+        //{
+        //    _localTRS.DeriveTRS(out Vector3 t, out Vector3 s, out Quat r);
+        //    _translation.SetValueSilent(t);
+        //    _scale.SetValueSilent(s);
+        //    _rotation.SetRotationsNoUpdate(r.ToRotator());
+        //}
+        protected override void OnTransformWorldMatrixChanged(TransformBase transform)
+        {
+            base.OnTransformWorldMatrixChanged(transform);
+
+            var mtx = transform.WorldMatrix;
+            _rcKfLines.WorldMatrix = mtx;
+            _rcSpline.WorldMatrix = mtx;
+            _rcVelocityTangents.WorldMatrix = mtx;
+            _rcPoints.WorldMatrix = mtx;
+            _rcKeyframeTangents.WorldMatrix = mtx;
+            _rcExtrema.WorldMatrix = mtx;
+            _rcCurrentPoint.WorldMatrix = mtx;
+
+            //RenderInfo.LocalCullingVolume?.SetTransformMatrix(mtx * _cullingVolumeTranslation.AsTranslationMatrix());
+        }
+    }
+}

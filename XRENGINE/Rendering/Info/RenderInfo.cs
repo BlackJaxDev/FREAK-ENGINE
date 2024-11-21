@@ -117,8 +117,11 @@ namespace XREngine.Rendering.Info
             for (int i = 0; i < RenderCommands.Count; i++)
             {
                 RenderCommand cmd = RenderCommands[i];
+                if (!cmd.Enabled)
+                    continue;
+                
                 cmd.PreRender(camera, shadowPass);
-                passes.Add(cmd);   
+                passes.Add(cmd);
             }
         }
     }

@@ -121,13 +121,13 @@ namespace XREngine.Rendering.Shaders.Generator
             if (Mesh.TangentsBuffer is not null)
                 WriteInVar(location++, EShaderVarType._vec3, ECommonBufferType.Tangent.ToString());
 
-            if (Mesh.ColorBuffers is not null)
-                for (uint i = 0; i < Mesh.ColorBuffers.Length; ++i)
-                    WriteInVar(location++, EShaderVarType._vec4, $"{ECommonBufferType.Color}{i}");
-
             if (Mesh.TexCoordBuffers is not null)
                 for (uint i = 0; i < Mesh.TexCoordBuffers.Length; ++i)
                     WriteInVar(location++, EShaderVarType._vec2, $"{ECommonBufferType.TexCoord}{i}");
+
+            if (Mesh.ColorBuffers is not null)
+                for (uint i = 0; i < Mesh.ColorBuffers.Length; ++i)
+                    WriteInVar(location++, EShaderVarType._vec4, $"{ECommonBufferType.Color}{i}");
 
             if (Mesh.HasSkinning)
             {

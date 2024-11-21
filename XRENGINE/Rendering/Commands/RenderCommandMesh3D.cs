@@ -40,6 +40,7 @@ namespace XREngine.Data.Rendering
 
         public RenderCommandMesh3D() : base() { }
         public RenderCommandMesh3D(int renderPass) : base(renderPass) { }
+        public RenderCommandMesh3D(EDefaultRenderPass renderPass) : base((int)renderPass) { }
         public RenderCommandMesh3D(
             int renderPass,
             XRMeshRenderer manager,

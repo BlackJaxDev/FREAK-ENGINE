@@ -1,5 +1,4 @@
-﻿using System.Drawing;
-using System.Numerics;
+﻿using System.Numerics;
 using XREngine.Components;
 using XREngine.Data.Colors;
 using XREngine.Data.Geometry;
@@ -29,7 +28,7 @@ namespace XREngine.Scene
         private void RenderAABB(Vector2 extents, Vector2 center, ColorF4 color)
             => Engine.Rendering.Debug.RenderQuad(new Vector3(center, 0.0f) + AbstractRenderer.UIPositionBias, AbstractRenderer.UIRotation, extents, false, color, false, 1.0f);
 
-        public override IRenderTree RenderablesTree => RenderTree;
+        public override IRenderTree GenericRenderTree => RenderTree;
 
         public void Raycast(
             CameraComponent cameraComponent,

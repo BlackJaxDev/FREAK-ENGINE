@@ -50,7 +50,7 @@ public sealed partial class XRRenderPipelineInstance
             OutputFBO = target;
             ShadowPass = shadowPass;
             GlobalMaterialOverride = shadowMaterial;
-            UserInterface = userInterface?.DrawSpace == ECanvasDrawSpace.Screen ? userInterface : null;
+            UserInterface = userInterface?.CanvasTransform?.DrawSpace == ECanvasDrawSpace.Screen ? userInterface : null;
 
             if (WindowViewport is not null)
                 _renderingViewports.Push(WindowViewport);

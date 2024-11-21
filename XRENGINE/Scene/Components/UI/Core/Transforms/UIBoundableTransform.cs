@@ -171,6 +171,8 @@ namespace XREngine.Rendering.UI
             set => SetField(ref _parentPaddingOffset, value);
         }
 
+        public BoundingRectangleF Bounds => new(Translation, ActualSize);
+
         protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
         {
             base.OnPropertyChanged(propName, prev, field);
@@ -298,7 +300,7 @@ namespace XREngine.Rendering.UI
             Vector2 min = new(Math.Min(minPos.X, maxPos.X), Math.Min(minPos.Y, maxPos.Y));
             Vector2 max = new(Math.Max(minPos.X, maxPos.X), Math.Max(minPos.Y, maxPos.Y));
 
-            RenderInfo2D.CullingVolume = BoundingRectangleF.FromMinMaxSides(min.X, max.X, min.Y, max.Y, 0.0f, 0.0f);
+            RenderInfoUI.CullingVolume = BoundingRectangleF.FromMinMaxSides(min.X, max.X, min.Y, max.Y, 0.0f, 0.0f);
             //Engine.PrintLine($"Axis-aligned region remade: {_axisAlignedRegion.Translation} {_axisAlignedRegion.Extents}");
         }
         public UITransform? FindDeepestComponent(Vector2 worldPoint, bool includeThis)

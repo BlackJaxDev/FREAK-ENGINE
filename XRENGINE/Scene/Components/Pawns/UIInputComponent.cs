@@ -1,8 +1,14 @@
-﻿using System.ComponentModel;
+﻿using Extensions;
+using System.Collections;
+using System.ComponentModel;
 using System.Numerics;
 using XREngine.Core.Attributes;
+using XREngine.Data.Core;
+using XREngine.Data.Geometry;
 using XREngine.Input.Devices;
+using XREngine.Rendering.Info;
 using XREngine.Rendering.UI;
+using XREngine.Scene;
 
 namespace XREngine.Components
 {
@@ -12,87 +18,214 @@ namespace XREngine.Components
     [RequireComponents(typeof(UICanvasComponent))]
     public class UIInputComponent : PawnComponent
     {
-        protected Vector2 _cursorPos = Vector2.Zero;
+        /// <summary>
+        /// Returns the canvas component this input component is controlling.
+        /// </summary>
+        public UICanvasComponent Canvas => GetSiblingComponent<UICanvasComponent>(true)!;
+
+        private UIInteractableComponent? _focusedComponent;
+        /// <summary>
+        /// The UI component focused on by the gamepad or last interacted with by the mouse.
+        /// </summary>
+        public UIInteractableComponent? FocusedComponent
+        {
+            get => _focusedComponent;
+            set
+            {
+                if (_focusedComponent != null)
+                    _focusedComponent.IsFocused = false;
+
+                _focusedComponent = value;
+
+                if (_focusedComponent != null)
+                    _focusedComponent.IsFocused = true;
+            }
+        }
+
         private PawnComponent? _owningPawn;
-
-        public UICanvasComponent? Canvas
-        {
-            get => _canvas;
-            set => SetField(ref _canvas, value);
-        }
-
-        public bool IsResizing
-        {
-            get => _isResizing;
-            private set => SetField(ref _isResizing, value);
-        }
-
-        public UIComponent? FocusedComponent { get; set; }
-
         /// <summary>
         /// The pawn that has this HUD linked for screen space use.
         /// </summary>
         public PawnComponent? OwningPawn
         {
             get => _owningPawn;
-            set
+            set => SetField(ref _owningPawn, value);
+        }
+
+        protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
+        {
+            bool change = base.OnPropertyChanging(propName, field, @new);
+            if (change)
             {
-                UnlinkOwningPawn();
-                _owningPawn = value;
-                LinkOwningPawn();
+                switch (propName)
+                {
+                    case nameof(OwningPawn):
+                        UnlinkOwningPawn();
+                        break;
+                }
+            }
+            return change;
+        }
+        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+        {
+            base.OnPropertyChanged(propName, prev, field);
+            switch (propName)
+            {
+                case nameof(OwningPawn):
+                    LinkOwningPawn();
+                    break;
             }
         }
 
         private void LinkOwningPawn()
         {
-            if (_owningPawn is null)
+            if (_owningPawn is null || _owningPawn == this || _owningPawn.LocalPlayerController == null)
                 return;
 
-            //if (_owningPawn.IsSpawned)
-            //    Spawned(_owningPawn.OwningWorld);
+            LinkInput();
+        }
 
-            if (_owningPawn != this && _owningPawn.LocalPlayerController != null)
-            {
-                //Link input commands from the owning controller to this hud
-                //TODO: add register input method only for this pawn
-                var input = _owningPawn.LocalPlayerController.Input;
-                input.TryUnregisterInput();
-                input.InputRegistration += RegisterInput;
-                input.TryRegisterInput();
-            }
+        private void LinkInput()
+        {
+            //Link input commands from the owning controller to this hud
+            var input = _owningPawn!.LocalPlayerController!.Input;
+            input.TryUnregisterInput();
+            input.InputRegistration += RegisterInput;
+            input.TryRegisterInput();
         }
 
         private void UnlinkOwningPawn()
         {
-            if (_owningPawn is null)
+            if (_owningPawn is null || _owningPawn == this || _owningPawn.LocalPlayerController == null)
                 return;
 
-            //if (_owningPawn.IsSpawned)
-            //    Despawned();
+            UnlinkInput();
+        }
 
-            if (_owningPawn != this && _owningPawn.LocalPlayerController != null)
-            {
-                //Unlink input commands from the owning controller to this hud
-                //TODO: add unregister input method only for this pawn
-                var input = _owningPawn.LocalPlayerController.Input;
-                input.TryUnregisterInput();
-                input.InputRegistration -= RegisterInput;
-                input.TryRegisterInput();
-            }
+        private void UnlinkInput()
+        {
+            //Unlink input commands from the owning controller to this hud
+            var input = _owningPawn!.LocalPlayerController!.Input;
+            input.TryUnregisterInput();
+            input.InputRegistration -= RegisterInput;
+            input.TryRegisterInput();
         }
 
         public override void RegisterInput(InputInterface input)
         {
-            //Canvas.RegisterInputs(input);
-
             input.RegisterMouseMove(MouseMove, EMouseMoveType.Absolute);
-            //input.RegisterButtonEvent(EMouseButton.LeftClick, ButtonInputType.Pressed, OnLeftClickSelect, InputPauseType.TickOnlyWhenPaused);
+            input.RegisterMouseButtonEvent(EMouseButton.LeftClick, EButtonInputType.Pressed, OnLeftClickSelect);
 
-            //input.RegisterAxisUpdate(GamePadAxis.LeftThumbstickX, OnLeftStickX, false, EInputPauseType.TickOnlyWhenPaused);
-            //input.RegisterAxisUpdate(GamePadAxis.LeftThumbstickY, OnLeftStickY, false, EInputPauseType.TickOnlyWhenPaused);
-            //input.RegisterButtonEvent(GamePadButton.DPadUp, ButtonInputType.Pressed, OnDPadUp, EInputPauseType.TickOnlyWhenPaused);
-            //input.RegisterButtonEvent(GamePadButton.FaceDown, ButtonInputType.Pressed, OnGamepadSelect, InputPauseType.TickOnlyWhenPaused);
-            //input.RegisterButtonEvent(GamePadButton.FaceRight, ButtonInputType.Pressed, OnBackInput, EInputPauseType.TickOnlyWhenPaused);
+            input.RegisterAxisUpdate(EGamePadAxis.LeftThumbstickX, OnLeftStickX, false);
+            input.RegisterAxisUpdate(EGamePadAxis.LeftThumbstickY, OnLeftStickY, false);
+            input.RegisterButtonEvent(EGamePadButton.DPadUp, EButtonInputType.Pressed, OnDPadUp);
+            input.RegisterButtonEvent(EGamePadButton.FaceDown, EButtonInputType.Pressed, OnGamepadInteract);
+            input.RegisterButtonEvent(EGamePadButton.FaceRight, EButtonInputType.Pressed, OnGamepadBack);
+        }
+
+        /// <summary>
+        /// The location of the mouse cursor in world space.
+        /// </summary>
+        public Vector2 CursorPositionWorld2D { get; private set; }
+        /// <summary>
+        /// The location of the mouse cursor in world space on the last update.
+        /// </summary>
+        public Vector2 LastCursorPositionWorld2D { get; private set; }
+        
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="x"></param>
+        /// <param name="y"></param>
+        private void MouseMove(float x, float y)
+        {
+            var vp = Viewport;
+            if (vp is null)
+                return;
+
+            var vpCoord = vp.ScreenToViewportCoordinate(new Vector2(x, y));
+            var normCoord = vp.NormalizeViewportCoordinate(vpCoord);
+
+            var canvasTransform = Canvas.CanvasTransform;
+            var space = canvasTransform.DrawSpace;
+            var scene = canvasTransform.Scene2D;
+            var tree = scene.RenderTree;
+
+            Vector2 uiCoord;
+
+            //Convert to ui coord depending on the draw space
+            switch (space)
+            {
+                case ECanvasDrawSpace.Screen:
+                    {
+                        //depth = 0 because we're in 2D, z coord is checked later
+                        uiCoord = vp.NormalizedViewportToWorldCoordinate(normCoord, 0.0f).XY();
+                        break;
+                    }
+                case ECanvasDrawSpace.Camera:
+                    {
+                        float drawDistance = canvasTransform.CameraDrawSpaceDistance;
+                        var cam = vp.Camera;
+                        if (cam is null)
+                            return;
+                        //Convert the normalized coord to world space using the draw distance
+                        Vector3 worldCoord = vp.NormalizedViewportToWorldCoordinate(normCoord, XRMath.DistanceToDepth(drawDistance, cam.NearZ, cam.FarZ));
+                        //Transform the world coord to the canvas' local space
+                        Matrix4x4 worldToLocal = canvasTransform.InverseWorldMatrix;
+                        uiCoord = Vector3.Transform(worldCoord, worldToLocal).XY();
+                        break;
+                    }
+                case ECanvasDrawSpace.World:
+                    {
+                        Segment worldSegment = vp.GetWorldSegment(normCoord);
+                        //Intersect the world segment with the canvas bounds in world space
+                        Matrix4x4 worldToLocal = canvasTransform.InverseWorldMatrix;
+                        Segment localSegment = worldSegment.TransformedBy(worldToLocal);
+                        var bounds = canvasTransform.Bounds;
+                        float d = XRMath.GetPlaneDistance(Vector3.Zero, Globals.Backward);
+                        if (GeoUtil.SegmentIntersectsPlane(localSegment.Start, localSegment.End, d, Globals.Backward, out Vector3 localIntersectionPoint))
+                        {
+                            Vector2 point = localIntersectionPoint.XY();
+                            if (bounds.Contains(point))
+                                uiCoord = point;
+                            else
+                                return;
+                        }
+                        else
+                            return;
+                    }
+                    break;
+                default:
+                    return;
+            }
+            LastCursorPositionWorld2D = CursorPositionWorld2D;
+            CursorPositionWorld2D = uiCoord;
+            tree.FindAllIntersectingSorted(uiCoord, InteractableIntersections, InteractablePredicate);
+            TopMostInteractable = InteractableIntersections.Min?.Owner as UIInteractableComponent;
+            ValidateAndSwapIntersections();
+        }
+
+        /// <summary>
+        /// This verifies the mouseover state of previous and current mouse intersections and swaps them.
+        /// </summary>
+        private void ValidateAndSwapIntersections()
+        {
+            LastInteractableIntersections.ForEach(ValidateIntersection);
+            InteractableIntersections.ForEach(ValidateIntersection);
+            (LastInteractableIntersections, InteractableIntersections) = (InteractableIntersections, LastInteractableIntersections);
+        }
+
+        private void OnGamepadInteract()
+        {
+
+        }
+        private void OnLeftClickSelect()
+        {
+            FocusedComponent = TopMostInteractable;
+        }
+        protected virtual void OnGamepadBack()
+        {
+            _focusedComponent?.OnBack();
         }
 
         protected virtual void OnLeftStickX(float value) { }
@@ -102,232 +235,101 @@ namespace XREngine.Components
         /// Called on either left click or A button.
         /// Default behavior will OnClick the currently focused/highlighted UI component, if anything.
         /// </summary>
-        //protected virtual void OnSelectInput()
-        //{
-        //_focusedComponent?.OnSelect();
-        //}
-        protected virtual void OnScrolledInput(bool up)
+        protected virtual void OnInteract()
         {
-            //_focusedComponent?.OnScrolled(up);
-        }
-        protected virtual void OnBackInput()
-        {
-            //_focusedComponent?.OnBack();
+            _focusedComponent?.OnInteract();
         }
         protected virtual void OnDPadUp()
         {
 
         }
 
-        protected virtual void MouseMove(float x, float y)
-        {
-            //_cursorPos = CursorPositionWorld();
-
-
-        }
-
-        //public List<IRenderable> FindAllComponentsIntersecting(Vector2 viewportPoint)
-        //    => Canvas?.FindAllIntersecting(viewportPoint);
-
-        //public UIComponent FindDeepestComponent(Vector2 viewportPoint)
-        //    => Canvas?.FindDeepestComponent(viewportPoint, false);
-
-        //UIComponent current = null;
-        ////Larger z-indices means the component is closer
-        //foreach (UIComponent comp in results)
-        //    if (current is null || comp.LayerIndex >= current.LayerIndex)
-        //        current = comp;
-        //return current;
-        //return RootComponent.FindComponent(viewportPoint);
-
-        public virtual void Resize(Vector2 bounds)
-        {
-            //Bounds = bounds;
-            Canvas?.InvalidateLayout();
-        }
         protected internal override void OnComponentActivated()
         {
             base.OnComponentActivated();
-            Canvas?.InvalidateLayout();
+            Canvas.CanvasTransform.InvalidateLayout();
         }
-        //public void Render()
-        //{
-        //    if (!Visible)
-        //        return;
-        //    //AbstractRenderer.PushCurrentCamera(_camera);
-        //    _scene.Render(AbstractRenderer.CurrentCamera, AbstractRenderer.CurrentCamera.Frustum, null, false);
-        //    //AbstractRenderer.PopCurrentCamera();
-        //}
+
         protected void OnChildAdded(UIComponent child)
         {
             //child.OwningActor = this;
         }
+
         //public void Render()
         //{
         //    _scene.DoRender(AbstractRenderer.CurrentCamera, null);
         //}
 
-        public void RemoveRenderableComponent(IRenderable component)
-        {
-            //component.RenderInfo.UnlinkScene();
-
-            //_renderables.Remove(component);
-        }
-        public void AddRenderableComponent(IRenderable component)
-        {
-            //component.RenderInfo.LinkScene(component, Canvas.ScreenSpaceUIScene);
-            //_screenSpaceUIScene.Add(component);
-
-            //if (_renderables.Count == 0)
-            //{
-            //    _renderables.AddFirst(component);
-            //    return;
-            //}
-
-            //int frontDist = _renderables.First.Value.RenderInfo.LayerIndex - component.RenderInfo.LayerIndex;
-            //if (frontDist > 0)
-            //{
-            //    _renderables.AddFirst(component);
-            //    return;
-            //}
-
-            //int backDist = component.RenderInfo.LayerIndex - _renderables.Last.Value.RenderInfo.LayerIndex;
-            //if (backDist > 0)
-            //{
-            //    _renderables.AddLast(component);
-            //    return;
-            //}
-
-            ////TODO: check if the following code is right
-            //if (frontDist < backDist)
-            //{
-            //    //loop from back
-            //    var last = _renderables.Last;
-            //    while (last.Value.RenderInfo.LayerIndex > component.RenderInfo.LayerIndex)
-            //        last = last.Previous;
-            //    _renderables.AddBefore(last, component);
-            //}
-            //else
-            //{
-            //    //loop from front
-            //    var first = _renderables.First;
-            //    while (first.Value.RenderInfo.LayerIndex < component.RenderInfo.LayerIndex)
-            //        first = first.Next;
-            //    _renderables.AddAfter(first, component);
-            //}
-        }
-
-        //public UIComponent FindComponent()
-        //    => FindComponent(CursorPositionWorld());
-
-        //public UIComponent FindComponent(Vector2 cursorWorldPos)
-        //    => Canvas.FindDeepestComponent(cursorWorldPos, false);
-
-        #region Cursor Position
-        ///// <summary>
-        ///// Returns the cursor position on the screen relative to the the viewport 
-        ///// controlling this UI or the owning pawn's viewport which uses this UI as its HUD.
-        ///// </summary>
-        //public Vector2 CursorPosition()
-        //{
-        //    XRViewport v = OwningPawn?.LocalPlayerController?.Viewport ?? Viewport;
-        //    Point absolute = Cursor.Position;
-        //    Vector2 result;
-        //    if (v != null)
-        //    {
-        //        RenderContext ctx = v.RenderHandler.Context;
-        //        absolute = ctx.PointToClient(absolute);
-        //        result = new Vector2(absolute.X, absolute.Y);
-        //        result = v.AbsoluteToRelative(result);
-        //    }
-        //    else
-        //        result = new Vector2(absolute.X, absolute.Y);
-        //    return result;
-        //}
-        ///// <summary>
-        ///// Returns a position in the world using a position relative to the viewport
-        ///// controlling this UI or the owning pawn's viewport which uses this UI as its HUD.
-        ///// </summary>
-        //public Vector2 ViewportPositionToWorld(Vector2 viewportPosition)
-        //{
-        //    XRViewport v = OwningPawn?.LocalPlayerController?.Viewport ?? Viewport;
-        //    return v?.ScreenToWorld(viewportPosition).Xy ?? Vector2.Zero;
-        //}
-        ///// <summary>
-        ///// Returns the cursor position in the world relative to the the viewport 
-        ///// controlling this UI or the owning pawn's viewport which uses this UI as its HUD.
-        ///// </summary>
-        //public Vector2 CursorPositionWorld()
-        //{
-        //    XRViewport v = OwningPawn?.LocalPlayerController?.Viewport ?? Viewport;
-        //    return v?.ScreenToWorld(Viewport.CursorPositionRelativeTo(v)).Xy ?? Vector2.Zero;
-        //}
-
-        //public Vector2 CursorPositionWorld(Vector2 v)
-        //    => v.ScreenToWorld(Viewport.CursorPositionRelativeTo(v)).Xy;
-        //public Vector2 CursorPositionWorld(XRViewport v, Vector2 viewportPosition)
-        //    => v.ScreenToWorld(viewportPosition).Xy;
-
-        ///// <summary>
-        ///// Renders the HUD in screen-space.
-        ///// </summary>
-        //public void PreRender()
-        //{
-        //    XRViewport v = OwningPawn?.LocalPlayerController?.Viewport ?? Viewport;
-        //    if (v != null)
-        //        Canvas?.ScreenSpaceUIScene?.PreRender(v, Canvas?.ScreenSpaceCamera);
-        //}
-
-        //public virtual void PreRenderSwap()
-        //{
-        //    if (Canvas.DrawSpace == ECanvasDrawSpace.Screen)
-        //        Canvas.SwapBuffersScreenSpace();
-        //}
-        //public void RenderScreenSpace(XRViewport viewport, QuadFrameBuffer fbo)
-        //{
-        //    if (Canvas.DrawSpace == ECanvasDrawSpace.Screen)
-        //        Canvas.RenderScreenSpace(viewport, fbo);
-        //}
-
-        public Action<UIInputComponent>? ResizeStarted;
-        public Action<UIInputComponent>? ResizeFinished;
-        private bool _isResizing = false;
-        private UICanvasComponent? _canvas;
-
-        protected virtual void ResizeLayout()
-        {
-            //Canvas.ResizeLayout(new BoundingRectangleF(
-            //Canvas.Translation.Xy,
-            //Canvas.Size.Value));
-        }
-
-        public virtual void UpdateLayout()
-        {
-            if (IsLayoutInvalidated)
-            {
-                IsResizing = true;
-                ResizeStarted?.Invoke(this);
-                ResizeLayout();
-                IsLayoutInvalidated = false;
-                IsResizing = false;
-                ResizeFinished?.Invoke(this);
-            }
-
-            if (Canvas is not null && Canvas.DrawSpace == ECanvasDrawSpace.Screen)
-                Canvas.UpdateScreenSpace();
-        }
-
         [Browsable(false)]
         public bool IsLayoutInvalidated { get; private set; }
         public void InvalidateLayout() => IsLayoutInvalidated = true;
 
-        public UIComponent? FindDeepestComponent(Vector2 viewportPoint)
-        {
-            //TODO
-            return null;
-            //return Canvas?.FindDeepestComponent(viewportPoint, false);
-        }
+        /// <summary>
+        /// This is the topmost UI component that the mouse is directly over.
+        /// Typically, this will be the component that will receive input, like a button.
+        /// Backgrounds and other non-interactive components will still be intersected with, but they will not be considered the topmost interactable.
+        /// </summary>
+        public UIInteractableComponent? TopMostInteractable { get; private set; }
 
-        #endregion
+        private SortedSet<RenderInfo2D> LastInteractableIntersections = new(new Comparer());
+        private SortedSet<RenderInfo2D> InteractableIntersections = new(new Comparer());
+
+        protected bool InteractablePredicate(RenderInfo2D item)
+            => item.Owner is UIInteractableComponent;
+        private void ValidateIntersection(RenderInfo2D item)
+        {
+            if (item.Owner is not UIInteractableComponent inter)
+                return;
+
+            if (LastInteractableIntersections.Contains(item))
+            {
+                //Mouse was over this renderable last update
+                if (!InteractableIntersections.Contains(item))
+                {
+                    //Lost mouse over
+                    inter.IsMouseOver = false;
+                    inter.IsMouseDirectlyOver = false;
+                }
+                else
+                {
+                    //Had mouse over and still does now
+                    var uiTransform = inter.UITransform;
+                    inter.DoMouseMove(
+                        uiTransform.CanvasToLocal(LastCursorPositionWorld2D),
+                        uiTransform.CanvasToLocal(CursorPositionWorld2D));
+                }
+            }
+            else if (InteractableIntersections.Contains(item)) //Mouse was not over this renderable last update
+            {
+                //Got mouse over
+                inter.IsMouseOver = true;
+                inter.IsMouseDirectlyOver = inter == TopMostInteractable;
+            }
+        }
+        private class Comparer : IComparer<RenderInfo2D>, IComparer
+        {
+            public int Compare(RenderInfo2D? x, RenderInfo2D? y)
+            {
+                if (x is not RenderInfo2D left ||
+                    y is not RenderInfo2D right)
+                    return 0;
+
+                if (left.LayerIndex > right.LayerIndex)
+                    return -1;
+
+                if (right.LayerIndex > left.LayerIndex)
+                    return 1;
+
+                if (left.IndexWithinLayer > right.IndexWithinLayer)
+                    return -1;
+
+                if (right.IndexWithinLayer > left.IndexWithinLayer)
+                    return 1;
+
+                return 0;
+            }
+            public int Compare(object? x, object? y)
+                => Compare(x as RenderInfo2D, y as RenderInfo2D);
+        }
     }
 }

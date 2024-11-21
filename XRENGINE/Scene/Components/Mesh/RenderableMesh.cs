@@ -19,7 +19,7 @@ namespace XREngine.Components.Scene.Mesh
         private readonly RenderCommandMesh3D _rc;
 
         private TransformBase? _rootBone;
-        private bool _renderBounds = true;
+        private bool _renderBounds = false;
 
         public XRMeshRenderer? CurrentLODRenderer => CurrentLOD?.Value?.Renderer;
         public XRMesh? CurrentLODMesh => CurrentLOD?.Value?.Renderer?.Mesh;
@@ -67,8 +67,9 @@ namespace XREngine.Components.Scene.Mesh
             }
 
             _renderBoundsCommand = new RenderCommandMethod3D((int)EDefaultRenderPass.OpaqueForward, DoRenderBounds);
-
-            RenderInfo = RenderInfo3D.New(component, _rc = new RenderCommandMesh3D(0), _renderBoundsCommand);
+            RenderInfo = RenderInfo3D.New(component, _rc = new RenderCommandMesh3D(0));
+            if (RenderBounds)
+                RenderInfo.RenderCommands.Add(_renderBoundsCommand);
             RenderInfo.LocalCullingVolume = mesh.CullingBounds ?? mesh.Bounds;
             RenderInfo.PreAddRenderCommandsCallback = BeforeAdd;
         }

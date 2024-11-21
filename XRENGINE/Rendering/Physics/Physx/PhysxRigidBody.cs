@@ -30,13 +30,9 @@ namespace XREngine.Rendering.Physics.Physx
             set => PxRigidBody_setMaxLinearVelocity_mut(BodyPtr, value);
         }
         public virtual Vector3 LinearVelocity
-        {
-            get => PxRigidBody_getLinearVelocity(BodyPtr);
-        }
+            => PxRigidBody_getLinearVelocity(BodyPtr);
         public virtual Vector3 AngularVelocity
-        {
-            get => PxRigidBody_getAngularVelocity(BodyPtr);
-        }
+            => PxRigidBody_getAngularVelocity(BodyPtr);
         public (Quaternion, Vector3) CMassLocalPose
         {
             get

@@ -1,4 +1,5 @@
-﻿using XREngine.Components;
+﻿using System.Numerics;
+using XREngine.Components;
 using XREngine.Data.Core;
 using XREngine.Rendering.Commands;
 using XREngine.Scene;
@@ -108,6 +109,10 @@ public sealed partial class XRRenderPipelineInstance : XRBase
         _textures.Clear();
     }
 
+    public void ViewportResized(Vector2 size)
+    {
+        //DestroyCache();
+    }
     public void ViewportResized(int width, int height)
     {
         //DestroyCache();

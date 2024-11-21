@@ -4,6 +4,7 @@ using XREngine.Components;
 using XREngine.Data.Core;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
+using XREngine.Data.Trees;
 using XREngine.Input;
 using XREngine.Physics;
 using XREngine.Physics.RayTracing;
@@ -126,7 +127,7 @@ namespace XREngine.Rendering
                 CameraComponent?.CullingCameraOverride,
                 false);
 
-            CameraComponent?.UserInterfaceOverlay?.CollectVisibleScreenSpace(this);
+            CameraComponent?.UserInterfaceOverlay?.CollectRenderedItems(this);
         }
 
         private void SwapBuffers()
@@ -136,7 +137,7 @@ namespace XREngine.Rendering
                 return;
 
             _renderPipeline.MeshRenderCommands.SwapBuffers(false);
-            CameraComponent?.UserInterfaceOverlay?.SwapBuffersScreenSpace();
+            CameraComponent?.UserInterfaceOverlay?.SwapBuffers();
         }
 
         public static XRViewport ForTotalViewportCount(XRWindow window, int totalViewportCount)
@@ -182,7 +183,7 @@ namespace XREngine.Rendering
         /// </summary>
         /// <param name="vp"></param>
         /// <param name="targetFbo"></param>
-        public void Render(XRFrameBuffer? targetFbo = null, VisualScene? sceneOverride = null)
+        public void Render(XRFrameBuffer? targetFbo = null, VisualScene? sceneOverride = null, bool allowUIRender = true)
         {
             XRCamera? camera = ActiveCamera;
             if (camera is null)
@@ -199,11 +200,10 @@ namespace XREngine.Rendering
                 SwapBuffers();
             }
 
-            _renderPipeline.Render(scene, camera, this, targetFbo, CameraComponent?.UserInterfaceOverlay);
+            _renderPipeline.Render(scene, camera, this, targetFbo, allowUIRender ? CameraComponent?.UserInterfaceOverlay : null);
         }
 
         private readonly XRRenderPipelineInstance _renderPipeline = new();
-
         public XRRenderPipelineInstance RenderPipelineInstance => _renderPipeline;
 
         protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
@@ -309,7 +309,12 @@ namespace XREngine.Rendering
         }
 
         private void ResizeCameraComponentUI()
-            => CameraComponent?.UserInterfaceOverlay?.Resize(_region.Size);
+        {
+            if (CameraComponent?.UserInterfaceOverlay is null)
+                return;
+
+            CameraComponent.UserInterfaceOverlay.CanvasTransform.Size = (Vector2)_region.Size;
+        }
 
         /// <summary>
         /// This is texture dimensions that the camera will render at, which will be scaled up to the actual resolution of the viewport.
@@ -441,61 +446,63 @@ namespace XREngine.Rendering
         /// <summary>
         /// Tests against the HUD and the world for a collision hit at the provided viewport point ray.
         /// </summary>
-        /// <param name="viewportPoint"></param>
+        /// <param name="normalizedViewportPosition"></param>
         /// <param name="testHud"></param>
         /// <param name="interactableHudOnly"></param>
-        /// <param name="testWorld"></param>
-        /// <param name="hitNormal"></param>
-        /// <param name="hitPoint"></param>
-        /// <param name="distance"></param>
+        /// <param name="testSceneOctree"></param>
+        /// <param name="hitNormalWorld"></param>
+        /// <param name="hitPositionWorld"></param>
+        /// <param name="hitDistance"></param>
         /// <param name="ignored"></param>
         /// <returns></returns>
         public XRComponent? PickScene(
-            Vector2 viewportPoint,
+            Vector2 normalizedViewportPosition,
             bool testHud,
             bool interactableHudOnly,
-            bool testWorld,
-            out Vector3 hitNormal,
-            out Vector3 hitPoint,
-            out float distance,
+            bool testSceneOctree,
+            bool testScenePhysics,
+            out Vector3 hitNormalWorld,
+            out Vector3 hitPositionWorld,
+            out float hitDistance,
+            out SortedDictionary<float, List<(ITreeItem item, object? data)>>? orderedResults,
             params XRCollisionObject[] ignored)
         {
+            orderedResults = null;
+            hitNormalWorld = Vector3.Zero;
+            hitPositionWorld = Vector3.Zero;
+            hitDistance = 0.0f;
+            if (CameraComponent is null)
+                return null;
+
             if (testHud)
             {
-                UIComponent? hudComp = CameraComponent?.UserInterfaceOverlay?.FindDeepestComponent(viewportPoint);
+                UIComponent? hudComp = CameraComponent.UserInterfaceOverlay?.FindDeepestComponent(normalizedViewportPosition);
                 bool hasHit = hudComp?.IsVisible ?? false;
                 bool hitValidated = !interactableHudOnly || hudComp is UIInteractableComponent;
                 if (hasHit && hitValidated)
                 {
-                    hitNormal = Globals.Backward;
-                    hitPoint = new Vector3(viewportPoint, 0.0f);
-                    distance = 0.0f;
+                    hitNormalWorld = Globals.Backward;
+                    hitPositionWorld = new Vector3(normalizedViewportPosition, 0.0f);
+                    hitDistance = 0.0f;
                     return hudComp;
                 }
                 //Continue on to test the world is nothing of importance in the HUD was hit
             }
-            if (testWorld)
+
+            if (testSceneOctree || testScenePhysics)
             {
-                Segment cursor = GetWorldSegment(viewportPoint);
+                orderedResults = World?.Raycast(
+                    CameraComponent, 
+                    normalizedViewportPosition, 
+                    testSceneOctree,
+                    testScenePhysics,
+                    out hitNormalWorld,
+                    out hitPositionWorld,
+                    out hitDistance);
 
-                _closestPick.StartPointWorld = cursor.Start;
-                _closestPick.EndPointWorld = cursor.End;
-                _closestPick.Ignored = ignored;
-
-                if (_closestPick.Trace(CameraComponent?.SceneNode?.World))
-                {
-                    hitNormal = _closestPick.HitNormalWorld;
-                    hitPoint = _closestPick.HitPointWorld;
-                    distance = hitPoint.Distance(cursor.Start);
-                    return _closestPick.CollisionObject?.Owner as XRComponent;
-                }
-
-                //Vector3 worldPoint = ScreenToWorld(viewportPoint, depth);
-                //ThreadSafeList<I3DRenderable> r = Engine.Scene.RenderTree.FindClosest(worldPoint);
+                return orderedResults?.Count > 0 ? orderedResults[orderedResults.Keys.First()].First().item as XRComponent : null;
             }
-            hitNormal = Vector3.Zero;
-            hitPoint = Vector3.Zero;
-            distance = 0.0f;
+
             return null;
         }
         #endregion

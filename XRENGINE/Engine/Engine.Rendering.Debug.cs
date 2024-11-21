@@ -156,9 +156,9 @@ namespace XREngine
                     public bool DepthTestEnabled { get; } = depthTestEnabled;
                     public bool Solid { get; } = solid;
                 }
-                public struct TriangleData(bool solid, Triangle value, ColorF4 color, bool depthTestEnabled = true) : IShapeData
+                public struct TriangleData(bool solid, Vector3 A, Vector3 B, Vector3 C, ColorF4 color, bool depthTestEnabled = true) : IShapeData
                 {
-                    public Triangle Value = value;
+                    public Triangle Value = new(A, B, C);
                     public ColorF4 Color { get; } = color;
                     public bool Solid { get; } = solid;
                     public bool DepthTestEnabled { get; } = depthTestEnabled;
@@ -432,16 +432,23 @@ namespace XREngine
                     mTop.Render(topTransform);
                     mBot.Render(botTransform);
                 }
-
                 public static void RenderTriangle(
-                    Triangle value,
+                    Triangle triangle,
+                    ColorF4 color,
+                    bool solid,
+                    bool depthTestEnabled = true)
+                    => RenderTriangle(triangle.A, triangle.B, triangle.C, color, solid, depthTestEnabled);
+                public static void RenderTriangle(
+                    Vector3 A,
+                    Vector3 B,
+                    Vector3 C,
                     ColorF4 color,
                     bool solid,
                     bool depthTestEnabled = true)
                 {
                     if (!IsRenderThread)
                     {
-                        _debugShapesUpdating.Enqueue(new TriangleData(solid, value, color, depthTestEnabled));
+                        _debugShapesUpdating.Enqueue(new TriangleData(solid, A, B, C, color, depthTestEnabled));
                         return;
                     }
 
@@ -458,20 +465,20 @@ namespace XREngine
                     var posBuf = renderer.Mesh!.PositionsBuffer!;
                     if (solid)
                     {
-                        posBuf.Set(0, value.A);
-                        posBuf.Set(0, value.B);
-                        posBuf.Set(0, value.C);
+                        posBuf.Set(0, A);
+                        posBuf.Set(0, B);
+                        posBuf.Set(0, C);
                     }
                     else
                     {
-                        posBuf.Set(0, value.A);
-                        posBuf.Set(0, value.B);
+                        posBuf.Set(0, A);
+                        posBuf.Set(0, B);
 
-                        posBuf.Set(0, value.B);
-                        posBuf.Set(0, value.C);
+                        posBuf.Set(0, B);
+                        posBuf.Set(0, C);
 
-                        posBuf.Set(0, value.C);
-                        posBuf.Set(0, value.A);
+                        posBuf.Set(0, C);
+                        posBuf.Set(0, A);
                     }
                     posBuf.PushSubData();
                     renderer.Render();

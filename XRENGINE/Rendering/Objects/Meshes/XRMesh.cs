@@ -887,7 +887,7 @@ namespace XREngine.Rendering
                 {
                     vertexActions.TryAdd(4, (i, x, vtx) =>
                     {
-                        for (int colorIndex = maxColorCount; colorIndex < v.ColorSets.Count; ++colorIndex)
+                        for (int colorIndex = 0; colorIndex < v.ColorSets.Count; ++colorIndex)
                             ColorBuffers![colorIndex].SetDataRawAtIndex((uint)i, vtx?.ColorSets != null && colorIndex < (vtx?.ColorSets?.Count ?? 0)
                                 ? vtx!.ColorSets[colorIndex]
                                 : Vector4.Zero);

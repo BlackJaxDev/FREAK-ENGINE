@@ -2,12 +2,10 @@
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using XREngine.Audio;
 using XREngine.Components;
-using XREngine.Components.Scene.Mesh;
 using XREngine.Data.Core;
 using XREngine.Data.Geometry;
 using XREngine.Data.Trees;
@@ -34,8 +32,8 @@ namespace XREngine.Rendering
         public XREvent<XRWorldInstance> PreEndPlay;
         public XREvent<XRWorldInstance> PostEndPlay;
 
-        protected VisualScene _visualScene;
-        public VisualScene VisualScene => _visualScene;
+        protected VisualScene3D _visualScene;
+        public VisualScene3D VisualScene => _visualScene;
 
         protected AbstractPhysicsScene _physicsScene;
         public AbstractPhysicsScene PhysicsScene => _physicsScene;
@@ -51,7 +49,7 @@ namespace XREngine.Rendering
         public GameMode? GameMode { get; internal set; }
 
         public XRWorldInstance() : this(Engine.Rendering.NewVisualScene(), Engine.Rendering.NewPhysicsScene()) { }
-        public XRWorldInstance(VisualScene visualScene, AbstractPhysicsScene physicsScene)
+        public XRWorldInstance(VisualScene3D visualScene, AbstractPhysicsScene physicsScene)
         {
             _visualScene = visualScene;
             _physicsScene = physicsScene;
@@ -65,7 +63,7 @@ namespace XREngine.Rendering
 
         public XRWorldInstance(XRWorld world) : this()
             => TargetWorld = world;
-        public XRWorldInstance(XRWorld world, VisualScene visualScene, AbstractPhysicsScene physicsScene) : this(visualScene, physicsScene)
+        public XRWorldInstance(XRWorld world, VisualScene3D visualScene, AbstractPhysicsScene physicsScene) : this(visualScene, physicsScene)
             => TargetWorld = world;
 
         public void FixedUpdate()
@@ -73,6 +71,7 @@ namespace XREngine.Rendering
             TickGroup(ETickGroup.PrePhysics);
             PhysicsScene.StepSimulation();
             TickGroup(ETickGroup.PostPhysics);
+            PhysicsScene.DebugRender();
         }
 
         public bool IsPlaying { get; private set; }
@@ -88,7 +87,7 @@ namespace XREngine.Rendering
 
         protected virtual void BeginPlayInternal()
         {
-            VisualScene.RenderablesTree.Swap();
+            VisualScene.GenericRenderTree.Swap();
             foreach (SceneNode node in RootNodes)
                 if (node.IsActiveSelf)
                     node.OnSceneNodeActivated();
@@ -105,7 +104,7 @@ namespace XREngine.Rendering
         }
         protected virtual void EndPlayInternal()
         {
-            VisualScene.RenderablesTree.Swap();
+            VisualScene.GenericRenderTree.Swap();
             foreach (SceneNode node in RootNodes)
                 if (node.IsActiveSelf)
                     node.OnSceneNodeDeactivated();
@@ -240,7 +239,7 @@ namespace XREngine.Rendering
                     foreach (var scene in _targetWorld.Scenes)
                         LoadScene(scene);
 
-                    if (VisualScene.RenderablesTree is I3DRenderTree tree)
+                    if (VisualScene.GenericRenderTree is I3DRenderTree tree)
                         tree.Remake(_targetWorld.Settings.Bounds);
                 }
             }
@@ -398,22 +397,44 @@ namespace XREngine.Rendering
             Sequences.Clear();
         }
 
-        [RequiresDynamicCode("")]
-        public SortedDictionary<float, List<(ITreeItem item, object? data)>>? Raycast(CameraComponent cameraComponent, Vector2 normalizedScreenPoint)
+        public SortedDictionary<float, List<(ITreeItem item, object? data)>>? Raycast(
+            CameraComponent cameraComponent,
+            Vector2 normalizedScreenPoint,
+            bool testOctree,
+            bool testPhysics,
+            out Vector3 hitNormalWorld,
+            out Vector3 hitPositionWorld,
+            out float hitDistance)
+            => Raycast(
+                cameraComponent.Camera.GetWorldSegment(normalizedScreenPoint),
+                testOctree,
+                testPhysics,
+                out hitNormalWorld,
+                out hitPositionWorld,
+                out hitDistance);
+
+        public SortedDictionary<float, List<(ITreeItem item, object? data)>>? Raycast(
+            Segment worldSegment,
+            bool testOctree,
+            bool testPhysics,
+            out Vector3 hitNormalWorld,
+            out Vector3 hitPositionWorld,
+            out float hitDistance)
         {
-            VisualScene.Raycast(cameraComponent.Camera.GetWorldSegment(normalizedScreenPoint), out SortedDictionary<float, List<(ITreeItem item, object? data)>> items, DirectItemTest);
-            //PhysicsScene.Raycast(cameraComponent, screenPoint, items);
-            return items;
-        }
-        [RequiresDynamicCode("")]
-        public SortedDictionary<float, List<(ITreeItem item, object? data)>>? Raycast(Segment worldSegment)
-        {
-            VisualScene.Raycast(worldSegment, out SortedDictionary<float, List<(ITreeItem item, object? data)>> items, DirectItemTest);
-            PhysicsScene.Raycast(worldSegment, items);
+            var items = new SortedDictionary<float, List<(ITreeItem item, object? data)>>();
+            if (testOctree)
+                VisualScene.Raycast(worldSegment, out items, DirectItemTest);
+            if (testPhysics)
+                PhysicsScene.Raycast(worldSegment, items, out hitNormalWorld, out hitPositionWorld, out hitDistance);
+            else
+            {
+                hitNormalWorld = Vector3.Zero;
+                hitPositionWorld = Vector3.Zero;
+                hitDistance = float.MaxValue;
+            }
             return items;
         }
 
-        [RequiresDynamicCode("Calls XREngine.Components.Scene.Mesh.ModelComponent.Intersect(Segment, out Triangle?)")]
         private static (float? distance, object? data) DirectItemTest(ITreeItem item, Segment segment)
         {
             if (item is not RenderInfo renderable)

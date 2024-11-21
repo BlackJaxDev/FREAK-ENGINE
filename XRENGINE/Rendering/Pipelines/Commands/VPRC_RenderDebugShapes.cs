@@ -4,7 +4,8 @@
     {
         protected override void Execute()
         {
-            Engine.Rendering.Debug.RenderShapes();
+            using (Pipeline.State.PushRenderingCamera(Pipeline.State.SceneCamera))
+                Engine.Rendering.Debug.RenderShapes();
         }
     }
 }

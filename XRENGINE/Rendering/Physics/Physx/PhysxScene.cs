@@ -1,5 +1,7 @@
 ﻿using MagicPhysX;
 using System.Numerics;
+using XREngine.Data;
+using XREngine.Data.Colors;
 using XREngine.Data.Geometry;
 using XREngine.Rendering.Physics.Physx.Joints;
 using XREngine.Scene;
@@ -35,7 +37,15 @@ namespace XREngine.Rendering.Physics.Physx
         public override void Initialize()
         {
             _physics = physx_create_physics(physx_create_foundation());
-            var sceneDesc = PxSceneDesc_new(PxPhysics_getTolerancesScale(_physics));
+            //PxPvd pvd;
+            //if (_physics->PhysPxInitExtensions(&pvd))
+            //{
+
+            //}
+            var scale = PxPhysics_getTolerancesScale(_physics);
+            //scale->length = 100;
+            //scale->speed = 980;
+            var sceneDesc = PxSceneDesc_new(scale);
             sceneDesc.gravity = DefaultGravity;
 
             _dispatcher = (PxCpuDispatcher*)phys_PxDefaultCpuDispatcherCreate(4, null, PxDefaultCpuDispatcherWaitForWorkMode.WaitForWork, 0);
@@ -49,50 +59,144 @@ namespace XREngine.Rendering.Physics.Physx
             };
             _scene = _physics->CreateSceneMut(&sceneDesc);
 
-            var material = _physics->CreateMaterialMut(0.5f, 0.5f, 0.6f);
-
-            // create plane and add to scene
-            var plane = PxPlane_new_1(0.0f, 1.0f, 0.0f, 0.0f);
-            var groundPlane = _physics->PhysPxCreatePlane(&plane, material);
-            _scene->AddActorMut((PxActor*)groundPlane, null);
-
-            // create sphere and add to scene
-            var sphereGeo = PxSphereGeometry_new(10.0f);
-            var Vector3 = new PxVec3 { x = 0.0f, y = 40.0f, z = 100.0f };
-            var transform = PxTransform_new_1(&Vector3);
-            var identity = PxTransform_new_2(PxIDENTITY.PxIdentity);
-            var sphere = _physics->PhysPxCreateDynamic(&transform, (PxGeometry*)&sphereGeo, material, 10.0f, &identity);
-            PxRigidBody_setAngularDamping_mut((PxRigidBody*)sphere, 0.5f);
-            _scene->AddActorMut((PxActor*)sphere, null);
+            SetVisualizationParameter(PxVisualizationParameter.Scale, 1.0f);
+            SetVisualizationParameter(PxVisualizationParameter.CollisionShapes, 1.0f);
+            SetVisualizationParameter(PxVisualizationParameter.CollisionAxes, 1.0f);
+            SetVisualizationParameter(PxVisualizationParameter.CollisionStatic, 1.0f);
+            SetVisualizationParameter(PxVisualizationParameter.CollisionDynamic, 1.0f);
+            SetVisualizationParameter(PxVisualizationParameter.ContactPoint, 1.0f);
+            SetVisualizationParameter(PxVisualizationParameter.CollisionEdges, 1.0f);
+            SetVisualizationParameter(PxVisualizationParameter.JointLocalFrames, 1.0f);
+            SetVisualizationParameter(PxVisualizationParameter.JointLimits, 1.0f);
+            SetVisualizationParameter(PxVisualizationParameter.CullBox, 1.0f);
+            SetVisualizationParameter(PxVisualizationParameter.WorldAxes, 1.0f);
+            SetVisualizationParameter(PxVisualizationParameter.SimulationMesh, 1.0f);
+            SetVisualizationParameter(PxVisualizationParameter.ActorAxes, 1.0f);
+            SetVisualizationParameter(PxVisualizationParameter.BodyAxes, 1.0f);
+            SetVisualizationParameter(PxVisualizationParameter.BodyMassAxes, 1.0f);
+            SetVisualizationParameter(PxVisualizationParameter.BodyAngVelocity, 1.0f);
+            SetVisualizationParameter(PxVisualizationParameter.BodyLinVelocity, 1.0f);
         }
+
+        public DataSource? _scratchBlock = new(32000, true);
 
         public override void StepSimulation()
         {
-            _scene->SimulateMut(Engine.Time.Timer.FixedUpdateDelta, null, null, 0, true);
-
-            uint error = 0;
-            if (!_scene->FetchResultsMut(true, &error))
+            Simulate(Engine.Time.Timer.FixedUpdateDelta, null, true);
+            if (!FetchResults(true, out uint error))
                 return;
-
             NotifySimulationStepped();
         }
 
+        public override void DebugRender()
+        {
+            var rb = RenderBuffer;
+            var points = rb->GetNbPoints();
+            var lines = rb->GetNbLines();
+            var triangles = rb->GetNbTriangles();
+
+            if (points > 0)
+            {
+                var p = rb->GetPoints();
+                for (int i = 0; i < points; i++)
+                {
+                    var point = p[i];
+                    uint c = point.color;
+                    ColorF4 color = ToColorF4(c);
+                    Engine.Rendering.Debug.RenderPoint(point.pos, color);
+                }
+            }
+            if (lines > 0)
+            {
+                var l = rb->GetLines();
+                for (int i = 0; i < lines; i++)
+                {
+                    var line = l[i];
+                    uint c = line.color0;
+                    ColorF4 color = ToColorF4(c);
+                    Engine.Rendering.Debug.RenderLine(line.pos0, line.pos1, color);
+                }
+            }
+            if (triangles > 0)
+            {
+                var t = rb->GetTriangles();
+                for (int i = 0; i < triangles; i++)
+                {
+                    var triangle = t[i];
+                    uint c = triangle.color0;
+                    ColorF4 color = ToColorF4(c);
+                    Engine.Rendering.Debug.RenderTriangle(triangle.pos0, triangle.pos1, triangle.pos2, color, false);
+                }
+            }
+        }
+
+        private static ColorF4 ToColorF4(uint c)
+        {
+            return new(
+                ((c >> 24) & 0xFF) / 255.0f,
+                ((c >> 16) & 0xFF) / 255.0f,
+                ((c >> 8) & 0xFF) / 255.0f,
+                (c & 0xFF) / 255.0f);
+        }
+
+        public void Simulate(float elapsedTime, PxBaseTask* completionTask, bool controlSimulation)
+            => _scene->SimulateMut(elapsedTime, completionTask, _scratchBlock is null ? null : _scratchBlock.Address.Pointer, _scratchBlock?.Length ?? 0, controlSimulation);
+        public void Collide(float elapsedTime, PxBaseTask* completionTask, bool controlSimulation)
+            => _scene->CollideMut(elapsedTime, completionTask, _scratchBlock is null ? null : _scratchBlock.Address.Pointer, _scratchBlock?.Length ?? 0, controlSimulation);
+        public void FlushSimulation(bool sendPendingReports)
+            => _scene->FlushSimulationMut(sendPendingReports);
+        public void Advance(PxBaseTask* completionTask)
+            => _scene->AdvanceMut(completionTask);
+        public void FetchCollision(bool block)
+            => _scene->FetchCollisionMut(block);
+        public bool FetchResults(bool block, out uint errorState)
+        {
+            uint es = 0;
+            bool result = _scene->FetchResultsMut(block, &es);
+            errorState = es;
+            return result;
+        }
+        public bool FetchResultsStart(out PxContactPairHeader[] contactPairs, bool block)
+        {
+            PxContactPairHeader* ptr;
+            uint numPairs;
+            bool result = _scene->FetchResultsStartMut(&ptr, &numPairs, block);
+            contactPairs = new PxContactPairHeader[numPairs];
+            for (int i = 0; i < numPairs; i++)
+                contactPairs[i] = *ptr++;
+            return result;
+        }
+        public void ProcessCallbacks(PxBaseTask* continuation)
+            => _scene->ProcessCallbacksMut(continuation);
+        public void FetchResultsFinish(out uint errorState)
+        {
+            uint es = 0;
+            _scene->FetchResultsFinishMut(&es);
+            errorState = es;
+        }
+
+        public bool CheckResults(bool block)
+            => _scene->CheckResultsMut(block);
+
+        public void FetchResultsParticleSystem()
+            => _scene->FetchResultsParticleSystemMut();
+
         public override void Destroy()
         {
-            PxScene_release_mut(_scene);
-            PxDefaultCpuDispatcher_release_mut((PxDefaultCpuDispatcher*)_dispatcher);
+            _scene->ReleaseMut();
+            ((PxDefaultCpuDispatcher*)_dispatcher)->ReleaseMut();
             PxPhysics_release_mut(_physics);
         }
 
         public override IAbstractDynamicRigidBody? NewDynamicRigidBody(
             AbstractPhysicsMaterial material,
-            IAbstractPhysicsShape shape,
+            AbstractPhysicsGeometry geometry,
             float density,
             Vector3? position = null,
             Quaternion? rotation = null,
             Vector3? shapeOffsetTranslation = null,
             Quaternion? shapeOffsetRotation = null)
-            => new PhysxDynamicRigidBody(this, (PhysxMaterial)material, (PhysxShape)shape, density, position, rotation, shapeOffsetTranslation, shapeOffsetRotation);
+            => new PhysxDynamicRigidBody(this, (PhysxMaterial)material, (PhysxGeometry)geometry, density, position, rotation, shapeOffsetTranslation, shapeOffsetRotation);
         public override IAbstractDynamicRigidBody? NewDynamicRigidBody(
             IAbstractPhysicsShape shape,
             float density,
@@ -115,12 +219,12 @@ namespace XREngine.Rendering.Physics.Physx
             => new PhysxStaticRigidBody(this, (PhysxShape)shape, position, rotation);
         public override IAbstractStaticRigidBody? NewStaticRigidBody(
             AbstractPhysicsMaterial material,
-            IAbstractPhysicsShape shape,
+            AbstractPhysicsGeometry shape,
             Vector3? position = null,
             Quaternion? rotation = null,
             Vector3? shapeOffsetTranslation = null,
             Quaternion? shapeOffsetRotation = null)
-            => new PhysxStaticRigidBody(this, (PhysxMaterial)material, (PhysxShape)shape, position, rotation, shapeOffsetTranslation, shapeOffsetRotation);
+            => new PhysxStaticRigidBody(this, (PhysxMaterial)material, (PhysxGeometry)shape, position, rotation, shapeOffsetTranslation, shapeOffsetRotation);
 
         public uint Timestamp
             => _scene->GetTimestamp();
@@ -430,39 +534,6 @@ namespace XREngine.Rendering.Physics.Physx
 
         public PxPairFilteringMode StaticKinematicFilteringMode
             => _scene->GetStaticKinematicFilteringMode();
-
-        public bool Simulate(float elapsedTime, PxBaseTask* completionTask, void* scratchMemBlock, uint scratchMemBlockSize, bool controlSimulation)
-            => _scene->SimulateMut(elapsedTime, completionTask, scratchMemBlock, scratchMemBlockSize, controlSimulation);
-
-        public bool Advance(PxBaseTask* completionTask)
-            => _scene->AdvanceMut(completionTask);
-
-        public bool Collide(float elapsedTime, PxBaseTask* completionTask, void* scratchMemBlock, uint scratchMemBlockSize, bool controlSimulation)
-            => _scene->CollideMut(elapsedTime, completionTask, scratchMemBlock, scratchMemBlockSize, controlSimulation);
-
-        public bool CheckResults(bool block)
-            => _scene->CheckResultsMut(block);
-
-        public bool FetchCollision(bool block)
-            => _scene->FetchCollisionMut(block);
-
-        public bool FetchResults(bool block, uint* errorState)
-            => _scene->FetchResultsMut(block, errorState);
-
-        public bool FetchResultsStart(PxContactPairHeader** contactPairs, uint* nbContactPairs, bool block)
-            => _scene->FetchResultsStartMut(contactPairs, nbContactPairs, block);
-
-        public void ProcessCallbacks(PxBaseTask* continuation)
-            => _scene->ProcessCallbacksMut(continuation);
-
-        public void FetchResultsFinish(uint* errorState)
-            => _scene->FetchResultsFinishMut(errorState);
-
-        public void FetchResultsParticleSystem()
-            => _scene->FetchResultsParticleSystemMut();
-
-        public void FlushSimulation(bool sendPendingReports)
-            => _scene->FlushSimulationMut(sendPendingReports);
 
         public float BounceThresholdVelocity
         {

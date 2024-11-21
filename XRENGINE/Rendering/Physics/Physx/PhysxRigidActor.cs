@@ -10,6 +10,8 @@ namespace XREngine.Rendering.Physics.Physx
         public abstract PxRigidActor* RigidActorPtr { get; }
         public override unsafe PxActor* ActorPtr => (PxActor*)RigidActorPtr;
 
+        public uint InternalActorIndex => RigidActorPtr->GetInternalActorIndex();
+
         public void ApplyTransformTo(RigidBodyTransform transform)
         {
             GetTransform(out var position, out var rotation);
@@ -41,27 +43,43 @@ namespace XREngine.Rendering.Physics.Physx
         }
 
         private void SetTransform(PxTransform pose, bool wake)
-            => PxRigidActor_setGlobalPose_mut(RigidActorPtr, &pose, wake);
+            => RigidActorPtr->SetGlobalPoseMut(&pose, wake);
 
         public void SetTransform(Vector3 position, Quaternion rotation, bool wake)
             => SetTransform(new() { p = position, q = rotation }, wake);
 
         public uint ConstraintCount
-            => PxRigidActor_getNbConstraints(RigidActorPtr);
+            => RigidActorPtr->GetNbConstraints();
 
         public uint ShapeCount
-            => PxRigidActor_getNbShapes(RigidActorPtr);
+            => RigidActorPtr->GetNbShapes();
 
-        public uint GetConstraints(PxConstraint** constraints, uint maxConstraints, uint startIndex)
-            => PxRigidActor_getConstraints(RigidActorPtr, constraints, maxConstraints, startIndex);
+        public PxConstraint*[] GetConstraints()
+        {
+            var constraints = new PxConstraint*[ConstraintCount];
+            fixed (PxConstraint** constraintsPtr = constraints)
+                RigidActorPtr->GetConstraints(constraintsPtr, ConstraintCount, 0);
+            return constraints;
+        }
 
-        public uint GetShapes(PxShape** shapes, uint maxShapes, uint startIndex)
-            => PxRigidActor_getShapes(RigidActorPtr, shapes, maxShapes, startIndex);
+        public PxShape*[] GetShapes()
+        {
+            var shapes = new PxShape*[ShapeCount];
+            fixed (PxShape** shapesPtr = shapes)
+                RigidActorPtr->GetShapes(shapesPtr, ShapeCount, 0);
+            return shapes;
+        }
 
         public void AttachShape(PxShape shape)
-            => PxRigidActor_attachShape_mut(RigidActorPtr, &shape);
+            => RigidActorPtr->AttachShapeMut(&shape);
 
         public void DetachShape(PxShape shape, bool wakeOnLostTouch)
-            => PxRigidActor_detachShape_mut(RigidActorPtr, &shape, wakeOnLostTouch);
+            => RigidActorPtr->DetachShapeMut(&shape, wakeOnLostTouch);
+
+        public override void Release()
+            => RigidActorPtr->ReleaseMut();
+
+        public PxQueryFilterCallback* CreateRaycastFilterCallback()
+            => RigidActorPtr->CreateRaycastFilterCallback();
     }
 }

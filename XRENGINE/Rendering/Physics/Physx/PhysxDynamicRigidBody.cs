@@ -13,7 +13,7 @@ namespace XREngine.Rendering.Physics.Physx
         public PhysxDynamicRigidBody(
             PhysxScene scene,
             PhysxMaterial material,
-            PhysxShape shape,
+            PhysxGeometry geometry,
             float density,
             Vector3? position = null,
             Quaternion? rotation = null,
@@ -22,7 +22,7 @@ namespace XREngine.Rendering.Physics.Physx
         {
             var tfm = PhysxScene.MakeTransform(position, rotation);
             var shapeTfm = PhysxScene.MakeTransform(shapeOffsetTranslation, shapeOffsetRotation);
-            Scene.PhysicsPtr->PhysPxCreateDynamic(&tfm, shape.GeometryPtr, material.Material, density, &shapeTfm);
+            Scene.PhysicsPtr->PhysPxCreateDynamic(&tfm, geometry.GeometryPtr, material.Material, density, &shapeTfm);
         }
         public PhysxDynamicRigidBody(
             PhysxScene scene,
@@ -43,9 +43,7 @@ namespace XREngine.Rendering.Physics.Physx
             Scene.PhysicsPtr->CreateRigidDynamicMut(&tfm);
         }
 
-        public void Destroy()
-        {
-            Scene.RemoveActor(this);
-        }
+        public void Destroy(bool wakeOnLostTouch = false)
+            => Scene.RemoveActor(this, wakeOnLostTouch);
     }
 }

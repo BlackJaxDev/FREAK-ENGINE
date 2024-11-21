@@ -29,12 +29,25 @@ public class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent, IRende
         ];
     }
 
-    public Vector3? DragPoint { get; set; } = null;
+    //These two drag points diverge if the camera moves, so they're both stored initially at mouse down
+    public Vector3? NormalizedViewportDragPoint { get; set; } = null;
+    public Vector3? WorldDragPoint { get; set; } = null;
 
     protected override void OnRightClick(bool pressed)
     {
         base.OnRightClick(pressed);
-        DragPoint = pressed ? DepthHitNormalizedViewportPoint : null;
+        if (pressed)
+        {
+            NormalizedViewportDragPoint = DepthHitNormalizedViewportPoint;
+            WorldDragPoint = DepthHitNormalizedViewportPoint.HasValue
+                ? Viewport?.NormalizedViewportToWorldCoordinate(DepthHitNormalizedViewportPoint.Value)
+                : null;
+        }
+        else
+        {
+            NormalizedViewportDragPoint = null;
+            WorldDragPoint = null;
+        }
     }
 
     private void RenderHighlight(bool shadowPass)
@@ -47,11 +60,15 @@ public class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent, IRende
             //Debug.Out($"Hit triangle: {_hitTriangle}");
             Engine.Rendering.Debug.RenderTriangle(_hitTriangle.Value, ColorF4.Yellow, true);
         }
-        if (DepthHitNormalizedViewportPoint.HasValue && Viewport is not null)
-        {
-            Vector3 pos = Viewport.NormalizedViewportToWorldCoordinate(DepthHitNormalizedViewportPoint.Value);
-            Engine.Rendering.Debug.RenderSphere(pos, (Viewport.Camera?.DistanceFromWorldPosition(pos) ?? 1.0f) * 0.1f, false, ColorF4.Yellow, true);
-        }
+        //if ((WorldDragPoint.HasValue || DepthHitNormalizedViewportPoint.HasValue) && Viewport is not null)
+        //{
+        //    Vector3 pos;
+        //    if (WorldDragPoint.HasValue)
+        //        pos = WorldDragPoint.Value;
+        //    else
+        //        pos = Viewport.NormalizedViewportToWorldCoordinate(DepthHitNormalizedViewportPoint!.Value);
+        //    Engine.Rendering.Debug.RenderSphere(pos, (Viewport.Camera?.DistanceFromWorldPosition(pos) ?? 1.0f) * 0.1f, false, ColorF4.Yellow, true);
+        //}
         if (RenderFrustum)
         {
             var cam = GetCamera();
@@ -128,6 +145,9 @@ public class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent, IRende
 
         _lastRaycastSegment = vp.GetWorldSegment(p);
 
+        vp.PickScene(p, true, true, true, true, out Vector3 hitNormal, out Vector3 hitPointWorld, out float distance, out var orderedResults);
+        Task.Run(() => SetRaycastResult(orderedResults));
+
         //if (RenderRaycast)
         //{
         //    Vector3 start = _lastRaycastSegment.Start;
@@ -135,9 +155,11 @@ public class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent, IRende
         //    Engine.Rendering.Debug.RenderLine(start, end, ColorF4.Magenta, false);
         //}
 
-        SortedDictionary<float, List<(ITreeItem item, object? data)>>? result = World!.Raycast(_lastRaycastSegment);
-        Task.Run(() => SetRaycastResult(result));
+        ApplyTransformations(vp);
+    }
 
+    private void ApplyTransformations(XRViewport vp)
+    {
         var tfm = TransformAs<Transform>();
         if (tfm is null)
             return;
@@ -151,9 +173,9 @@ public class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent, IRende
             float dist = Transform.WorldTranslation.Distance(worldCoord);
             tfm.Translation = Segment.PointAtLineDistance(Transform.WorldTranslation, worldCoord, scrollSpeed * dist * 0.1f * ScrollSpeed);
         }
-        if (_lastMouseTranslationDelta.HasValue && DragPoint.HasValue)
+        if (_lastMouseTranslationDelta.HasValue && WorldDragPoint.HasValue && NormalizedViewportDragPoint.HasValue)
         {
-            Vector3 normCoord = DragPoint.Value;
+            Vector3 normCoord = NormalizedViewportDragPoint.Value;
             Vector3 worldCoord = vp.NormalizedViewportToWorldCoordinate(normCoord);
             Vector2 screenCoord = vp.DenormalizeViewportCoordinate(normCoord.XY());
             Vector2 newScreenCoord = screenCoord + _lastMouseTranslationDelta.Value;
@@ -171,10 +193,9 @@ public class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent, IRende
                 ArcBallRotate(y, x, _lastRotatePoint.Value);
                 _lastRotateDelta = null;
             }
-            else if (DragPoint.HasValue)
+            else if (WorldDragPoint.HasValue)
             {
-                Vector3 normCoord = DragPoint.Value;
-                Vector3 worldCoord = vp.NormalizedViewportToWorldCoordinate(normCoord);
+                Vector3 worldCoord = WorldDragPoint.Value;
                 float x = _lastRotateDelta.Value.X;
                 float y = _lastRotateDelta.Value.Y;
                 ArcBallRotate(y, x, worldCoord);
@@ -201,7 +222,7 @@ public class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent, IRende
     private Vector3? _lastRotatePoint = null;
     protected override void MouseRotate(float x, float y)
     {
-        if (DragPoint.HasValue)
+        if (WorldDragPoint.HasValue)
         {
             _lastRotateDelta = new Vector2(-x * MouseRotateSpeed, y * MouseRotateSpeed);
         }
@@ -221,7 +242,7 @@ public class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent, IRende
     private Vector2? _lastMouseTranslationDelta = null;
     protected override void MouseTranslate(float x, float y)
     {
-        if (DragPoint.HasValue)
+        if (WorldDragPoint.HasValue)
         {
             //This fixes stationary jitter caused by float imprecision
             //when recalculating the same hit point every update

@@ -1,7 +1,5 @@
-﻿using Assimp;
-using System.Numerics;
+﻿using System.Numerics;
 using XREngine.Core.Attributes;
-using XREngine.Data.Vectors;
 using XREngine.Rendering;
 using XREngine.Rendering.UI;
 
@@ -14,6 +12,28 @@ namespace XREngine.Components
     [RequiresTransform(typeof(UICanvasTransform))]
     public class UICanvasComponent : XRComponent
     {
+        //protected internal override void OnComponentActivated()
+        //{
+        //    base.OnComponentActivated();
+        //    CanvasTransform.PropertyChanged += OnCanvasTransformPropertyChanged;
+        //}
+
+        //protected internal override void OnComponentDeactivated()
+        //{
+        //    base.OnComponentDeactivated();
+        //    CanvasTransform.PropertyChanged -= OnCanvasTransformPropertyChanged;
+        //}
+
+        //private void OnCanvasTransformPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        //{
+        //    switch (e.PropertyName)
+        //    {
+        //        case nameof(UICanvasTransform.Size):
+        //            _renderPipeline.ViewportResized(CanvasTransform.Size);
+        //            break;
+        //    }
+        //}
+
         /// <summary>
         /// Gets the user input component. Not a necessary component, so may be null.
         /// </summary>
@@ -21,51 +41,6 @@ namespace XREngine.Components
         public UIInputComponent? GetInputComponent() => GetSiblingComponent<UIInputComponent>();
 
         public UICanvasTransform CanvasTransform => TransformAs<UICanvasTransform>(true)!;
-        public CameraComponent ScreenSpaceCamera => GetSiblingComponent<CameraComponent>(true)!;
-
-        public XRWorldInstance ScreenSpaceWorld { get; } = new XRWorldInstance();
-
-        public UICanvasComponent()
-        {
-            ScreenSpaceCamera.Camera.Parameters = new XROrthographicCameraParameters(1.0f, 1.0f, -0.5f, 0.5f);
-        }
-
-        private UIInteractableComponent? _focusedComponent;
-
-        private ECanvasDrawSpace _drawSpace = ECanvasDrawSpace.Screen;
-        public ECanvasDrawSpace DrawSpace
-        {
-            get => _drawSpace;
-            set
-            {
-                if (!SetField(ref _drawSpace, value))
-                    return;
-
-                switch (_drawSpace)
-                {
-                    case ECanvasDrawSpace.Camera:
-                        //RenderInfo.IsVisible = true;
-                        break;
-                    case ECanvasDrawSpace.Screen:
-                        //RenderInfo.IsVisible = false;
-                        break;
-                    case ECanvasDrawSpace.World:
-                        //RenderInfo.IsVisible = true;
-                        break;
-                }
-            }
-        }
-
-        private float _cameraDrawSpaceDistance = 0.1f;
-        public float CameraDrawSpaceDistance
-        {
-            get => _cameraDrawSpaceDistance;
-            set => SetField(ref _cameraDrawSpaceDistance, value);
-        }
-
-        public Vector2 LastCursorPositionWorld { get; private set; }
-        public Vector2 CursorPositionWorld { get; private set; }
-        public bool PreRenderEnabled { get; }
 
         //protected override void OnResizeLayout(BoundingRectangleF parentRegion)
         //{
@@ -76,43 +51,33 @@ namespace XREngine.Components
         //    //base.OnResizeLayout(parentRegion);
         //}
 
-        public void RenderScreenSpace(XRViewport viewport, XRQuadFrameBuffer fbo)
+        public void Render(XRViewport vp, XRFrameBuffer outputFBO)
+            => RenderPipelineInstance.Render(CanvasTransform.Scene2D, CanvasTransform.Camera2D, null, outputFBO, null, false);
+
+        public void SwapBuffers()
         {
-            //ScreenSpaceWorld?.VisualScene.Render(viewport, ScreenSpaceCamera, fbo);
-        }
-        public void UpdateScreenSpace()
-        {
-            //ScreenSpaceWorld?.VisualScene.PreRenderUpdate(null, ScreenSpaceCamera);
-        }
-        public void SwapBuffersScreenSpace()
-        {
-            //ScreenSpaceWorld?.VisualScene.GlobalSwap();
-            //ScreenSpaceRenderPasses?.SwapBuffers();
+            _renderPipeline.MeshRenderCommands.SwapBuffers(false);
         }
 
-        public void Resize(IVector2 size)
+        public void CollectRenderedItems(XRViewport viewport)
         {
-            CanvasTransform.Size = size;
-        }
-
-        public void CollectVisibleScreenSpace(XRViewport viewport)
-        {
-            if (DrawSpace != ECanvasDrawSpace.Screen || _renderPipeline is null)
+            if (_renderPipeline is null)
                 return;
 
-            var cam = ScreenSpaceCamera;
-            var scene = ScreenSpaceWorld?.VisualScene;
-            scene?.CollectRenderedItems(
-                _renderPipeline.MeshRenderCommands,
-                cam.Camera,
-                cam?.CullWithFrustum ?? true,
-                cam?.CullingCameraOverride,
-                false);
+            //Set the canvas size if it doesn't match the viewport size, and the canvas is in screen space or camera space.
+            if (CanvasTransform.DrawSpace != ECanvasDrawSpace.World)
+                if (CanvasTransform.Size != viewport.Region.Size)
+                    CanvasTransform.Size = viewport.Region.Size;
+
+            //Update the layout if it's invalid.
+            CanvasTransform.UpdateLayout();
+
+            //Collect the rendered items now that the layout is updated.
+            CanvasTransform.Scene2D?.CollectRenderedItems(_renderPipeline.MeshRenderCommands, CanvasTransform.Camera2D, false, null, false);
         }
 
-        private XRRenderPipelineInstance? _renderPipeline;
-
-        internal List<IRenderable> FindAllIntersecting(Vector2 viewportPoint) => throw new NotImplementedException();
+        private readonly XRRenderPipelineInstance _renderPipeline = new();
+        public XRRenderPipelineInstance RenderPipelineInstance => _renderPipeline;
 
         //protected internal override void RegisterInputs(InputInterface input)
         //{
@@ -152,139 +117,11 @@ namespace XREngine.Components
 
         }
 
-        //private class Comparer : IComparer<RenderInfo2D>
-        //{
-        //    public int Compare(IRenderable? x, IRenderable? y)
-        //    {
-        //        RenderInfo2D? left = x?.RenderInfo;
-        //        RenderInfo2D? right = y?.RenderInfo;
-
-        //        if (left is null)
-        //        {
-        //            if (right is null)
-        //                return 0;
-        //            else
-        //                return -1;
-        //        }
-        //        else if (right is null)
-        //            return 1;
-
-        //        if (left.LayerIndex > right.LayerIndex)
-        //            return -1;
-
-        //        if (right.LayerIndex > left.LayerIndex)
-        //            return 1;
-
-        //        if (left.IndexWithinLayer > right.IndexWithinLayer)
-        //            return -1;
-
-        //        if (right.IndexWithinLayer > left.IndexWithinLayer)
-        //            return 1;
-
-        //        return 0;
-        //    }
-        //    public int Compare(object x, object y)
-        //        => Compare((IRenderable)x, (IRenderable)y);
-        //}
-        public UIInteractableComponent? FocusedComponent
+        public UIComponent? FindDeepestComponent(Vector2 normalizedViewportPosition)
         {
-            get => _focusedComponent;
-            set
-            {
-                if (_focusedComponent != null)
-                    _focusedComponent.IsFocused = false;
+            //if (CanvasTransform.DrawSpace == ECanvasDrawSpace.Screen)
+            //    return (CanvasTransform.ScreenSpaceWorld.VisualScene as VisualScene2D)?.RenderTree?.FindDeepestComponent(normalizedViewportPosition);
 
-                _focusedComponent = value;
-
-                if (_focusedComponent != null)
-                    _focusedComponent.IsFocused = true;
-            }
-        }
-
-        public UIInteractableComponent? DeepestInteractable { get; private set; }
-
-        //private SortedSet<IRenderable> LastInteractableIntersections = new(new Comparer());
-        //private SortedSet<IRenderable> InteractableIntersections = new(new Comparer());
-
-        protected bool InteractablePredicate(IRenderable item) => item is UIInteractableComponent;
-        protected virtual void MouseMove(float x, float y)
-        {
-            Vector2 newPos = GetCursorPositionWorld();
-            if (Vector2.DistanceSquared(CursorPositionWorld, newPos) < 0.001f)
-                return;
-
-            LastCursorPositionWorld = CursorPositionWorld;
-            CursorPositionWorld = newPos;
-
-            var tree = ScreenSpaceWorld.VisualScene.RenderablesTree;
-            if (tree is null)
-                return;
-
-            //tree.FindAllIntersectingSorted(CursorPositionWorld, InteractableIntersections, InteractablePredicate);
-            //DeepestInteractable = InteractableIntersections.Min as UIInteractableComponent;
-
-            //LastInteractableIntersections.ForEach(ValidateIntersection);
-            //InteractableIntersections.ForEach(ValidateIntersection);
-
-            //(LastInteractableIntersections, InteractableIntersections) = (InteractableIntersections, LastInteractableIntersections);
-        }
-        private void ValidateIntersection(IRenderable obj)
-        {
-            if (obj is not UIInteractableComponent inter)
-                return;
-
-            //if (LastInteractableIntersections.Contains(obj))
-            //{
-            //    //Mouse was over this renderable last update
-
-            //    if (!InteractableIntersections.Contains(obj))
-            //    {
-            //        //Lost mouse over
-            //        inter.IsMouseOver = false;
-            //        inter.IsMouseDirectlyOver = false;
-            //    }
-            //    else
-            //    {
-            //        //Had mouse over and still does now
-            //        //inter.MouseMove(
-            //        //    inter.ScreenToLocal(LastCursorPositionWorld),
-            //        //    inter.ScreenToLocal(CursorPositionWorld));
-            //    }
-            //}
-            //else
-            //{
-            //    //Mouse was not over this renderable last update
-
-            //    if (InteractableIntersections.Contains(obj))
-            //    {
-            //        //Got mouse over
-            //        inter.IsMouseOver = true;
-            //        inter.IsMouseDirectlyOver = obj == DeepestInteractable;
-            //    }
-            //}
-        }
-        private void OnClick() => FocusedComponent = DeepestInteractable;
-        private Vector2 GetCursorPositionWorld()
-        {
-            //if (!(OwningActor is IPawn pawn))
-            //    return Vector2.Zero;
-
-            //LocalPlayerController controller = pawn is IUserInterfacePawn ui && ui.OwningPawn is IPawn uiOwner
-            //    ? uiOwner.LocalPlayerController ?? pawn.LocalPlayerController
-            //    : pawn.LocalPlayerController;
-
-            //XRViewport v = controller?.Viewport;
-            //return v?.ScreenToWorld(v.CursorPosition).Xy ?? Vector2.Zero;
-            return Vector2.Zero;
-        }
-
-        internal void InvalidateLayout()
-        {
-
-        }
-
-        internal UIComponent? FindDeepestComponent(Vector2 viewportPoint)
-        {
             return null;
         }
     }

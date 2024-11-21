@@ -24,6 +24,13 @@ namespace XREngine.Rendering.Commands
             set => SetField(ref _renderPass, value);
         }
 
+        private bool _enabled = true;
+        public bool Enabled
+        {
+            get => _enabled;
+            set => SetField(ref _enabled, value);
+        }
+
         public abstract int CompareTo(RenderCommand? other);
         public int CompareTo(object? obj) => CompareTo(obj as RenderCommand);
 

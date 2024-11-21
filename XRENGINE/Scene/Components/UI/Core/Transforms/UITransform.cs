@@ -1,72 +1,29 @@
 ﻿using System.Drawing;
 using System.Numerics;
-using XREngine.Components;
 using XREngine.Data.Colors;
 using XREngine.Data.Geometry;
 using XREngine.Input.Devices;
 using XREngine.Rendering.Commands;
 using XREngine.Rendering.Info;
-using XREngine.Scene;
 using XREngine.Scene.Transforms;
 
 namespace XREngine.Rendering.UI
 {
     public class UITransform : TransformBase
     {
+        //Transformation fields
         protected Vector2 _translation = Vector2.Zero;
         protected float _z = 0.0f;
         protected Vector3 _scale = Vector3.One;
-        private UIInputComponent? _owningUserInterface;
-        public RenderCommandMethod2D _debugRC;
         private UIChildPlacementInfo? _placementInfo = null;
 
-        public UITransform() : this(null) { }
-        public UITransform(TransformBase? parent) : base(parent)
-        {
-            _debugRC = new RenderCommandMethod2D(0, RenderVisualGuides);
-            Children.PostAnythingAdded += OnChildAdded;
-            Children.PostAnythingRemoved += OnChildRemoved;
-            //RenderInfo2D = RenderInfo2D.New(this);
-            //RenderInfo3D = RenderInfo3D.New(this);
-        }
-        ~UITransform()
-        {
-            Children.PostAnythingAdded -= OnChildAdded;
-            Children.PostAnythingRemoved -= OnChildRemoved;
-        }
+        private Vector2 _actualTranslation = new();
 
-        public override SceneNode? SceneNode
+        private UICanvasTransform? _parentCanvas;
+        public UICanvasTransform? ParentCanvas
         {
-            get => base.SceneNode;
-            set
-            {
-                base.SceneNode = value;
-                OwningUserInterface = value is not null && value.TryGetComponent<UIInputComponent>(out var ui) ? ui : null;
-            }
-        }
-        public UIInputComponent? OwningUserInterface
-        {
-            get => _owningUserInterface;
-            set
-            {
-                _owningUserInterface = value;
-
-                lock (Children)
-                {
-                    foreach (var child in Children)
-                        if (child is UITransform uiTransform)
-                            uiTransform.OwningUserInterface = value;
-                }
-            }
-        }
-        public override TransformBase? Parent
-        {
-            get => base.Parent;
-            set
-            {
-                base.Parent = value;
-                OwningUserInterface = Parent is UITransform uiTfm ? uiTfm.OwningUserInterface : null;
-            }
+            get => _parentCanvas;
+            set => SetField(ref _parentCanvas, value);
         }
 
         public virtual Vector2 Translation
@@ -95,6 +52,24 @@ namespace XREngine.Rendering.UI
             get => _scale;
             set => SetField(ref _scale, value);
         }
+
+        public RenderCommandMethod2D _debugRC;
+        public RenderInfo2D RenderInfoUI { get; private set; }
+
+        public UITransform() : this(null) { }
+        public UITransform(TransformBase? parent) : base(parent)
+        {
+            Children.PostAnythingAdded += OnChildAdded;
+            Children.PostAnythingRemoved += OnChildRemoved;
+        }
+        ~UITransform()
+        {
+            Children.PostAnythingAdded -= OnChildAdded;
+            Children.PostAnythingRemoved -= OnChildRemoved;
+        }
+
+        protected override RenderInfo[] GetDebugRenderInfo()
+            => [RenderInfoUI = RenderInfo2D.New(this, _debugRC = new RenderCommandMethod2D(0, RenderVisualGuides))];
 
         protected override Matrix4x4 CreateLocalMatrix()
             => Matrix4x4.CreateScale(Scale) * Matrix4x4.CreateTranslation(new Vector3(Translation, DepthTranslation));
@@ -139,8 +114,11 @@ namespace XREngine.Rendering.UI
             Scale = new Vector3(newScale, Scale.Z);
         }
 
-        public void InvalidateLayout()
-            => OwningUserInterface?.InvalidateLayout();
+        public virtual void InvalidateLayout()
+        {
+            if (ParentCanvas != null && ParentCanvas != this)
+                ParentCanvas.InvalidateLayout();
+        }
 
         /// <summary>
         /// Fits the layout of this UI transform to the parent region.
@@ -150,11 +128,6 @@ namespace XREngine.Rendering.UI
         {
 
         }
-
-        private Vector2 _actualTranslation = new();
-
-        public RenderInfo2D RenderInfo2D { get; private set; }
-        public RenderInfo3D RenderInfo3D { get; private set; }
 
         public bool IsVisible
         {
@@ -182,13 +155,6 @@ namespace XREngine.Rendering.UI
         {
             get => _visibility;
             set => SetField(ref _visibility, value);
-        }
-
-        private bool _renderTransformation = true;
-        public bool DebugRender
-        {
-            get => _renderTransformation;
-            set => SetField(ref _renderTransformation, value);
         }
 
         /// <summary>
@@ -221,16 +187,16 @@ namespace XREngine.Rendering.UI
             //    Engine.LogException(ex);
             //}
         }
-        protected internal override void Start()
-        {
-            if (this is IRenderable r)
-                OwningUserInterface?.AddRenderableComponent(r);
-        }
-        protected internal override void Stop()
-        {
-            if (this is IRenderable r)
-                OwningUserInterface?.RemoveRenderableComponent(r);
-        }
+        //protected internal override void Start()
+        //{
+        //    if (this is IRenderable r)
+        //        OwningUserInterface?.AddRenderableComponent(r);
+        //}
+        //protected internal override void Stop()
+        //{
+        //    if (this is IRenderable r)
+        //        OwningUserInterface?.RemoveRenderableComponent(r);
+        //}
 
         protected virtual void OnResizeChildComponents(BoundingRectangleF parentRegion)
         {
@@ -272,13 +238,13 @@ namespace XREngine.Rendering.UI
         /// <param name="delta">If true, the coordinate and returned value are treated like a vector offset instead of an absolute point.</param>
         /// <returns></returns>
         public Vector2 ScreenToLocal(Vector2 coordinate)
-            => Vector2.Transform(coordinate, OwningUserInterface?.Transform.InverseWorldMatrix ?? Matrix4x4.Identity);
+            => Vector2.Transform(coordinate, ParentCanvas?.InverseWorldMatrix ?? Matrix4x4.Identity);
         public Vector3 ScreenToLocal(Vector3 coordinate)
-            => Vector3.Transform(coordinate, OwningUserInterface?.Transform.InverseWorldMatrix ?? Matrix4x4.Identity);
+            => Vector3.Transform(coordinate, ParentCanvas?.InverseWorldMatrix ?? Matrix4x4.Identity);
         public Vector3 LocalToScreen(Vector3 coordinate)
-            => Vector3.Transform(coordinate, OwningUserInterface?.Transform.WorldMatrix ?? Matrix4x4.Identity);
+            => Vector3.Transform(coordinate, ParentCanvas?.WorldMatrix ?? Matrix4x4.Identity);
         public Vector2 LocalToScreen(Vector2 coordinate)
-            => Vector2.Transform(coordinate, OwningUserInterface?.Transform.WorldMatrix ?? Matrix4x4.Identity);
+            => Vector2.Transform(coordinate, ParentCanvas?.WorldMatrix ?? Matrix4x4.Identity);
 
         public virtual float CalcAutoWidth() => 0.0f;
         public virtual float CalcAutoHeight() => 0.0f;
@@ -325,6 +291,18 @@ namespace XREngine.Rendering.UI
 
         }
 
+        //protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
+        //{
+        //    bool change = base.OnPropertyChanging(propName, field, @new);
+        //    if (change)
+        //    {
+        //        switch (propName)
+        //        {
+                    
+        //        }
+        //    }
+        //    return change;
+        //}
         protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
         {
             base.OnPropertyChanged(propName, prev, field);
@@ -336,8 +314,22 @@ namespace XREngine.Rendering.UI
                     MarkLocalModified();
                     break;
                 case nameof(Visibility):
-                    RenderInfo2D.IsVisible = IsVisible;
-                    RenderInfo3D.IsVisible = IsVisible;
+                    RenderInfoUI.IsVisible = IsVisible;
+                    break;
+                case nameof(ParentCanvas):
+                    lock (Children)
+                    {
+                        foreach (var child in Children)
+                            if (child is UITransform uiTransform)
+                                uiTransform.ParentCanvas = ParentCanvas;
+                    }
+                    ParentCanvas?.InvalidateLayout();
+                    break;
+                case nameof(PlacementInfo):
+                    ParentCanvas?.InvalidateLayout();
+                    break;
+                case nameof(Parent):
+                    ParentCanvas = Parent is UITransform uiTfm ? uiTfm.ParentCanvas : null;
                     break;
             }
         }
@@ -365,6 +357,27 @@ namespace XREngine.Rendering.UI
 
             Engine.Rendering.Debug.RenderLine(endPoint, endPoint + up, Color.Green);
             Engine.Rendering.Debug.RenderLine(endPoint, endPoint + right, Color.Red);
+        }
+
+        /// <summary>
+        /// Converts a canvas-space coordinate to a local-space coordinate of this UI component.
+        /// </summary>
+        /// <param name="canvasPoint"></param>
+        /// <returns></returns>
+        public Vector2 CanvasToLocal(Vector2 canvasPoint)
+        {
+            Matrix4x4 canvasToLocal = InverseWorldMatrix * (ParentCanvas?.WorldMatrix ?? Matrix4x4.Identity);
+            return Vector2.Transform(canvasPoint, canvasToLocal);
+        }
+        /// <summary>
+        /// Converts a local-space coordinate of this UI component to a canvas-space coordinate.
+        /// </summary>
+        /// <param name="localPoint"></param>
+        /// <returns></returns>
+        public Vector2 LocalToCanvas(Vector2 localPoint)
+        {
+            Matrix4x4 localToCanvas = WorldMatrix * (ParentCanvas?.InverseWorldMatrix ?? Matrix4x4.Identity);
+            return Vector2.Transform(localPoint, localToCanvas);
         }
     }
 }

@@ -11,10 +11,10 @@ namespace XREngine.Rendering.UI
 
         }
 
-        protected override void OnMouseEnter() => Highlight();
-        protected override void OnMouseLeave() => Unhighlight();
-        protected override void OnGamepadEnter() => Highlight();
-        protected override void OnGamepadLeave() => Unhighlight();
+        protected override void OnMouseOverlapEnter() => Highlight();
+        protected override void OnMouseOverlapLeave() => Unhighlight();
+        protected override void OnGamepadNavigateEnter() => Highlight();
+        protected override void OnGamepadNavigateLeave() => Unhighlight();
 
         public virtual void Click()
         {

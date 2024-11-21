@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Numerics;
 using XREngine;
+using XREngine.Animation;
 using XREngine.Components;
 using XREngine.Components.Lights;
 using XREngine.Components.Scene;
@@ -11,7 +12,6 @@ using XREngine.Data.Colors;
 using XREngine.Data.Components;
 using XREngine.Data.Core;
 using XREngine.Data.Rendering;
-using XREngine.Data.Trees;
 using XREngine.Editor;
 using XREngine.Native;
 using XREngine.Rendering;
@@ -97,12 +97,7 @@ internal class Program
 
     static XRWorld CreateTestWorld()
     {
-        //FontGlyphSet font = Engine.Assets.LoadEngineAsset<FontGlyphSet>("Fonts", "Calligraphy.ttf");
-        FontGlyphSet font = Engine.Assets.LoadEngineAsset<FontGlyphSet>("Fonts", "Roboto", "Roboto-Regular.ttf");
-        string? dir = Path.GetDirectoryName(font.OriginalPath);
-        //Engine.Assets.SaveTo(font, dir!);
-
-        string desktopDir = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+        //string desktopDir = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
         //UnityPackageExtractor.ExtractAsync(Path.Combine(desktopDir, "Animations.unitypackage"), Path.Combine(desktopDir, "Extracted"), true);
 
         var world = new XRWorld() { Name = "TestWorld" };
@@ -111,9 +106,10 @@ internal class Program
         var rootNode = new SceneNode(scene) { Name = "TestRootNode" };
 
         //Visualize the octree
-        //rootNode.AddComponent<DebugVisualizeOctreeComponent>();
+        rootNode.AddComponent<DebugVisualizeOctreeComponent>();
+
         SceneNode cameraNode = CreateCamera(rootNode);
-        AddFPSText(font, cameraNode);
+        AddFPSText(Engine.Assets.LoadEngineAsset<FontGlyphSet>("Fonts", "Roboto", "Roboto-Regular.ttf"), cameraNode);
         CreatePlayerPawn(cameraNode);
         //AddTestBox(rootNode);
         AddDirLight(rootNode);
@@ -121,11 +117,32 @@ internal class Program
         //AddDirLight2(rootNode, dirLightTransform, dirLightComp);
         //AddPointLight(rootNode);
         AddSoundNode(rootNode);
-        XRTexture2D skyEquirect = Engine.Assets.LoadEngineAsset<XRTexture2D>("Textures", "overcast_soil_puresky_4k.exr");
+        string[] names = ["warm_restaurant_4k", "overcast_soil_puresky_4k", "studio_small_09_4k", "klippad_sunrise_2_4k"];
+        Random r = new();
+        XRTexture2D skyEquirect = Engine.Assets.LoadEngineAsset<XRTexture2D>("Textures", $"{names[r.Next(0, names.Length - 1)]}.exr");
         AddLightProbe(rootNode, skyEquirect);
         AddSkybox(rootNode, skyEquirect);
-        ImportModels(desktopDir, rootNode);
+        //AddSpline(rootNode);
+        //ImportModels(desktopDir, rootNode);
         return world;
+    }
+
+    private static void AddSpline(SceneNode rootNode)
+    {
+        var spline = rootNode.AddComponent<Spline3DComponent>();
+        PropAnimVector3 anim = new();
+        Random r = new();
+        float len = r.NextSingle() * 10.0f;
+        int frameCount = r.Next(2, 10);
+        for (int i = 0; i < frameCount; i++)
+        {
+            float t = i / (float)frameCount;
+            Vector3 value = new(r.NextSingle() * 10.0f, r.NextSingle() * 10.0f, r.NextSingle() * 10.0f);
+            Vector3 tangent = new(r.NextSingle() * 10.0f, r.NextSingle() * 10.0f, r.NextSingle() * 10.0f);
+            anim.Keyframes.Add(new Vector3Keyframe(t, value, tangent, EVectorInterpType.Smooth));
+        }
+        anim.LengthInSeconds = len;
+        spline!.Spline = anim;
     }
 
     private static SceneNode CreateCamera(SceneNode rootNode)
@@ -137,11 +154,11 @@ internal class Program
         //orbitTransform.IgnoreRotation = false;
         //orbitTransform.RegisterAnimationTick<OrbitTransform>(t => t.Angle += Engine.DilatedDelta * 0.5f);
 
-        var laggedTransform = cameraNode.GetTransformAs<Transform>(true)!;
+        var laggedTransform = cameraNode.GetTransformAs<SmoothedTransform>(true)!;
         //laggedTransform.Translation = new Vector3(0.0f, 0.0f, 5.0f);
-        //laggedTransform.RotationSmoothingSpeed = 15.0f;
-        //laggedTransform.TranslationSmoothingSpeed = 15.0f;
-        //laggedTransform.ScaleSmoothingSpeed = 15.0f;
+        laggedTransform.RotationSmoothingSpeed = 30.0f;
+        laggedTransform.TranslationSmoothingSpeed = 15.0f;
+        laggedTransform.ScaleSmoothingSpeed = 15.0f;
 
         if (cameraNode.TryAddComponent<CameraComponent>(out var cameraComp))
         {
@@ -172,6 +189,11 @@ internal class Program
         cameraNode.AddComponent<AudioListenerComponent>();
         pawnComp!.Name = "TestPawn";
         pawnComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
+
+        //var canvas = cameraNode.AddComponent<UICanvasComponent>();
+        //var input = cameraNode.AddComponent<UIInputComponent>();
+        //input!.OwningPawn = cameraNode.GetComponent<EditorFlyingCameraPawnComponent>();
+        //cameraNode.GetComponent<CameraComponent>()!.UserInterfaceOverlay = canvas;
     }
 
     private static void AddTestBox(SceneNode rootNode)

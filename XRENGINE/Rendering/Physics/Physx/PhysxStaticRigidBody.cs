@@ -1,6 +1,7 @@
 ﻿using MagicPhysX;
 using System.Numerics;
 using XREngine.Scene;
+using static MagicPhysX.NativeMethods;
 
 namespace XREngine.Rendering.Physics.Physx
 {
@@ -10,11 +11,17 @@ namespace XREngine.Rendering.Physics.Physx
 
         public PhysxStaticRigidBody(
             PhysxScene scene,
+            PxRigidStatic* obj) : base(scene)
+        {
+            _obj = obj;
+        }
+        public PhysxStaticRigidBody(
+            PhysxScene scene,
             Vector3? position = null,
             Quaternion? rotation = null) : base(scene)
         {
             var tfm = PhysxScene.MakeTransform(position, rotation);
-            Scene.PhysicsPtr->CreateRigidStaticMut(&tfm);
+            _obj = Scene.PhysicsPtr->CreateRigidStaticMut(&tfm);
         }
         public PhysxStaticRigidBody(
             PhysxScene scene,
@@ -23,12 +30,12 @@ namespace XREngine.Rendering.Physics.Physx
             Quaternion? rotation = null) : base(scene)
         {
             var tfm = PhysxScene.MakeTransform(position, rotation);
-            Scene.PhysicsPtr->PhysPxCreateStatic1(&tfm, shape.ShapePtr);
+            _obj = Scene.PhysicsPtr->PhysPxCreateStatic1(&tfm, shape.ShapePtr);
         }
         public PhysxStaticRigidBody(
             PhysxScene scene,
             PhysxMaterial material,
-            PhysxShape shape,
+            PhysxGeometry geometry,
             Vector3? position = null,
             Quaternion? rotation = null,
             Vector3? shapeOffsetTranslation = null,
@@ -36,8 +43,20 @@ namespace XREngine.Rendering.Physics.Physx
         {
             var tfm = PhysxScene.MakeTransform(position, rotation);
             var shapeTfm = PhysxScene.MakeTransform(shapeOffsetTranslation, shapeOffsetRotation);
-            Scene.PhysicsPtr->PhysPxCreateStatic(&tfm, shape.GeometryPtr, material.Material, &shapeTfm);
+            _obj = Scene.PhysicsPtr->PhysPxCreateStatic(&tfm, geometry.GeometryPtr, material.Material, &shapeTfm);
         }
+
+        public static PhysxStaticRigidBody CreatePlane(PhysxScene scene, PxPlane plane, PhysxMaterial material)
+        {
+            var stat = scene.PhysicsPtr->PhysPxCreatePlane(&plane, material.Material);
+            return new PhysxStaticRigidBody(scene, stat);
+        }
+        public static PhysxStaticRigidBody CreatePlane(PhysxScene scene, Vector3 normal, float distance, PhysxMaterial material)
+            => CreatePlane(scene, PxPlane_new_1(normal.X, normal.Y, normal.Z, distance), material);
+        public static PhysxStaticRigidBody CreatePlane(PhysxScene scene, PhysxPlane plane, PhysxMaterial material)
+            => CreatePlane(scene, plane.InternalPlane.n, plane.InternalPlane.d, material);
+        public static PhysxStaticRigidBody CreatePlane(PhysxScene scene, Plane plane, PhysxMaterial material, Vector3 position, Quaternion rotation)
+            => CreatePlane(scene, plane.Normal, plane.D, material);
 
         public override unsafe PxRigidActor* RigidActorPtr => (PxRigidActor*)_obj;
         public override unsafe PxActor* ActorPtr => (PxActor*)_obj;

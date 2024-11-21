@@ -51,7 +51,7 @@ namespace XREngine.Scene.Transforms
 
             RenderInfo = RenderInfo3D.New(this, new RenderCommandMethod3D((int)EDefaultRenderPass.OpaqueForward, RenderDebugLineToParent));
             RenderedObjects = GetDebugRenderInfo();
-            DebugRender = true;
+            DebugRender = false;
         }
 
         private void MakeCapsule()
@@ -74,7 +74,7 @@ namespace XREngine.Scene.Transforms
             }
         }
 
-        private RenderInfo3D RenderInfo { get; set; }
+        protected RenderInfo3D RenderInfo { get; set; }
 
         protected virtual RenderInfo[] GetDebugRenderInfo()
         {
@@ -188,7 +188,7 @@ namespace XREngine.Scene.Transforms
         /// <summary>
         /// 
         /// </summary>
-        internal bool ParallelDepthRecalculate()
+        internal protected virtual bool ParallelDepthRecalculate()
         {
             //bool recalcWorld = false;
             //if (_localMatrix.NeedsRecalc)

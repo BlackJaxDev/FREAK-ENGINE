@@ -150,7 +150,7 @@ namespace XREngine.Scene
         {
             _cells = Triangulation.CreateDelaunay<LightProbeComponent, LightProbeCell>(LightProbes);
             //_instancedCellRenderer = new XRMeshRenderer(GenerateInstancedCellMesh(), new XRMaterial(XRShader.EngineShader("Common/DelaunayCell.frag", EShaderType.Fragment)));
-            scene.RenderablesTree.AddRange(_cells.Cells.Select(x => x.RenderInfo));
+            scene.GenericRenderTree.AddRange(_cells.Cells.Select(x => x.RenderInfo));
         }
 
         public void RenderCells(ICollection<LightProbeCell> probes)

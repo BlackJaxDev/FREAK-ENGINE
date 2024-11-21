@@ -29,7 +29,7 @@ namespace XREngine.Scene
             Lights.LightProbeTree.Remake(bounds);
         }
 
-        public override IRenderTree RenderablesTree => RenderTree;
+        public override IRenderTree GenericRenderTree => RenderTree;
 
         public override void GlobalCollectVisible()
         {

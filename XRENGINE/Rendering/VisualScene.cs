@@ -13,7 +13,7 @@ namespace XREngine.Scene
     public abstract class VisualScene : XRBase, IEnumerable<IRenderable>
     {
         public IReadOnlyList<RenderInfo> Renderables => _renderables;
-        public abstract IRenderTree RenderablesTree { get; }
+        public abstract IRenderTree GenericRenderTree { get; }
 
         private readonly List<RenderInfo> _renderables = [];
 
@@ -32,13 +32,13 @@ namespace XREngine.Scene
         public void AddRenderable(RenderInfo renderable)
         {
             _renderables.Add(renderable);
-            RenderablesTree.Add(renderable);
+            GenericRenderTree.Add(renderable);
         }
 
         public void RemoveRenderable(RenderInfo renderable)
         {
             _renderables.Remove(renderable);
-            RenderablesTree.Remove(renderable);
+            GenericRenderTree.Remove(renderable);
         }
 
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
@@ -71,7 +71,7 @@ namespace XREngine.Scene
         /// Swaps the update/render buffers for the scene.
         /// </summary>
         public virtual void GlobalSwapBuffers()
-            => RenderablesTree.Swap();
+            => GenericRenderTree.Swap();
 
         public void Raycast(
             CameraComponent cameraComponent,
@@ -84,6 +84,6 @@ namespace XREngine.Scene
             Segment worldSegment,
             out SortedDictionary<float, List<(ITreeItem item, object? data)>> items,
             Func<ITreeItem, Segment, (float? distance, object? data)> directTest)
-            => RenderablesTree.Raycast(worldSegment, out items, directTest);
+            => GenericRenderTree.Raycast(worldSegment, out items, directTest);
     }
 }
