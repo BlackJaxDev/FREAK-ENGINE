@@ -69,13 +69,13 @@ public sealed partial class XRRenderPipelineInstance : XRBase
     /// <summary>
     /// Renders the scene to the viewport or framebuffer.
     /// </summary>
-    /// <param name="visualScene"></param>
+    /// <param name="scene"></param>
     /// <param name="camera"></param>
     /// <param name="viewport"></param>
     /// <param name="targetFBO"></param>
     /// <param name="shadowPass"></param>
     public void Render(
-        VisualScene visualScene,
+        VisualScene scene,
         XRCamera? camera,
         XRViewport? viewport,
         XRFrameBuffer? targetFBO = null,
@@ -91,7 +91,7 @@ public sealed partial class XRRenderPipelineInstance : XRBase
 
         using (PushPipeline(this))
         {
-            using (State.PushMainAttributes(viewport, visualScene, camera, targetFBO, shadowPass, shadowMaterial, userInterface))
+            using (State.PushMainAttributes(viewport, scene, camera, targetFBO, shadowPass, shadowMaterial, userInterface))
             {
                 Pipeline.CommandChain.Execute();
             }

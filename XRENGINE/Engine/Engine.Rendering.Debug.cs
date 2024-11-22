@@ -79,7 +79,7 @@ namespace XREngine
                                 RenderCylinder(c.Transform, c.LocalUpAxis, c.Radius, c.HalfHeight, c.Solid, c.Color);
                                 break;
                             case ConeData c:
-                                RenderCone(c.Transform, c.LocalUpAxis, c.Radius, c.Height, c.Solid, c.Color);
+                                RenderCone(c.Center, c.UpAxis, c.Radius, c.Height, c.Solid, c.Color);
                                 break;
                         }
                     }
@@ -173,10 +173,10 @@ namespace XREngine
                     public bool Solid { get; } = solid;
                     public bool DepthTestEnabled { get; } = depthTestEnabled;
                 }
-                public struct ConeData(bool solid, Matrix4x4 transform, Vector3 localUpAxis, float radius, float height, ColorF4 color, bool depthTestEnabled = true) : IShapeData
+                public struct ConeData(bool solid, Vector3 center, Vector3 upAxis, float radius, float height, ColorF4 color, bool depthTestEnabled = true) : IShapeData
                 {
-                    public Matrix4x4 Transform = transform;
-                    public Vector3 LocalUpAxis = localUpAxis;
+                    public Vector3 Center = center;
+                    public Vector3 UpAxis = upAxis;
                     public float Radius = radius;
                     public float Height = height;
                     public ColorF4 Color { get; } = color;
@@ -494,19 +494,18 @@ namespace XREngine
 
                     throw new NotImplementedException();
                 }
-                public static void RenderCone(Matrix4x4 transform, Vector3 localUpAxis, float radius, float height, bool solid, ColorF4 color, float lineWidth = DefaultLineSize)
+                public static void RenderCone(Vector3 center, Vector3 localUpAxis, float radius, float height, bool solid, ColorF4 color, float lineWidth = DefaultLineSize)
                 {
                     if (!IsRenderThread)
                     {
-                        _debugShapesUpdating.Enqueue(new ConeData(solid, transform, localUpAxis, radius, height, color));
+                        _debugShapesUpdating.Enqueue(new ConeData(solid, center, localUpAxis, radius, height, color));
                         return;
                     }
 
                     //SetLineSize(lineWidth);
                     XRMeshRenderer m = GetDebugPrimitive(solid ? EDebugPrimitiveType.SolidCone : EDebugPrimitiveType.WireCone, out _);
                     m.Parameter<ShaderVector4>(0)!.Value = color;
-                    transform = transform * XRMath.LookatAngles(localUpAxis).GetMatrix() * Matrix4x4.CreateScale(radius, radius, height);
-                    m.Render(transform);
+                    m.Render(Matrix4x4.CreateScale(radius, radius, height) * XRMath.LookatAngles(localUpAxis).GetMatrix() * Matrix4x4.CreateTranslation(center));
                 }
 
                 private static XRMeshRenderer AssignDebugPrimitive(string name, XRMeshRenderer m)
@@ -598,6 +597,31 @@ namespace XREngine
                     RenderLine(frustum.RightTopNear, frustum.RightTopFar, color);
                     RenderLine(frustum.RightBottomNear, frustum.RightBottomFar, color);
                     RenderLine(frustum.LeftBottomNear, frustum.LeftBottomFar, color);
+                }
+
+                public static void RenderShape(IShape shape, bool solid, ColorF4 color)
+                {
+                    switch (shape)
+                    {
+                        case Sphere s:
+                            RenderSphere(s.Center, s.Radius, solid, color);
+                            break;
+                        case AABB a:
+                            RenderAABB(a.HalfExtents, a.Center, solid, color);
+                            break;
+                        case Box b:
+                            RenderBox(b.LocalHalfExtents, b.LocalCenter, b.Transform, solid, color);
+                            break;
+                        case Capsule c:
+                            RenderCapsule(c.Center, c.UpAxis, c.Radius, c.HalfHeight, solid, color);
+                            break;
+                        //case Cylinder c:
+                        //    RenderCylinder(c.Transform, c.LocalUpAxis, c.Radius, c.HalfHeight, solid, color);
+                        //    break;
+                        case Cone c:
+                            RenderCone(c.Center, c.Up, c.Radius, c.Height, solid, color);
+                            break;
+                    }
                 }
             }
         }

@@ -380,18 +380,13 @@ namespace XREngine.Components.Lights
         protected internal override void OnComponentActivated()
         {
             base.OnComponentActivated();
-
-            if (World?.VisualScene is VisualScene3D scene3D)
-                scene3D.Lights.LightProbes.Add(this);
-            else
-                Debug.LogWarning("LightProbeComponent must be in a VisualScene3D to function properly.");
+            World?.Lights.LightProbes.Add(this);
         }
 
         protected internal override void OnComponentDeactivated()
         {
             base.OnComponentDeactivated();
-            if (World?.VisualScene is VisualScene3D scene3D)
-                scene3D.Lights.LightProbes.Remove(this);
+            World?.Lights.LightProbes.Remove(this);
         }
     }
 }

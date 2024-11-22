@@ -9,12 +9,11 @@ namespace XREngine.Scene.Transforms
     /// <param name="parent"></param>
     public class VREyeTransform : TransformBase
     {
-        public VREyeTransform() { }
-        public VREyeTransform(TransformBase parent)
-            : base(parent) { }
-
         public bool IsLeftEye { get; }
 
+        public VREyeTransform() { }
+        public VREyeTransform(TransformBase? parent)
+            : base(parent) { }
         public VREyeTransform(bool isLeftEye, TransformBase? parent = null)
             : this(parent) => IsLeftEye = isLeftEye;
 

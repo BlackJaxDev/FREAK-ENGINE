@@ -13,7 +13,7 @@ using XREngine.Scene.Transforms;
 
 namespace XREngine.Scene
 {
-    public class Lights3DCollection(VisualScene visualScene) : XRBase
+    public class Lights3DCollection(XRWorldInstance world) : XRBase
     {
         public bool IBLCaptured { get; private set; } = false;
 
@@ -23,7 +23,7 @@ namespace XREngine.Scene
 
         public Octree<LightProbeCell> LightProbeTree { get; } = new(new AABB());
         
-        public VisualScene Scene { get; } = visualScene;
+        public XRWorldInstance World { get; } = world;
         public EventList<SpotLightComponent> SpotLights { get; } = [];
         public EventList<PointLightComponent> PointLights { get; } = [];
         public EventList<DirectionalLightComponent> DirectionalLights { get; } = [];
@@ -50,13 +50,13 @@ namespace XREngine.Scene
         public void CollectVisibleItems()
         {
             foreach (DirectionalLightComponent l in DirectionalLights)
-                l.CollectVisibleItems(Scene);
+                l.CollectVisibleItems(World);
 
             foreach (SpotLightComponent l in SpotLights)
-                l.CollectVisibleItems(Scene);
+                l.CollectVisibleItems(World);
 
             foreach (PointLightComponent l in PointLights)
-                l.CollectVisibleItems(Scene);
+                l.CollectVisibleItems(World);
         }
 
         public void SwapBuffers()
@@ -76,13 +76,13 @@ namespace XREngine.Scene
             RenderingShadowMaps = true;
 
             foreach (DirectionalLightComponent l in DirectionalLights)
-                l.RenderShadowMap(Scene, collectVisibleNow);
+                l.RenderShadowMap(World, collectVisibleNow);
 
             foreach (SpotLightComponent l in SpotLights)
-                l.RenderShadowMap(Scene, collectVisibleNow);
+                l.RenderShadowMap(World, collectVisibleNow);
 
             foreach (PointLightComponent l in PointLights)
-                l.RenderShadowMap(Scene, collectVisibleNow);
+                l.RenderShadowMap(World, collectVisibleNow);
 
             RenderingShadowMaps = false;
         }

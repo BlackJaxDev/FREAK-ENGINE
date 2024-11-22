@@ -9,62 +9,50 @@ namespace XREngine.Rendering.Physics.Physx
     {
         private readonly unsafe PxRigidStatic* _obj;
 
+        public PhysxStaticRigidBody(PxRigidStatic* obj) => _obj = obj;
+
         public PhysxStaticRigidBody(
-            PhysxScene scene,
-            PxRigidStatic* obj) : base(scene)
-        {
-            _obj = obj;
-        }
-        public PhysxStaticRigidBody(
-            PhysxScene scene,
             Vector3? position = null,
-            Quaternion? rotation = null) : base(scene)
+            Quaternion? rotation = null)
         {
             var tfm = PhysxScene.MakeTransform(position, rotation);
-            _obj = Scene.PhysicsPtr->CreateRigidStaticMut(&tfm);
+            _obj = PhysxScene.PhysicsPtr->CreateRigidStaticMut(&tfm);
         }
         public PhysxStaticRigidBody(
-            PhysxScene scene,
             PhysxShape shape,
             Vector3? position = null,
-            Quaternion? rotation = null) : base(scene)
+            Quaternion? rotation = null)
         {
             var tfm = PhysxScene.MakeTransform(position, rotation);
-            _obj = Scene.PhysicsPtr->PhysPxCreateStatic1(&tfm, shape.ShapePtr);
+            _obj = PhysxScene.PhysicsPtr->PhysPxCreateStatic1(&tfm, shape.ShapePtr);
         }
         public PhysxStaticRigidBody(
-            PhysxScene scene,
             PhysxMaterial material,
             PhysxGeometry geometry,
             Vector3? position = null,
             Quaternion? rotation = null,
             Vector3? shapeOffsetTranslation = null,
-            Quaternion? shapeOffsetRotation = null) : base(scene)
+            Quaternion? shapeOffsetRotation = null)
         {
             var tfm = PhysxScene.MakeTransform(position, rotation);
             var shapeTfm = PhysxScene.MakeTransform(shapeOffsetTranslation, shapeOffsetRotation);
-            _obj = Scene.PhysicsPtr->PhysPxCreateStatic(&tfm, geometry.GeometryPtr, material.Material, &shapeTfm);
+            _obj = PhysxScene.PhysicsPtr->PhysPxCreateStatic(&tfm, geometry.Geometry, material.MaterialPtr, &shapeTfm);
         }
 
-        public static PhysxStaticRigidBody CreatePlane(PhysxScene scene, PxPlane plane, PhysxMaterial material)
+        public static PhysxStaticRigidBody CreatePlane(PxPlane plane, PhysxMaterial material)
         {
-            var stat = scene.PhysicsPtr->PhysPxCreatePlane(&plane, material.Material);
-            return new PhysxStaticRigidBody(scene, stat);
+            var stat = PhysxScene.PhysicsPtr->PhysPxCreatePlane(&plane, material.MaterialPtr);
+            return new PhysxStaticRigidBody(stat);
         }
-        public static PhysxStaticRigidBody CreatePlane(PhysxScene scene, Vector3 normal, float distance, PhysxMaterial material)
-            => CreatePlane(scene, PxPlane_new_1(normal.X, normal.Y, normal.Z, distance), material);
-        public static PhysxStaticRigidBody CreatePlane(PhysxScene scene, PhysxPlane plane, PhysxMaterial material)
-            => CreatePlane(scene, plane.InternalPlane.n, plane.InternalPlane.d, material);
-        public static PhysxStaticRigidBody CreatePlane(PhysxScene scene, Plane plane, PhysxMaterial material, Vector3 position, Quaternion rotation)
-            => CreatePlane(scene, plane.Normal, plane.D, material);
+        public static PhysxStaticRigidBody CreatePlane(Vector3 normal, float distance, PhysxMaterial material)
+            => CreatePlane(PxPlane_new_1(normal.X, normal.Y, normal.Z, distance), material);
+        public static PhysxStaticRigidBody CreatePlane(PhysxPlane plane, PhysxMaterial material)
+            => CreatePlane(plane.InternalPlane.n, plane.InternalPlane.d, material);
+        public static PhysxStaticRigidBody CreatePlane(Plane plane, PhysxMaterial material, Vector3 position, Quaternion rotation)
+            => CreatePlane(plane.Normal, plane.D, material);
 
         public override unsafe PxRigidActor* RigidActorPtr => (PxRigidActor*)_obj;
         public override unsafe PxActor* ActorPtr => (PxActor*)_obj;
         public override unsafe PxBase* BasePtr => (PxBase*)_obj;
-
-        public void Destroy()
-        {
-            Scene.RemoveActor(this);
-        }
     }
 }

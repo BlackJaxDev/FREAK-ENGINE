@@ -52,7 +52,9 @@ namespace XREngine.Components
         //}
 
         public void Render(XRViewport vp, XRFrameBuffer outputFBO)
-            => RenderPipelineInstance.Render(CanvasTransform.Scene2D, CanvasTransform.Camera2D, null, outputFBO, null, false);
+        {
+            RenderPipelineInstance.Render(CanvasTransform.Scene2D, CanvasTransform.Camera2D, null, outputFBO, null, false);
+        }
 
         public void SwapBuffers()
         {

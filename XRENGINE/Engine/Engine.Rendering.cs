@@ -61,7 +61,7 @@ namespace XREngine
                 => new PhysxScene();
 
             public static VisualScene3D NewVisualScene()
-                => new VisualScene3D();
+                => new();
 
             public static RenderPipeline NewRenderPipeline()
                 => new DefaultRenderPipeline();

@@ -4,7 +4,7 @@ namespace XREngine.Data.Geometry
 {
     public interface IShape : IVolume
     {
-        //CollisionShape GetCollisionShape();
+        //XRCollisionShape GetCollisionShape();
         //void Render(bool shadowPass);
     }
 }

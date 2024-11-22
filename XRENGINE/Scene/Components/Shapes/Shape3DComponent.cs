@@ -11,12 +11,7 @@ namespace XREngine.Data.Components
 
         public Shape3DComponent()
         {
-            RenderedObjects = 
-            [
-                //_renderInfo = RenderInfo3D.New(this)
-            ];
-            //_renderInfo.CastsShadows = false;
-            //_renderInfo.ReceivesShadows = false;
+            RenderedObjects = [_renderInfo = RenderInfo3D.New(this, GetRenderCommand())];
         }
 
         public virtual RenderInfo3D RenderInfo
@@ -28,10 +23,9 @@ namespace XREngine.Data.Components
                 RenderedObjects = [value];
             }
         }
-        public RenderInfo[] RenderedObjects { get; private set; }
-        protected abstract RenderCommand3D GetRenderCommand();
 
-        public virtual void AddRenderCommands(RenderCommandCollection passes, XRCamera camera)
-            => passes.Add(GetRenderCommand());
+        public RenderInfo[] RenderedObjects { get; private set; }
+
+        protected abstract RenderCommand3D GetRenderCommand();
     }
 }

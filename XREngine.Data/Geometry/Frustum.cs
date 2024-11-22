@@ -434,7 +434,7 @@ namespace XREngine.Data.Geometry
         IEnumerator IEnumerable.GetEnumerator() => _planes.GetEnumerator();
 
         public EContainment Contains(Box box)
-            => GeoUtil.FrustumContainsBox1(this, box.LocalExtents, box.Transform);
+            => GeoUtil.FrustumContainsBox1(this, box.LocalHalfExtents, box.Transform);
 
         public EContainment ContainsAABB(AABB box, float tolerance = float.Epsilon)
             => GeoUtil.FrustumContainsAABB(this, box.Min, box.Max);

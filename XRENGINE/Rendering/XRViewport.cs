@@ -183,24 +183,24 @@ namespace XREngine.Rendering
         /// </summary>
         /// <param name="vp"></param>
         /// <param name="targetFbo"></param>
-        public void Render(XRFrameBuffer? targetFbo = null, VisualScene? sceneOverride = null, bool allowUIRender = true)
+        public void Render(XRFrameBuffer? targetFbo = null, XRWorldInstance? worldOverride = null, bool allowUIRender = true)
         {
             XRCamera? camera = ActiveCamera;
             if (camera is null)
                 return;
 
-            var scene = sceneOverride ?? World?.VisualScene;
-            if (scene is null || (State.PipelineState?.ViewportStack.Contains(this) ?? false))
+            var world = worldOverride ?? World;
+            if (world is null || (State.PipelineState?.ViewportStack.Contains(this) ?? false))
                 return;
 
-            if (sceneOverride is not null)
+            if (worldOverride is not null)
             {
                 //Collect and swap now
                 CollectVisible();
                 SwapBuffers();
             }
 
-            _renderPipeline.Render(scene, camera, this, targetFbo, allowUIRender ? CameraComponent?.UserInterfaceOverlay : null);
+            _renderPipeline.Render(world.VisualScene, camera, this, targetFbo, allowUIRender ? CameraComponent?.UserInterfaceOverlay : null);
         }
 
         private readonly XRRenderPipelineInstance _renderPipeline = new();

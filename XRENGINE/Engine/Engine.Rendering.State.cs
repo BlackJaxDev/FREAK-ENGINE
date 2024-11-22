@@ -23,7 +23,7 @@ namespace XREngine
                 public static BoundingRectangle RenderArea => PipelineState?.CurrentRenderRegion ?? BoundingRectangle.Empty;
                 public static XRWorldInstance? RenderingWorld => RenderingViewport?.World;
                 public static XRViewport? RenderingViewport => PipelineState?.WindowViewport;
-                public static VisualScene? RenderingScene => PipelineState?.MainScene;
+                public static VisualScene? RenderingScene => PipelineState?.Scene;
                 public static XRCamera? RenderingCamera => PipelineState?.RenderingCamera;
                 public static XRFrameBuffer? TargetOutputFBO => PipelineState?.OutputFBO;
                 public static XRMaterial? OverrideMaterial => PipelineState?.OverrideMaterial;

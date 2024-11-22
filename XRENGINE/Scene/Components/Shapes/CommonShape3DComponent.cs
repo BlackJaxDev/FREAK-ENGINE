@@ -1,4 +1,5 @@
-﻿using XREngine.Data.Geometry;
+﻿using XREngine.Data.Colors;
+using XREngine.Data.Geometry;
 using XREngine.Physics;
 using XREngine.Rendering.Commands;
 using XREngine.Rendering.Info;
@@ -58,12 +59,12 @@ namespace XREngine.Data.Components
                 return;
             
             CollisionObject.CollisionShape = GetCollisionShape();
-            RigidBodyUpdated();
+            OnRigidBodyShapeUpdated();
         }
 
         protected virtual void Render(bool shadowPass)
         {
-            //_shape?.Render(shadowPass);
+            Engine.Rendering.Debug.RenderShape(_shape, false, ColorF4.White);
         }
 
         protected override RenderCommand3D GetRenderCommand()

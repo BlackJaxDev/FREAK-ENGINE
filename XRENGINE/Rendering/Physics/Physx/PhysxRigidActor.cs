@@ -5,7 +5,7 @@ using static MagicPhysX.NativeMethods;
 
 namespace XREngine.Rendering.Physics.Physx
 {
-    public unsafe abstract class PhysxRigidActor(PhysxScene scene) : PhysxActor(scene)
+    public unsafe abstract class PhysxRigidActor : PhysxActor
     {
         public abstract PxRigidActor* RigidActorPtr { get; }
         public override unsafe PxActor* ActorPtr => (PxActor*)RigidActorPtr;
@@ -62,19 +62,22 @@ namespace XREngine.Rendering.Physics.Physx
             return constraints;
         }
 
-        public PxShape*[] GetShapes()
+        public PhysxShape[] GetShapes()
         {
             var shapes = new PxShape*[ShapeCount];
             fixed (PxShape** shapesPtr = shapes)
                 RigidActorPtr->GetShapes(shapesPtr, ShapeCount, 0);
-            return shapes;
+            var shapes2 = new PhysxShape[ShapeCount];
+            for (int i = 0; i < ShapeCount; i++)
+                shapes2[i] = Scene.GetShape(shapes[i])!;
+            return shapes2;
         }
 
-        public void AttachShape(PxShape shape)
-            => RigidActorPtr->AttachShapeMut(&shape);
+        public void AttachShape(PhysxShape shape)
+            => RigidActorPtr->AttachShapeMut(shape.ShapePtr);
 
-        public void DetachShape(PxShape shape, bool wakeOnLostTouch)
-            => RigidActorPtr->DetachShapeMut(&shape, wakeOnLostTouch);
+        public void DetachShape(PhysxShape shape, bool wakeOnLostTouch)
+            => RigidActorPtr->DetachShapeMut(shape.ShapePtr, wakeOnLostTouch);
 
         public override void Release()
             => RigidActorPtr->ReleaseMut();

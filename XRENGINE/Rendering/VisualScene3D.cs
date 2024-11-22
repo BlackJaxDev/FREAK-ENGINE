@@ -15,39 +15,15 @@ namespace XREngine.Scene
     /// </summary>
     public class VisualScene3D : VisualScene
     {
-        public VisualScene3D()
-        {
-            Lights = new Lights3DCollection(this);
-        }
-
-        public Lights3DCollection Lights { get; }
         public Octree<RenderInfo3D> RenderTree { get; } = new Octree<RenderInfo3D>(new AABB());
 
         public void SetBounds(AABB bounds)
         {
             RenderTree.Remake(bounds);
-            Lights.LightProbeTree.Remake(bounds);
+            //Lights.LightProbeTree.Remake(bounds);
         }
 
         public override IRenderTree GenericRenderTree => RenderTree;
-
-        public override void GlobalCollectVisible()
-        {
-            base.GlobalCollectVisible();
-            Lights.CollectVisibleItems();
-        }
-
-        public override void GlobalPreRender()
-        {
-            base.GlobalPreRender();
-            Lights.RenderShadowMaps(false);
-        }
-
-        public override void GlobalSwapBuffers()
-        {
-            base.GlobalSwapBuffers();
-            Lights.SwapBuffers();
-        }
 
         public override void DebugRender(XRCamera? camera, bool onlyContainingItems = false)
             => RenderTree.DebugRender(camera?.WorldFrustum(), onlyContainingItems, RenderAABB);

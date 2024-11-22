@@ -9,9 +9,9 @@ namespace XREngine.Data.Geometry
         public Vector3 LocalSize;
         public Matrix4x4 Transform = Matrix4x4.Identity;
 
-        public readonly Vector3 LocalExtents => LocalSize * 0.5f;
-        public readonly Vector3 LocalMinimum => LocalCenter - LocalExtents;
-        public readonly Vector3 LocalMaximum => LocalCenter + LocalExtents;
+        public readonly Vector3 LocalHalfExtents => LocalSize * 0.5f;
+        public readonly Vector3 LocalMinimum => LocalCenter - LocalHalfExtents;
+        public readonly Vector3 LocalMaximum => LocalCenter + LocalHalfExtents;
 
         public readonly Vector3 WorldCenter => Vector3.Transform(LocalCenter, Transform);
         public readonly Vector3 WorldMinimum => Vector3.Transform(LocalMinimum, Transform);

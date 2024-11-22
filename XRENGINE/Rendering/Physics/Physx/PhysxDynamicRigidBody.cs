@@ -11,39 +11,33 @@ namespace XREngine.Rendering.Physics.Physx
         public override PxRigidBody* BodyPtr => (PxRigidBody*)_obj;
 
         public PhysxDynamicRigidBody(
-            PhysxScene scene,
             PhysxMaterial material,
-            PhysxGeometry geometry,
+            IAbstractPhysicsGeometry geometry,
             float density,
             Vector3? position = null,
             Quaternion? rotation = null,
             Vector3? shapeOffsetTranslation = null,
-            Quaternion? shapeOffsetRotation = null) : base(scene)
+            Quaternion? shapeOffsetRotation = null)
         {
             var tfm = PhysxScene.MakeTransform(position, rotation);
             var shapeTfm = PhysxScene.MakeTransform(shapeOffsetTranslation, shapeOffsetRotation);
-            Scene.PhysicsPtr->PhysPxCreateDynamic(&tfm, geometry.GeometryPtr, material.Material, density, &shapeTfm);
+            PhysxScene.PhysicsPtr->PhysPxCreateDynamic(&tfm, geometry.Geometry, material.MaterialPtr, density, &shapeTfm);
         }
         public PhysxDynamicRigidBody(
-            PhysxScene scene,
             PhysxShape shape,
             float density,
             Vector3? position = null,
-            Quaternion? rotation = null) : base(scene)
+            Quaternion? rotation = null)
         {
             var tfm = PhysxScene.MakeTransform(position, rotation);
-            Scene.PhysicsPtr->PhysPxCreateDynamic1(&tfm, shape.ShapePtr, density);
+            PhysxScene.PhysicsPtr->PhysPxCreateDynamic1(&tfm, shape.ShapePtr, density);
         }
         public PhysxDynamicRigidBody(
-            PhysxScene scene,
             Vector3? position = null,
-            Quaternion? rotation = null) : base(scene)
+            Quaternion? rotation = null)
         {
             var tfm = PhysxScene.MakeTransform(position, rotation);
-            Scene.PhysicsPtr->CreateRigidDynamicMut(&tfm);
+            PhysxScene.PhysicsPtr->CreateRigidDynamicMut(&tfm);
         }
-
-        public void Destroy(bool wakeOnLostTouch = false)
-            => Scene.RemoveActor(this, wakeOnLostTouch);
     }
 }

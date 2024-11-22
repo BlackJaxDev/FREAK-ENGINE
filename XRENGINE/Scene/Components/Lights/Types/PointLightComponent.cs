@@ -90,10 +90,10 @@ namespace XREngine.Components.Lights
         {
             base.OnComponentActivated();
 
-            if (Type != ELightType.Dynamic || World?.VisualScene is not VisualScene3D scene)
+            if (Type != ELightType.Dynamic)
                 return;
-            
-            scene.Lights.PointLights.Add(this);
+
+            World?.Lights.PointLights.Add(this);
 
             if (CastsShadows && ShadowMap is null)
                 SetShadowMapResolution(1024u, 1024u);
@@ -102,8 +102,8 @@ namespace XREngine.Components.Lights
         {
             ShadowMap?.Destroy();
 
-            if (Type == ELightType.Dynamic && World?.VisualScene is VisualScene3D scene)
-                scene.Lights.PointLights.Remove(this);
+            if (Type == ELightType.Dynamic)
+                World?.Lights.PointLights.Remove(this);
 
             base.OnComponentDeactivated();
         }
@@ -189,26 +189,26 @@ namespace XREngine.Components.Lights
             return mat;
         }
 
-        public override void CollectVisibleItems(VisualScene scene)
+        public override void CollectVisibleItems(XRWorldInstance world)
         {
-            if (!CastsShadows || scene is not VisualScene3D s3d)
+            if (!CastsShadows)
                 return;
 
-            s3d.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, _influenceVolume, null, true);
+            world.VisualScene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, _influenceVolume, null, true);
         }
 
-        public override void RenderShadowMap(VisualScene scene, bool collectVisibleNow = false)
+        public override void RenderShadowMap(XRWorldInstance world, bool collectVisibleNow = false)
         {
-            if (!CastsShadows || ShadowMap?.Material is null || scene is not VisualScene3D s3d)
+            if (!CastsShadows || ShadowMap?.Material is null)
                 return;
 
             if (collectVisibleNow)
             {
-                s3d.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, _influenceVolume, null, true);
+                world.VisualScene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, _influenceVolume, null, true);
                 _shadowRenderPipeline.MeshRenderCommands.SwapBuffers(true);
             }
 
-            _shadowRenderPipeline.Render(scene, null, null, ShadowMap, null, true, ShadowMap.Material);
+            _shadowRenderPipeline.Render(world.VisualScene, null, null, ShadowMap, null, true, ShadowMap.Material);
         }
 
         protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)

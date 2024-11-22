@@ -119,13 +119,13 @@ namespace XREngine.Components.Lights
         /// </summary>
         public virtual void Capture()
         {
+            if (World is null)
+                return;
+
             if (RenderFBO is null)
                 SetCaptureResolution(1024);
 
-            if (World?.VisualScene is not VisualScene3D scene3D)
-                return;
-
-            scene3D.Lights.RenderShadowMaps(true);
+            World.Lights.RenderShadowMaps(true);
 
             IFrameBufferAttachement depthAttachment;
             int[] depthLayers;
@@ -147,7 +147,7 @@ namespace XREngine.Components.Lights
                     (depthAttachment, EFrameBufferAttachment.DepthStencilAttachment, 0, depthLayers[i]));
 
                 _viewport!.Camera = RenderFBO.Cameras[i];
-                _viewport.Render(RenderFBO, World.VisualScene);
+                _viewport.Render(RenderFBO, World);
             }
 
             if (_environmentTextureCubemap is not null)

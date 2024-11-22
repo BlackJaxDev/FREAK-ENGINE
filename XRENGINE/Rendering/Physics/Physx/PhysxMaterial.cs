@@ -4,94 +4,118 @@ namespace XREngine.Rendering.Physics.Physx
 {
     public unsafe class PhysxMaterial : AbstractPhysicsMaterial
     {
-        private readonly unsafe PxMaterial* _obj;
-        private readonly PhysxScene _scene;
+        private readonly unsafe PxMaterial* _materialPtr;
 
-        public PhysxMaterial(PhysxScene scene)
+        public PhysxMaterial()
+            => _materialPtr = PhysxScene.PhysicsPtr->CreateMaterialMut(0.0f, 0.0f, 0.0f);
+        public PhysxMaterial(
+            float staticFriction,
+            float dynamicFriction,
+            float restitution)
+            => _materialPtr = PhysxScene.PhysicsPtr->CreateMaterialMut(staticFriction, dynamicFriction, restitution);
+        public PhysxMaterial(PxMaterial* materialPtr)
+            => _materialPtr = materialPtr;
+        public PhysxMaterial(
+            float staticFriction,
+            float dynamicFriction,
+            float restitution,
+            float damping,
+            ECombineMode frictionCombineMode,
+            ECombineMode restitutionCombineMode,
+            bool disableFriction,
+            bool disableStrongFriction,
+            bool improvedPatchFriction,
+            bool compliantContact)
         {
-            _scene = scene;
-            _obj = _scene.PhysicsPtr->CreateMaterialMut(0.0f, 0.0f, 0.0f);
+            _materialPtr = PhysxScene.PhysicsPtr->CreateMaterialMut(staticFriction, dynamicFriction, restitution);
+            Damping = damping;
+            FrictionCombineMode = frictionCombineMode;
+            RestitutionCombineMode = restitutionCombineMode;
+            DisableFriction = disableFriction;
+            DisableStrongFriction = disableStrongFriction;
+            ImprovedPatchFriction = improvedPatchFriction;
+            CompliantContact = compliantContact;
         }
 
-        public PxMaterial* Material => _obj;
+        public PxMaterial* MaterialPtr => _materialPtr;
 
         public override float StaticFriction
         {
-            get => _obj->GetStaticFriction();
-            set => _obj->SetStaticFrictionMut(value);
+            get => _materialPtr->GetStaticFriction();
+            set => _materialPtr->SetStaticFrictionMut(value);
         }
         public override float DynamicFriction
         {
-            get => _obj->GetDynamicFriction();
-            set => _obj->SetDynamicFrictionMut(value);
+            get => _materialPtr->GetDynamicFriction();
+            set => _materialPtr->SetDynamicFrictionMut(value);
         }
         public override float Restitution
         {
-            get => _obj->GetRestitution();
-            set => _obj->SetRestitutionMut(value);
+            get => _materialPtr->GetRestitution();
+            set => _materialPtr->SetRestitutionMut(value);
         }
         public override float Damping
         {
-            get => _obj->GetDamping();
-            set => _obj->SetDampingMut(value);
+            get => _materialPtr->GetDamping();
+            set => _materialPtr->SetDampingMut(value);
         }
         public override ECombineMode FrictionCombineMode
         {
-            get => Conv(_obj->GetFrictionCombineMode());
-            set => _obj->SetFrictionCombineModeMut(Conv(value));
+            get => Conv(_materialPtr->GetFrictionCombineMode());
+            set => _materialPtr->SetFrictionCombineModeMut(Conv(value));
         }
         public override ECombineMode RestitutionCombineMode
         {
-            get => Conv(_obj->GetRestitutionCombineMode());
-            set => _obj->SetRestitutionCombineModeMut(Conv(value));
+            get => Conv(_materialPtr->GetRestitutionCombineMode());
+            set => _materialPtr->SetRestitutionCombineModeMut(Conv(value));
         }
-        public PxMaterialFlags Flags
+        public PxMaterialFlags MaterialFlags
         {
-            get => _obj->GetFlags();
-            set => _obj->SetFlagsMut(value);
+            get => _materialPtr->GetFlags();
+            set => _materialPtr->SetFlagsMut(value);
         }
         public override bool DisableFriction
         {
-            get => (Flags & PxMaterialFlags.DisableFriction) != 0;
+            get => (MaterialFlags & PxMaterialFlags.DisableFriction) != 0;
             set
             {
                 if (value)
-                    Flags |= PxMaterialFlags.DisableFriction;
+                    MaterialFlags |= PxMaterialFlags.DisableFriction;
                 else
-                    Flags &= ~PxMaterialFlags.DisableFriction;
+                    MaterialFlags &= ~PxMaterialFlags.DisableFriction;
             }
         }
         public override bool DisableStrongFriction
         {
-            get => (Flags & PxMaterialFlags.DisableStrongFriction) != 0;
+            get => (MaterialFlags & PxMaterialFlags.DisableStrongFriction) != 0;
             set
             {
                 if (value)
-                    Flags |= PxMaterialFlags.DisableStrongFriction;
+                    MaterialFlags |= PxMaterialFlags.DisableStrongFriction;
                 else
-                    Flags &= ~PxMaterialFlags.DisableStrongFriction;
+                    MaterialFlags &= ~PxMaterialFlags.DisableStrongFriction;
             }
         }
         public override bool ImprovedPatchFriction
         {
-            get => (Flags & PxMaterialFlags.ImprovedPatchFriction) != 0;
+            get => (MaterialFlags & PxMaterialFlags.ImprovedPatchFriction) != 0;
             set
             {
                 if (value)
-                    Flags |= PxMaterialFlags.ImprovedPatchFriction;
+                    MaterialFlags |= PxMaterialFlags.ImprovedPatchFriction;
                 else
-                    Flags &= ~PxMaterialFlags.ImprovedPatchFriction;
+                    MaterialFlags &= ~PxMaterialFlags.ImprovedPatchFriction;
             }
         }
         public override bool CompliantContact
         {
-            get => (Flags & PxMaterialFlags.CompliantContact) != 0;
+            get => (MaterialFlags & PxMaterialFlags.CompliantContact) != 0;
             set
             {
                 if (value)
-                    Flags |= PxMaterialFlags.CompliantContact;
+                    MaterialFlags |= PxMaterialFlags.CompliantContact;
                 else
-                    Flags &= ~PxMaterialFlags.CompliantContact;
+                    MaterialFlags &= ~PxMaterialFlags.CompliantContact;
             }
         }
 

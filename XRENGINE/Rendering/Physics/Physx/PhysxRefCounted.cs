@@ -10,7 +10,7 @@ namespace XREngine.Rendering.Physics.Physx
         public uint ReferenceCount => PxRefCounted_getReferenceCount(RefCountedPtr);
 
         public void Aquire() => PxRefCounted_acquireReference_mut(RefCountedPtr);
-        public void Release() => PxRefCounted_release_mut(RefCountedPtr);
+        public virtual void Release() => PxRefCounted_release_mut(RefCountedPtr);
 
         public override unsafe PxBase* BasePtr => (PxBase*)RefCountedPtr;
     }

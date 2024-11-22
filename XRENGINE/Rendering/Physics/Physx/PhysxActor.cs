@@ -1,12 +1,36 @@
 ﻿using MagicPhysX;
 using XREngine.Data.Geometry;
+using XREngine.Scene;
 
 namespace XREngine.Rendering.Physics.Physx
 {
-    public unsafe abstract class PhysxActor(PhysxScene scene) : PhysxBase
+    public unsafe abstract class PhysxActor : PhysxBase, IAbstractPhysicsActor
     {
         public abstract PxActor* ActorPtr { get; }
         public override unsafe PxBase* BasePtr => (PxBase*)ActorPtr;
+
+        ~PhysxActor() => Release();
+
+        public bool DebugVisualize
+        {
+            get => ActorFlags.HasFlag(PxActorFlag.Visualization);
+            set => SetActorFlag(PxActorFlag.Visualization, value);
+        }
+        public bool GravityEnabled
+        {
+            get => !ActorFlags.HasFlag(PxActorFlag.DisableGravity);
+            set => SetActorFlag(PxActorFlag.DisableGravity, !value);
+        }
+        public bool SimulationEnabled
+        {
+            get => !ActorFlags.HasFlag(PxActorFlag.DisableSimulation);
+            set => SetActorFlag(PxActorFlag.DisableSimulation, !value);
+        }
+        public bool SendSleepNotifies
+        {
+            get => ActorFlags.HasFlag(PxActorFlag.SendSleepNotifies);
+            set => SetActorFlag(PxActorFlag.SendSleepNotifies, value);
+        }
 
         public PxActorFlags ActorFlags
         {
@@ -67,12 +91,18 @@ namespace XREngine.Rendering.Physics.Physx
             }
         }
 
-        public PhysxScene Scene { get; } = scene;
         public PxScene* ScenePtr => ActorPtr->GetScene();
+        public PhysxScene? Scene => PhysxScene.Scenes.TryGetValue((nint)ScenePtr, out PhysxScene? scene) ? scene : null;
 
         public PxActorType ActorType => NativeMethods.PxActor_getType(ActorPtr);
 
         public virtual void Release()
             => ActorPtr->ReleaseMut();
+
+        public void Destroy(bool wakeOnLostTouch = false)
+        {
+            Scene?.RemoveActor(this, wakeOnLostTouch);
+            Release();
+        }
     }
 }

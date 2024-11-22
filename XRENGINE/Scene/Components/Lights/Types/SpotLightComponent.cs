@@ -83,10 +83,10 @@ namespace XREngine.Components.Lights
         {
             base.OnComponentActivated();
 
-            if (Type != ELightType.Dynamic || World?.VisualScene is not VisualScene3D scene)
+            if (Type != ELightType.Dynamic)
                 return;
-            
-            scene.Lights.SpotLights.Add(this);
+
+            World?.Lights.SpotLights.Add(this);
             if (CastsShadows && ShadowMap is null)
                 SetShadowMapResolution(1024u, 1024u);
         }
@@ -95,8 +95,8 @@ namespace XREngine.Components.Lights
         {
             ShadowMap?.Destroy();
 
-            if (Type == ELightType.Dynamic && World?.VisualScene is VisualScene3D scene)
-                scene.Lights.SpotLights.Remove(this);
+            if (Type == ELightType.Dynamic)
+                World?.Lights.SpotLights.Remove(this);
 
             base.OnComponentDeactivated();
         }
@@ -174,26 +174,26 @@ namespace XREngine.Components.Lights
             return mat;
         }
 
-        public override void CollectVisibleItems(VisualScene scene)
+        public override void CollectVisibleItems(XRWorldInstance world)
         {
-            if (!CastsShadows || scene is not VisualScene3D s3d)
+            if (!CastsShadows)
                 return;
 
-            s3d.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, ShadowCamera.WorldFrustum(), ShadowCamera, true);
+            world.VisualScene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, ShadowCamera.WorldFrustum(), ShadowCamera, true);
         }
 
-        public override void RenderShadowMap(VisualScene scene, bool collectVisibleNow = false)
+        public override void RenderShadowMap(XRWorldInstance world, bool collectVisibleNow = false)
         {
-            if (!CastsShadows || ShadowMap?.Material is null || scene is not VisualScene3D s3d)
+            if (!CastsShadows || ShadowMap?.Material is null)
                 return;
 
             if (collectVisibleNow)
             {
-                s3d.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, ShadowCamera.WorldFrustum(), ShadowCamera, true);
+                world.VisualScene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, ShadowCamera.WorldFrustum(), ShadowCamera, true);
                 _shadowRenderPipeline.MeshRenderCommands.SwapBuffers(true);
             }
 
-            _shadowRenderPipeline.Render(scene, ShadowCamera, null, ShadowMap, null, true, ShadowMap.Material);
+            _shadowRenderPipeline.Render(world.VisualScene, ShadowCamera, null, ShadowMap, null, true, ShadowMap.Material);
         }
 
         protected override void OnPropertyChanged<T>(string? propName, T prev, T field)

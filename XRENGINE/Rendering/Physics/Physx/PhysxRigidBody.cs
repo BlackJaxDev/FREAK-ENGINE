@@ -4,7 +4,7 @@ using static MagicPhysX.NativeMethods;
 
 namespace XREngine.Rendering.Physics.Physx
 {
-    public unsafe abstract class PhysxRigidBody(PhysxScene scene) : PhysxRigidActor(scene)
+    public unsafe abstract class PhysxRigidBody : PhysxRigidActor
     {
         public abstract PxRigidBody* BodyPtr { get; }
         public override unsafe PxRigidActor* RigidActorPtr => (PxRigidActor*)BodyPtr;

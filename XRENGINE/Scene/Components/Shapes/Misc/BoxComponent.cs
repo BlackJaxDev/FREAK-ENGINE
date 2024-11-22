@@ -36,7 +36,7 @@ namespace XREngine.Components.Scene.Shapes
 
         public override XRCollisionShape GetCollisionShape()
         {
-            return XRCollisionBox.New(_shape.LocalExtents);
+            return XRCollisionBox.New(_shape.LocalHalfExtents);
         }
     }
 }

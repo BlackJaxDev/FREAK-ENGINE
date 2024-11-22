@@ -8,15 +8,12 @@ namespace XREngine.Data.Components
     {
         public CollidableShape3DComponent() : base() { }
 
-        public void RigidBodyUpdated()
+        public void OnRigidBodyShapeUpdated()
         {
             if (World is null || _collisionObject == null)
                 return;
 
-            //Fixes bug where the collision object is not updated in the scene
-            //TODO: verify if this is necessary with physx
-            World.PhysicsScene.RemoveCollisionObject(_collisionObject);
-            World.PhysicsScene.AddCollisionObject(_collisionObject);
+            World.PhysicsScene.NotifyShapeChanged(_collisionObject);
         }
 
         protected XRCollisionObject? _collisionObject;
@@ -45,7 +42,7 @@ namespace XREngine.Data.Components
             Transform.WorldMatrixChanged += ThisMoved;
 
             if (IsActive)
-                World?.PhysicsScene.AddCollisionObject(_collisionObject);
+                World?.PhysicsScene.AddActor(_collisionObject);
         }
 
         private void DeinitCollision()
@@ -54,7 +51,7 @@ namespace XREngine.Data.Components
                 return;
 
             if (IsActive)
-                World?.PhysicsScene.RemoveCollisionObject(_collisionObject);
+                World?.PhysicsScene.RemoveActor(_collisionObject);
 
             Transform.WorldMatrixChanged -= ThisMoved;
 
@@ -139,14 +136,14 @@ namespace XREngine.Data.Components
             base.OnComponentActivated();
 
             if (_collisionObject is not null)
-                World?.PhysicsScene?.AddCollisionObject(_collisionObject);
+                World?.PhysicsScene?.AddActor(_collisionObject);
         }
         protected internal override void OnComponentDeactivated()
         {
             base.OnComponentDeactivated();
 
             if (_collisionObject is not null)
-                World?.PhysicsScene?.RemoveCollisionObject(_collisionObject);
+                World?.PhysicsScene?.RemoveActor(_collisionObject);
         }
     }
 }

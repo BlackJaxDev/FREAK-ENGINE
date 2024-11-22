@@ -3,6 +3,8 @@ using System.Numerics;
 using XREngine.Data;
 using XREngine.Data.Colors;
 using XREngine.Data.Geometry;
+using XREngine.Data.Trees;
+using XREngine.Physics;
 using XREngine.Rendering.Physics.Physx.Joints;
 using XREngine.Scene;
 using static MagicPhysX.NativeMethods;
@@ -12,15 +14,36 @@ namespace XREngine.Rendering.Physics.Physx
 {
     public unsafe class PhysxScene : AbstractPhysicsScene
     {
+        private static PxFoundation* _foundationPtr;
+        public static PxFoundation* FoundationPtr => _foundationPtr;
+
+        private static PxPhysics* _physicsPtr;
+        public static PxPhysics* PhysicsPtr => _physicsPtr;
+
+        public static Dictionary<nint, PhysxScene> Scenes { get; } = [];
+
+        static PhysxScene()
+        {
+            Init();
+        }
+
+        public static void Init()
+        {
+            _foundationPtr = physx_create_foundation();
+            _physicsPtr = physx_create_physics(_foundationPtr);
+        }
+        public static void Release()
+        {
+            _physicsPtr->ReleaseMut();
+        }
+
         public static readonly PxVec3 DefaultGravity = new() { x = 0.0f, y = -9.81f, z = 0.0f };
 
-        private PxPhysics* _physics;
         private PxCpuDispatcher* _dispatcher;
         private PxScene* _scene;
 
         //public PxPhysics* PhysicsPtr => _scene->GetPhysicsMut();
 
-        public PxPhysics* PhysicsPtr => _physics;
         public PxScene* ScenePtr => _scene;
         public PxCpuDispatcher* DispatcherPtr => _dispatcher;
 
@@ -34,15 +57,25 @@ namespace XREngine.Rendering.Physics.Physx
             }
         }
 
+        public override void Destroy()
+        {
+            if (_scene is not null)
+            {
+                Scenes.Remove((nint)_scene);
+                _scene->ReleaseMut();
+            }
+
+            if (_dispatcher is not null)
+                ((PxDefaultCpuDispatcher*)_dispatcher)->ReleaseMut();
+        }
         public override void Initialize()
         {
-            _physics = physx_create_physics(physx_create_foundation());
             //PxPvd pvd;
             //if (_physics->PhysPxInitExtensions(&pvd))
             //{
 
             //}
-            var scale = PxPhysics_getTolerancesScale(_physics);
+            var scale = _physicsPtr->GetTolerancesScale();
             //scale->length = 100;
             //scale->speed = 980;
             var sceneDesc = PxSceneDesc_new(scale);
@@ -57,7 +90,8 @@ namespace XREngine.Rendering.Physics.Physx
             {
 
             };
-            _scene = _physics->CreateSceneMut(&sceneDesc);
+            _scene = _physicsPtr->CreateSceneMut(&sceneDesc);
+            Scenes.Add((nint)_scene, this);
 
             SetVisualizationParameter(PxVisualizationParameter.Scale, 1.0f);
             SetVisualizationParameter(PxVisualizationParameter.CollisionShapes, 1.0f);
@@ -82,14 +116,45 @@ namespace XREngine.Rendering.Physics.Physx
 
         public override void StepSimulation()
         {
+            SimulationRunning.Set();
             Simulate(Engine.Time.Timer.FixedUpdateDelta, null, true);
+            SimulationRunning.Reset();
+
             if (!FetchResults(true, out uint error))
                 return;
+
             NotifySimulationStepped();
+            DebugRenderCollect();
         }
 
-        public override void DebugRender()
+        private List<Engine.Rendering.Debug.PointData> _debugPointsUpdating = [];
+        private List<Engine.Rendering.Debug.LineData> _debugLinesUpdating = [];
+        private List<Engine.Rendering.Debug.TriangleData> _debugTrianglesUpdating = [];
+
+        private List<Engine.Rendering.Debug.PointData> _debugPointsRendering = [];
+        private List<Engine.Rendering.Debug.LineData> _debugLinesRendering = [];
+        private List<Engine.Rendering.Debug.TriangleData> _debugTrianglesRendering = [];
+
+        private void SwapDebugBuffers()
         {
+            (_debugPointsRendering, _debugPointsUpdating) = (_debugPointsUpdating, _debugPointsRendering);
+            (_debugLinesRendering, _debugLinesUpdating) = (_debugLinesUpdating, _debugLinesRendering);
+            (_debugTrianglesRendering, _debugTrianglesUpdating) = (_debugTrianglesUpdating, _debugTrianglesRendering);
+        }
+
+        public void AddDebugPoint(Vector3 position, ColorF4 color)
+            => _debugPointsUpdating.Add(new(position, color));
+        public void AddDebugLine(Vector3 start, Vector3 end, ColorF4 color)
+            => _debugLinesUpdating.Add(new(start, end, color));
+        public void AddDebugTriangle(Vector3 p0, Vector3 p1, Vector3 p2, ColorF4 color)
+            => _debugTrianglesUpdating.Add(new(false, p0, p1, p2, color));
+
+        private void DebugRenderCollect()
+        {
+            _debugPointsUpdating.Clear();
+            _debugLinesUpdating.Clear();
+            _debugTrianglesUpdating.Clear();
+
             var rb = RenderBuffer;
             var points = rb->GetNbPoints();
             var lines = rb->GetNbLines();
@@ -103,7 +168,7 @@ namespace XREngine.Rendering.Physics.Physx
                     var point = p[i];
                     uint c = point.color;
                     ColorF4 color = ToColorF4(c);
-                    Engine.Rendering.Debug.RenderPoint(point.pos, color);
+                    AddDebugPoint(point.pos, color);
                 }
             }
             if (lines > 0)
@@ -114,7 +179,7 @@ namespace XREngine.Rendering.Physics.Physx
                     var line = l[i];
                     uint c = line.color0;
                     ColorF4 color = ToColorF4(c);
-                    Engine.Rendering.Debug.RenderLine(line.pos0, line.pos1, color);
+                    AddDebugLine(line.pos0, line.pos1, color);
                 }
             }
             if (triangles > 0)
@@ -125,19 +190,28 @@ namespace XREngine.Rendering.Physics.Physx
                     var triangle = t[i];
                     uint c = triangle.color0;
                     ColorF4 color = ToColorF4(c);
-                    Engine.Rendering.Debug.RenderTriangle(triangle.pos0, triangle.pos1, triangle.pos2, color, false);
+                    AddDebugTriangle(triangle.pos0, triangle.pos1, triangle.pos2, color);
                 }
             }
+
+            SwapDebugBuffers();
         }
 
-        private static ColorF4 ToColorF4(uint c)
+        public override void DebugRender()
         {
-            return new(
-                ((c >> 24) & 0xFF) / 255.0f,
-                ((c >> 16) & 0xFF) / 255.0f,
-                ((c >> 8) & 0xFF) / 255.0f,
-                (c & 0xFF) / 255.0f);
+            foreach (var point in _debugPointsRendering)
+                Engine.Rendering.Debug.RenderPoint(point.Position, point.Color);
+            foreach (var line in _debugLinesRendering)
+                Engine.Rendering.Debug.RenderLine(line.Start, line.End, line.Color);
+            foreach (var triangle in _debugTrianglesRendering)
+                Engine.Rendering.Debug.RenderTriangle(triangle.Value.A, triangle.Value.B, triangle.Value.C, triangle.Color, false);
         }
+
+        private static ColorF4 ToColorF4(uint c) => new(
+            ((c >> 00) & 0xFF) / 255.0f,
+            ((c >> 08) & 0xFF) / 255.0f,
+            ((c >> 16) & 0xFF) / 255.0f,
+            ((c >> 24) & 0xFF) / 255.0f);
 
         public void Simulate(float elapsedTime, PxBaseTask* completionTask, bool controlSimulation)
             => _scene->SimulateMut(elapsedTime, completionTask, _scratchBlock is null ? null : _scratchBlock.Address.Pointer, _scratchBlock?.Length ?? 0, controlSimulation);
@@ -180,51 +254,6 @@ namespace XREngine.Rendering.Physics.Physx
 
         public void FetchResultsParticleSystem()
             => _scene->FetchResultsParticleSystemMut();
-
-        public override void Destroy()
-        {
-            _scene->ReleaseMut();
-            ((PxDefaultCpuDispatcher*)_dispatcher)->ReleaseMut();
-            PxPhysics_release_mut(_physics);
-        }
-
-        public override IAbstractDynamicRigidBody? NewDynamicRigidBody(
-            AbstractPhysicsMaterial material,
-            AbstractPhysicsGeometry geometry,
-            float density,
-            Vector3? position = null,
-            Quaternion? rotation = null,
-            Vector3? shapeOffsetTranslation = null,
-            Quaternion? shapeOffsetRotation = null)
-            => new PhysxDynamicRigidBody(this, (PhysxMaterial)material, (PhysxGeometry)geometry, density, position, rotation, shapeOffsetTranslation, shapeOffsetRotation);
-        public override IAbstractDynamicRigidBody? NewDynamicRigidBody(
-            IAbstractPhysicsShape shape,
-            float density,
-            Vector3? position = null,
-            Quaternion? rotation = null)
-            => new PhysxDynamicRigidBody(this, (PhysxShape)shape, density, position, rotation);
-        public override IAbstractDynamicRigidBody? NewDynamicRigidBody(
-            Vector3? position = null,
-            Quaternion? rotation = null)
-            => new PhysxDynamicRigidBody(this, position, rotation);
-
-        public override IAbstractStaticRigidBody? NewStaticRigidBody(
-            Vector3? position = null,
-            Quaternion? rotation = null)
-            => new PhysxStaticRigidBody(this, position, rotation);
-        public override IAbstractStaticRigidBody? NewStaticRigidBody(
-            IAbstractPhysicsShape shape,
-            Vector3? position = null,
-            Quaternion? rotation = null)
-            => new PhysxStaticRigidBody(this, (PhysxShape)shape, position, rotation);
-        public override IAbstractStaticRigidBody? NewStaticRigidBody(
-            AbstractPhysicsMaterial material,
-            AbstractPhysicsGeometry shape,
-            Vector3? position = null,
-            Quaternion? rotation = null,
-            Vector3? shapeOffsetTranslation = null,
-            Quaternion? shapeOffsetRotation = null)
-            => new PhysxStaticRigidBody(this, (PhysxMaterial)material, (PhysxGeometry)shape, position, rotation, shapeOffsetTranslation, shapeOffsetRotation);
 
         public uint Timestamp
             => _scene->GetTimestamp();
@@ -301,13 +330,126 @@ namespace XREngine.Rendering.Physics.Physx
         public PhysxMaterial NewMaterial()
         {
             var material = new PhysxMaterial(this);
-            Materials.Add((nint)material.Material, material);
+            Materials.Add((nint)material.MaterialPtr, material);
             return material;
         }
+
+        public Dictionary<nint, PhysxGeometry> Geometries { get; } = [];
+        public PhysxGeometry? GetGeometry(PxGeometry* ptr)
+            => Geometries.TryGetValue((nint)ptr, out var geometry) ? geometry : null;
+        public PhysxGeometry NewSphereGeometry(float radius)
+        {
+            PxSphereGeometry sphere = PxSphereGeometry_new(radius);
+            var geometry = new PhysxGeometry(this, (PxGeometry*)&sphere);
+            Geometries.Add((nint)geometry.Geometry, geometry);
+            return geometry;
+        }
+        public PhysxGeometry NewPlaneGeometry()
+        {
+            PxPlaneGeometry plane = PxPlaneGeometry_new();
+            var geometry = new PhysxGeometry(this, (PxGeometry*)&plane);
+            Geometries.Add((nint)geometry.Geometry, geometry);
+            return geometry;
+        }
+        public PhysxGeometry NewCapsuleGeometry(float radius, float halfHeight)
+        {
+            PxCapsuleGeometry capsule = PxCapsuleGeometry_new(radius, halfHeight);
+            var geometry = new PhysxGeometry(this, (PxGeometry*)&capsule);
+            Geometries.Add((nint)geometry.Geometry, geometry);
+            return geometry;
+        }
+        public PhysxGeometry NewBoxGeometry(Vector3 halfExtents)
+        {
+            PxBoxGeometry box = PxBoxGeometry_new(halfExtents.X, halfExtents.Y, halfExtents.Z);
+            var geometry = new PhysxGeometry(this, (PxGeometry*)&box);
+            Geometries.Add((nint)geometry.Geometry, geometry);
+            return geometry;
+        }
+        //public PhysxGeometry NewConvexMeshGeometry(PhysxConvexMesh convexMesh)
+        //{
+        //    PxConvexMeshGeometry convex = PxConvexMeshGeometry_new(convexMesh.ConvexMeshPtr);
+        //    var geometry = new PhysxGeometry(this, (PxGeometry*)&convex);
+        //    Geometries.Add((nint)geometry.GeometryPtr, geometry);
+        //    return geometry;
+        //}
+        public PhysxGeometry NewParticleSystemGeometry()
+        {
+            PxParticleSystemGeometry ps = PxParticleSystemGeometry_new();
+            var geometry = new PhysxGeometry(this, (PxGeometry*)&ps);
+            Geometries.Add((nint)geometry.Geometry, geometry);
+            return geometry;
+        }
+        public PhysxGeometry NewTetrahedronMeshGeometry(PhysxTetrahedronMesh tetrahedronMesh)
+        {
+            PxTetrahedronMeshGeometry tetra = PxTetrahedronMeshGeometry_new(tetrahedronMesh.TetrahedronMeshPtr);
+            var geometry = new PhysxGeometry(this, (PxGeometry*)&tetra);
+            Geometries.Add((nint)geometry.Geometry, geometry);
+            return geometry;
+        }
+        public PhysxGeometry NewTriangleMeshGeometry(PhysxTriangleMesh triangleMesh, PxMeshGeometryFlags flags, Vector3? scale = null, Quaternion? rotation = null)
+        {
+            PxVec3 s = scale ?? Vector3.One;
+            PxQuat r = rotation ?? Quaternion.Identity;
+            var ms = PxMeshScale_new_3(&s, &r);
+            PxTriangleMeshGeometry tri = PxTriangleMeshGeometry_new(triangleMesh.TriangleMeshPtr, &ms, flags);
+            var geometry = new PhysxGeometry(this, (PxGeometry*)&tri);
+            Geometries.Add((nint)geometry.Geometry, geometry);
+            return geometry;
+        }
+        public PhysxGeometry NewHeightFieldGeometry(PhysxHeightField heightField, float heightScale, float rowScale, float columnScale, PxMeshGeometryFlags flags)
+        {
+            PxHeightFieldGeometry hf = PxHeightFieldGeometry_new(heightField.HeightFieldPtr, flags, heightScale, rowScale, columnScale);
+            var geometry = new PhysxGeometry(this, (PxGeometry*)&hf);
+            Geometries.Add((nint)geometry.Geometry, geometry);
+            return geometry;
+        }
+        public PhysxGeometry NewHairGeometry()
+        {
+            PxHairSystemGeometry hairGeo = PxHairSystemGeometry_new();
+            var geometry = new PhysxGeometry(this, (PxGeometry*)&hairGeo);
+            Geometries.Add((nint)geometry.Geometry, geometry);
+            return geometry;
+        }
+        public PhysxGeometry NewCustomGeometry()
+        {
+            PxCustomGeometry geo = PxCustomGeometry_new();
+            var geometry = new PhysxGeometry(this, (PxGeometry*)&geo);
+            Geometries.Add((nint)geometry.Geometry, geometry);
+            return geometry;
+        }
+
+        public Dictionary<nint, PhysxShape> Shapes { get; } = [];
+        public PhysxShape? GetShape(PxShape* ptr)
+            => Shapes.TryGetValue((nint)ptr, out var shape) ? shape : null;
+        //public PhysxShape NewShape(PhysxGeometry geometry, PhysxMaterial material, bool isExclusive = false)
+        //{
+        //    PxActorShape_new(geometry.Geometry, material.Material, isExclusive);
+        //    var shape = new PhysxShape(this, geometry, material, isExclusive);
+        //    Shapes.Add((nint)shape.ShapePtr, shape);
+        //    return shape;
+        //}
+
+        public Dictionary<nint, PhysxStaticRigidBody> StaticBodies { get; } = [];
+        public PhysxStaticRigidBody? GetStaticBody(PxRigidStatic* ptr)
+            => StaticBodies.TryGetValue((nint)ptr, out var body) ? body : null;
+
+        public Dictionary<nint, PhysxDynamicRigidBody> DynamicBodies { get; } = [];
+        public PhysxDynamicRigidBody? GetDynamicBody(PxRigidBody* ptr)
+            => DynamicBodies.TryGetValue((nint)ptr, out var body) ? body : null;
+
+        public Dictionary<nint, PhysxRigidBody> RigidBodies { get; } = [];
+        public PhysxRigidBody? GetRigidBody(PxRigidBody* ptr)
+            => RigidBodies.TryGetValue((nint)ptr, out var body) ? body : null;
+
+        public Dictionary<nint, PhysxRigidActor> RigidActors { get; } = [];
+        public PhysxRigidActor? GetRigidActor(PxRigidActor* ptr)
+            => RigidActors.TryGetValue((nint)ptr, out var actor) ? actor : null;
 
         public Dictionary<nint, PhysxActor> Actors { get; } = [];
         public PhysxActor? GetActor(PxActor* ptr)
             => Actors.TryGetValue((nint)ptr, out var actor) ? actor : null;
+
+        #region Joints
 
         public Dictionary<nint, PhysxJoint> Joints { get; } = [];
         public PhysxJoint? GetJoint(PxJoint* ptr)
@@ -411,6 +553,8 @@ namespace XREngine.Rendering.Physics.Physx
             return jointObj;
         }
 
+        #endregion
+
         public static PxTransform MakeTransform(Vector3? position, Quaternion? rotation)
         {
             Quaternion q = rotation ?? Quaternion.Identity;
@@ -419,9 +563,6 @@ namespace XREngine.Rendering.Physics.Physx
             PxQuat rot = new() { x = q.X, y = q.Y, z = q.Z, w = q.W };
             return PxTransform_new_5(&pos, &rot);
         }
-
-        public void Release()
-            => _scene->ReleaseMut();
 
         public PxSceneFlags Flags => _scene->GetFlags();
         public void SetFlag(PxSceneFlag flag, bool value)
@@ -743,7 +884,7 @@ namespace XREngine.Rendering.Physics.Physx
             Vector3 origin,
             Vector3 unitDir,
             float distance,
-            out PxQueryHit hit,
+            out uint hitFaceIndex,
             PxQueryFilterData* filterData,
             PxQueryFilterCallback* filterCall,
             PxQueryCache* cache)
@@ -759,10 +900,29 @@ namespace XREngine.Rendering.Physics.Physx
                 filterData,
                 filterCall,
                 cache);
-            hit = hit_;
+            hitFaceIndex = hit_.faceIndex;
             return hasHit;
         }
 
+        /// <summary>
+        /// Raycast returning a single result.
+        /// Returns the first rigid actor that is hit along the ray.
+        /// Data for a blocking hit will be returned as specified by the outputFlags field.
+        /// Touching hits will be ignored.
+        /// </summary>
+        /// <param name="origin">Origin of the ray.</param>
+        /// <param name="unitDir">Normalized direction of the ray.</param>
+        /// <param name="distance">Length of the ray. Needs to be larger than 0.</param>
+        /// <param name="outputFlags">Specifies which properties should be written to the hit information.</param>
+        /// <param name="hit">Raycast hit information.</param>
+        /// <param name="filterData">Filtering data and simple logic.</param>
+        /// <param name="filterCall">Custom filtering logic (optional). 
+        /// Only used if the corresponding PxHitFlag flags are set. If NULL, all hits are assumed to be blocking.</param>
+        /// <param name="cache">Cached hit shape (optional).
+        /// Ray is tested against cached shape first then against the scene.
+        /// Note: Filtering is not executed for a cached shape if supplied; instead, if a hit is found, it is assumed to be a blocking hit. 
+        /// Note: Using past touching hits as cache will produce incorrect behavior since the cached hit will always be treated as blocking.</param>
+        /// <returns></returns>
         public bool RaycastSingle(
             Vector3 origin,
             Vector3 unitDir,
@@ -823,7 +983,7 @@ namespace XREngine.Rendering.Physics.Physx
         }
 
         public bool SweepAny(
-            PxGeometry* geometry,
+            PhysxGeometry geometry,
             (Vector3 position, Quaternion rotation) pose,
             Vector3 unitDir,
             float distance,
@@ -838,7 +998,7 @@ namespace XREngine.Rendering.Physics.Physx
             var t = MakeTransform(pose.position, pose.rotation);
             PxQueryHit hit_;
             bool hasHit = _scene->QueryExtSweepAny(
-                geometry,
+                geometry.Geometry,
                 &t,
                 &d,
                 distance,
@@ -853,7 +1013,7 @@ namespace XREngine.Rendering.Physics.Physx
         }
 
         public bool SweepSingle(
-            PxGeometry* geometry,
+            PhysxGeometry geometry,
             (Vector3 position, Quaternion rotation) pose,
             Vector3 unitDir,
             float distance,
@@ -868,7 +1028,7 @@ namespace XREngine.Rendering.Physics.Physx
             var t = MakeTransform(pose.position, pose.rotation);
             PxSweepHit hit_;
             bool hasHit = _scene->QueryExtSweepSingle(
-                geometry,
+                geometry.Geometry,
                 &t,
                 &d,
                 distance,
@@ -883,7 +1043,7 @@ namespace XREngine.Rendering.Physics.Physx
         }
 
         public PxSweepHit[] SweepMultiple(
-            PxGeometry* geometry,
+            PhysxGeometry geometry,
             (Vector3 position, Quaternion rotation) pose,
             Vector3 unitDir,
             float distance,
@@ -900,7 +1060,7 @@ namespace XREngine.Rendering.Physics.Physx
             bool blockingHit_;
             PxSweepHit* hitBuffer_ = stackalloc PxSweepHit[maxHitCapacity];
             int hitCount = _scene->QueryExtSweepMultiple(
-                geometry,
+                geometry.Geometry,
                 &t,
                 &d,
                 distance,
@@ -920,7 +1080,7 @@ namespace XREngine.Rendering.Physics.Physx
         }
 
         public PxOverlapHit[] OverlapMultiple(
-            PxGeometry* geometry,
+            PhysxGeometry geometry,
             (Vector3 position, Quaternion rotation) pose,
             PxQueryFilterData* filterData,
             PxQueryFilterCallback* filterCall,
@@ -929,7 +1089,7 @@ namespace XREngine.Rendering.Physics.Physx
             var t = MakeTransform(pose.position, pose.rotation);
             PxOverlapHit* hitBuffer = stackalloc PxOverlapHit[maxHitCapacity];
             int hitCount = _scene->QueryExtOverlapMultiple(
-                geometry,
+                geometry.Geometry,
                 &t,
                 hitBuffer,
                 (uint)maxHitCapacity,
@@ -1010,6 +1170,35 @@ namespace XREngine.Rendering.Physics.Physx
                 overlapTouches,
                 maxOverlapTouchCount);
             return new PhysxBatchQuery(ptr);
+        }
+
+        public override void Raycast(Segment worldSegment, SortedDictionary<float, List<(ITreeItem item, object? data)>> items, out Vector3 hitNormalWorld, out Vector3 hitPositionWorld, out float hitDistance)
+        {
+            hitNormalWorld = Vector3.Zero;
+            hitPositionWorld = Vector3.Zero;
+            hitDistance = float.MaxValue;
+        }
+
+        public override void AddActor(IAbstractPhysicsActor actor)
+        {
+            if (actor is PhysxActor physxActor)
+            {
+                AddActor(physxActor);
+            }
+        }
+
+        public override void RemoveActor(IAbstractPhysicsActor actor)
+        {
+            if (actor is PhysxActor physxActor)
+            {
+                RemoveActor(physxActor);
+            }
+        }
+
+        public override void NotifyShapeChanged(IAbstractPhysicsActor actor)
+        {
+            //RemoveActor(actor);
+            //AddActor(actor);
         }
     }
 }

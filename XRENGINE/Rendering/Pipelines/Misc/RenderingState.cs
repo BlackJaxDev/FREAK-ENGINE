@@ -17,7 +17,7 @@ public sealed partial class XRRenderPipelineInstance
         /// <summary>
         /// The scene being rendered.
         /// </summary>
-        public VisualScene? MainScene { get; private set; }
+        public VisualScene? Scene { get; private set; }
         /// <summary>
         /// The camera this render pipeline is rendering the scene through.
         /// </summary>
@@ -45,7 +45,7 @@ public sealed partial class XRRenderPipelineInstance
             UICanvasComponent? userInterface)
         {
             WindowViewport = viewport;
-            MainScene = scene;
+            Scene = scene;
             SceneCamera = camera;
             OutputFBO = target;
             ShadowPass = shadowPass;
@@ -55,8 +55,8 @@ public sealed partial class XRRenderPipelineInstance
             if (WindowViewport is not null)
                 _renderingViewports.Push(WindowViewport);
 
-            if (MainScene is not null)
-                _renderingScenes.Push(MainScene);
+            if (Scene is not null)
+                _renderingScenes.Push(Scene);
 
             if (SceneCamera is not null)
                 _renderingCameras.Push(RenderingCamera);
@@ -69,14 +69,14 @@ public sealed partial class XRRenderPipelineInstance
             if (WindowViewport is not null)
                 _renderingViewports.Pop();
 
-            if (MainScene is not null)
+            if (Scene is not null)
                 _renderingScenes.Pop();
 
             if (SceneCamera is not null)
                 _renderingCameras.Pop();
 
             WindowViewport = null;
-            MainScene = null;
+            Scene = null;
             SceneCamera = null;
             OutputFBO = null;
             ShadowPass = false;

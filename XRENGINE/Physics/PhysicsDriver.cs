@@ -282,7 +282,7 @@ namespace XREngine.Physics
                 return;
 
             //if (_collision.IsInWorld && World != null)
-                World.PhysicsScene.RemoveCollisionObject(_collision);
+                World?.PhysicsScene?.RemoveActor(_collision);
 
             if (_simulatingPhysics)
                 UnregisterTick(ETickGroup.PostPhysics, (int)ETickOrder.Scene, Tick);

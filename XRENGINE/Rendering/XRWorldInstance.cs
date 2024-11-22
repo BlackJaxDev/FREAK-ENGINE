@@ -40,6 +40,7 @@ namespace XREngine.Rendering
 
         protected RootNodeCollection _rootNodes = [];
         public RootNodeCollection RootNodes => _rootNodes;
+        public Lights3DCollection Lights { get; }
 
         /// <summary>
         /// Sequences are used to track the order of operations for debugging purposes.
@@ -53,6 +54,7 @@ namespace XREngine.Rendering
         {
             _visualScene = visualScene;
             _physicsScene = physicsScene;
+            Lights = new Lights3DCollection(this);
 
             TickLists = [];
             TickLists.Add(ETickGroup.Normal, []);
@@ -71,7 +73,6 @@ namespace XREngine.Rendering
             TickGroup(ETickGroup.PrePhysics);
             PhysicsScene.StepSimulation();
             TickGroup(ETickGroup.PostPhysics);
-            PhysicsScene.DebugRender();
         }
 
         public bool IsPlaying { get; private set; }
@@ -132,12 +133,14 @@ namespace XREngine.Rendering
             //using var d = Profiler.Start();
             ProcessTransformQueue();
             VisualScene.GlobalCollectVisible();
+            Lights.CollectVisibleItems();
         }
 
         private void GlobalSwapBuffers()
         {
             SwapTransformQueues();
             VisualScene.GlobalSwapBuffers();
+            Lights.SwapBuffers();
         }
 
         /// <summary>
@@ -147,6 +150,7 @@ namespace XREngine.Rendering
         {
             //using var d = Profiler.Start();
             VisualScene.GlobalPreRender();
+            Lights.RenderShadowMaps(false);
         }
 
         /// <summary>

@@ -51,9 +51,7 @@ namespace XREngine.Scene.Transforms
                     break;
                 case nameof(RigidBody):
                     if (RigidBody is not null)
-                    {
                         OnPhysicsStepped();
-                    }
                     break;
                 case nameof(World):
                     if (World is not null)

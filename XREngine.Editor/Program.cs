@@ -19,9 +19,11 @@ using XREngine.Rendering.Commands;
 using XREngine.Rendering.Info;
 using XREngine.Rendering.Models;
 using XREngine.Rendering.Models.Materials;
+using XREngine.Rendering.Physics.Physx;
 using XREngine.Rendering.UI;
 using XREngine.Scene;
 using XREngine.Scene.Components.Animation;
+using XREngine.Scene.Components.Physics;
 using XREngine.Scene.Transforms;
 using static XREngine.Audio.AudioSource;
 using Quaternion = System.Numerics.Quaternion;
@@ -97,7 +99,7 @@ internal class Program
 
     static XRWorld CreateTestWorld()
     {
-        //string desktopDir = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+        string desktopDir = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
         //UnityPackageExtractor.ExtractAsync(Path.Combine(desktopDir, "Animations.unitypackage"), Path.Combine(desktopDir, "Extracted"), true);
 
         var world = new XRWorld() { Name = "TestWorld" };
@@ -122,9 +124,29 @@ internal class Program
         XRTexture2D skyEquirect = Engine.Assets.LoadEngineAsset<XRTexture2D>("Textures", $"{names[r.Next(0, names.Length - 1)]}.exr");
         AddLightProbe(rootNode, skyEquirect);
         AddSkybox(rootNode, skyEquirect);
+        AddPhysics(rootNode);
         //AddSpline(rootNode);
-        //ImportModels(desktopDir, rootNode);
+        ImportModels(desktopDir, rootNode);
         return world;
+    }
+    private static void AddPhysics(SceneNode rootNode)
+    {
+        var floor = new SceneNode(rootNode) { Name = "Floor" };
+        var floorTfm = floor.SetTransform<RigidBodyTransform>();
+        var floorComp = floor.AddComponent<StaticRigidBodyComponent>()!;
+
+        var ball = new SceneNode(rootNode) { Name = "Ball" };
+        var ballTfm = ball.SetTransform<RigidBodyTransform>();
+        var ballComp = ball.AddComponent<DynamicRigidBodyComponent>()!;
+
+        PhysxMaterial floorMat = new(0.5f, 0.5f, 0.5f);
+        PhysxMaterial ballMat = new(0.5f, 0.5f, 0.5f);
+
+        floorComp.RigidBody = PhysxStaticRigidBody.CreatePlane(Globals.Up, 0.0f, floorMat);
+        ballComp.RigidBody = new PhysxDynamicRigidBody(ballMat, new PhysxGeometry_Sphere(10.0f), 10.0f);
+
+        floorComp.RigidBody!.SetTransform(Vector3.Zero, Quaternion.Identity, true);
+        //physxFloor!.AttachShape();
     }
 
     private static void AddSpline(SceneNode rootNode)
@@ -190,7 +212,7 @@ internal class Program
         pawnComp!.Name = "TestPawn";
         pawnComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
 
-        //var canvas = cameraNode.AddComponent<UICanvasComponent>();
+        var canvas = cameraNode.AddComponent<UICanvasComponent>();
         //var input = cameraNode.AddComponent<UIInputComponent>();
         //input!.OwningPawn = cameraNode.GetComponent<EditorFlyingCameraPawnComponent>();
         //cameraNode.GetComponent<CameraComponent>()!.UserInterfaceOverlay = canvas;
@@ -350,7 +372,7 @@ internal class Program
         //orbitTransform2.IgnoreRotation = false;
         //orbitTransform2.RegisterAnimationTick<OrbitTransform>(t => t.Angle += Engine.DilatedDelta * 0.5f);
 
-        string fbxPathDesktop = Path.Combine(desktopDir, "test.fbx");
+        string fbxPathDesktop = Path.Combine(desktopDir, "misc", "test.fbx");
 
         var flags =
             PostProcessSteps.Triangulate |

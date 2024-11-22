@@ -32,7 +32,7 @@ namespace XREngine.Rendering.Pipelines.Commands
 
         protected override void Execute()
         {
-            if (Pipeline.State.MainScene is not VisualScene3D scene)
+            if (Pipeline.State.Scene is null)
                 return;
 
             var albOpacTex = Pipeline.GetTexture<XRTexture2D>(AlbedoOpacityTexture);
@@ -54,9 +54,12 @@ namespace XREngine.Rendering.Pipelines.Commands
                 CreateLightRenderers(albOpacTex, normTex, rmsiTex, depthViewTex);
             }
 
+            var lights = Pipeline.State.WindowViewport?.World?.Lights;
+            if (lights is null)
+                return;
+
             using (Pipeline.State.PushRenderingCamera(Pipeline.State.SceneCamera))
             {
-                var lights = scene.Lights;
                 foreach (PointLightComponent c in lights.PointLights)
                     RenderPointLight(c);
                 foreach (SpotLightComponent c in lights.SpotLights)

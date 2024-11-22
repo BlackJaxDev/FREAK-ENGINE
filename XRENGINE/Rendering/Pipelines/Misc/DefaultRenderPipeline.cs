@@ -167,10 +167,11 @@ public class DefaultRenderPipeline : RenderPipeline
                 //No depth writing for backgrounds (skybox)
                 c.Add<VPRC_DepthTest>().Enable = false;
                 c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.Background;
-
+                
                 c.Add<VPRC_DepthTest>().Enable = true;
                 c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.OpaqueForward;
                 c.Add<VPRC_RenderDebugShapes>();
+                c.Add<VPRC_RenderDebugPhysics>();
                 c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.TransparentForward;
                 c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.OnTopForward;
             }
@@ -556,24 +557,24 @@ public class DefaultRenderPipeline : RenderPipeline
 
     private void LightCombineFBO_SettingUniforms(XRRenderProgram program)
     {
+        if (RenderingWorld is null)
+            return;
+
         var sceneCam = PipelineState?.SceneCamera;
         if (sceneCam is null)
             return;
         
         sceneCam.SetUniforms(program);
 
-        if (RenderingScene is not VisualScene3D scene)
-            return;
-
         //var lightProbes = scene.Lights.GetNearestProbes(/*program.LightProbeTransform?.WorldTranslation ?? */Vector3.Zero);
         //if (lightProbes.Length == 0)
         //    return;
 
         //LightProbeComponent probe = lightProbes[0];
-        if (scene.Lights.LightProbes.Count == 0)
+        if (RenderingWorld.Lights.LightProbes.Count == 0)
             return;
 
-        LightProbeComponent probe = scene.Lights.LightProbes[0];
+        LightProbeComponent probe = RenderingWorld.Lights.LightProbes[0];
 
         int baseCount = GetFBO<XRQuadFrameBuffer>(LightCombineFBOName)?.Material?.Textures?.Count ?? 0;
 
