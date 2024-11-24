@@ -66,7 +66,7 @@ internal class Program
         int h = 1080;
         float updateHz = 60.0f;
         float renderHz = 0.0f;
-        float fixedHz = 60.0f;
+        float fixedHz = 120.0f;
 
         int primaryX = NativeMethods.GetSystemMetrics(0);
         int primaryY = NativeMethods.GetSystemMetrics(1);
@@ -126,27 +126,42 @@ internal class Program
         AddSkybox(rootNode, skyEquirect);
         AddPhysics(rootNode);
         //AddSpline(rootNode);
-        ImportModels(desktopDir, rootNode);
+        //ImportModels(desktopDir, rootNode);
         return world;
     }
     private static void AddPhysics(SceneNode rootNode)
     {
+        float ballRadius = 2.0f;
+
         var floor = new SceneNode(rootNode) { Name = "Floor" };
         var floorTfm = floor.SetTransform<RigidBodyTransform>();
         var floorComp = floor.AddComponent<StaticRigidBodyComponent>()!;
 
         var ball = new SceneNode(rootNode) { Name = "Ball" };
-        var ballTfm = ball.SetTransform<RigidBodyTransform>();
+        ball.SetTransform<RigidBodyTransform>();
         var ballComp = ball.AddComponent<DynamicRigidBodyComponent>()!;
 
-        PhysxMaterial floorMat = new(0.5f, 0.5f, 0.5f);
-        PhysxMaterial ballMat = new(0.5f, 0.5f, 0.5f);
+        PhysxMaterial floorMat = new(0.5f, 0.5f, 0.1f);
+        PhysxMaterial ballMat = new(0.5f, 0.5f, 0.9f);
 
-        floorComp.RigidBody = PhysxStaticRigidBody.CreatePlane(Globals.Up, 0.0f, floorMat);
-        ballComp.RigidBody = new PhysxDynamicRigidBody(ballMat, new PhysxGeometry_Sphere(10.0f), 10.0f);
+        var ballBody = new PhysxDynamicRigidBody(ballMat, new PhysxGeometry.Sphere(ballRadius), 10.0f);
+        var floorBody = PhysxStaticRigidBody.CreatePlane(Globals.Up, 0.0f, floorMat);
 
-        floorComp.RigidBody!.SetTransform(Vector3.Zero, Quaternion.Identity, true);
-        //physxFloor!.AttachShape();
+        ballBody.Transform = (new Vector3(0.0f, 5.0f, 0.0f), Quaternion.Identity);
+        ballBody.AngularDamping = 0.5f;
+        ballBody.SetAngularVelocity(new Vector3(60.0f, 0.0f, 0.0f));
+        ballBody.SetLinearVelocity(new Vector3(0.0f, 10.0f, 0.0f));
+
+        floorBody.SetTransform(new Vector3(0.0f, 0.0f, 0.0f), Quaternion.CreateFromAxisAngle(Globals.Backward, XRMath.DegToRad(95.0f)), true);
+        floorTfm.RotationOffset = Quaternion.CreateFromAxisAngle(Globals.Backward, XRMath.DegToRad(-90.0f));
+
+        floorComp.RigidBody = floorBody;
+        ballComp.RigidBody = ballBody;
+
+        var ballModel = ball.AddComponent<ModelComponent>()!;
+        ballModel.Model = new Model([new SubMesh(XRMesh.Shapes.SolidSphere(Vector3.Zero, ballRadius, 16), XRMaterial.CreateUnlitColorMaterialForward(ColorF4.Red))]);
+        var floorModel = floor.AddComponent<ModelComponent>()!;
+        floorModel.Model = new Model([new SubMesh(XRMesh.Create(VertexQuad.PosY(100.0f)), XRMaterial.CreateUnlitColorMaterialForward(ColorF4.Green))]);
     }
 
     private static void AddSpline(SceneNode rootNode)

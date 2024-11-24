@@ -4,8 +4,8 @@ namespace XREngine.Scene.Transforms
 {
     public class RigidBodyTransform : TransformBase
     {
-        private IAbstractDynamicRigidBody? _rigidBody;
-        public IAbstractDynamicRigidBody? RigidBody
+        private IAbstractRigidPhysicsActor? _rigidBody;
+        public IAbstractRigidPhysicsActor? RigidBody
         {
             get => _rigidBody;
             set => SetField(ref _rigidBody, value);
@@ -15,14 +15,29 @@ namespace XREngine.Scene.Transforms
         public Vector3 Position
         {
             get => _position;
-            set => SetField(ref _position, value);
+            private set => SetField(ref _position, value);
         }
 
         private Quaternion _rotation;
+
         public Quaternion Rotation
         {
             get => _rotation;
-            set => SetField(ref _rotation, value);
+            private set => SetField(ref _rotation, value);
+        }
+
+        private Quaternion _rotationOffset = Quaternion.Identity;
+        public Quaternion RotationOffset
+        {
+            get => _rotationOffset;
+            set => SetField(ref _rotationOffset, value);
+        }
+
+        private Vector3 _positionOffset = Vector3.Zero;
+        public Vector3 PositionOffset
+        {
+            get => _positionOffset;
+            set => SetField(ref _positionOffset, value);
         }
 
         protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
@@ -66,8 +81,8 @@ namespace XREngine.Scene.Transforms
                 return;
 
             var (position, rotation) = RigidBody.Transform;
-            Position = position;
-            Rotation = rotation;
+            Position = PositionOffset + position;
+            Rotation = RotationOffset * rotation;
         }
 
         protected override Matrix4x4 CreateLocalMatrix()

@@ -9,7 +9,17 @@ namespace XREngine.Rendering.Physics.Physx
     {
         private readonly unsafe PxRigidStatic* _obj;
 
-        public PhysxStaticRigidBody(PxRigidStatic* obj) => _obj = obj;
+        public static Dictionary<nint, PhysxStaticRigidBody> AllStaticRigidBodies { get; } = [];
+        public static PhysxStaticRigidBody? GetStaticBody(PxRigidStatic* ptr)
+            => AllStaticRigidBodies.TryGetValue((nint)ptr, out var body) ? body : null;
+
+        public PhysxStaticRigidBody(PxRigidStatic* obj)
+        {
+            _obj = obj;
+            AllActors.Add((nint)_obj, this);
+            AllRigidActors.Add((nint)_obj, this);
+            AllStaticRigidBodies.Add((nint)_obj, this);
+        }
 
         public PhysxStaticRigidBody(
             Vector3? position = null,
@@ -17,6 +27,9 @@ namespace XREngine.Rendering.Physics.Physx
         {
             var tfm = PhysxScene.MakeTransform(position, rotation);
             _obj = PhysxScene.PhysicsPtr->CreateRigidStaticMut(&tfm);
+            AllActors.Add((nint)_obj, this);
+            AllRigidActors.Add((nint)_obj, this);
+            AllStaticRigidBodies.Add((nint)_obj, this);
         }
         public PhysxStaticRigidBody(
             PhysxShape shape,
@@ -25,10 +38,13 @@ namespace XREngine.Rendering.Physics.Physx
         {
             var tfm = PhysxScene.MakeTransform(position, rotation);
             _obj = PhysxScene.PhysicsPtr->PhysPxCreateStatic1(&tfm, shape.ShapePtr);
+            AllActors.Add((nint)_obj, this);
+            AllRigidActors.Add((nint)_obj, this);
+            AllStaticRigidBodies.Add((nint)_obj, this);
         }
         public PhysxStaticRigidBody(
             PhysxMaterial material,
-            PhysxGeometry geometry,
+            IAbstractPhysicsGeometry geometry,
             Vector3? position = null,
             Quaternion? rotation = null,
             Vector3? shapeOffsetTranslation = null,
@@ -36,7 +52,11 @@ namespace XREngine.Rendering.Physics.Physx
         {
             var tfm = PhysxScene.MakeTransform(position, rotation);
             var shapeTfm = PhysxScene.MakeTransform(shapeOffsetTranslation, shapeOffsetRotation);
-            _obj = PhysxScene.PhysicsPtr->PhysPxCreateStatic(&tfm, geometry.Geometry, material.MaterialPtr, &shapeTfm);
+            var structObj = geometry.GetStruct();
+            _obj = PhysxScene.PhysicsPtr->PhysPxCreateStatic(&tfm, structObj.Address.As<PxGeometry>(), material.MaterialPtr, &shapeTfm);
+            AllActors.Add((nint)_obj, this);
+            AllRigidActors.Add((nint)_obj, this);
+            AllStaticRigidBodies.Add((nint)_obj, this);
         }
 
         public static PhysxStaticRigidBody CreatePlane(PxPlane plane, PhysxMaterial material)

@@ -9,6 +9,10 @@ namespace XREngine.Rendering.Physics.Physx
         public abstract PxRigidBody* BodyPtr { get; }
         public override unsafe PxRigidActor* RigidActorPtr => (PxRigidActor*)BodyPtr;
 
+        public Dictionary<nint, PhysxRigidBody> AllRigidBodies { get; } = [];
+        public PhysxRigidBody? Get(PxRigidBody* ptr)
+            => AllRigidBodies.TryGetValue((nint)ptr, out var body) ? body : null;
+
         public float AngularDamping
         {
             get => PxRigidBody_getAngularDamping(BodyPtr);
@@ -31,8 +35,10 @@ namespace XREngine.Rendering.Physics.Physx
         }
         public virtual Vector3 LinearVelocity
             => PxRigidBody_getLinearVelocity(BodyPtr);
+
         public virtual Vector3 AngularVelocity
             => PxRigidBody_getAngularVelocity(BodyPtr);
+
         public (Quaternion, Vector3) CMassLocalPose
         {
             get

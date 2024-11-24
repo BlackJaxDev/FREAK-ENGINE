@@ -1,4 +1,8 @@
 ﻿using MagicPhysX;
+using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using XREngine.Data.Geometry;
 
 namespace XREngine.Rendering.Physics.Physx
 {
@@ -10,14 +14,26 @@ namespace XREngine.Rendering.Physics.Physx
         public override unsafe PxBase* BasePtr => (PxBase*)shape;
         public override unsafe PxRefCounted* RefCountedPtr => (PxRefCounted*)shape;
 
-        public void SetSimulationFilterData(PxFilterData filterData)
-            => ShapePtr->SetSimulationFilterDataMut(&filterData);
-
-        public void SetQueryFilterData(PxFilterData filterData)
-            => ShapePtr->SetQueryFilterDataMut(&filterData);
-
-        public void SetLocalPose(PxTransform pose)
-            => ShapePtr->SetLocalPoseMut(&pose);
+        public bool SimulationShape
+        {
+            get => Flags.HasFlag(PxShapeFlags.SimulationShape);
+            set => SetFlag(PxShapeFlag.SimulationShape, value);
+        }
+        public bool SceneQueryShape
+        {
+            get => Flags.HasFlag(PxShapeFlags.SceneQueryShape);
+            set => SetFlag(PxShapeFlag.SceneQueryShape, value);
+        }
+        public bool TriggerShape
+        {
+            get => Flags.HasFlag(PxShapeFlags.TriggerShape);
+            set => SetFlag(PxShapeFlag.TriggerShape, value);
+        }
+        public bool Visualization
+        {
+            get => Flags.HasFlag(PxShapeFlags.Visualization);
+            set => SetFlag(PxShapeFlag.Visualization, value);
+        }
 
         public PxShapeFlags Flags
         {
@@ -28,182 +44,159 @@ namespace XREngine.Rendering.Physics.Physx
         public void SetFlag(PxShapeFlag flag, bool value)
             => ShapePtr->SetFlagMut(flag, value);
 
-        public void SetRestOffset(float offset)
-            => ShapePtr->SetRestOffsetMut(offset);
-
-        public void SetContactOffset(float offset)
-            => ShapePtr->SetContactOffsetMut(offset);
-
-        public void SetDensityForFluid(float density)
-            => ShapePtr->SetDensityForFluidMut(density);
-
-        public void SetTorsionalPatchRadius(float radius)
-            => ShapePtr->SetTorsionalPatchRadiusMut(radius);
-
-        public void SetMinTorsionalPatchRadius(float radius)
-            => ShapePtr->SetMinTorsionalPatchRadiusMut(radius);
-
-        public void SetMaterials(PxMaterial** materials, ushort materialCount)
-            => ShapePtr->SetMaterialsMut(materials, materialCount);
+        public float ContactOffset
+        {
+            get => ShapePtr->GetContactOffset();
+            set => ShapePtr->SetContactOffsetMut(value);
+        }
 
         public override void Release()
             => ShapePtr->ReleaseMut();
 
-        public PhysxGeometry? Geometry
+        public PxGeometry* Geometry
         {
-            get => Scene.GetGeometry(ShapePtr->GetGeometry());
-            set => ShapePtr->SetGeometryMut(value is null ? null : value.Geometry);
+            get => ShapePtr->GetGeometry();
+            set => ShapePtr->SetGeometryMut(value);
         }
 
-        //public unsafe PhysxRigidActor GetActor()
-        //{
-        //    return Scene.GetRigidActor(Scene, ShapePtr->GetActor());
-        //}
+        public unsafe PhysxRigidActor? GetActor()
+            => PhysxRigidActor.Get(ShapePtr->GetActor());
 
-        //public unsafe static void SetLocalPoseMut(PxTransform* pose)
-        //{
-        //    NativeMethods.PxShape_setLocalPose_mut((PxShape*)Unsafe.AsPointer(ref self_), pose);
-        //}
+        public (Vector3 position, Quaternion rotation) LocalPose
+        {
+            get
+            {
+                var tfm = ShapePtr->GetLocalPose();
+                return (tfm.p, tfm.q);
+            }
+            set
+            {
+                var tfm = PhysxScene.MakeTransform(value.position, value.rotation);
+                ShapePtr->SetLocalPoseMut(&tfm);
+            }
+        }
 
-        //public unsafe static PxTransform GetLocalPose()
-        //{
-        //    return NativeMethods.PxShape_getLocalPose((PxShape*)Unsafe.AsPointer(ref self_));
-        //}
+        public PxFilterData SimulationFilterData
+        {
+            get => ShapePtr->GetSimulationFilterData();
+            set => ShapePtr->SetSimulationFilterDataMut(&value);
+        }
 
-        //public unsafe static void SetSimulationFilterDataMut(PxFilterData* data)
-        //{
-        //    NativeMethods.PxShape_setSimulationFilterData_mut((PxShape*)Unsafe.AsPointer(ref self_), data);
-        //}
+        public PxFilterData QueryFilterData
+        {
+            get => ShapePtr->GetQueryFilterData();
+            set => ShapePtr->SetQueryFilterDataMut(&value);
+        }
 
-        //public unsafe static PxFilterData GetSimulationFilterData()
-        //{
-        //    return NativeMethods.PxShape_getSimulationFilterData((PxShape*)Unsafe.AsPointer(ref self_));
-        //}
+        public PhysxMaterial[] Materials
+        {
+            get => GetMaterials();
+            set => SetMaterials(value);
+        }
 
-        //public unsafe static void SetQueryFilterDataMut(PxFilterData* data)
-        //{
-        //    NativeMethods.PxShape_setQueryFilterData_mut((PxShape*)Unsafe.AsPointer(ref self_), data);
-        //}
+        private unsafe void SetMaterials(PhysxMaterial[] materials)
+        {
+            PxMaterial** mats = stackalloc PxMaterial*[materials.Length];
+            for (int i = 0; i < materials.Length; i++)
+                mats[i] = materials[i].MaterialPtr;
+            ShapePtr->SetMaterialsMut(mats, (ushort)materials.Length);
+        }
 
-        //public unsafe static PxFilterData GetQueryFilterData()
-        //{
-        //    return NativeMethods.PxShape_getQueryFilterData((PxShape*)Unsafe.AsPointer(ref self_));
-        //}
+        public unsafe ushort MaterialCount
+            => ShapePtr->GetNbMaterials();
 
-        //public unsafe static void SetMaterialsMut(PxMaterial** materials, ushort materialCount)
-        //{
-        //    NativeMethods.PxShape_setMaterials_mut((PxShape*)Unsafe.AsPointer(ref self_), materials, materialCount);
-        //}
+        private unsafe PhysxMaterial[] GetMaterials()
+        {
+            PxMaterial*[] materials = new PxMaterial*[MaterialCount];
+            fixed (PxMaterial** materialsPtr = materials)
+                ShapePtr->GetMaterials(materialsPtr, MaterialCount, 0u);
+            PhysxMaterial[] mats = new PhysxMaterial[MaterialCount];
+            for (int i = 0; i < MaterialCount; i++)
+                mats[i] = PhysxMaterial.Get(materials[i])!;
+            return mats;
+        }
 
-        //public unsafe static ushort GetNbMaterials()
-        //{
-        //    return NativeMethods.PxShape_getNbMaterials((PxShape*)Unsafe.AsPointer(ref self_));
-        //}
+        public unsafe PxBaseMaterial* GetMaterialFromInternalFaceIndex(uint faceIndex)
+            => ShapePtr->GetMaterialFromInternalFaceIndex(faceIndex);
 
-        //public unsafe static uint GetMaterials(PxMaterial** userBuffer, uint bufferSize, uint startIndex)
-        //{
-        //    return NativeMethods.PxShape_getMaterials((PxShape*)Unsafe.AsPointer(ref self_), userBuffer, bufferSize, startIndex);
-        //}
+        public float RestOffset
+        {
+            get => ShapePtr->GetRestOffset();
+            set => ShapePtr->SetRestOffsetMut(value);
+        }
 
-        //public unsafe static PxBaseMaterial* GetMaterialFromInternalFaceIndex(uint faceIndex)
-        //{
-        //    return NativeMethods.PxShape_getMaterialFromInternalFaceIndex((PxShape*)Unsafe.AsPointer(ref self_), faceIndex);
-        //}
+        public float DensityForFluid
+        {
+            get => ShapePtr->GetDensityForFluid();
+            set => ShapePtr->SetDensityForFluidMut(value);
+        }
 
-        //public unsafe static void SetContactOffsetMut(float contactOffset)
-        //{
-        //    NativeMethods.PxShape_setContactOffset_mut((PxShape*)Unsafe.AsPointer(ref self_), contactOffset);
-        //}
+        public float TorsionalPatchRadius
+        {
+            get => ShapePtr->GetTorsionalPatchRadius();
+            set => ShapePtr->SetTorsionalPatchRadiusMut(value);
+        }
 
+        public float MinTorsionalPatchRadius
+        {
+            get => ShapePtr->GetMinTorsionalPatchRadius();
+            set => ShapePtr->SetMinTorsionalPatchRadiusMut(value);
+        }
 
-        //public unsafe static float GetContactOffset()
-        //{
-        //    return NativeMethods.PxShape_getContactOffset((PxShape*)Unsafe.AsPointer(ref self_));
-        //}
+        public unsafe bool IsExclusive
+            => ShapePtr->IsExclusive();
 
-        //public unsafe static void SetRestOffsetMut(float restOffset)
-        //{
-        //    NativeMethods.PxShape_setRestOffset_mut((PxShape*)Unsafe.AsPointer(ref self_), restOffset);
-        //}
+        public string Name
+        {
+            get => Marshal.PtrToStringAnsi((IntPtr)ShapePtr->GetName()) ?? string.Empty;
+            set => ShapePtr->SetNameMut((byte*)Marshal.StringToHGlobalAnsi(value).ToPointer());
+        }
 
-        //public unsafe static float GetRestOffset()
-        //{
-        //    return NativeMethods.PxShape_getRestOffset((PxShape*)Unsafe.AsPointer(ref self_));
-        //}
+        public unsafe PxQueryCache QueryCacheNew1(uint findex)
+            => ShapePtr->QueryCacheNew1(findex);
 
-        //public unsafe static void SetDensityForFluidMut(float densityForFluid)
-        //{
-        //    NativeMethods.PxShape_setDensityForFluid_mut((PxShape*)Unsafe.AsPointer(ref self_), densityForFluid);
-        //}
+        public unsafe (Vector3 position, Quaternion rotation) GetGlobalPose(PhysxRigidActor actor)
+        {
+            var tfm = ShapePtr->ExtGetGlobalPose(actor.RigidActorPtr);
+            return (tfm.p, tfm.q);
+        }
 
-        //public unsafe static float GetDensityForFluid()
-        //{
-        //    return NativeMethods.PxShape_getDensityForFluid((PxShape*)Unsafe.AsPointer(ref self_));
-        //}
+        public unsafe PxRaycastHit[] Raycast(PhysxRigidActor actor, Vector3 rayOrigin, Vector3 rayDir, float maxDist, PxHitFlags hitFlags, uint maxHits = 32)
+        {
+            PxVec3 ro = rayOrigin;
+            PxVec3 rd = rayDir;
+            PxRaycastHit[] rayHits = new PxRaycastHit[maxHits];
+            fixed (PxRaycastHit* rayHitsPtr = rayHits)
+            {
+                uint num = ShapePtr->ExtRaycast(actor.RigidActorPtr, &ro, &rd, maxDist, hitFlags, maxHits, rayHitsPtr);
+                PxRaycastHit[] hits = new PxRaycastHit[num];
+                Array.Copy(rayHits, hits, num);
+                return hits;
+            }
+        }
 
-        //public unsafe static void SetTorsionalPatchRadiusMut(float radius)
-        //{
-        //    NativeMethods.PxShape_setTorsionalPatchRadius_mut((PxShape*)Unsafe.AsPointer(ref self_), radius);
-        //}
+        public unsafe bool Overlap(PhysxRigidActor actor, IAbstractPhysicsGeometry otherGeom, (Vector3 position, Quaternion rotation) otherGeomPose)
+        {
+            var tfm = PhysxScene.MakeTransform(otherGeomPose.position, otherGeomPose.rotation);
+            var structObj = otherGeom.GetStruct();
+            return ShapePtr->ExtOverlap(actor.RigidActorPtr, structObj.Address.As<PxGeometry>(), &tfm);
+        }
 
-        //public unsafe static float GetTorsionalPatchRadius()
-        //{
-        //    return NativeMethods.PxShape_getTorsionalPatchRadius((PxShape*)Unsafe.AsPointer(ref self_));
-        //}
+        public unsafe bool Sweep(PhysxRigidActor actor, Vector3 unitDir, float distance, IAbstractPhysicsGeometry otherGeom, (Vector3 position, Quaternion rotation) otherGeomPose, out PxSweepHit sweepHit, PxHitFlags hitFlags)
+        {
+            var tfm = PhysxScene.MakeTransform(otherGeomPose.position, otherGeomPose.rotation);
+            PxSweepHit h;
+            PxVec3 ud = unitDir;
+            var structObj = otherGeom.GetStruct();
+            bool result = ShapePtr->ExtSweep(actor.RigidActorPtr, &ud, distance, structObj.Address.As<PxGeometry>(), &tfm, &h, hitFlags);
+            sweepHit = h;
+            return result;
+        }
 
-        //public unsafe static void SetMinTorsionalPatchRadiusMut(float radius)
-        //{
-        //    NativeMethods.PxShape_setMinTorsionalPatchRadius_mut((PxShape*)Unsafe.AsPointer(ref self_), radius);
-        //}
-
-        //public unsafe static float GetMinTorsionalPatchRadius()
-        //{
-        //    return NativeMethods.PxShape_getMinTorsionalPatchRadius((PxShape*)Unsafe.AsPointer(ref self_));
-        //}
-
-        //public unsafe bool IsExclusive()
-        //{
-        //    return NativeMethods.PxShape_isExclusive((PxShape*)Unsafe.AsPointer(ref self_));
-        //}
-
-        //public unsafe void SetNameMut(byte* name)
-        //{
-        //    NativeMethods.PxShape_setName_mut((PxShape*)Unsafe.AsPointer(ref self_), name);
-        //}
-
-        //public unsafe byte* GetName()
-        //{
-        //    return NativeMethods.PxShape_getName((PxShape*)Unsafe.AsPointer(ref self_));
-        //}
-
-        //public unsafe PxQueryCache QueryCacheNew1(this ref PxShape s, uint findex)
-        //{
-        //    return NativeMethods.PxQueryCache_new_1((PxShape*)Unsafe.AsPointer(ref s), findex);
-        //}
-
-        //public unsafe static PxTransform ExtGetGlobalPose(PxRigidActor* actor)
-        //{
-        //    return NativeMethods.PxShapeExt_getGlobalPose((PxShape*)Unsafe.AsPointer(ref shape), actor);
-        //}
-
-        //public unsafe static uint ExtRaycast(PxRigidActor* actor, PxVec3* rayOrigin, PxVec3* rayDir, float maxDist, PxHitFlags hitFlags, uint maxHits, PxRaycastHit* rayHits)
-        //{
-        //    return NativeMethods.PxShapeExt_raycast((PxShape*)Unsafe.AsPointer(ref shape), actor, rayOrigin, rayDir, maxDist, hitFlags, maxHits, rayHits);
-        //}
-
-        //public unsafe static bool ExtOverlap(PxRigidActor* actor, PxGeometry* otherGeom, PxTransform* otherGeomPose)
-        //{
-        //    return NativeMethods.PxShapeExt_overlap((PxShape*)Unsafe.AsPointer(ref shape), actor, otherGeom, otherGeomPose);
-        //}
-
-        //public unsafe static bool ExtSweep(PxRigidActor* actor, PxVec3* unitDir, float distance, PxGeometry* otherGeom, PxTransform* otherGeomPose, PxSweepHit* sweepHit, PxHitFlags hitFlags)
-        //{
-        //    return NativeMethods.PxShapeExt_sweep((PxShape*)Unsafe.AsPointer(ref shape), actor, unitDir, distance, otherGeom, otherGeomPose, sweepHit, hitFlags);
-        //}
-
-        //public unsafe static PxBounds3 ExtGetWorldBounds(PxRigidActor* actor, float inflation)
-        //{
-        //    return NativeMethods.PxShapeExt_getWorldBounds((PxShape*)Unsafe.AsPointer(ref shape), actor, inflation);
-        //}
+        public unsafe AABB GetWorldBounds(PhysxRigidActor actor, float inflation)
+        {
+            var bounds = ShapePtr->ExtGetWorldBounds(actor.RigidActorPtr, inflation);
+            return new AABB(bounds.minimum, bounds.maximum);
+        }
     }
 }

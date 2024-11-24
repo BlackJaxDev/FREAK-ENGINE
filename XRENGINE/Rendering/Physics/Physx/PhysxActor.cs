@@ -9,26 +9,30 @@ namespace XREngine.Rendering.Physics.Physx
         public abstract PxActor* ActorPtr { get; }
         public override unsafe PxBase* BasePtr => (PxBase*)ActorPtr;
 
+        public static Dictionary<nint, PhysxActor> AllActors { get; } = [];
+        public static PhysxActor? Get(PxActor* ptr)
+            => AllActors.TryGetValue((nint)ptr, out var actor) ? actor : null;
+
         ~PhysxActor() => Release();
 
         public bool DebugVisualize
         {
-            get => ActorFlags.HasFlag(PxActorFlag.Visualization);
+            get => ActorFlags.HasFlag(PxActorFlags.Visualization);
             set => SetActorFlag(PxActorFlag.Visualization, value);
         }
         public bool GravityEnabled
         {
-            get => !ActorFlags.HasFlag(PxActorFlag.DisableGravity);
+            get => !ActorFlags.HasFlag(PxActorFlags.DisableGravity);
             set => SetActorFlag(PxActorFlag.DisableGravity, !value);
         }
         public bool SimulationEnabled
         {
-            get => !ActorFlags.HasFlag(PxActorFlag.DisableSimulation);
+            get => !ActorFlags.HasFlag(PxActorFlags.DisableSimulation);
             set => SetActorFlag(PxActorFlag.DisableSimulation, !value);
         }
         public bool SendSleepNotifies
         {
-            get => ActorFlags.HasFlag(PxActorFlag.SendSleepNotifies);
+            get => ActorFlags.HasFlag(PxActorFlags.SendSleepNotifies);
             set => SetActorFlag(PxActorFlag.SendSleepNotifies, value);
         }
 

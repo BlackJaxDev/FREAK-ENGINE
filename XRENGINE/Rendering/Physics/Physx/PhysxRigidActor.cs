@@ -1,23 +1,28 @@
 ﻿using MagicPhysX;
 using System.Numerics;
+using XREngine.Scene;
 using XREngine.Scene.Transforms;
 using static MagicPhysX.NativeMethods;
 
 namespace XREngine.Rendering.Physics.Physx
 {
-    public unsafe abstract class PhysxRigidActor : PhysxActor
+    public unsafe abstract class PhysxRigidActor : PhysxActor, IAbstractRigidPhysicsActor
     {
         public abstract PxRigidActor* RigidActorPtr { get; }
         public override unsafe PxActor* ActorPtr => (PxActor*)RigidActorPtr;
 
+        public static Dictionary<nint, PhysxRigidActor> AllRigidActors { get; } = [];
+        public static PhysxRigidActor? Get(PxRigidActor* ptr)
+            => AllRigidActors.TryGetValue((nint)ptr, out var actor) ? actor : null;
+
         public uint InternalActorIndex => RigidActorPtr->GetInternalActorIndex();
 
-        public void ApplyTransformTo(RigidBodyTransform transform)
-        {
-            GetTransform(out var position, out var rotation);
-            transform.Position = position;
-            transform.Rotation = rotation;
-        }
+        //public void ApplyTransformTo(RigidBodyTransform transform)
+        //{
+        //    GetTransform(out var position, out var rotation);
+        //    transform.Position = position;
+        //    transform.Rotation = rotation;
+        //}
 
         public void ApplyTransformTo(Transform transform)
         {
@@ -42,10 +47,10 @@ namespace XREngine.Rendering.Physics.Physx
             rotation = new Quaternion(pose.q.x, pose.q.y, pose.q.z, pose.q.w);
         }
 
-        private void SetTransform(PxTransform pose, bool wake)
+        private void SetTransform(PxTransform pose, bool wake = true)
             => RigidActorPtr->SetGlobalPoseMut(&pose, wake);
 
-        public void SetTransform(Vector3 position, Quaternion rotation, bool wake)
+        public void SetTransform(Vector3 position, Quaternion rotation, bool wake = true)
             => SetTransform(new() { p = position, q = rotation }, wake);
 
         public uint ConstraintCount
@@ -64,6 +69,8 @@ namespace XREngine.Rendering.Physics.Physx
 
         public PhysxShape[] GetShapes()
         {
+            if (Scene is null)
+                return [];
             var shapes = new PxShape*[ShapeCount];
             fixed (PxShape** shapesPtr = shapes)
                 RigidActorPtr->GetShapes(shapesPtr, ShapeCount, 0);

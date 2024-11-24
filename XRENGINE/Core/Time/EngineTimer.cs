@@ -21,7 +21,7 @@ namespace XREngine.Timers
             set => FixedUpdateDelta = 1.0f / value.ClampMin(0.0001f);
         }
 
-        private const float MaxFrequency = 500.0f; // Frequency cap for Update/RenderFrame events
+        private const float MaxFrequency = 1000.0f; // Frequency cap for Update/RenderFrame events
 
         //Events to subscribe to
         /// <summary>

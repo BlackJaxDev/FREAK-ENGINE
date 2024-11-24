@@ -1,4 +1,5 @@
-﻿using MagicPhysX;
+﻿using Assimp;
+using MagicPhysX;
 
 namespace XREngine.Rendering.Physics.Physx
 {
@@ -6,15 +7,28 @@ namespace XREngine.Rendering.Physics.Physx
     {
         private readonly unsafe PxMaterial* _materialPtr;
 
+        public static Dictionary<nint, PhysxMaterial> All { get; } = [];
+        public static PhysxMaterial? Get(PxMaterial* ptr)
+            => All.TryGetValue((nint)ptr, out var material) ? material : null;
+
         public PhysxMaterial()
-            => _materialPtr = PhysxScene.PhysicsPtr->CreateMaterialMut(0.0f, 0.0f, 0.0f);
+        {
+            _materialPtr = PhysxScene.PhysicsPtr->CreateMaterialMut(0.0f, 0.0f, 0.0f);
+            All.Add((nint)MaterialPtr, this);
+        }
         public PhysxMaterial(
             float staticFriction,
             float dynamicFriction,
             float restitution)
-            => _materialPtr = PhysxScene.PhysicsPtr->CreateMaterialMut(staticFriction, dynamicFriction, restitution);
+        {
+            _materialPtr = PhysxScene.PhysicsPtr->CreateMaterialMut(staticFriction, dynamicFriction, restitution);
+            All.Add((nint)MaterialPtr, this);
+        }
         public PhysxMaterial(PxMaterial* materialPtr)
-            => _materialPtr = materialPtr;
+        {
+            _materialPtr = materialPtr;
+            All.Add((nint)MaterialPtr, this);
+        }
         public PhysxMaterial(
             float staticFriction,
             float dynamicFriction,
@@ -35,6 +49,8 @@ namespace XREngine.Rendering.Physics.Physx
             DisableStrongFriction = disableStrongFriction;
             ImprovedPatchFriction = improvedPatchFriction;
             CompliantContact = compliantContact;
+
+            All.Add((nint)MaterialPtr, this);
         }
 
         public PxMaterial* MaterialPtr => _materialPtr;

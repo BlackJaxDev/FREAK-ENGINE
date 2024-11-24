@@ -1,7 +1,9 @@
-﻿namespace XREngine.Rendering.Physics.Physx
+﻿using XREngine.Data;
+
+namespace XREngine.Rendering.Physics.Physx
 {
     public interface IAbstractPhysicsGeometry
     {
-
+        DataSource GetStruct();
     }
 }

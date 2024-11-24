@@ -134,6 +134,19 @@ namespace XREngine.Data
             return source;
         }
 
+        public static DataSource FromStruct<T>(T structObj) where T : struct
+        {
+            var size = Marshal.SizeOf<T>();
+            DataSource source = new((uint)size);
+            Marshal.StructureToPtr(structObj, source.Address, false);
+            return source;
+        }
+
+        public T ToStruct<T>() where T : struct
+        {
+            return Marshal.PtrToStructure<T>(Address);
+        }
+
         #endregion
     }
 }

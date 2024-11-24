@@ -1,8 +1,4 @@
-﻿using MagicPhysX;
-using System.Numerics;
-using static MagicPhysX.NativeMethods;
-
-namespace XREngine.Rendering.Physics.Physx
+﻿namespace XREngine.Rendering.Physics.Physx
 {
     //public unsafe struct PhysxGeometry : IAbstractPhysicsGeometry
     //{

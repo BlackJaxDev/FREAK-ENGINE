@@ -35,12 +35,20 @@ namespace XREngine.Scene
     {
         void Destroy(bool wakeOnLostTouch = false);
     }
-    public interface IAbstractStaticRigidBody : IAbstractPhysicsActor
+    public interface IAbstractStaticRigidBody : IAbstractRigidPhysicsActor
     {
 
     }
-    public interface IAbstractDynamicRigidBody : IAbstractPhysicsActor
+    public interface IAbstractDynamicRigidBody : IAbstractRigidBody
+    {
+
+    }
+    public interface IAbstractRigidPhysicsActor : IAbstractPhysicsActor
     {
         (Vector3 position, Quaternion rotation) Transform { get; }
+    }
+    public interface IAbstractRigidBody : IAbstractRigidPhysicsActor
+    {
+
     }
 }

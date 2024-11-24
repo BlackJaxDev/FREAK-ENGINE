@@ -4,7 +4,6 @@ using XREngine.Data;
 using XREngine.Data.Colors;
 using XREngine.Data.Geometry;
 using XREngine.Data.Trees;
-using XREngine.Physics;
 using XREngine.Rendering.Physics.Physx.Joints;
 using XREngine.Scene;
 using static MagicPhysX.NativeMethods;
@@ -93,23 +92,31 @@ namespace XREngine.Rendering.Physics.Physx
             _scene = _physicsPtr->CreateSceneMut(&sceneDesc);
             Scenes.Add((nint)_scene, this);
 
-            SetVisualizationParameter(PxVisualizationParameter.Scale, 1.0f);
-            SetVisualizationParameter(PxVisualizationParameter.CollisionShapes, 1.0f);
-            SetVisualizationParameter(PxVisualizationParameter.CollisionAxes, 1.0f);
-            SetVisualizationParameter(PxVisualizationParameter.CollisionStatic, 1.0f);
-            SetVisualizationParameter(PxVisualizationParameter.CollisionDynamic, 1.0f);
-            SetVisualizationParameter(PxVisualizationParameter.ContactPoint, 1.0f);
-            SetVisualizationParameter(PxVisualizationParameter.CollisionEdges, 1.0f);
-            SetVisualizationParameter(PxVisualizationParameter.JointLocalFrames, 1.0f);
-            SetVisualizationParameter(PxVisualizationParameter.JointLimits, 1.0f);
-            SetVisualizationParameter(PxVisualizationParameter.CullBox, 1.0f);
-            SetVisualizationParameter(PxVisualizationParameter.WorldAxes, 1.0f);
-            SetVisualizationParameter(PxVisualizationParameter.SimulationMesh, 1.0f);
-            SetVisualizationParameter(PxVisualizationParameter.ActorAxes, 1.0f);
-            SetVisualizationParameter(PxVisualizationParameter.BodyAxes, 1.0f);
-            SetVisualizationParameter(PxVisualizationParameter.BodyMassAxes, 1.0f);
-            SetVisualizationParameter(PxVisualizationParameter.BodyAngVelocity, 1.0f);
-            SetVisualizationParameter(PxVisualizationParameter.BodyLinVelocity, 1.0f);
+            //VisualizeEnabled = true;
+            //VisualizeWorldAxes = true;
+            //VisualizeBodyAxes = true;
+            //VisualizeBodyMassAxes = true;
+            //VisualizeBodyLinearVelocity = true;
+            //VisualizeBodyAngularVelocity = true;
+            //VisualizeContactPoint = true;
+            //VisualizeContactNormal = true;
+            //VisualizeContactError = true;
+            //VisualizeContactForce = true;
+            //VisualizeActorAxes = true;
+            //VisualizeCollisionAabbs = true;
+            //VisualizeCollisionShapes = true;
+            //VisualizeCollisionAxes = true;
+            //VisualizeCollisionCompounds = true;
+            //VisualizeCollisionFaceNormals = true;
+            //VisualizeCollisionEdges = true;
+            //VisualizeCollisionStatic = true;
+            //VisualizeCollisionDynamic = true;
+            //VisualizeJointLocalFrames = true;
+            //VisualizeJointLimits = true;
+            //VisualizeCullBox = true;
+            //VisualizeMbpRegions = true;
+            //VisualizeSimulationMesh = true;
+            //VisualizeSdf = true;
         }
 
         public DataSource? _scratchBlock = new(32000, true);
@@ -135,11 +142,16 @@ namespace XREngine.Rendering.Physics.Physx
         private List<Engine.Rendering.Debug.LineData> _debugLinesRendering = [];
         private List<Engine.Rendering.Debug.TriangleData> _debugTrianglesRendering = [];
 
+        private object _lock = new();
+
         private void SwapDebugBuffers()
         {
-            (_debugPointsRendering, _debugPointsUpdating) = (_debugPointsUpdating, _debugPointsRendering);
-            (_debugLinesRendering, _debugLinesUpdating) = (_debugLinesUpdating, _debugLinesRendering);
-            (_debugTrianglesRendering, _debugTrianglesUpdating) = (_debugTrianglesUpdating, _debugTrianglesRendering);
+            //lock (_lock)
+            //{
+                (_debugPointsRendering, _debugPointsUpdating) = (_debugPointsUpdating, _debugPointsRendering);
+                (_debugLinesRendering, _debugLinesUpdating) = (_debugLinesUpdating, _debugLinesRendering);
+                (_debugTrianglesRendering, _debugTrianglesUpdating) = (_debugTrianglesUpdating, _debugTrianglesRendering);
+            //}
         }
 
         public void AddDebugPoint(Vector3 position, ColorF4 color)
@@ -193,18 +205,20 @@ namespace XREngine.Rendering.Physics.Physx
                     AddDebugTriangle(triangle.pos0, triangle.pos1, triangle.pos2, color);
                 }
             }
-
-            SwapDebugBuffers();
         }
 
         public override void DebugRender()
         {
-            foreach (var point in _debugPointsRendering)
-                Engine.Rendering.Debug.RenderPoint(point.Position, point.Color);
-            foreach (var line in _debugLinesRendering)
-                Engine.Rendering.Debug.RenderLine(line.Start, line.End, line.Color);
-            foreach (var triangle in _debugTrianglesRendering)
-                Engine.Rendering.Debug.RenderTriangle(triangle.Value.A, triangle.Value.B, triangle.Value.C, triangle.Color, false);
+            //lock (_lock)
+            //{
+                SwapDebugBuffers();
+                foreach (var point in _debugPointsRendering)
+                    Engine.Rendering.Debug.RenderPoint(point.Position, point.Color);
+                foreach (var line in _debugLinesRendering)
+                    Engine.Rendering.Debug.RenderLine(line.Start, line.End, line.Color);
+                foreach (var triangle in _debugTrianglesRendering)
+                    Engine.Rendering.Debug.RenderTriangle(triangle.Value.A, triangle.Value.B, triangle.Value.C, triangle.Color, false);
+            //}
         }
 
         private static ColorF4 ToColorF4(uint c) => new(
@@ -324,100 +338,6 @@ namespace XREngine.Rendering.Physics.Physx
             _scene->RemoveActorsMut(ptrs, (uint)actors.Length, wakeOnLostTouch);
         }
 
-        public Dictionary<nint, PhysxMaterial> Materials { get; } = [];
-        public PhysxMaterial? GetMaterial(PxMaterial* ptr)
-            => Materials.TryGetValue((nint)ptr, out var material) ? material : null;
-        public PhysxMaterial NewMaterial()
-        {
-            var material = new PhysxMaterial(this);
-            Materials.Add((nint)material.MaterialPtr, material);
-            return material;
-        }
-
-        public Dictionary<nint, PhysxGeometry> Geometries { get; } = [];
-        public PhysxGeometry? GetGeometry(PxGeometry* ptr)
-            => Geometries.TryGetValue((nint)ptr, out var geometry) ? geometry : null;
-        public PhysxGeometry NewSphereGeometry(float radius)
-        {
-            PxSphereGeometry sphere = PxSphereGeometry_new(radius);
-            var geometry = new PhysxGeometry(this, (PxGeometry*)&sphere);
-            Geometries.Add((nint)geometry.Geometry, geometry);
-            return geometry;
-        }
-        public PhysxGeometry NewPlaneGeometry()
-        {
-            PxPlaneGeometry plane = PxPlaneGeometry_new();
-            var geometry = new PhysxGeometry(this, (PxGeometry*)&plane);
-            Geometries.Add((nint)geometry.Geometry, geometry);
-            return geometry;
-        }
-        public PhysxGeometry NewCapsuleGeometry(float radius, float halfHeight)
-        {
-            PxCapsuleGeometry capsule = PxCapsuleGeometry_new(radius, halfHeight);
-            var geometry = new PhysxGeometry(this, (PxGeometry*)&capsule);
-            Geometries.Add((nint)geometry.Geometry, geometry);
-            return geometry;
-        }
-        public PhysxGeometry NewBoxGeometry(Vector3 halfExtents)
-        {
-            PxBoxGeometry box = PxBoxGeometry_new(halfExtents.X, halfExtents.Y, halfExtents.Z);
-            var geometry = new PhysxGeometry(this, (PxGeometry*)&box);
-            Geometries.Add((nint)geometry.Geometry, geometry);
-            return geometry;
-        }
-        //public PhysxGeometry NewConvexMeshGeometry(PhysxConvexMesh convexMesh)
-        //{
-        //    PxConvexMeshGeometry convex = PxConvexMeshGeometry_new(convexMesh.ConvexMeshPtr);
-        //    var geometry = new PhysxGeometry(this, (PxGeometry*)&convex);
-        //    Geometries.Add((nint)geometry.GeometryPtr, geometry);
-        //    return geometry;
-        //}
-        public PhysxGeometry NewParticleSystemGeometry()
-        {
-            PxParticleSystemGeometry ps = PxParticleSystemGeometry_new();
-            var geometry = new PhysxGeometry(this, (PxGeometry*)&ps);
-            Geometries.Add((nint)geometry.Geometry, geometry);
-            return geometry;
-        }
-        public PhysxGeometry NewTetrahedronMeshGeometry(PhysxTetrahedronMesh tetrahedronMesh)
-        {
-            PxTetrahedronMeshGeometry tetra = PxTetrahedronMeshGeometry_new(tetrahedronMesh.TetrahedronMeshPtr);
-            var geometry = new PhysxGeometry(this, (PxGeometry*)&tetra);
-            Geometries.Add((nint)geometry.Geometry, geometry);
-            return geometry;
-        }
-        public PhysxGeometry NewTriangleMeshGeometry(PhysxTriangleMesh triangleMesh, PxMeshGeometryFlags flags, Vector3? scale = null, Quaternion? rotation = null)
-        {
-            PxVec3 s = scale ?? Vector3.One;
-            PxQuat r = rotation ?? Quaternion.Identity;
-            var ms = PxMeshScale_new_3(&s, &r);
-            PxTriangleMeshGeometry tri = PxTriangleMeshGeometry_new(triangleMesh.TriangleMeshPtr, &ms, flags);
-            var geometry = new PhysxGeometry(this, (PxGeometry*)&tri);
-            Geometries.Add((nint)geometry.Geometry, geometry);
-            return geometry;
-        }
-        public PhysxGeometry NewHeightFieldGeometry(PhysxHeightField heightField, float heightScale, float rowScale, float columnScale, PxMeshGeometryFlags flags)
-        {
-            PxHeightFieldGeometry hf = PxHeightFieldGeometry_new(heightField.HeightFieldPtr, flags, heightScale, rowScale, columnScale);
-            var geometry = new PhysxGeometry(this, (PxGeometry*)&hf);
-            Geometries.Add((nint)geometry.Geometry, geometry);
-            return geometry;
-        }
-        public PhysxGeometry NewHairGeometry()
-        {
-            PxHairSystemGeometry hairGeo = PxHairSystemGeometry_new();
-            var geometry = new PhysxGeometry(this, (PxGeometry*)&hairGeo);
-            Geometries.Add((nint)geometry.Geometry, geometry);
-            return geometry;
-        }
-        public PhysxGeometry NewCustomGeometry()
-        {
-            PxCustomGeometry geo = PxCustomGeometry_new();
-            var geometry = new PhysxGeometry(this, (PxGeometry*)&geo);
-            Geometries.Add((nint)geometry.Geometry, geometry);
-            return geometry;
-        }
-
         public Dictionary<nint, PhysxShape> Shapes { get; } = [];
         public PhysxShape? GetShape(PxShape* ptr)
             => Shapes.TryGetValue((nint)ptr, out var shape) ? shape : null;
@@ -428,26 +348,6 @@ namespace XREngine.Rendering.Physics.Physx
         //    Shapes.Add((nint)shape.ShapePtr, shape);
         //    return shape;
         //}
-
-        public Dictionary<nint, PhysxStaticRigidBody> StaticBodies { get; } = [];
-        public PhysxStaticRigidBody? GetStaticBody(PxRigidStatic* ptr)
-            => StaticBodies.TryGetValue((nint)ptr, out var body) ? body : null;
-
-        public Dictionary<nint, PhysxDynamicRigidBody> DynamicBodies { get; } = [];
-        public PhysxDynamicRigidBody? GetDynamicBody(PxRigidBody* ptr)
-            => DynamicBodies.TryGetValue((nint)ptr, out var body) ? body : null;
-
-        public Dictionary<nint, PhysxRigidBody> RigidBodies { get; } = [];
-        public PhysxRigidBody? GetRigidBody(PxRigidBody* ptr)
-            => RigidBodies.TryGetValue((nint)ptr, out var body) ? body : null;
-
-        public Dictionary<nint, PhysxRigidActor> RigidActors { get; } = [];
-        public PhysxRigidActor? GetRigidActor(PxRigidActor* ptr)
-            => RigidActors.TryGetValue((nint)ptr, out var actor) ? actor : null;
-
-        public Dictionary<nint, PhysxActor> Actors { get; } = [];
-        public PhysxActor? GetActor(PxActor* ptr)
-            => Actors.TryGetValue((nint)ptr, out var actor) ? actor : null;
 
         #region Joints
 
@@ -589,14 +489,14 @@ namespace XREngine.Rendering.Physics.Physx
         public uint GetActorCount(PxActorTypeFlags types)
             => _scene->GetNbActors(types);
 
-        public PxActor*[] GetActors(PxActorTypeFlags types)
+        public PhysxActor[] GetActors(PxActorTypeFlags types)
         {
             uint count = GetActorCount(types);
             PxActor** ptrs = stackalloc PxActor*[(int)count];
             uint numWritten = _scene->GetActors(types, ptrs, count, 0);
-            PxActor*[] actors = new PxActor*[count];
+            PhysxActor[] actors = new PhysxActor[count];
             for (int i = 0; i < count; i++)
-                actors[i] = ptrs[i];
+                actors[i] = PhysxActor.Get(ptrs[i])!;
             return actors;
         }
 
@@ -604,13 +504,13 @@ namespace XREngine.Rendering.Physics.Physx
         /// Requires PxSceneFlag::eENABLE_ACTIVE_ACTORS to be set.
         /// </summary>
         /// <returns></returns>
-        public PxActor*[] GetActiveActors()
+        public PhysxActor[] GetActiveActors()
         {
             uint count;
             PxActor** ptrs = _scene->GetActiveActorsMut(&count);
-            PxActor*[] actors = new PxActor*[count];
+            PhysxActor[] actors = new PhysxActor[count];
             for (int i = 0; i < count; i++)
-                actors[i] = ptrs[i];
+                actors[i] = PhysxActor.Get(ptrs[i])!;
             return actors;
         }
 
@@ -841,9 +741,6 @@ namespace XREngine.Rendering.Physics.Physx
         public void ApplyArticulationData(void* data, void* index, PxArticulationGpuDataType dataType, uint nbUpdatedArticulations, void* waitEvent, void* signalEvent)
             => _scene->ApplyArticulationDataMut(data, index, dataType, nbUpdatedArticulations, waitEvent, signalEvent);
         
-        public PxPvdSceneClient* GetScenePvdClient()
-            => _scene->GetScenePvdClientMut();
-
         public void CopySoftBodyData(void** data, void* dataSizes, void* softBodyIndices, PxSoftBodyDataFlag flag, uint nbCopySoftBodies, uint maxSize, void* copyEvent)
                 => _scene->CopySoftBodyDataMut(data, dataSizes, softBodyIndices, flag, nbCopySoftBodies, maxSize, copyEvent);
         public void CopyContactData(void* data, uint maxContactPairs, void* numContactPairs, void* copyEvent)
@@ -983,7 +880,7 @@ namespace XREngine.Rendering.Physics.Physx
         }
 
         public bool SweepAny(
-            PhysxGeometry geometry,
+            IAbstractPhysicsGeometry geometry,
             (Vector3 position, Quaternion rotation) pose,
             Vector3 unitDir,
             float distance,
@@ -997,8 +894,9 @@ namespace XREngine.Rendering.Physics.Physx
             PxVec3 d = unitDir;
             var t = MakeTransform(pose.position, pose.rotation);
             PxQueryHit hit_;
+            using var structObj = geometry.GetStruct();
             bool hasHit = _scene->QueryExtSweepAny(
-                geometry.Geometry,
+                structObj.Address.As<PxGeometry>(),
                 &t,
                 &d,
                 distance,
@@ -1013,7 +911,7 @@ namespace XREngine.Rendering.Physics.Physx
         }
 
         public bool SweepSingle(
-            PhysxGeometry geometry,
+            IAbstractPhysicsGeometry geometry,
             (Vector3 position, Quaternion rotation) pose,
             Vector3 unitDir,
             float distance,
@@ -1027,8 +925,9 @@ namespace XREngine.Rendering.Physics.Physx
             PxVec3 d = unitDir;
             var t = MakeTransform(pose.position, pose.rotation);
             PxSweepHit hit_;
+            using var structObj = geometry.GetStruct();
             bool hasHit = _scene->QueryExtSweepSingle(
-                geometry.Geometry,
+                structObj.Address.As<PxGeometry>(),
                 &t,
                 &d,
                 distance,
@@ -1043,7 +942,7 @@ namespace XREngine.Rendering.Physics.Physx
         }
 
         public PxSweepHit[] SweepMultiple(
-            PhysxGeometry geometry,
+            IAbstractPhysicsGeometry geometry,
             (Vector3 position, Quaternion rotation) pose,
             Vector3 unitDir,
             float distance,
@@ -1059,8 +958,9 @@ namespace XREngine.Rendering.Physics.Physx
             var t = MakeTransform(pose.position, pose.rotation);
             bool blockingHit_;
             PxSweepHit* hitBuffer_ = stackalloc PxSweepHit[maxHitCapacity];
+            using var structObj = geometry.GetStruct();
             int hitCount = _scene->QueryExtSweepMultiple(
-                geometry.Geometry,
+                structObj.Address.As<PxGeometry>(),
                 &t,
                 &d,
                 distance,
@@ -1080,7 +980,7 @@ namespace XREngine.Rendering.Physics.Physx
         }
 
         public PxOverlapHit[] OverlapMultiple(
-            PhysxGeometry geometry,
+            IAbstractPhysicsGeometry geometry,
             (Vector3 position, Quaternion rotation) pose,
             PxQueryFilterData* filterData,
             PxQueryFilterCallback* filterCall,
@@ -1088,8 +988,9 @@ namespace XREngine.Rendering.Physics.Physx
         {
             var t = MakeTransform(pose.position, pose.rotation);
             PxOverlapHit* hitBuffer = stackalloc PxOverlapHit[maxHitCapacity];
+            using var structObj = geometry.GetStruct();
             int hitCount = _scene->QueryExtOverlapMultiple(
-                geometry.Geometry,
+                structObj.Address.As<PxGeometry>(),
                 &t,
                 hitBuffer,
                 (uint)maxHitCapacity,
@@ -1102,7 +1003,7 @@ namespace XREngine.Rendering.Physics.Physx
         }
 
         public bool OverlapAny(
-            PxGeometry* geometry,
+            IAbstractPhysicsGeometry geometry,
             (Vector3 position, Quaternion rotation) pose,
             out PxOverlapHit hit,
             PxQueryFilterData* filterData,
@@ -1110,8 +1011,9 @@ namespace XREngine.Rendering.Physics.Physx
         {
             var t = MakeTransform(pose.position, pose.rotation);
             PxOverlapHit hit_;
+            using var structObj = geometry.GetStruct();
             bool hasHit = _scene->QueryExtOverlapAny(
-                geometry,
+                structObj.Address.As<PxGeometry>(),
                 &t,
                 &hit_,
                 filterData,
@@ -1181,24 +1083,150 @@ namespace XREngine.Rendering.Physics.Physx
 
         public override void AddActor(IAbstractPhysicsActor actor)
         {
-            if (actor is PhysxActor physxActor)
-            {
-                AddActor(physxActor);
-            }
+            if (actor is not PhysxActor physxActor)
+                return;
+            
+            AddActor(physxActor);
         }
 
         public override void RemoveActor(IAbstractPhysicsActor actor)
         {
-            if (actor is PhysxActor physxActor)
-            {
-                RemoveActor(physxActor);
-            }
+            if (actor is not PhysxActor physxActor)
+                return;
+            
+            RemoveActor(physxActor);
         }
 
         public override void NotifyShapeChanged(IAbstractPhysicsActor actor)
         {
             //RemoveActor(actor);
             //AddActor(actor);
+        }
+
+        public bool VisualizeEnabled
+        {
+            set => _scene->SetVisualizationParameterMut(PxVisualizationParameter.Scale, value ? 1.0f : 0.0f);
+            get => _scene->GetVisualizationParameter(PxVisualizationParameter.Scale) > 0.0f;
+        }
+        public bool VisualizeWorldAxes
+        {
+            set => _scene->SetVisualizationParameterMut(PxVisualizationParameter.WorldAxes, value ? 1.0f : 0.0f);
+            get => _scene->GetVisualizationParameter(PxVisualizationParameter.WorldAxes) > 0.0f;
+        }
+        public bool VisualizeBodyAxes
+        {
+            set => _scene->SetVisualizationParameterMut(PxVisualizationParameter.BodyAxes, value ? 1.0f : 0.0f);
+            get => _scene->GetVisualizationParameter(PxVisualizationParameter.BodyAxes) > 0.0f;
+        }
+        public bool VisualizeBodyMassAxes
+        {
+            set => _scene->SetVisualizationParameterMut(PxVisualizationParameter.BodyMassAxes, value ? 1.0f : 0.0f);
+            get => _scene->GetVisualizationParameter(PxVisualizationParameter.BodyMassAxes) > 0.0f;
+        }
+        public bool VisualizeBodyLinearVelocity
+        {
+            set => _scene->SetVisualizationParameterMut(PxVisualizationParameter.BodyLinVelocity, value ? 1.0f : 0.0f);
+            get => _scene->GetVisualizationParameter(PxVisualizationParameter.BodyLinVelocity) > 0.0f;
+        }
+        public bool VisualizeBodyAngularVelocity
+        {
+            set => _scene->SetVisualizationParameterMut(PxVisualizationParameter.BodyAngVelocity, value ? 1.0f : 0.0f);
+            get => _scene->GetVisualizationParameter(PxVisualizationParameter.BodyAngVelocity) > 0.0f;
+        }
+        public bool VisualizeContactPoint
+        {
+            set => _scene->SetVisualizationParameterMut(PxVisualizationParameter.ContactPoint, value ? 1.0f : 0.0f);
+            get => _scene->GetVisualizationParameter(PxVisualizationParameter.ContactPoint) > 0.0f;
+        }
+        public bool VisualizeContactNormal
+        {
+            set => _scene->SetVisualizationParameterMut(PxVisualizationParameter.ContactNormal, value ? 1.0f : 0.0f);
+            get => _scene->GetVisualizationParameter(PxVisualizationParameter.ContactNormal) > 0.0f;
+        }
+        public bool VisualizeContactError
+        {
+            set => _scene->SetVisualizationParameterMut(PxVisualizationParameter.ContactError, value ? 1.0f : 0.0f);
+            get => _scene->GetVisualizationParameter(PxVisualizationParameter.ContactError) > 0.0f;
+        }
+        public bool VisualizeContactForce
+        {
+            set => _scene->SetVisualizationParameterMut(PxVisualizationParameter.ContactForce, value ? 1.0f : 0.0f);
+            get => _scene->GetVisualizationParameter(PxVisualizationParameter.ContactForce) > 0.0f;
+        }
+        public bool VisualizeActorAxes
+        {
+            set => _scene->SetVisualizationParameterMut(PxVisualizationParameter.ActorAxes, value ? 1.0f : 0.0f);
+            get => _scene->GetVisualizationParameter(PxVisualizationParameter.ActorAxes) > 0.0f;
+        }
+        public bool VisualizeCollisionAabbs
+        {
+            set => _scene->SetVisualizationParameterMut(PxVisualizationParameter.CollisionAabbs, value ? 1.0f : 0.0f);
+            get => _scene->GetVisualizationParameter(PxVisualizationParameter.CollisionAabbs) > 0.0f;
+        }
+        public bool VisualizeCollisionShapes
+        {
+            set => _scene->SetVisualizationParameterMut(PxVisualizationParameter.CollisionShapes, value ? 1.0f : 0.0f);
+            get => _scene->GetVisualizationParameter(PxVisualizationParameter.CollisionShapes) > 0.0f;
+        }
+        public bool VisualizeCollisionAxes
+        {
+            set => _scene->SetVisualizationParameterMut(PxVisualizationParameter.CollisionAxes, value ? 1.0f : 0.0f);
+            get => _scene->GetVisualizationParameter(PxVisualizationParameter.CollisionAxes) > 0.0f;
+        }
+        public bool VisualizeCollisionCompounds
+        {
+            set => _scene->SetVisualizationParameterMut(PxVisualizationParameter.CollisionCompounds, value ? 1.0f : 0.0f);
+            get => _scene->GetVisualizationParameter(PxVisualizationParameter.CollisionCompounds) > 0.0f;
+        }
+        public bool VisualizeCollisionFaceNormals
+        {
+            set => _scene->SetVisualizationParameterMut(PxVisualizationParameter.CollisionFnormals, value ? 1.0f : 0.0f);
+            get => _scene->GetVisualizationParameter(PxVisualizationParameter.CollisionFnormals) > 0.0f;
+        }
+        public bool VisualizeCollisionEdges
+        {
+            set => _scene->SetVisualizationParameterMut(PxVisualizationParameter.CollisionEdges, value ? 1.0f : 0.0f);
+            get => _scene->GetVisualizationParameter(PxVisualizationParameter.CollisionEdges) > 0.0f;
+        }
+        public bool VisualizeCollisionStatic
+        {
+            set => _scene->SetVisualizationParameterMut(PxVisualizationParameter.CollisionStatic, value ? 1.0f : 0.0f);
+            get => _scene->GetVisualizationParameter(PxVisualizationParameter.CollisionStatic) > 0.0f;
+        }
+        public bool VisualizeCollisionDynamic
+        {
+            set => _scene->SetVisualizationParameterMut(PxVisualizationParameter.CollisionDynamic, value ? 1.0f : 0.0f);
+            get => _scene->GetVisualizationParameter(PxVisualizationParameter.CollisionDynamic) > 0.0f;
+        }
+        public bool VisualizeJointLocalFrames
+        {
+            set => _scene->SetVisualizationParameterMut(PxVisualizationParameter.JointLocalFrames, value ? 1.0f : 0.0f);
+            get => _scene->GetVisualizationParameter(PxVisualizationParameter.JointLocalFrames) > 0.0f;
+        }
+        public bool VisualizeJointLimits
+        {
+            set => _scene->SetVisualizationParameterMut(PxVisualizationParameter.JointLimits, value ? 1.0f : 0.0f);
+            get => _scene->GetVisualizationParameter(PxVisualizationParameter.JointLimits) > 0.0f;
+        }
+        public bool VisualizeCullBox
+        {
+            set => _scene->SetVisualizationParameterMut(PxVisualizationParameter.CullBox, value ? 1.0f : 0.0f);
+            get => _scene->GetVisualizationParameter(PxVisualizationParameter.CullBox) > 0.0f;
+        }
+        public bool VisualizeMbpRegions
+        {
+            set => _scene->SetVisualizationParameterMut(PxVisualizationParameter.MbpRegions, value ? 1.0f : 0.0f);
+            get => _scene->GetVisualizationParameter(PxVisualizationParameter.MbpRegions) > 0.0f;
+        }
+        public bool VisualizeSimulationMesh
+        {
+            set => _scene->SetVisualizationParameterMut(PxVisualizationParameter.SimulationMesh, value ? 1.0f : 0.0f);
+            get => _scene->GetVisualizationParameter(PxVisualizationParameter.SimulationMesh) > 0.0f;
+        }
+        public bool VisualizeSdf
+        {
+            set => _scene->SetVisualizationParameterMut(PxVisualizationParameter.Sdf, value ? 1.0f : 0.0f);
+            get => _scene->GetVisualizationParameter(PxVisualizationParameter.Sdf) > 0.0f;
         }
     }
 }

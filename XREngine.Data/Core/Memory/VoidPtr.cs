@@ -426,5 +426,7 @@ namespace XREngine.Data
 
         public override readonly int GetHashCode() => (int)_address;
         public override readonly bool Equals(object? obj) => base.Equals(obj);
+
+        public readonly T* As<T>() where T : unmanaged => (T*)_address;
     }
 }
