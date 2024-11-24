@@ -52,7 +52,7 @@ namespace XREngine.Components.Scene
         {
             base.OnComponentActivated();
             MakeListener();
-            RegisterTick(ETickGroup.PostPhysics, ETickOrder.Scene, UpdatePosition);
+            RegisterTick(ETickGroup.Late, ETickOrder.Scene, UpdatePosition);
         }
 
         protected internal override void OnComponentDeactivated()
@@ -80,7 +80,7 @@ namespace XREngine.Components.Scene
             if (Listener is null)
                 return;
 
-            float delta = Engine.Time.Timer.FixedUpdateDelta;
+            float delta = Engine.Delta;
             Vector3 pos = Transform.WorldTranslation;
 
             /*Engine.EnqueueMainThreadTask(() => */UpdateListenerPosition(pos, delta);//);

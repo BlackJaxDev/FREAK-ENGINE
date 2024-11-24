@@ -81,7 +81,7 @@ namespace XREngine.Components
                             Controller.ControlledPawn = null;
                         if (Controller is LocalPlayerController localPlayerController)
                         {
-                            UnregisterTick(ETickGroup.PrePhysics, ETickOrder.Input, TickInput);
+                            UnregisterTick(ETickGroup.Normal, ETickOrder.Input, TickInput);
                         }
                         //Call after unregistering controller
                         PostUnpossess();
@@ -102,7 +102,7 @@ namespace XREngine.Components
                         Controller.ControlledPawn = this;
                     if (Controller is LocalPlayerController localPlayerController)
                     {
-                        RegisterTick(ETickGroup.PrePhysics, ETickOrder.Input, TickInput);
+                        RegisterTick(ETickGroup.Normal, ETickOrder.Input, TickInput);
                     }
                     //Call after possessing the new pawn
                     PostPossess();
@@ -116,9 +116,10 @@ namespace XREngine.Components
                 localPlayerController.Input is not LocalInputInterface localInput)
                 return;
             
-            localInput.Gamepad?.TickStates(Engine.Time.Timer.FixedUpdateDelta);
-            localInput.Mouse?.TickStates(Engine.Time.Timer.FixedUpdateDelta);
-            localInput.Keyboard?.TickStates(Engine.Time.Timer.FixedUpdateDelta);
+            float delta = Engine.Delta;
+            localInput.Gamepad?.TickStates(delta);
+            localInput.Mouse?.TickStates(delta);
+            localInput.Keyboard?.TickStates(delta);
         }
 
         /// <summary>

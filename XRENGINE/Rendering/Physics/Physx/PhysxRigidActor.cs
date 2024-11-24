@@ -59,6 +59,9 @@ namespace XREngine.Rendering.Physics.Physx
         public uint ShapeCount
             => RigidActorPtr->GetNbShapes();
 
+        public abstract Vector3 LinearVelocity { get; }
+        public abstract Vector3 AngularVelocity { get; }
+
         public PxConstraint*[] GetConstraints()
         {
             var constraints = new PxConstraint*[ConstraintCount];

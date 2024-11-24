@@ -50,9 +50,9 @@ namespace XREngine.Networking
             var cameraNode = new SceneNode(scene) { Name = "ServerCameraNode" };
             var cameraComp = cameraNode.AddComponent<CameraComponent>();
             cameraComp!.Camera.Parameters = new XROrthographicCameraParameters(1920, 1080, -0.5f, 0.5f);
-            var uiCanvas = cameraNode.AddComponent<UICanvasComponent>();
-            uiCanvas!.CameraDrawSpaceDistance = 0.0f;
-            uiCanvas.DrawSpace = ECanvasDrawSpace.Screen;
+            var uiCanvas = cameraNode.AddComponent<UICanvasComponent>()!;
+            uiCanvas.CanvasTransform.CameraDrawSpaceDistance = 0.0f;
+            uiCanvas.CanvasTransform.DrawSpace = ECanvasDrawSpace.Screen;
 
             var outputLogNode = new SceneNode(scene) { Name = "ServerOutputLogNode" };
             var outputLogComp = outputLogNode.AddComponent<VirtualizedListUIComponent>();
@@ -77,9 +77,9 @@ namespace XREngine.Networking
         {
             int w = 1920;
             int h = 1080;
-            float updateHz = 60.0f;
-            float renderHz = 10.0f;
-            float fixedHz = 90.0f;
+            float updateHz = 120.0f;
+            float renderHz = 30.0f;
+            float fixedHz = 30.0f;
 
             int primaryX = NativeMethods.GetSystemMetrics(0);
             int primaryY = NativeMethods.GetSystemMetrics(1);

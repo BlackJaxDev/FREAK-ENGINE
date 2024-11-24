@@ -74,5 +74,8 @@ namespace XREngine.Rendering.Physics.Physx
         public override unsafe PxRigidActor* RigidActorPtr => (PxRigidActor*)_obj;
         public override unsafe PxActor* ActorPtr => (PxActor*)_obj;
         public override unsafe PxBase* BasePtr => (PxBase*)_obj;
+
+        public override Vector3 LinearVelocity { get; } = Vector3.Zero;
+        public override Vector3 AngularVelocity { get; } = Vector3.Zero;
     }
 }

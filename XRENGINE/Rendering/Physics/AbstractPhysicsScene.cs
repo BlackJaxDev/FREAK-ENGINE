@@ -46,6 +46,8 @@ namespace XREngine.Scene
     public interface IAbstractRigidPhysicsActor : IAbstractPhysicsActor
     {
         (Vector3 position, Quaternion rotation) Transform { get; }
+        Vector3 LinearVelocity { get; }
+        Vector3 AngularVelocity { get; }
     }
     public interface IAbstractRigidBody : IAbstractRigidPhysicsActor
     {

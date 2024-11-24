@@ -326,7 +326,7 @@ namespace XREngine.Components.Scene
         {
             base.OnComponentActivated();
 
-            RegisterTick(ETickGroup.PostPhysics, ETickOrder.Scene, UpdatePosition);
+            RegisterTick(ETickGroup.Late, ETickOrder.Scene, UpdatePosition);
 
             if (PlayOnActivate)
                 Play();
@@ -549,7 +549,7 @@ namespace XREngine.Components.Scene
         {
             Vector3 worldForward = Transform.WorldForward;
 
-            float delta = Engine.Time.Timer.FixedUpdateDelta;
+            float delta = Engine.Delta;
             foreach (var pair in ActiveListeners)
             {
                 ListenerContext listener = pair.Key;

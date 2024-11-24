@@ -1,4 +1,6 @@
-﻿using System.Numerics;
+﻿using Extensions;
+using System.Numerics;
+using XREngine.Components;
 
 namespace XREngine.Scene.Transforms
 {
@@ -9,6 +11,20 @@ namespace XREngine.Scene.Transforms
         {
             get => _rigidBody;
             set => SetField(ref _rigidBody, value);
+        }
+
+        public enum EInterpolationMode
+        {
+            Discrete,
+            Interpolate,
+            Extrapolate
+        }
+
+        private EInterpolationMode _interpolationMode = EInterpolationMode.Extrapolate;
+        public EInterpolationMode InterpolationMode
+        {
+            get => _interpolationMode;
+            set => SetField(ref _interpolationMode, value);
         }
 
         private Vector3 _position;
@@ -49,7 +65,10 @@ namespace XREngine.Scene.Transforms
                 {
                     case nameof(World):
                         if (World is not null)
+                        {
                             World.PhysicsScene.OnSimulationStep -= OnPhysicsStepped;
+                            World.UnregisterTick(ETickGroup.Late, (int)ETickOrder.Scene, OnRenderFrame);
+                        }
                         break;
                 }
             }
@@ -70,24 +89,91 @@ namespace XREngine.Scene.Transforms
                     break;
                 case nameof(World):
                     if (World is not null)
+                    {
                         World.PhysicsScene.OnSimulationStep += OnPhysicsStepped;
+                        World.RegisterTick(ETickGroup.Late, (int)ETickOrder.Scene, OnRenderFrame);
+                    }
                     break;
             }
         }
+
+        private float _accumulatedTime;
+        private void OnRenderFrame()
+        {
+            float updateDelta = Engine.Delta;
+            float fixedDelta = Engine.Time.Timer.FixedUpdateDelta;
+            if (InterpolationMode == EInterpolationMode.Discrete || updateDelta > fixedDelta)
+                return;
+
+            _accumulatedTime += Engine.Delta;
+            float alpha = _accumulatedTime / Engine.Time.Timer.FixedUpdateDelta;
+
+            var (lastPosUpdate, lastRotUpdate) = LastPhysicsTransform;
+            switch (InterpolationMode)
+            {
+                case EInterpolationMode.Interpolate:
+                    {
+                        Position = Vector3.Lerp(LastPosition, lastPosUpdate, alpha);
+                        Rotation = Quaternion.Slerp(LastRotation, lastRotUpdate, alpha);
+                        break;
+                    }
+                case EInterpolationMode.Extrapolate:
+                    {
+                        Vector3 posDelta = LastPhysicsLinearVelocity * _accumulatedTime;
+                        if (posDelta.Length() > float.Epsilon)
+                        {
+                            Position = lastPosUpdate + posDelta;
+                        }
+                        else
+                            Position = lastPosUpdate;
+                        
+                        float angle = LastPhysicsAngularVelocity.Length() * _accumulatedTime;
+                        if (angle > float.Epsilon)
+                        {
+                            Vector3 axis = LastPhysicsAngularVelocity.Normalized();
+                            Rotation = Quaternion.CreateFromAxisAngle(axis, angle) * lastRotUpdate;
+                        }
+                        else
+                            Rotation = lastRotUpdate;
+                        
+                        break;
+                    }
+            }
+        }
+
+        public (Vector3 position, Quaternion rotation) LastPhysicsTransform { get; set; }
+        public Vector3 LastPhysicsLinearVelocity { get; private set; }
+        public Vector3 LastPhysicsAngularVelocity { get; private set; }
+        public Vector3 LastPosition { get; private set; }
+        public Quaternion LastRotation { get; private set; }
 
         private void OnPhysicsStepped()
         {
             if (RigidBody is null)
                 return;
 
-            var (position, rotation) = RigidBody.Transform;
-            Position = PositionOffset + position;
-            Rotation = RotationOffset * rotation;
+            LastPhysicsTransform = RigidBody.Transform;
+            LastPhysicsLinearVelocity = RigidBody.LinearVelocity;
+            LastPhysicsAngularVelocity = RigidBody.AngularVelocity;
+
+            float updateDelta = Engine.Delta;
+            float fixedDelta = Engine.Time.Timer.FixedUpdateDelta;
+            if (InterpolationMode == EInterpolationMode.Discrete || updateDelta > fixedDelta)
+            {
+                Position = LastPhysicsTransform.position;
+                Rotation = LastPhysicsTransform.rotation;
+            }
+            else
+            {
+                LastPosition = Position;
+                LastRotation = Rotation;
+                _accumulatedTime = 0;
+            }
         }
 
         protected override Matrix4x4 CreateLocalMatrix()
             => Matrix4x4.Identity;
         protected override Matrix4x4 CreateWorldMatrix()
-            => Matrix4x4.CreateFromQuaternion(Rotation) * Matrix4x4.CreateTranslation(Position);
+            => Matrix4x4.CreateFromQuaternion(RotationOffset * Rotation) * Matrix4x4.CreateTranslation(PositionOffset + Position);
     }
 }
