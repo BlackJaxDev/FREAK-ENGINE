@@ -1,4 +1,5 @@
 ﻿using Assimp;
+using OpenVR.NET.Manifest;
 using System.Collections.Concurrent;
 using System.Numerics;
 using XREngine;
@@ -10,6 +11,7 @@ using XREngine.Components.Scene.Mesh;
 using XREngine.Data;
 using XREngine.Data.Colors;
 using XREngine.Data.Components;
+using XREngine.Data.Components.Scene;
 using XREngine.Data.Core;
 using XREngine.Data.Rendering;
 using XREngine.Editor;
@@ -25,7 +27,9 @@ using XREngine.Scene;
 using XREngine.Scene.Components.Animation;
 using XREngine.Scene.Components.Physics;
 using XREngine.Scene.Transforms;
+using XREngine.VRClient;
 using static XREngine.Audio.AudioSource;
+using ActionType = OpenVR.NET.Manifest.ActionType;
 using Quaternion = System.Numerics.Quaternion;
 
 internal class Program
@@ -64,14 +68,14 @@ internal class Program
     {
         int w = 1920;
         int h = 1080;
-        float updateHz = 120.0f;
+        float updateHz = 60.0f;
         float renderHz = 0.0f;
         float fixedHz = 30.0f;
 
         int primaryX = NativeMethods.GetSystemMetrics(0);
         int primaryY = NativeMethods.GetSystemMetrics(1);
 
-        return new GameStartupSettings()
+        return new VRGameStartupSettings<EVRActionCategory, EVRGameAction>()
         {
             StartupWindows =
             [
@@ -94,8 +98,135 @@ internal class Program
             },
             TargetUpdatesPerSecond = updateHz,
             FixedFramesPerSecond = fixedHz,
+            ActionManifest = new ActionManifest<EVRActionCategory, EVRGameAction>()
+            {
+                Actions = GetActions(),
+            },
+            VRManifest = new VrManifest()
+            {
+                AppKey = "XRE.VR.Test",
+                IsDashboardOverlay = false,
+                WindowsPath = Environment.ProcessPath,
+                WindowsArguments = "",
+            },
         };
     }
+
+    private static List<OpenVR.NET.Manifest.Action<EVRActionCategory, EVRGameAction>> GetActions() =>
+    [
+        new OpenVR.NET.Manifest.Action<EVRActionCategory, EVRGameAction>()
+            {
+                Name = EVRGameAction.Interact,
+                Category = EVRActionCategory.Gameplay,
+                Type = ActionType.Boolean,
+                Requirement = Requirement.Mandatory,
+            },
+            new OpenVR.NET.Manifest.Action<EVRActionCategory, EVRGameAction>()
+            {
+                Name = EVRGameAction.Jump,
+                Category = EVRActionCategory.Gameplay,
+                Type = ActionType.Boolean,
+                Requirement = Requirement.Mandatory,
+            },
+            new OpenVR.NET.Manifest.Action<EVRActionCategory, EVRGameAction>()
+            {
+                Name = EVRGameAction.ToggleMute,
+                Category = EVRActionCategory.Gameplay,
+                Type = ActionType.Boolean,
+                Requirement = Requirement.Mandatory,
+            },
+            new OpenVR.NET.Manifest.Action<EVRActionCategory, EVRGameAction>()
+            {
+                Name = EVRGameAction.Grab,
+                Category = EVRActionCategory.Gameplay,
+                Type = ActionType.Boolean,
+                Requirement = Requirement.Mandatory,
+            },
+            new OpenVR.NET.Manifest.Action<EVRActionCategory, EVRGameAction>()
+            {
+                Name = EVRGameAction.PlayspaceDragLeft,
+                Category = EVRActionCategory.Gameplay,
+                Type = ActionType.Boolean,
+                Requirement = Requirement.Optional,
+            },
+            new OpenVR.NET.Manifest.Action<EVRActionCategory, EVRGameAction>()
+            {
+                Name = EVRGameAction.PlayspaceDragRight,
+                Category = EVRActionCategory.Gameplay,
+                Type = ActionType.Boolean,
+                Requirement = Requirement.Optional,
+            },
+            new OpenVR.NET.Manifest.Action<EVRActionCategory, EVRGameAction>()
+            {
+                Name = EVRGameAction.ToggleMenu,
+                Category = EVRActionCategory.Menus,
+                Type = ActionType.Boolean,
+                Requirement = Requirement.Mandatory,
+            },
+            new OpenVR.NET.Manifest.Action<EVRActionCategory, EVRGameAction>()
+            {
+                Name = EVRGameAction.ToggleMiniMenu,
+                Category = EVRActionCategory.Menus,
+                Type = ActionType.Boolean,
+                Requirement = Requirement.Mandatory,
+            },
+            new OpenVR.NET.Manifest.Action<EVRActionCategory, EVRGameAction>()
+            {
+                Name = EVRGameAction.LeftHandPose,
+                Category = EVRActionCategory.Controllers,
+                Type = ActionType.Pose,
+                Requirement = Requirement.Mandatory,
+            },
+            new OpenVR.NET.Manifest.Action<EVRActionCategory, EVRGameAction>()
+            {
+                Name = EVRGameAction.RightHandPose,
+                Category = EVRActionCategory.Controllers,
+                Type = ActionType.Pose,
+                Requirement = Requirement.Mandatory,
+            },
+            new OpenVR.NET.Manifest.Action<EVRActionCategory, EVRGameAction>()
+            {
+                Name = EVRGameAction.LeftHandGrip,
+                Category = EVRActionCategory.Controllers,
+                Type = ActionType.Boolean,
+                Requirement = Requirement.Mandatory,
+            },
+            new OpenVR.NET.Manifest.Action<EVRActionCategory, EVRGameAction>()
+            {
+                Name = EVRGameAction.RightHandGrip,
+                Category = EVRActionCategory.Controllers,
+                Type = ActionType.Boolean,
+                Requirement = Requirement.Mandatory,
+            },
+            new OpenVR.NET.Manifest.Action<EVRActionCategory, EVRGameAction>()
+            {
+                Name = EVRGameAction.LeftHandTrigger,
+                Category = EVRActionCategory.Controllers,
+                Type = ActionType.Scalar,
+                Requirement = Requirement.Mandatory,
+            },
+            new OpenVR.NET.Manifest.Action<EVRActionCategory, EVRGameAction>()
+            {
+                Name = EVRGameAction.RightHandTrigger,
+                Category = EVRActionCategory.Controllers,
+                Type = ActionType.Scalar,
+                Requirement = Requirement.Mandatory,
+            },
+            new OpenVR.NET.Manifest.Action<EVRActionCategory, EVRGameAction>()
+            {
+                Name = EVRGameAction.LeftHandTrackpad,
+                Category = EVRActionCategory.Controllers,
+                Type = ActionType.Vector2,
+                Requirement = Requirement.Mandatory,
+            },
+            new OpenVR.NET.Manifest.Action<EVRActionCategory, EVRGameAction>()
+            {
+                Name = EVRGameAction.RightHandTrackpad,
+                Category = EVRActionCategory.Controllers,
+                Type = ActionType.Vector2,
+                Requirement = Requirement.Mandatory,
+            },
+        ];
 
     static XRWorld CreateTestWorld()
     {
@@ -113,6 +244,7 @@ internal class Program
         SceneNode cameraNode = CreateCamera(rootNode);
         AddFPSText(Engine.Assets.LoadEngineAsset<FontGlyphSet>("Fonts", "Roboto", "Roboto-Regular.ttf"), cameraNode);
         CreatePlayerPawn(cameraNode);
+        CreateVRPawn(rootNode);
         //AddTestBox(rootNode);
         AddDirLight(rootNode);
         //AddSpotLight(rootNode);
@@ -124,11 +256,37 @@ internal class Program
         XRTexture2D skyEquirect = Engine.Assets.LoadEngineAsset<XRTexture2D>("Textures", $"{names[r.Next(0, names.Length - 1)]}.exr");
         AddLightProbe(rootNode, skyEquirect);
         AddSkybox(rootNode, skyEquirect);
-        AddPhysics(rootNode);
+        //AddPhysics(rootNode);
         //AddSpline(rootNode);
         //ImportModels(desktopDir, rootNode);
         return world;
     }
+
+    private static void CreateVRPawn(SceneNode rootNode)
+    {
+        SceneNode vrPlayspaceNode = new(rootNode) { Name = "VRPlayspaceNode" };
+        var playspaceTfm = vrPlayspaceNode.SetTransform<Transform>();
+        playspaceTfm.ApplyScale(new Vector3(10.0f));
+
+        SceneNode vrHeadsetNode = new(vrPlayspaceNode) { Name = "VRHeadsetNode" };
+        var hmdTfm = vrHeadsetNode.SetTransform<VRHeadsetTransform>();
+        var hmdComp = vrHeadsetNode.AddComponent<VRHeadsetComponent>()!;
+
+        SceneNode leftControllerNode = new(vrPlayspaceNode) { Name = "VRLeftControllerNode" };
+        var leftControllerTfm = leftControllerNode.SetTransform<VRControllerTransform>();
+        leftControllerTfm.LeftHand = true;
+        //Add debug sphere to left controller
+        var leftControllerModel = leftControllerNode.AddComponent<ModelComponent>()!;
+        leftControllerModel.Model = new Model([new SubMesh(XRMesh.Shapes.SolidSphere(Vector3.Zero, 0.01f, 16), XRMaterial.CreateUnlitColorMaterialForward(ColorF4.Black))]);
+
+        SceneNode rightControllerNode = new(vrPlayspaceNode) { Name = "VRRightControllerNode" };
+        var rightControllerTfm = rightControllerNode.SetTransform<VRControllerTransform>();
+        rightControllerTfm.LeftHand = false;
+        //Add debug sphere to right controller
+        var rightControllerModel = rightControllerNode.AddComponent<ModelComponent>()!;
+        rightControllerModel.Model = new Model([new SubMesh(XRMesh.Shapes.SolidSphere(Vector3.Zero, 0.01f, 16), XRMaterial.CreateUnlitColorMaterialForward(ColorF4.Black))]);
+    }
+
     private static void AddPhysics(SceneNode rootNode)
     {
         float ballRadius = 2.0f;
@@ -201,7 +359,6 @@ internal class Program
         {
             cameraComp!.Name = "TestCamera";
             cameraComp.Camera.Parameters = new XRPerspectiveCameraParameters(60.0f, null, 0.1f, 100000.0f);
-            cameraComp.Camera.RenderPipeline = new DefaultRenderPipeline();
             //cameraComp.CullWithFrustum = false;
         }
 
@@ -227,7 +384,7 @@ internal class Program
         pawnComp!.Name = "TestPawn";
         pawnComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
 
-        var canvas = cameraNode.AddComponent<UICanvasComponent>();
+        //var canvas = cameraNode.AddComponent<UICanvasComponent>();
         //var input = cameraNode.AddComponent<UIInputComponent>();
         //input!.OwningPawn = cameraNode.GetComponent<EditorFlyingCameraPawnComponent>();
         //cameraNode.GetComponent<CameraComponent>()!.UserInterfaceOverlay = canvas;

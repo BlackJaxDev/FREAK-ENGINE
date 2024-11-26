@@ -7,18 +7,6 @@ using XREngine.Scene;
 
 namespace XREngine.VRClient
 {
-    public class VRGameStartupSettings<TCategory, TAction> : GameStartupSettings
-        where TCategory : struct, Enum
-        where TAction : struct, Enum
-    {
-        public string GameName { get; set; } = "FreakEngineGame";
-        /// <summary>
-        /// Paths to search for game exe
-        /// </summary>
-        public (Environment.SpecialFolder folder, string relativePath)[] GameSearchPaths { get; set; } = [];
-        public VrManifest VRManifest { get; set; } = new();
-        public ActionManifest<TCategory, TAction> ActionManifest { get; set; } = new();
-    }
     internal class Program
     {
         static void Main(string[] args)
@@ -55,7 +43,7 @@ namespace XREngine.VRClient
             return 0;
         }
 
-        private static bool VerifyMainGameRunning(Process[]? processes, VRGameStartupSettings<ActionCategory, GameAction> settings, out string? resultPath)
+        private static bool VerifyMainGameRunning(Process[]? processes, VRGameStartupSettings<EVRActionCategory, EVRGameAction> settings, out string? resultPath)
         {
             resultPath = null;
             string name = settings.GameName;
@@ -109,18 +97,18 @@ namespace XREngine.VRClient
             return mo != null ? (string)mo["ExecutablePath"] : null;
         }
 
-        private static VRGameStartupSettings<ActionCategory, GameAction> GenerateGameSettings()
+        private static VRGameStartupSettings<EVRActionCategory, EVRGameAction> GenerateGameSettings()
         {
-            VRGameStartupSettings<ActionCategory, GameAction>? settings;
+            VRGameStartupSettings<EVRActionCategory, EVRGameAction>? settings;
             int w = 1920;
             int h = 1080;
-            float update = 60.0f;
+            float update = 90.0f;
             float render = 90.0f;
 
             int primaryX = NativeMethods.GetSystemMetrics(0);
             int primaryY = NativeMethods.GetSystemMetrics(1);
 
-            settings = new VRGameStartupSettings<ActionCategory, GameAction>()
+            settings = new VRGameStartupSettings<EVRActionCategory, EVRGameAction>()
             {
                 Name = "startup",
                 StartupWindows =
@@ -141,10 +129,10 @@ namespace XREngine.VRClient
                 DefaultUserSettings = new UserSettings()
                 {
                     TargetFramesPerSecond = render,
-                    TargetUpdatesPerSecond = update,
                     VSync = EVSyncMode.Off,
                 },
-                ActionManifest = new ActionManifest<ActionCategory, GameAction>()
+                TargetUpdatesPerSecond = update,
+                ActionManifest = new ActionManifest<EVRActionCategory, EVRGameAction>()
                 {
                     Actions = GetActions(),
                 },
@@ -159,6 +147,11 @@ namespace XREngine.VRClient
             return settings;
         }
 
+        private static List<OpenVR.NET.Manifest.Action<EVRActionCategory, EVRGameAction>> GetActions()
+        {
+            return [];
+        }
+
         private static XRWorld CreateFillerWorld()
         {
             var world = new XRWorld();
@@ -166,121 +159,5 @@ namespace XREngine.VRClient
             world.Scenes.Add(scene);
             return world;
         }
-
-        private static List<OpenVR.NET.Manifest.Action<ActionCategory, GameAction>> GetActions() =>
-        [
-            new OpenVR.NET.Manifest.Action<ActionCategory, GameAction>()
-            {
-                Name = GameAction.Interact,
-                Category = ActionCategory.Gameplay,
-                Type = ActionType.Boolean,
-                Requirement = Requirement.Mandatory,
-            },
-            new OpenVR.NET.Manifest.Action<ActionCategory, GameAction>()
-            {
-                Name = GameAction.Jump,
-                Category = ActionCategory.Gameplay,
-                Type = ActionType.Boolean,
-                Requirement = Requirement.Mandatory,
-            },
-            new OpenVR.NET.Manifest.Action<ActionCategory, GameAction>()
-            {
-                Name = GameAction.ToggleMute,
-                Category = ActionCategory.Gameplay,
-                Type = ActionType.Boolean,
-                Requirement = Requirement.Mandatory,
-            },
-            new OpenVR.NET.Manifest.Action<ActionCategory, GameAction>()
-            {
-                Name = GameAction.Grab,
-                Category = ActionCategory.Gameplay,
-                Type = ActionType.Boolean,
-                Requirement = Requirement.Mandatory,
-            },
-            new OpenVR.NET.Manifest.Action<ActionCategory, GameAction>()
-            {
-                Name = GameAction.PlayspaceDragLeft,
-                Category = ActionCategory.Gameplay,
-                Type = ActionType.Boolean,
-                Requirement = Requirement.Optional,
-            },
-            new OpenVR.NET.Manifest.Action<ActionCategory, GameAction>()
-            {
-                Name = GameAction.PlayspaceDragRight,
-                Category = ActionCategory.Gameplay,
-                Type = ActionType.Boolean,
-                Requirement = Requirement.Optional,
-            },
-            new OpenVR.NET.Manifest.Action<ActionCategory, GameAction>()
-            {
-                Name = GameAction.ToggleMenu,
-                Category = ActionCategory.Menus,
-                Type = ActionType.Boolean,
-                Requirement = Requirement.Mandatory,
-            },
-            new OpenVR.NET.Manifest.Action<ActionCategory, GameAction>()
-            {
-                Name = GameAction.ToggleMiniMenu,
-                Category = ActionCategory.Menus,
-                Type = ActionType.Boolean,
-                Requirement = Requirement.Mandatory,
-            },
-            new OpenVR.NET.Manifest.Action<ActionCategory, GameAction>()
-            {
-                Name = GameAction.LeftHandPose,
-                Category = ActionCategory.Controllers,
-                Type = ActionType.Pose,
-                Requirement = Requirement.Mandatory,
-            },
-            new OpenVR.NET.Manifest.Action<ActionCategory, GameAction>()
-            {
-                Name = GameAction.RightHandPose,
-                Category = ActionCategory.Controllers,
-                Type = ActionType.Pose,
-                Requirement = Requirement.Mandatory,
-            },
-            new OpenVR.NET.Manifest.Action<ActionCategory, GameAction>()
-            {
-                Name = GameAction.LeftHandGrip,
-                Category = ActionCategory.Controllers,
-                Type = ActionType.Boolean,
-                Requirement = Requirement.Mandatory,
-            },
-            new OpenVR.NET.Manifest.Action<ActionCategory, GameAction>()
-            {
-                Name = GameAction.RightHandGrip,
-                Category = ActionCategory.Controllers,
-                Type = ActionType.Boolean,
-                Requirement = Requirement.Mandatory,
-            },
-            new OpenVR.NET.Manifest.Action<ActionCategory, GameAction>()
-            {
-                Name = GameAction.LeftHandTrigger,
-                Category = ActionCategory.Controllers,
-                Type = ActionType.Scalar,
-                Requirement = Requirement.Mandatory,
-            },
-            new OpenVR.NET.Manifest.Action<ActionCategory, GameAction>()
-            {
-                Name = GameAction.RightHandTrigger,
-                Category = ActionCategory.Controllers,
-                Type = ActionType.Scalar,
-                Requirement = Requirement.Mandatory,
-            },
-            new OpenVR.NET.Manifest.Action<ActionCategory, GameAction>()
-            {
-                Name = GameAction.LeftHandTrackpad,
-                Category = ActionCategory.Controllers,
-                Type = ActionType.Vector2,
-                Requirement = Requirement.Mandatory,
-            },
-            new OpenVR.NET.Manifest.Action<ActionCategory, GameAction>()
-            {
-                Name = GameAction.RightHandTrackpad,
-                Category = ActionCategory.Controllers,
-                Type = ActionType.Vector2,
-                Requirement = Requirement.Mandatory,
-            },
-        ];
     }
 }

@@ -38,11 +38,11 @@ namespace XREngine.Scene
             Func<RenderInfo3D, Segment, (float? distance, object? data)> directTest)
             => RenderTree.Raycast(cameraComponent.Camera.GetWorldSegment(normalizedScreenPoint), out items, directTest);
 
-        public override void CollectRenderedItems(RenderCommandCollection meshRenderCommands, XRCamera? activeCamera, bool cullWithFrustum, Func<XRCamera>? cullingCameraOverride, bool shadowPass)
+        public override void CollectRenderedItems(RenderCommandCollection meshRenderCommands, XRCamera? camera, bool cullWithFrustum, Func<XRCamera>? cullingCameraOverride, bool shadowPass)
         {
-            var cullingCamera = cullingCameraOverride?.Invoke() ?? activeCamera;
+            var cullingCamera = cullingCameraOverride?.Invoke() ?? camera;
             var collectionVolume = cullWithFrustum ? cullingCamera?.WorldFrustum() : null;
-            CollectRenderedItems(meshRenderCommands, collectionVolume, activeCamera, shadowPass);
+            CollectRenderedItems(meshRenderCommands, collectionVolume, camera, shadowPass);
 
         }
         public void CollectRenderedItems(RenderCommandCollection commands, IVolume? collectionVolume, XRCamera? camera, bool shadowPass)

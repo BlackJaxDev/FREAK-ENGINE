@@ -67,7 +67,7 @@ namespace XREngine.Scene.Transforms
                         if (World is not null)
                         {
                             World.PhysicsScene.OnSimulationStep -= OnPhysicsStepped;
-                            World.UnregisterTick(ETickGroup.Late, (int)ETickOrder.Scene, OnRenderFrame);
+                            World.UnregisterTick(ETickGroup.Late, (int)ETickOrder.Scene, OnUpdate);
                         }
                         break;
                 }
@@ -91,14 +91,14 @@ namespace XREngine.Scene.Transforms
                     if (World is not null)
                     {
                         World.PhysicsScene.OnSimulationStep += OnPhysicsStepped;
-                        World.RegisterTick(ETickGroup.Late, (int)ETickOrder.Scene, OnRenderFrame);
+                        World.RegisterTick(ETickGroup.Late, (int)ETickOrder.Scene, OnUpdate);
                     }
                     break;
             }
         }
 
         private float _accumulatedTime;
-        private void OnRenderFrame()
+        private void OnUpdate()
         {
             float updateDelta = Engine.Delta;
             float fixedDelta = Engine.Time.Timer.FixedUpdateDelta;
@@ -120,22 +120,13 @@ namespace XREngine.Scene.Transforms
                 case EInterpolationMode.Extrapolate:
                     {
                         Vector3 posDelta = LastPhysicsLinearVelocity * _accumulatedTime;
-                        if (posDelta.Length() > float.Epsilon)
-                        {
-                            Position = lastPosUpdate + posDelta;
-                        }
-                        else
-                            Position = lastPosUpdate;
-                        
+                        Position = posDelta.Length() > float.Epsilon ? lastPosUpdate + posDelta : lastPosUpdate;
+
                         float angle = LastPhysicsAngularVelocity.Length() * _accumulatedTime;
-                        if (angle > float.Epsilon)
-                        {
-                            Vector3 axis = LastPhysicsAngularVelocity.Normalized();
-                            Rotation = Quaternion.CreateFromAxisAngle(axis, angle) * lastRotUpdate;
-                        }
-                        else
-                            Rotation = lastRotUpdate;
-                        
+                        Rotation = angle > float.Epsilon
+                            ? Quaternion.CreateFromAxisAngle(LastPhysicsAngularVelocity.Normalized(), angle) * lastRotUpdate
+                            : lastRotUpdate;
+
                         break;
                     }
             }

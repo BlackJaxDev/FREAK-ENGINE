@@ -1,5 +1,6 @@
 ﻿using Extensions;
 using ImageMagick;
+using Silk.NET.OpenAL;
 using Silk.NET.OpenGL;
 using Silk.NET.OpenGLES.Extensions.EXT;
 using System.Numerics;
@@ -34,39 +35,9 @@ namespace XREngine.Rendering.OpenGL
                 return _version;
             }
         }
-        public OpenGLRenderer(XRWindow window) : base(window)
+        public OpenGLRenderer(XRWindow window, bool shouldLinkWindow = true) : base(window, shouldLinkWindow)
         {
-            string version;
-            unsafe
-            {
-                version = new((sbyte*)Api.GetString(StringName.Version));
-                string vendor = new((sbyte*)Api.GetString(StringName.Vendor));
-                string renderer = new((sbyte*)Api.GetString(StringName.Renderer));
-                string shadingLanguageVersion = new((sbyte*)Api.GetString(StringName.ShadingLanguageVersion));
-                Debug.Out($"OpenGL Version: {version}");
-                Debug.Out($"OpenGL Vendor: {vendor}");
-                Debug.Out($"OpenGL Renderer: {renderer}");
-                Debug.Out($"OpenGL Shading Language Version: {shadingLanguageVersion}");
-            }
-
-            GLRenderProgram.ReadBinaryShaderCache(version);
-
-            Api.Enable(EnableCap.Multisample);
-            Api.Enable(EnableCap.TextureCubeMapSeamless);
-            Api.FrontFace(FrontFaceDirection.Ccw);
-
-            Api.ClipControl(GLEnum.LowerLeft, GLEnum.NegativeOneToOne);
-
-            //Fix gamma manually inside of the post process shader
-            //GL.Enable(EnableCap.FramebufferSrgb);
-
-            Api.PixelStore(PixelStoreParameter.PackAlignment, 1);
-            Api.PixelStore(PixelStoreParameter.UnpackAlignment, 1);
-
-            Api.UseProgram(0);
-
-            SetupDebug();
-
+            var api = Api;
             ESApi = Silk.NET.OpenGLES.GL.GetApi(Window.GLContext);
             EXTMemoryObject = ESApi.TryGetExtension<ExtMemoryObject>(out var ext) ? ext : null;
             EXTSemaphore = ESApi.TryGetExtension<ExtSemaphore>(out var ext2) ? ext2 : null;
@@ -76,17 +47,51 @@ namespace XREngine.Rendering.OpenGL
             EXTSemaphoreFd = ESApi.TryGetExtension<ExtSemaphoreFd>(out var ext6) ? ext6 : null;
         }
 
-        private unsafe void SetupDebug()
+        private static void InitGL(GL api)
         {
-            Api.Enable(EnableCap.DebugOutput);
-            Api.Enable(EnableCap.DebugOutputSynchronous);
-            Api.DebugMessageCallback(DebugCallback, null);
-            uint[] ids = [];
-            fixed (uint* ptr = ids)
-                Api.DebugMessageControl(GLEnum.DontCare, GLEnum.DontCare, GLEnum.DontCare, 0, ptr, true);
+            string version;
+            unsafe
+            {
+                version = new((sbyte*)api.GetString(StringName.Version));
+                string vendor = new((sbyte*)api.GetString(StringName.Vendor));
+                string renderer = new((sbyte*)api.GetString(StringName.Renderer));
+                string shadingLanguageVersion = new((sbyte*)api.GetString(StringName.ShadingLanguageVersion));
+                Debug.Out($"OpenGL Version: {version}");
+                Debug.Out($"OpenGL Vendor: {vendor}");
+                Debug.Out($"OpenGL Renderer: {renderer}");
+                Debug.Out($"OpenGL Shading Language Version: {shadingLanguageVersion}");
+            }
+
+            GLRenderProgram.ReadBinaryShaderCache(version);
+
+            api.Enable(EnableCap.Multisample);
+            api.Enable(EnableCap.TextureCubeMapSeamless);
+            api.FrontFace(FrontFaceDirection.Ccw);
+
+            api.ClipControl(GLEnum.LowerLeft, GLEnum.NegativeOneToOne);
+
+            //Fix gamma manually inside of the post process shader
+            //api.Enable(EnableCap.FramebufferSrgb);
+
+            api.PixelStore(PixelStoreParameter.PackAlignment, 1);
+            api.PixelStore(PixelStoreParameter.UnpackAlignment, 1);
+
+            api.UseProgram(0);
+
+            SetupDebug(api);
         }
 
-        private int[] _ignoredMessageIds =
+        private unsafe static void SetupDebug(GL api)
+        {
+            api.Enable(EnableCap.DebugOutput);
+            api.Enable(EnableCap.DebugOutputSynchronous);
+            api.DebugMessageCallback(DebugCallback, null);
+            uint[] ids = [];
+            fixed (uint* ptr = ids)
+                api.DebugMessageControl(GLEnum.DontCare, GLEnum.DontCare, GLEnum.DontCare, 0, ptr, true);
+        }
+
+        private static int[] _ignoredMessageIds =
         [
             131185, //buffer will use video memory
             131204, //no base level, no mipmaps, etc
@@ -98,14 +103,14 @@ namespace XREngine.Rendering.OpenGL
             //0,
             //9,
         ];
-        private int[] _printMessageIds =
+        private static int[] _printMessageIds =
         [
             //1280, //Invalid texture format and type combination
             //1281, //Invalid texture format
             //1282,
         ];
 
-        public unsafe void DebugCallback(GLEnum source, GLEnum type, int id, GLEnum severity, int length, nint message, nint userParam)
+        public unsafe static void DebugCallback(GLEnum source, GLEnum type, int id, GLEnum severity, int length, nint message, nint userParam)
         {
             if (_ignoredMessageIds.IndexOf(id) >= 0)
                 return;
@@ -114,7 +119,7 @@ namespace XREngine.Rendering.OpenGL
             Debug.LogWarning($"OPENGL {FormatSeverity(severity)} #{id} | {FormatSource(source)} {FormatType(type)} | {messageStr}", 1, 5);
         }
 
-        private string FormatSeverity(GLEnum severity)
+        private static string FormatSeverity(GLEnum severity)
             => severity switch
             {
                 GLEnum.DebugSeverityHigh => "High",
@@ -124,7 +129,7 @@ namespace XREngine.Rendering.OpenGL
                 _ => severity.ToString(),
             };
 
-        private string FormatType(GLEnum type)
+        private static string FormatType(GLEnum type)
             => type switch
             {
                 GLEnum.DebugTypeError => "Error",
@@ -139,7 +144,7 @@ namespace XREngine.Rendering.OpenGL
                 _ => type.ToString(),
             };
 
-        private string FormatSource(GLEnum source)
+        private static string FormatSource(GLEnum source)
             => source switch
             {
                 GLEnum.DebugSourceApi => "API",
@@ -214,14 +219,18 @@ namespace XREngine.Rendering.OpenGL
             };
 
         protected override GL GetAPI()
-            => GL.GetApi(Window.GLContext);
+        {
+            var api = GL.GetApi(Window.GLContext);
+            InitGL(api);
+            return api;
+        }
 
-        protected override void Initialize()
+        public override void Initialize()
         {
 
         }
 
-        protected override void CleanUp()
+        public override void CleanUp()
         {
 
         }

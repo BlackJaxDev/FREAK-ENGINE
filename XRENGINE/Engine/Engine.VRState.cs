@@ -1,8 +1,6 @@
-﻿using MagicPhysX;
-using OpenVR.NET;
+﻿using OpenVR.NET;
 using OpenVR.NET.Devices;
 using OpenVR.NET.Manifest;
-using Silk.NET.OpenGLES.Extensions.EXT;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO.Pipes;
@@ -12,8 +10,12 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Valve.VR;
-using XREngine.Data.Core;
+using XREngine.Data.Rendering;
+using XREngine.Rendering;
+using XREngine.Rendering.Models.Materials;
 using XREngine.Rendering.OpenGL;
+using XREngine.Rendering.Vulkan;
+using ETextureType = Valve.VR.ETextureType;
 
 namespace XREngine
 {
@@ -39,6 +41,30 @@ namespace XREngine
 
             public static ETrackingUniverseOrigin Origin { get; set; } = ETrackingUniverseOrigin.TrackingUniverseStanding;
 
+            private static readonly Dictionary<string, List<OpenVR.NET.Input.Action>> _actions = [];
+
+            private static void CreateActions(IActionManifest actionManifest, VR vr)
+            {
+                _actions.Clear();
+                foreach (var actionSet in actionManifest.ActionSets)
+                {
+                    var actions = actionManifest.ActionsForSet(actionSet);
+                    foreach (var action in actions)
+                    {
+                        var a = action.CreateAction(vr, null);
+                        if (a is null)
+                            continue;
+
+                        string name = actionSet.Name.ToString();
+                        if (!_actions.TryGetValue(name, out var list))
+                            _actions.Add(name, list = []);
+                        list.Add(a);
+                    }
+                }
+            }
+
+            public static AbstractRenderer? Renderer { get; set; } = null;
+
             /// <summary>
             /// This method initializes the VR system in local mode.
             /// All VR input and rendering will be handled by this process.
@@ -47,41 +73,111 @@ namespace XREngine
             /// <param name="vrManifest"></param>
             /// <param name="getEyeTextureHandleFunc"></param>
             /// <returns></returns>
-            [RequiresDynamicCode("")]
-            [RequiresUnreferencedCode("")]
             public static bool InitializeLocal(
                 IActionManifest actionManifest,
                 VrManifest vrManifest,
-                Func<nint> getEyeTextureHandleFunc)
+                XRWindow window)
             {
-                GetEyeTextureHandle = getEyeTextureHandleFunc;
                 var vr = Api;
                 vr.DeviceDetected += OnDeviceDetected;
                 if (!vr.TryStart(EVRApplicationType.VRApplication_Scene))
                 {
-                    Debug.LogWarning("Failed to start VR application");
+                    Debug.LogWarning("Failed to initialize SteamVR.");
                     return false;
                 }
                 InstallApp(vrManifest);
                 vr.SetActionManifest(actionManifest);
-                foreach (var actionSet in actionManifest.ActionSets)
-                {
-                    var actions = actionManifest.ActionsForSet(actionSet);
-                    foreach (var action in actions)
-                        action.CreateAction(vr, null);
-                }
+                CreateActions(actionManifest, vr);
                 Time.Timer.UpdateFrame += Update;
-                Time.Timer.RenderFrame += Render;
+                window.RenderViewportsCallback += Render;
+                Renderer = window.Renderer;
+
+                uint rW = 0u, rH = 0u;
+                Api.CVR.GetRecommendedRenderTargetSize(ref rW, ref rH);
+
+                //Renderer.ResizeViewports(new Silk.NET.Maths.Vector2D<int>((int)rW * 2, (int)rH));
+                //VRStereoRenderTarget = new XRMaterialFrameBuffer(new XRMaterial(
+                //new[]
+                //{
+                //    VRStereoViewTexture = XRTexture2D.CreateFrameBufferTexture(
+                //        rW * 2u,
+                //        rH,
+                //        EPixelInternalFormat.Rgba,
+                //        EPixelFormat.Bgra,
+                //        EPixelType.UnsignedByte,
+                //        EFrameBufferAttachment.ColorAttachment0),
+                //},
+                //ShaderHelper.UnlitTextureFragForward()!));
+
+                VRLeftEyeRenderTarget = new XRMaterialFrameBuffer(new XRMaterial(new[]
+                {
+                    VRLeftEyeViewTexture = XRTexture2D.CreateFrameBufferTexture(
+                        rW, rH,
+                        EPixelInternalFormat.Rgba16f,
+                        EPixelFormat.Rgba,
+                        EPixelType.HalfFloat,
+                        EFrameBufferAttachment.ColorAttachment0),
+                }, ShaderHelper.UnlitTextureFragForward()!));
+
+                VRRightEyeRenderTarget = new XRMaterialFrameBuffer(new XRMaterial(new[]
+                {
+                    VRRightEyeViewTexture = XRTexture2D.CreateFrameBufferTexture(
+                        rW, rH,
+                        EPixelInternalFormat.Rgba16f,
+                        EPixelFormat.Rgba,
+                        EPixelType.HalfFloat,
+                        EFrameBufferAttachment.ColorAttachment0),
+                }, ShaderHelper.UnlitTextureFragForward()!));
+
+                VRLeftEyeViewTexture.Resizable = false;
+                VRLeftEyeViewTexture.SizedInternalFormat = ESizedInternalFormat.Rgba16f;
+
+                VRRightEyeViewTexture.Resizable = false;
+                VRRightEyeViewTexture.SizedInternalFormat = ESizedInternalFormat.Rgba16f;
+
+                var leftVP = LeftEyeViewport = new XRViewport(window) { Index = 0 };
+                var rightVP = RightEyeViewport = new XRViewport(window) { Index = 1 };
+                leftVP.SetFullScreen();
+                rightVP.SetFullScreen();
+                leftVP.SetInternalResolution((int)rW, (int)rH, false);
+                rightVP.SetInternalResolution((int)rW, (int)rH, false);
+                leftVP.Resize(rW, rH, false);
+                rightVP.Resize(rW, rH, false);
+
                 return true;
             }
+
+            public static XRTexture2D? VRStereoViewTexture { get; private set; } = null;
+            public static XRMaterialFrameBuffer? VRStereoRenderTarget { get; private set; } = null;
+
+            public static XRTexture2D? VRLeftEyeViewTexture { get; private set; } = null;
+            public static XRTexture2D? VRRightEyeViewTexture { get; private set; } = null;
+
+            public static XRMaterialFrameBuffer? VRLeftEyeRenderTarget { get; private set; } = null;
+            public static XRMaterialFrameBuffer? VRRightEyeRenderTarget { get; private set; } = null;
+
             /// <summary>
             /// This method initializes the VR system in client mode.
             /// All VR input will be send to and handled by the server process and rendered frames will be sent to this process.
             /// </summary>
             /// <returns></returns>
-            public static bool IninitializeClient()
+            public static bool IninitializeClient(
+                IActionManifest actionManifest,
+                VrManifest vrManifest)
             {
-                return false;
+                var vr = Api;
+                vr.DeviceDetected += OnDeviceDetected;
+                if (!vr.TryStart(EVRApplicationType.VRApplication_Scene))
+                {
+                    Debug.LogWarning("Failed to initialize SteamVR.");
+                    return false;
+                }
+                InstallApp(vrManifest);
+                vr.SetActionManifest(actionManifest);
+                CreateActions(actionManifest, vr);
+                Time.Timer.UpdateFrame += Update;
+                //window.Renderer.RenderViewportsCallback += Render;
+                return true;
             }
             /// <summary>
             /// This method initializes the VR system in server mode.
@@ -93,8 +189,6 @@ namespace XREngine
                 return false;
             }
 
-            [RequiresDynamicCode("Calls System.Text.Json.JsonSerializer.Serialize<TValue>(TValue, JsonSerializerOptions)")]
-            [RequiresUnreferencedCode("Calls System.Text.Json.JsonSerializer.Serialize<TValue>(TValue, JsonSerializerOptions)")]
             private static void InstallApp(VrManifest vrManifest)
             {
                 string path = Path.Combine(Directory.GetCurrentDirectory(), ".vrmanifest");
@@ -125,12 +219,16 @@ namespace XREngine
             private static void Render()
             {
                 var drawContext = Api.UpdateDraw(Origin);
-                nint? handle = GetEyeTextureHandle?.Invoke();
-                if (handle is not null)
-                    SubmitRender(handle.Value);
+                LeftEyeViewport?.Render(VRLeftEyeRenderTarget);
+                RightEyeViewport?.Render(VRRightEyeRenderTarget);
+                nint? leftHandle = VRLeftEyeViewTexture?.APIWrappers?.FirstOrDefault()?.GetHandle();
+                nint? rightHandle = VRRightEyeViewTexture?.APIWrappers?.FirstOrDefault()?.GetHandle();
+                if (leftHandle is not null && rightHandle is not null)
+                    SubmitRenders(leftHandle.Value, rightHandle.Value);
             }
 
-            public static Func<nint>? GetEyeTextureHandle { get; set; }
+            public static XRViewport? LeftEyeViewport { get; private set; }
+            public static XRViewport? RightEyeViewport { get; private set; }
 
             private static void OnDeviceDetected(VrDevice device)
             {

@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using Extensions;
+using System.Numerics;
 using Valve.VR;
 using XREngine.Data.Geometry;
 
@@ -20,13 +21,10 @@ namespace XREngine.Rendering
             set => SetField(ref _leftEye, value);
         }
 
-        //public override Matrix4x4 GetViewMatrix(XRCamera camera)
-        //    => Engine.VRState.Api.CVR.GetEyeToHeadTransform(LeftEye ? EVREye.Eye_Left : EVREye.Eye_Right).ToNumerics();
-
         protected override Matrix4x4 CalculateProjectionMatrix()
-            => Engine.VRState.Api.CVR.GetProjectionMatrix(LeftEye ? EVREye.Eye_Left : EVREye.Eye_Right, NearZ, FarZ).ToNumerics();
+            => Engine.VRState.Api.CVR.GetProjectionMatrix(LeftEye ? EVREye.Eye_Left : EVREye.Eye_Right, NearZ, FarZ).ToNumerics().Transposed();
 
         protected override Frustum CalculateUntransformedFrustum()
-            => new(GetProjectionMatrix());
+            => new(GetProjectionMatrix().Inverted());
     }
 }

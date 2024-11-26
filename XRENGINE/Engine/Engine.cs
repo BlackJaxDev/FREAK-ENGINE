@@ -115,7 +115,8 @@ namespace XREngine
         /// </summary>
         public static void Initialize(
             GameStartupSettings startupSettings,
-            GameState state)
+            GameState state,
+            bool beginPlayingAllWorlds = true)
         {
             StartingUp = true;
             RenderThreadId = Environment.CurrentManagedThreadId;
@@ -148,10 +149,32 @@ namespace XREngine
                     startupSettings.UdpMulticastServerPort,
                     startupSettings.TcpListenerPort);
 
+            if (startupSettings is IVRGameStartupSettings vrSettings)
+            {
+                if (startupSettings.AppType == GameStartupSettings.EAppType.LocalVRClient)
+                    VRState.IninitializeClient(vrSettings.ActionManifest, vrSettings.VRManifest);
+                else
+                    VRState.InitializeLocal(vrSettings.ActionManifest, vrSettings.VRManifest, _windows[0]);
+            }
+
             Time.Timer.SwapBuffers += SwapBuffers;
             Time.Timer.RenderFrame += DequeueMainThreadTasks;
 
             StartingUp = false;
+
+            if (beginPlayingAllWorlds)
+                BeginPlayAllWorlds();
+        }
+
+        public static void BeginPlayAllWorlds()
+        {
+            foreach (var world in XRWorldInstance.WorldInstances.Values)
+                world.BeginPlay();
+        }
+        public static void EndPlayAllWorlds()
+        {
+            foreach (var world in XRWorldInstance.WorldInstances.Values)
+                world.EndPlay();
         }
 
         private static void SwapBuffers()
@@ -183,28 +206,28 @@ namespace XREngine
         public static void CreateWindow(GameWindowStartupSettings windowSettings)
         {
             XRWindow window = new(GetWindowOptions(windowSettings));
-            CreateViewports(windowSettings.LocalPlayers, window.Renderer);
+            CreateViewports(windowSettings.LocalPlayers, window);
             window.UpdateViewportSizes();
-            SetWorld(windowSettings.TargetWorld, window.Renderer);
+            SetWorld(windowSettings.TargetWorld, window);
             _windows.Add(window);
         }
 
-        private static void SetWorld(XRWorld? targetWorld, AbstractRenderer renderer)
+        private static void SetWorld(XRWorld? targetWorld, XRWindow window)
         {
             if (targetWorld is not null)
-                renderer.TargetWorldInstance = GetOrInitWorld(targetWorld);
+                window.TargetWorldInstance = GetOrInitWorld(targetWorld);
         }
 
-        private static void CreateViewports(ELocalPlayerIndexMask localPlayerMask, AbstractRenderer renderer)
+        private static void CreateViewports(ELocalPlayerIndexMask localPlayerMask, XRWindow window)
         {
             if (localPlayerMask == 0)
                 return;
             
             for (int i = 0; i < 4; i++)
                 if (((int)localPlayerMask & (1 << i)) > 0)
-                    renderer.RegisterLocalPlayer((ELocalPlayerIndex)i, false);
+                    window.RegisterLocalPlayer((ELocalPlayerIndex)i, false);
             
-            renderer.ResizeAllViewportsAccordingToPlayers();
+            window.ResizeAllViewportsAccordingToPlayers();
         }
 
         private static WindowOptions GetWindowOptions(GameWindowStartupSettings windowSettings)
@@ -259,7 +282,6 @@ namespace XREngine
                 return instance;
             
             XRWorldInstance.WorldInstances.Add(targetWorld, instance = new XRWorldInstance(targetWorld));
-            instance.BeginPlay();
             return instance;
         }
 

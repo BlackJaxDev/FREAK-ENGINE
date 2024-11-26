@@ -6,12 +6,12 @@ using XREngine.Rendering.Models.Materials;
 
 namespace XREngine.Rendering.Vulkan
 {
-    public unsafe partial class VulkanRenderer(XRWindow window) : AbstractRenderer<Vk>(window)
+    public unsafe partial class VulkanRenderer(XRWindow window, bool shouldLinkWindow = true) : AbstractRenderer<Vk>(window, shouldLinkWindow)
     {
         protected override Vk GetAPI()
             => Vk.GetApi();
 
-        protected override void Initialize()
+        public override void Initialize()
         {
             if (Window?.VkSurface is null)
                 throw new Exception("Windowing platform doesn't support Vulkan.");
@@ -32,7 +32,7 @@ namespace XREngine.Rendering.Vulkan
             CreateSyncObjects();
         }
 
-        protected override void CleanUp()
+        public override void CleanUp()
         {
             DestroyAllSwapChainObjects();
             DestroyDescriptorSetLayout();

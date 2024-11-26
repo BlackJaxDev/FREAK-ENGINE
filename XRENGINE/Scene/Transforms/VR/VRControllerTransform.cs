@@ -10,9 +10,9 @@ namespace XREngine.Data.Components.Scene
     /// <param name="parent"></param>
     public class VRControllerTransform : TransformBase
     {
-        public VRControllerTransform() { }
+        public VRControllerTransform() { MarkLocalModified(); }
         public VRControllerTransform(TransformBase parent)
-            : base(parent) { }
+            : base(parent) { MarkLocalModified(); }
 
         private bool _leftHand;
         public bool LeftHand
@@ -27,6 +27,7 @@ namespace XREngine.Data.Components.Scene
 
         protected override Matrix4x4 CreateLocalMatrix()
         {
+            MarkLocalModified();
             var controller = Controller;
             return controller is null
                 ? Matrix4x4.Identity

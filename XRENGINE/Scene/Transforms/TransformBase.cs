@@ -38,7 +38,6 @@ namespace XREngine.Scene.Transforms
         protected TransformBase(TransformBase? parent)
         {
             _sceneNode = null;
-            _parent = parent;
             Depth = parent?.Depth + 1 ?? 0;
             _children = [];
             _children.PostAnythingAdded += ChildAdded;
@@ -52,6 +51,8 @@ namespace XREngine.Scene.Transforms
             RenderInfo = RenderInfo3D.New(this, new RenderCommandMethod3D((int)EDefaultRenderPass.OpaqueForward, RenderDebugLineToParent));
             RenderedObjects = GetDebugRenderInfo();
             DebugRender = false;
+
+            Parent = parent;
         }
 
         private void MakeCapsule()
@@ -91,7 +92,7 @@ namespace XREngine.Scene.Transforms
             
             Engine.Rendering.Debug.RenderLine(Parent?.WorldTranslation ?? Vector3.Zero, WorldTranslation, ColorF4.LightRed, false, 1);
             Engine.Rendering.Debug.RenderPoint(WorldTranslation, ColorF4.Green, false);
-            Engine.Rendering.Debug.RenderCapsule(Capsule, ColorF4.LightOrange, false);
+            //Engine.Rendering.Debug.RenderCapsule(Capsule, ColorF4.LightOrange, false);
         }
 
         private void ChildAdded(TransformBase e)

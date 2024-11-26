@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using Extensions;
+using System.Numerics;
 using Valve.VR;
 
 namespace XREngine.Scene.Transforms
@@ -24,7 +25,7 @@ namespace XREngine.Scene.Transforms
                 : EVREye.Eye_Right;
 
             return Engine.VRState.Api.IsHeadsetPresent 
-                ? Engine.VRState.Api.CVR.GetEyeToHeadTransform(eyeEnum).ToNumerics() 
+                ? Engine.VRState.Api.CVR.GetEyeToHeadTransform(eyeEnum).ToNumerics().Transposed().Inverted()
                 : Matrix4x4.Identity;
         }
     }

@@ -184,12 +184,21 @@ namespace XREngine.Data.Geometry
             _planes = planes;
             _corners = corners;
         }
+
         public Frustum() { }
-        public Frustum(Matrix4x4 mvp) : this()
-        {
-            ExtractPlanes(mvp);
-            ComputeCorners(mvp);
-        }
+
+        public Frustum(Matrix4x4 invProj) : this(
+            DivideW(Vector4.Transform(new Vector3(-1.0f, -1.0f, 1.0f), invProj)),
+            DivideW(Vector4.Transform(new Vector3(1.0f, -1.0f, 1.0f), invProj)),
+            DivideW(Vector4.Transform(new Vector3(-1.0f, 1.0f, 1.0f), invProj)),
+            DivideW(Vector4.Transform(new Vector3(1.0f, 1.0f, 1.0f), invProj)),
+            DivideW(Vector4.Transform(new Vector3(-1.0f, -1.0f, 0.0f), invProj)),
+            DivideW(Vector4.Transform(new Vector3(1.0f, -1.0f, 0.0f), invProj)),
+            DivideW(Vector4.Transform(new Vector3(-1.0f, 1.0f, 0.0f), invProj)),
+            DivideW(Vector4.Transform(new Vector3(1.0f, 1.0f, 0.0f), invProj))) { }
+        
+        private static Vector3 DivideW(Vector4 v)
+            => new(v.X / v.W, v.Y / v.W, v.Z / v.W);
 
         public Frustum(float width, float height, float nearPlane, float farPlane) : this()
         {

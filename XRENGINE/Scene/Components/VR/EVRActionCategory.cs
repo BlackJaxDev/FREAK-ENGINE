@@ -1,6 +1,6 @@
 ﻿namespace XREngine.VRClient
 {
-    public enum ActionCategory
+    public enum EVRActionCategory
     {
         Default,
         Controllers,

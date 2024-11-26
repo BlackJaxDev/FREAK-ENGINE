@@ -9,7 +9,6 @@ using XREngine.Input;
 using XREngine.Physics;
 using XREngine.Physics.RayTracing;
 using XREngine.Rendering.UI;
-using XREngine.Scene;
 using State = XREngine.Engine.Rendering.State;
 
 namespace XREngine.Rendering
@@ -77,7 +76,6 @@ namespace XREngine.Rendering
                 SetField(ref _associatedPlayer, value);
                 if (_associatedPlayer is not null)
                     _associatedPlayer.Viewport = this;
-            
             }
         }
 
@@ -122,7 +120,7 @@ namespace XREngine.Rendering
 
             World?.VisualScene?.CollectRenderedItems(
                 _renderPipeline.MeshRenderCommands,
-                ActiveCamera,
+                camera,
                 CameraComponent?.CullWithFrustum ?? true,
                 CameraComponent?.CullingCameraOverride,
                 false);
@@ -600,63 +598,63 @@ namespace XREngine.Rendering
                     break;
             }
         }
-        private void SetTopLeft()
+        public void SetTopLeft()
         {
             _leftPercentage = 0.0f;
             _rightPercentage = 0.5f;
             _topPercentage = 1.0f;
             _bottomPercentage = 0.5f;
         }
-        private void SetTopRight()
+        public void SetTopRight()
         {
             _leftPercentage = 0.0f;
             _rightPercentage = 0.5f;
             _topPercentage = 1.0f;
             _bottomPercentage = 0.5f;
         }
-        private void SetBottomLeft()
+        public void SetBottomLeft()
         {
             _leftPercentage = 0.0f;
             _rightPercentage = 0.5f;
             _topPercentage = 1.0f;
             _bottomPercentage = 0.5f;
         }
-        private void SetBottomRight()
+        public void SetBottomRight()
         {
             _leftPercentage = 0.0f;
             _rightPercentage = 0.5f;
             _topPercentage = 1.0f;
             _bottomPercentage = 0.5f;
         }
-        private void SetTop()
+        public void SetTop()
         {
             _leftPercentage = 0.0f;
             _rightPercentage = 1.0f;
             _topPercentage = 1.0f;
             _bottomPercentage = 0.5f;
         }
-        private void SetBottom()
+        public void SetBottom()
         {
             _leftPercentage = 0.0f;
             _rightPercentage = 1.0f;
             _topPercentage = 0.5f;
             _bottomPercentage = 0.0f;
         }
-        private void SetLeft()
+        public void SetLeft()
         {
             _leftPercentage = 0.0f;
             _rightPercentage = 0.5f;
             _topPercentage = 1.0f;
             _bottomPercentage = 0.0f;
         }
-        private void SetRight()
+        public void SetRight()
         {
             _leftPercentage = 0.5f;
             _rightPercentage = 1.0f;
             _topPercentage = 1.0f;
             _bottomPercentage = 0.0f;
         }
-        private void SetFullScreen()
+        public void SetFullScreen()
         {
             _leftPercentage = _bottomPercentage = 0.0f;
             _rightPercentage = _topPercentage = 1.0f;

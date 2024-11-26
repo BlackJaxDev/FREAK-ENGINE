@@ -1,20 +1,18 @@
 ﻿using Extensions;
 using ImageMagick;
+using SharpFont;
 using Silk.NET.Core.Native;
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
 using System.Collections.Concurrent;
 using System.Numerics;
 using System.Runtime.InteropServices;
-using XREngine.Core;
 using XREngine.Data.Colors;
 using XREngine.Data.Core;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
 using XREngine.Data.Transforms.Rotations;
-using XREngine.Input;
 using XREngine.Rendering.Models.Materials;
-using static XREngine.Engine;
 
 namespace XREngine.Rendering
 {
@@ -26,102 +24,19 @@ namespace XREngine.Rendering
         /// <summary>
         /// If true, this renderer is currently being used to render a window.
         /// </summary>
-        public bool Active { get; private set; } = false;
+        public bool Active { get; internal set; } = false;
 
         public static readonly Vector3 UIPositionBias = new(0.0f, 0.0f, 0.1f);
         public static readonly Rotator UIRotation = new(90.0f, 0.0f, 0.0f, ERotationOrder.YPR);
 
-        protected AbstractRenderer(XRWindow window)
+        protected AbstractRenderer(XRWindow window, bool shouldLinkWindow = true)
         {
             _window = window;
-
-            //Link resizing and rendering methods
-            LinkWindow();
 
             //Set the initial object cache for this window of all existing render objects
             lock (_roCacheLock)
                 _renderObjectCache = Engine.Rendering.CreateObjectsForNewRenderer(this);
-
-            _viewports.CollectionChanged += ViewportsChanged;
         }
-
-        protected virtual void RenderFrame()
-        {
-            Window.DoRender();
-            Window.DoEvents();
-        }
-
-        protected virtual void SwapBuffers()
-        {
-
-        }
-
-        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
-        {
-            base.OnPropertyChanged(propName, prev, field);
-            switch (propName)
-            {
-                case nameof(TargetWorldInstance):
-                    VerifyTick();
-                    break;
-            }
-        }
-
-        private void ViewportsChanged(object sender, TCollectionChangedEventArgs<XRViewport> e)
-        {
-            switch (e.Action)
-            {
-                case ECollectionChangedAction.Remove:
-                    foreach (var viewport in e.OldItems)
-                        viewport.Destroy();
-                    break;
-                case ECollectionChangedAction.Clear:
-                    foreach (var viewport in e.OldItems)
-                        viewport.Destroy();
-                    break;
-            }
-            VerifyTick();
-        }
-
-        public bool IsTickLinked { get; private set; } = false;
-        private void VerifyTick()
-        {
-            if (ShouldBeRendering())
-            {
-                if (IsTickLinked)
-                    return;
-                
-                IsTickLinked = true;
-                BeginTick();
-            }
-            else
-            {
-                if (!IsTickLinked)
-                    return;
-                
-                IsTickLinked = false;
-                EndTick();
-            }
-        }
-
-        private void EndTick()
-        {
-            Time.Timer.SwapBuffers -= SwapBuffers;
-            Time.Timer.RenderFrame -= RenderFrame;
-            Engine.Rendering.DestroyObjectsForRenderer(this);
-            CleanUp();
-            Window.DoEvents();
-        }
-
-        private void BeginTick()
-        {
-            Initialize();
-            Time.Timer.SwapBuffers += SwapBuffers;
-            Time.Timer.RenderFrame += RenderFrame;
-        }
-
-        private bool ShouldBeRendering()
-            => Viewports.Count > 0 && TargetWorldInstance is not null;
 
         private readonly object _roCacheLock = new();
         private readonly ConcurrentDictionary<GenericRenderObject, AbstractRenderAPIObject> _renderObjectCache = [];
@@ -133,21 +48,11 @@ namespace XREngine.Rendering
             ? _renderAreaStack.Peek()
             : new BoundingRectangle(0, 0, Window.Size.X, Window.Size.Y);
 
-        private readonly EventList<XRViewport> _viewports = [];
-        public EventList<XRViewport> Viewports => _viewports;
-
-        protected bool _frameBufferInvalidated = false;
-        private void FramebufferResizeCallback(Vector2D<int> obj)
+        public void FrameBufferInvalidated()
         {
             _frameBufferInvalidated = true;
-            Viewports.ForEach(vp =>
-            {
-                vp.Resize((uint)obj.X, (uint)obj.Y, false);
-                //vp.SetInternalResolution((int)(obj.X * 0.5f), (int)(obj.X * 0.5f), false);
-                //vp.SetInternalResolutionPercentage(0.5f, 0.5f);
-                //x.SetInternalResolution(1920, 1080, true);
-            });
         }
+        protected bool _frameBufferInvalidated = false;
 
         public IWindow Window => XRWindow.Window;
 
@@ -155,67 +60,13 @@ namespace XREngine.Rendering
         public XRWindow XRWindow
         {
             get => _window;
-            protected set
-            {
-                UnlinkWindow();
-                _window = value;
-                LinkWindow();
-            }
-        }
-
-        private void UnlinkWindow()
-        {
-            var w = _window?.Window;
-            if (w is null)
-                return;
-            
-            w.Resize -= FramebufferResizeCallback;
-            w.Render -= RenderCallback;
-        }
-
-        private void LinkWindow()
-        {
-            IWindow? w = _window?.Window;
-            if (w is null)
-                return;
-            
-            w.Resize += FramebufferResizeCallback;
-            w.Render += RenderCallback;
-        }
-
-        private XRWorldInstance? _worldInstance;
-        public XRWorldInstance? TargetWorldInstance
-        {
-            get => _worldInstance;
-            set => SetField(ref _worldInstance, value);
+            protected set => _window = value;
         }
 
         /// <summary>
         /// Use this to retrieve the currently rendering window renderer.
         /// </summary>
-        public static AbstractRenderer? Current { get; private set; }
-
-        //private float _lastFrameTime = 0.0f;
-        private void RenderCallback(double delta)
-        {
-            //using var d = Profiler.Start();
-
-            try
-            {
-                Active = true;
-                Current = this;
-
-                TargetWorldInstance?.GlobalPreRender();
-                foreach (var viewport in Viewports)
-                    viewport.Render();
-                TargetWorldInstance?.GlobalPostRender();
-            }
-            finally
-            {
-                Active = false;
-                Current = null;
-            }
-        }
+        public static AbstractRenderer? Current { get; internal set; }
 
         protected Dictionary<string, bool> _verifiedExtensions = [];
         protected void LogExtension(string name, bool exists)
@@ -231,8 +82,8 @@ namespace XREngine.Rendering
         public static string? FromAnsi(byte* ptr)
             => Marshal.PtrToStringAnsi((nint)ptr);
 
-        protected abstract void Initialize();
-        protected abstract void CleanUp();
+        public abstract void Initialize();
+        public abstract void CleanUp();
 
         protected abstract void WindowRenderCallback(double delta);
         protected virtual void MainLoop() => Window?.Run();
@@ -294,55 +145,6 @@ namespace XREngine.Rendering
         /// <returns></returns>
         protected abstract AbstractRenderAPIObject CreateAPIRenderObject(GenericRenderObject renderObject);
 
-        public XRViewport GetOrAddViewportForPlayer(LocalPlayerController controller, bool autoSizeAllViewports)
-            => controller.Viewport ??= AddViewportForPlayer(controller, autoSizeAllViewports);
-
-        private XRViewport AddViewportForPlayer(LocalPlayerController? controller, bool autoSizeAllViewports)
-        {
-            XRViewport newViewport = XRViewport.ForTotalViewportCount(XRWindow, Viewports.Count);
-            newViewport.AssociatedPlayer = controller;
-            Viewports.Add(newViewport);
-
-            Debug.Out("Added new viewport to {0}: {1}", GetType().GetFriendlyName(), newViewport.Index);
-
-            if (autoSizeAllViewports)
-                ResizeAllViewportsAccordingToPlayers();
-            
-            return newViewport;
-        }
-
-        /// <summary>
-        /// Remakes all viewports in order of active local player indices.
-        /// </summary>
-        public void ResizeAllViewportsAccordingToPlayers()
-        {
-            LocalPlayerController[] players = [.. Viewports.Select(x => x.AssociatedPlayer).Where(x => x is not null).Distinct().OrderBy(x => (int)x!.LocalPlayerIndex)];
-            foreach (var viewport in Viewports)
-                viewport.Destroy();
-            Viewports.Clear();
-            for (int i = 0; i < players.Length; i++)
-                AddViewportForPlayer(players[i], false);
-        }
-
-        public void RegisterLocalPlayer(ELocalPlayerIndex playerIndex, bool autoSizeAllViewports)
-            => RegisterController(State.GetOrCreateLocalPlayer(playerIndex), autoSizeAllViewports);
-
-        public void RegisterController(LocalPlayerController controller, bool autoSizeAllViewports)
-            => GetOrAddViewportForPlayer(controller, autoSizeAllViewports).AssociatedPlayer = controller;
-
-        public void UnregisterLocalPlayer(ELocalPlayerIndex playerIndex)
-        {
-            LocalPlayerController? controller = State.GetLocalPlayer(playerIndex);
-            if (controller is not null)
-                UnregisterController(controller);
-        }
-
-        public void UnregisterController(LocalPlayerController controller)
-        {
-            if (controller.Viewport != null && Viewports.Contains(controller.Viewport))
-                controller.Viewport = null;
-        }
-
         public bool CalcDotLuminance(XRTexture2D texture, out float dotLuminance, bool genMipmapsNow)
             => CalcDotLuminance(texture, Engine.Rendering.Settings.DefaultLuminance, out dotLuminance, genMipmapsNow);
         public abstract bool CalcDotLuminance(XRTexture2D texture, Vector3 luminance, out float dotLuminance, bool genMipmapsNow);
@@ -379,7 +181,7 @@ namespace XREngine.Rendering
 
         public abstract void GetScreenshotAsync(BoundingRectangle region, bool withTransparency, Action<MagickImage> imageCallback);
     }
-    public abstract unsafe partial class AbstractRenderer<TAPI>(XRWindow window) : AbstractRenderer(window) where TAPI : NativeAPI
+    public abstract unsafe partial class AbstractRenderer<TAPI>(XRWindow window, bool shouldLinkWindow = true) : AbstractRenderer(window, shouldLinkWindow) where TAPI : NativeAPI
     {
         ~AbstractRenderer() => _api?.Dispose();
 

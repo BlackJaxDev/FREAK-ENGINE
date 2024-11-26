@@ -212,12 +212,19 @@ namespace XREngine.Rendering.Physics.Physx
             //lock (_lock)
             //{
                 SwapDebugBuffers();
+            try
+            {
                 foreach (var point in _debugPointsRendering)
                     Engine.Rendering.Debug.RenderPoint(point.Position, point.Color);
                 foreach (var line in _debugLinesRendering)
                     Engine.Rendering.Debug.RenderLine(line.Start, line.End, line.Color);
                 foreach (var triangle in _debugTrianglesRendering)
                     Engine.Rendering.Debug.RenderTriangle(triangle.Value.A, triangle.Value.B, triangle.Value.C, triangle.Color, false);
+            }
+            catch (Exception e)
+            {
+                Debug.Out("Error rendering debug data: {0}", e.Message);
+            }
             //}
         }
 

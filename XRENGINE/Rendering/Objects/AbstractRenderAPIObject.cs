@@ -46,5 +46,7 @@ namespace XREngine.Rendering
         }
 
         public abstract string GetDescribingName();
+
+        public virtual nint GetHandle() => 0;
     }
 }

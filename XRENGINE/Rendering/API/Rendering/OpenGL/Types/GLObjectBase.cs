@@ -14,6 +14,8 @@ namespace XREngine.Rendering.OpenGL
             public const uint InvalidBindingId = 0;
             public abstract GLObjectType Type { get; }
 
+            public override nint GetHandle() => (nint)BindingId;
+
             /// <summary>
             /// True if the object has been generated.
             /// Check this before using the BindingId property, as it will generate the object if it has not been generated yet.

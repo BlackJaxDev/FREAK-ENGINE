@@ -1,6 +1,6 @@
 ﻿namespace XREngine.VRClient
 {
-    public enum GameAction
+    public enum EVRGameAction
     {
         Interact,
         Jump,

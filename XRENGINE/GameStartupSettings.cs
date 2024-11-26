@@ -1,6 +1,4 @@
-﻿using OpenVR.NET.Manifest;
-using System.Net;
-using XREngine.Core.Files;
+﻿using XREngine.Core.Files;
 using XREngine.Data.Rendering;
 
 namespace XREngine
@@ -17,9 +15,6 @@ namespace XREngine
         private string _texturesFolder = "";
         private float? _targetUpdatesPerSecond = 90.0f;
         private float _fixedFramesPerSecond = 90.0f;
-
-        private IActionManifest? _vrActionManifest;
-        private VrManifest? _vrManifest;
 
         private string _udpMulticastGroupIP = "239.0.0.222";
         private int _udpMulticastServerPort = 5000;
@@ -67,7 +62,7 @@ namespace XREngine
             Server,
             Client,
             P2PClient,
-            VR,
+            LocalVRClient,
         }
         public EAppType AppType
         {
