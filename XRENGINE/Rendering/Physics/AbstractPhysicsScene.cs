@@ -10,10 +10,13 @@ namespace XREngine.Scene
     {
         public event Action? OnSimulationStep;
 
-        protected void NotifySimulationStepped()
+        protected virtual void NotifySimulationStepped()
             => OnSimulationStep?.Invoke();
 
-        public ManualResetEventSlim SimulationRunning { get; } = new ManualResetEventSlim();
+        public ManualResetEventSlim SimulationRunning { get; } = new ManualResetEventSlim(false);
+        public ManualResetEventSlim PostSimulationWorkRunning { get; } = new ManualResetEventSlim(false);
+        public ManualResetEventSlim DebugRendering { get; } = new ManualResetEventSlim(false);
+        public ManualResetEventSlim SwappingDebug { get; } = new ManualResetEventSlim(false);
 
         public abstract void Initialize();
         public abstract void Destroy();
@@ -25,10 +28,13 @@ namespace XREngine.Scene
             return false;
         }
 
+        public virtual void DebugRender() { }
+        public virtual void SwapDebugBuffers(){ }
+        public virtual void DebugRenderCollect() { }
+
         public abstract void AddActor(IAbstractPhysicsActor actor);
         public abstract void RemoveActor(IAbstractPhysicsActor actor);
 
-        public abstract void DebugRender();
         public abstract void NotifyShapeChanged(IAbstractPhysicsActor actor);
     }
     public interface IAbstractPhysicsActor

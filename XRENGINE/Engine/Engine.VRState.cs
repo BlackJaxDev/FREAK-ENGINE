@@ -14,7 +14,6 @@ using XREngine.Data.Rendering;
 using XREngine.Rendering;
 using XREngine.Rendering.Models.Materials;
 using XREngine.Rendering.OpenGL;
-using XREngine.Rendering.Vulkan;
 using ETextureType = Valve.VR.ETextureType;
 
 namespace XREngine
@@ -113,9 +112,9 @@ namespace XREngine
                 {
                     VRLeftEyeViewTexture = XRTexture2D.CreateFrameBufferTexture(
                         rW, rH,
-                        EPixelInternalFormat.Rgba16f,
+                        EPixelInternalFormat.Rgba8,
                         EPixelFormat.Rgba,
-                        EPixelType.HalfFloat,
+                        EPixelType.UnsignedByte,
                         EFrameBufferAttachment.ColorAttachment0),
                 }, ShaderHelper.UnlitTextureFragForward()!));
 
@@ -123,17 +122,17 @@ namespace XREngine
                 {
                     VRRightEyeViewTexture = XRTexture2D.CreateFrameBufferTexture(
                         rW, rH,
-                        EPixelInternalFormat.Rgba16f,
+                        EPixelInternalFormat.Rgba8,
                         EPixelFormat.Rgba,
-                        EPixelType.HalfFloat,
+                        EPixelType.UnsignedByte,
                         EFrameBufferAttachment.ColorAttachment0),
                 }, ShaderHelper.UnlitTextureFragForward()!));
 
                 VRLeftEyeViewTexture.Resizable = false;
-                VRLeftEyeViewTexture.SizedInternalFormat = ESizedInternalFormat.Rgba16f;
+                VRLeftEyeViewTexture.SizedInternalFormat = ESizedInternalFormat.Rgba8;
 
                 VRRightEyeViewTexture.Resizable = false;
-                VRRightEyeViewTexture.SizedInternalFormat = ESizedInternalFormat.Rgba16f;
+                VRRightEyeViewTexture.SizedInternalFormat = ESizedInternalFormat.Rgba8;
 
                 var leftVP = LeftEyeViewport = new XRViewport(window) { Index = 0 };
                 var rightVP = RightEyeViewport = new XRViewport(window) { Index = 1 };

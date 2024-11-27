@@ -4,16 +4,16 @@ namespace XREngine
 {
     public interface IVRGameStartupSettings
     {
-        VrManifest VRManifest { get; set; }
-        IActionManifest ActionManifest { get; }
+        VrManifest? VRManifest { get; set; }
+        IActionManifest? ActionManifest { get; }
     }
 
     public class VRGameStartupSettings<TCategory, TAction> : GameStartupSettings, IVRGameStartupSettings
         where TCategory : struct, Enum
         where TAction : struct, Enum
     {
-        private VrManifest _vrManifest = new();
-        private ActionManifest<TCategory, TAction> _actionManifest = new();
+        private VrManifest? _vrManifest;
+        private ActionManifest<TCategory, TAction>? _actionManifest;
         private (Environment.SpecialFolder folder, string relativePath)[] _gameSearchPaths = [];
         private string _gameName = "FreakEngineGame";
 
@@ -33,12 +33,12 @@ namespace XREngine
             get => _gameSearchPaths;
             set => SetField(ref _gameSearchPaths, value);
         }
-        public VrManifest VRManifest
+        public VrManifest? VRManifest
         {
             get => _vrManifest;
             set => SetField(ref _vrManifest, value);
         }
-        public ActionManifest<TCategory, TAction> ActionManifest
+        public ActionManifest<TCategory, TAction>? ActionManifest
         {
             get => _actionManifest;
             set => SetField(ref _actionManifest, value);

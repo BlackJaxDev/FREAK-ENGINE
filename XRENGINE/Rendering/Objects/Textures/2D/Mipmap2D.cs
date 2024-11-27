@@ -1,4 +1,6 @@
 ﻿using ImageMagick;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp;
 using XREngine.Data;
 using XREngine.Data.Core;
 using XREngine.Data.Rendering;
@@ -43,6 +45,11 @@ namespace XREngine.Rendering
                 Data = allocateData ? new DataSource(XRTexture.AllocateBytes(width, height, pixelFormat, pixelType)) : null;
             }
         }
+        public Mipmap2D(Image<Rgba32> image)
+        {
+            if (image != null)
+                SetFromImage(image);
+        }
 
         public DataSource? Data
         {
@@ -82,6 +89,24 @@ namespace XREngine.Rendering
         public static explicit operator MagickImage(Mipmap2D mipmap)
             => mipmap.GetImage();
 
+        public unsafe void SetFromImage(Image<Rgba32> image)
+        {
+            lock (_lock)
+            {
+                InternalFormat = EPixelInternalFormat.Rgba8;
+                PixelFormat = EPixelFormat.Rgba;
+                PixelType = EPixelType.UnsignedByte;
+
+                Rgba32[] pixels = new Rgba32[image.Width * image.Height];
+                for (int x = 0; x < image.Width; x++)
+                    for (int y = 0; y < image.Height; y++)
+                        pixels[x + y * image.Width] = image[x, y];
+                Data = DataSource.FromArray(pixels);
+
+                Width = (uint)image.Width;
+                Height = (uint)image.Height;
+            }
+        }
         public unsafe void SetFromImage(MagickImage image)
         {
             lock (_lock)

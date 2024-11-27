@@ -22,7 +22,11 @@ namespace XREngine.Rendering
         }
 
         protected override Matrix4x4 CalculateProjectionMatrix()
-            => Engine.VRState.Api.CVR.GetProjectionMatrix(LeftEye ? EVREye.Eye_Left : EVREye.Eye_Right, NearZ, FarZ).ToNumerics().Transposed();
+        {
+            return Engine.VRState.Api.IsHeadsetPresent && Engine.VRState.Api.CVR is not null
+                ? Engine.VRState.Api.CVR.GetProjectionMatrix(LeftEye ? EVREye.Eye_Left : EVREye.Eye_Right, NearZ, FarZ).ToNumerics().Transposed()
+                : Matrix4x4.Identity;
+        }
 
         protected override Frustum CalculateUntransformedFrustum()
             => new(GetProjectionMatrix().Inverted());

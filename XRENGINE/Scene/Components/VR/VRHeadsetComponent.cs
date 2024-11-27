@@ -1,5 +1,4 @@
 ﻿using XREngine.Components;
-using XREngine.Data.Colors;
 using XREngine.Data.Rendering;
 using XREngine.Rendering;
 using XREngine.Rendering.Commands;
@@ -20,6 +19,7 @@ namespace XREngine.Data.Components.Scene
 
             RenderInfo = RenderInfo3D.New(this, new RenderCommandMethod3D((int)EDefaultRenderPass.OpaqueForward, Render));
             RenderedObjects = [RenderInfo];
+            RenderInfo.IsVisible = false;
         }
 
         protected override void OnTransformChanged()
@@ -34,15 +34,8 @@ namespace XREngine.Data.Components.Scene
             if (shadowPass)
                 return;
 
-            var leftFrustum = _leftEyeCamera.Value.WorldFrustum();
-            var rightFrustum = _rightEyeCamera.Value.WorldFrustum();
-
-            Engine.Rendering.Debug.RenderFrustum(leftFrustum, ColorF4.Red);
-            Engine.Rendering.Debug.RenderFrustum(rightFrustum, ColorF4.Red);
-
-            //Engine.Rendering.Debug.RenderSphere(Transform.WorldTranslation, 0.1f, true, ColorF4.Black);
-            //Engine.Rendering.Debug.RenderSphere(_leftEyeTransform.WorldTranslation, 0.1f, true, ColorF4.Cyan);
-            //Engine.Rendering.Debug.RenderSphere(_rightEyeTransform.WorldTranslation, 0.1f, true, ColorF4.LightRed);
+            Engine.Rendering.Debug.RenderFrustum(_leftEyeCamera.Value.WorldFrustum(), Colors.ColorF4.Red);
+            Engine.Rendering.Debug.RenderFrustum(_rightEyeCamera.Value.WorldFrustum(), Colors.ColorF4.Red);
         }
 
         private readonly Lazy<XRCamera> _leftEyeCamera;

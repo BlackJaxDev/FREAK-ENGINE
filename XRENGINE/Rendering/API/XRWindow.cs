@@ -139,8 +139,8 @@ namespace XREngine.Rendering
                 AbstractRenderer.Current = Renderer;
 
                 TargetWorldInstance?.GlobalPreRender();
-                RenderViewports();
                 RenderViewportsCallback?.Invoke();
+                RenderViewports();
                 TargetWorldInstance?.GlobalPostRender();
             }
             finally

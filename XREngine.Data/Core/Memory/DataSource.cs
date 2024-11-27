@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using SixLabors.ImageSharp.PixelFormats;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using XREngine.Data.Core;
 using YamlDotNet.Serialization;
@@ -145,6 +146,14 @@ namespace XREngine.Data
         public T ToStruct<T>() where T : struct
         {
             return Marshal.PtrToStructure<T>(Address);
+        }
+
+        public static unsafe DataSource? FromSpan<T>(Span<T> data) where T : unmanaged
+        {
+            DataSource source = new((uint)(data.Length * sizeof(T)));
+            fixed (void* ptr = data)
+                Memory.Move(source.Address, ptr, source.Length);
+            return source;
         }
 
         #endregion

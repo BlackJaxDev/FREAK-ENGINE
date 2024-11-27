@@ -24,7 +24,7 @@ namespace XREngine.Scene.Transforms
                 ? EVREye.Eye_Left 
                 : EVREye.Eye_Right;
 
-            return Engine.VRState.Api.IsHeadsetPresent 
+            return Engine.VRState.Api.IsHeadsetPresent && Engine.VRState.Api.CVR is not null
                 ? Engine.VRState.Api.CVR.GetEyeToHeadTransform(eyeEnum).ToNumerics().Transposed().Inverted()
                 : Matrix4x4.Identity;
         }

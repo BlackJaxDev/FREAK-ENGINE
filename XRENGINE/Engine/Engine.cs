@@ -149,7 +149,7 @@ namespace XREngine
                     startupSettings.UdpMulticastServerPort,
                     startupSettings.TcpListenerPort);
 
-            if (startupSettings is IVRGameStartupSettings vrSettings)
+            if (startupSettings is IVRGameStartupSettings vrSettings && vrSettings.VRManifest is not null && vrSettings.ActionManifest is not null)
             {
                 if (startupSettings.AppType == GameStartupSettings.EAppType.LocalVRClient)
                     VRState.IninitializeClient(vrSettings.ActionManifest, vrSettings.VRManifest);

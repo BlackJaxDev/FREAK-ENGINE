@@ -137,6 +137,8 @@
   <ItemGroup>
     <Reference Include="OpenVR.NET">
       <HintPath>..\..\OpenVR.NET\OpenVR.NET\bin\Release\net6.0\OpenVR.NET.dll</HintPath>
+      <SpecificVersion>False</SpecificVersion>
+      <Private>True</Private>
     </Reference>
   </ItemGroup>
 

@@ -1,5 +1,7 @@
 ﻿using ImageMagick;
 using ImageMagick.Drawing;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 using XREngine.Data;
 using XREngine.Data.Rendering;
 using XREngine.Data.Vectors;
@@ -150,6 +152,10 @@ namespace XREngine.Rendering
             Mipmaps = mips;
         }
         public XRTexture2D(MagickImage? image)
+        {
+            Mipmaps = [new Mipmap2D(image)];
+        }
+        public XRTexture2D(Image<Rgba32> image)
         {
             Mipmaps = [new Mipmap2D(image)];
         }

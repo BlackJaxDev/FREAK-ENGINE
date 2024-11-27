@@ -92,46 +92,47 @@ namespace XREngine.Rendering.Physics.Physx
             _scene = _physicsPtr->CreateSceneMut(&sceneDesc);
             Scenes.Add((nint)_scene, this);
 
-            //VisualizeEnabled = true;
-            //VisualizeWorldAxes = true;
-            //VisualizeBodyAxes = true;
-            //VisualizeBodyMassAxes = true;
-            //VisualizeBodyLinearVelocity = true;
-            //VisualizeBodyAngularVelocity = true;
-            //VisualizeContactPoint = true;
-            //VisualizeContactNormal = true;
-            //VisualizeContactError = true;
-            //VisualizeContactForce = true;
-            //VisualizeActorAxes = true;
-            //VisualizeCollisionAabbs = true;
-            //VisualizeCollisionShapes = true;
-            //VisualizeCollisionAxes = true;
-            //VisualizeCollisionCompounds = true;
-            //VisualizeCollisionFaceNormals = true;
-            //VisualizeCollisionEdges = true;
-            //VisualizeCollisionStatic = true;
-            //VisualizeCollisionDynamic = true;
-            //VisualizeJointLocalFrames = true;
-            //VisualizeJointLimits = true;
-            //VisualizeCullBox = true;
-            //VisualizeMbpRegions = true;
-            //VisualizeSimulationMesh = true;
-            //VisualizeSdf = true;
+            VisualizeEnabled = true;
+            VisualizeWorldAxes = true;
+            VisualizeBodyAxes = true;
+            VisualizeBodyMassAxes = true;
+            VisualizeBodyLinearVelocity = true;
+            VisualizeBodyAngularVelocity = true;
+            VisualizeContactPoint = true;
+            VisualizeContactNormal = true;
+            VisualizeContactError = true;
+            VisualizeContactForce = true;
+            VisualizeActorAxes = true;
+            VisualizeCollisionAabbs = true;
+            VisualizeCollisionShapes = true;
+            VisualizeCollisionAxes = true;
+            VisualizeCollisionCompounds = true;
+            VisualizeCollisionFaceNormals = true;
+            VisualizeCollisionEdges = true;
+            VisualizeCollisionStatic = true;
+            VisualizeCollisionDynamic = true;
+            VisualizeJointLocalFrames = true;
+            VisualizeJointLimits = true;
+            VisualizeCullBox = true;
+            VisualizeMbpRegions = true;
+            VisualizeSimulationMesh = true;
+            VisualizeSdf = true;
         }
 
         public DataSource? _scratchBlock = new(32000, true);
 
         public override void StepSimulation()
         {
-            SimulationRunning.Set();
+            //PostSimulationWorkRunning.Wait();
+            //SimulationRunning.Set();
             Simulate(Engine.Time.Timer.FixedUpdateDelta, null, true);
-            SimulationRunning.Reset();
+            //SimulationRunning.Reset();
+            //PostSimulationWorkRunning.Reset();
 
             if (!FetchResults(true, out uint error))
                 return;
 
             NotifySimulationStepped();
-            DebugRenderCollect();
         }
 
         private List<Engine.Rendering.Debug.PointData> _debugPointsUpdating = [];
@@ -142,16 +143,16 @@ namespace XREngine.Rendering.Physics.Physx
         private List<Engine.Rendering.Debug.LineData> _debugLinesRendering = [];
         private List<Engine.Rendering.Debug.TriangleData> _debugTrianglesRendering = [];
 
-        private object _lock = new();
+        XRDataBuffer _debugPointsBuffer = new();
+        XRDataBuffer _debugLinesBuffer = new();
+        XRDataBuffer _debugTrianglesBuffer = new();
 
-        private void SwapDebugBuffers()
+        private bool _debugDataInvalidated = false;
+
+        protected override void NotifySimulationStepped()
         {
-            //lock (_lock)
-            //{
-                (_debugPointsRendering, _debugPointsUpdating) = (_debugPointsUpdating, _debugPointsRendering);
-                (_debugLinesRendering, _debugLinesUpdating) = (_debugLinesUpdating, _debugLinesRendering);
-                (_debugTrianglesRendering, _debugTrianglesUpdating) = (_debugTrianglesUpdating, _debugTrianglesRendering);
-            //}
+            base.NotifySimulationStepped();
+            _debugDataInvalidated = true;
         }
 
         public void AddDebugPoint(Vector3 position, ColorF4 color)
@@ -161,17 +162,52 @@ namespace XREngine.Rendering.Physics.Physx
         public void AddDebugTriangle(Vector3 p0, Vector3 p1, Vector3 p2, ColorF4 color)
             => _debugTrianglesUpdating.Add(new(false, p0, p1, p2, color));
 
-        private void DebugRenderCollect()
+        public override void DebugRender()
         {
-            _debugPointsUpdating.Clear();
-            _debugLinesUpdating.Clear();
+            //if (_debugDataInvalidated)
+            //    SwappingDebug.Wait();
+
+            //DebugRendering.Set();
+            foreach (var point in _debugPointsRendering)
+                Engine.Rendering.Debug.RenderPoint(point.Position, point.Color);
+            foreach (var line in _debugLinesRendering)
+                Engine.Rendering.Debug.RenderLine(line.Start, line.End, line.Color);
+            foreach (var triangle in _debugTrianglesRendering)
+                Engine.Rendering.Debug.RenderTriangle(triangle.Value.A, triangle.Value.B, triangle.Value.C, triangle.Color, false);
+            //DebugRendering.Reset();
+        }
+        public override void SwapDebugBuffers()
+        {
+            if (!_debugDataInvalidated)
+                return;
+
+            //DebugRendering.Wait();
+            //SwappingDebug.Set();
+
+            (_debugPointsRendering, _debugPointsUpdating) = (_debugPointsUpdating, _debugPointsRendering);
+            (_debugLinesRendering, _debugLinesUpdating) = (_debugLinesUpdating, _debugLinesRendering);
+            (_debugTrianglesRendering, _debugTrianglesUpdating) = (_debugTrianglesUpdating, _debugTrianglesRendering);
+
+            //SwappingDebug.Reset();
+        }
+        public override void DebugRenderCollect()
+        {
+            if (!_debugDataInvalidated)
+                return;
+
+            //_debugDataInvalidated = false;
+
+            //SimulationRunning.Wait();
+            //PostSimulationWorkRunning.Set();
+
             _debugTrianglesUpdating.Clear();
+            _debugLinesUpdating.Clear();
+            _debugPointsUpdating.Clear();
 
             var rb = RenderBuffer;
             var points = rb->GetNbPoints();
             var lines = rb->GetNbLines();
             var triangles = rb->GetNbTriangles();
-
             if (points > 0)
             {
                 var p = rb->GetPoints();
@@ -205,27 +241,6 @@ namespace XREngine.Rendering.Physics.Physx
                     AddDebugTriangle(triangle.pos0, triangle.pos1, triangle.pos2, color);
                 }
             }
-        }
-
-        public override void DebugRender()
-        {
-            //lock (_lock)
-            //{
-                SwapDebugBuffers();
-            try
-            {
-                foreach (var point in _debugPointsRendering)
-                    Engine.Rendering.Debug.RenderPoint(point.Position, point.Color);
-                foreach (var line in _debugLinesRendering)
-                    Engine.Rendering.Debug.RenderLine(line.Start, line.End, line.Color);
-                foreach (var triangle in _debugTrianglesRendering)
-                    Engine.Rendering.Debug.RenderTriangle(triangle.Value.A, triangle.Value.B, triangle.Value.C, triangle.Color, false);
-            }
-            catch (Exception e)
-            {
-                Debug.Out("Error rendering debug data: {0}", e.Message);
-            }
-            //}
         }
 
         private static ColorF4 ToColorF4(uint c) => new(

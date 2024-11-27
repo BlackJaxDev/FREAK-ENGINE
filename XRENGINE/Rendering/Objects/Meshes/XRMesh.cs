@@ -16,6 +16,7 @@ using XREngine.Scene;
 using XREngine.Scene.Transforms;
 using YamlDotNet.Serialization;
 using Matrix4x4 = System.Numerics.Matrix4x4;
+using Triangle = XREngine.Data.Geometry.Triangle;
 
 namespace XREngine.Rendering
 {
@@ -27,12 +28,13 @@ namespace XREngine.Rendering
         [YamlIgnore]
         public XREvent<XRMesh> DataChanged;
 
-        private static void PopulateVertexData(IEnumerable<Action<int, int, Vertex>> vertexActions, List<Vertex> sourceList, int[] firstAppearanceArray, bool parallel = true)
+        private static void PopulateVertexData(IEnumerable<Action<int, int, Vertex>> vertexActions, List<Vertex> sourceList, int[]? firstAppearanceArray, bool parallel = true)
         {
+            int len = firstAppearanceArray?.Length ?? sourceList.Count;
             if (parallel)
-                Parallel.For(0, firstAppearanceArray.Length, i => SetVertexData(i, vertexActions, sourceList, firstAppearanceArray));
+                Parallel.For(0, len, i => SetVertexData(i, vertexActions, sourceList, firstAppearanceArray));
             else
-                for (int i = 0; i < firstAppearanceArray.Length; ++i)
+                for (int i = 0; i < len; ++i)
                     SetVertexData(i, vertexActions, sourceList, firstAppearanceArray);
         }
 
@@ -45,9 +47,9 @@ namespace XREngine.Rendering
                     SetVertexData(i, vertexActions, sourceList);
         }
 
-        private static void SetVertexData(int i, IEnumerable<Action<int, int, Vertex>> vertexActions, List<Vertex> sourceList, int[] remapArray)
+        private static void SetVertexData(int i, IEnumerable<Action<int, int, Vertex>> vertexActions, List<Vertex> sourceList, int[]? remapArray)
         {
-            int x = remapArray[i];
+            int x = remapArray?[i] ?? i;
             Vertex vtx = sourceList[x];
             foreach (var action in vertexActions)
                 action.Invoke(i, x, vtx);
@@ -722,7 +724,7 @@ namespace XREngine.Rendering
         #endregion
 
         #region Indices
-        public int[] GetIndices()
+        public int[]? GetIndices()
         {
             int[]? indices = _type switch
             {
@@ -731,7 +733,7 @@ namespace XREngine.Rendering
                 EPrimitiveType.Points => _points?.Select(x => (int)x).ToArray(),
                 _ => null,
             };
-            return indices is null ? throw new InvalidOperationException($"{_type} mesh has no face indices.") : indices;
+            return indices;
         }
 
         public int[]? GetIndices(EPrimitiveType type)
@@ -743,7 +745,7 @@ namespace XREngine.Rendering
                 EPrimitiveType.Points => _points?.Select(x => (int)x).ToArray(),
                 _ => null,
             };
-            return indices is null ? throw new InvalidOperationException($"{type} mesh has no face indices.") : indices;
+            return indices;
         }
 
         private Remapper? SetTriangleIndices(List<Vertex> vertices, bool remap = true)
@@ -824,6 +826,107 @@ namespace XREngine.Rendering
         public XRMesh()
         {
             //Buffers.UpdateFaceIndices += UpdateFaceIndices;
+        }
+
+        public XRMesh(IEnumerable<Vertex> vertices, List<ushort> triangleIndices)
+        {
+            Engine.Profiler.Start(null, true, "XRMesh Constructor");
+
+            List<Vertex> triVertices = [];
+
+            //Create an action for each vertex attribute to set the buffer data
+            //This lets us avoid redundant LINQ code by looping through the vertices only once
+            ConcurrentDictionary<int, Action<int, int, Vertex>> vertexActions = [];
+
+            int maxColorCount = 0;
+            int maxTexCoordCount = 0;
+            AABB? bounds = null;
+
+            //For each vertex, we double check what data it has and add verify that the corresponding add-to-buffer action is added
+            void AddVertex(Vertex v)
+            {
+                if (v is null)
+                    return;
+
+                triVertices.Add(v);
+
+                if (bounds is null)
+                    bounds = new AABB(v.Position, v.Position);
+                else
+                    bounds.Value.ExpandToInclude(v.Position);
+
+                if (v.Normal is not null && !vertexActions.ContainsKey(1))
+                    vertexActions.TryAdd(1, (i, x, vtx) => NormalsBuffer!.SetDataRawAtIndex((uint)i, vtx?.Normal ?? Vector3.Zero));
+
+                if (v.Tangent is not null && !vertexActions.ContainsKey(2))
+                    vertexActions.TryAdd(2, (i, x, vtx) => TangentsBuffer!.SetDataRawAtIndex((uint)i, vtx?.Tangent ?? Vector3.Zero));
+
+                Interlocked.Exchange(ref maxTexCoordCount, Math.Max(maxTexCoordCount, v.TextureCoordinateSets.Count));
+                if (v.TextureCoordinateSets is not null && v.TextureCoordinateSets.Count > 0 && !vertexActions.ContainsKey(3))
+                {
+                    vertexActions.TryAdd(3, (i, x, vtx) =>
+                    {
+                        for (int texCoordIndex = 0; texCoordIndex < v.TextureCoordinateSets.Count; ++texCoordIndex)
+                            TexCoordBuffers![texCoordIndex].SetDataRawAtIndex((uint)i, vtx?.TextureCoordinateSets != null && texCoordIndex < (vtx?.TextureCoordinateSets?.Count ?? 0)
+                                ? vtx!.TextureCoordinateSets[texCoordIndex]
+                                : Vector2.Zero);
+                    });
+                }
+
+                Interlocked.Exchange(ref maxColorCount, Math.Max(maxColorCount, v.ColorSets.Count));
+                if (v.ColorSets is not null && v.ColorSets.Count > 0 && !vertexActions.ContainsKey(4))
+                {
+                    vertexActions.TryAdd(4, (i, x, vtx) =>
+                    {
+                        for (int colorIndex = 0; colorIndex < v.ColorSets.Count; ++colorIndex)
+                            ColorBuffers![colorIndex].SetDataRawAtIndex((uint)i, vtx?.ColorSets != null && colorIndex < (vtx?.ColorSets?.Count ?? 0)
+                                ? vtx!.ColorSets[colorIndex]
+                                : Vector4.Zero);
+                    });
+                }
+
+                if (v.Blendshapes is not null && v.Blendshapes.Count > 0 && !vertexActions.ContainsKey(5))
+                {
+                    vertexActions.TryAdd(5, (i, x, vtx) =>
+                    {
+                        if (vtx?.Blendshapes is null)
+                            return;
+
+                        foreach (var pair in vtx.Blendshapes!)
+                        {
+                            string name = pair.Key;
+                            var data = pair.Value;
+                            Vector3 deltaPos = data.Position - vtx.Position;
+                            Vector3? deltaNorm = data.Normal - vtx.Normal;
+                            Vector3? deltaTan = data.Tangent - vtx.Tangent;
+                            //List<Vector4> colors = data.ColorSets;
+                            //List<Vector2> texCoords = data.TextureCoordinateSets;
+
+                        }
+                    });
+                }
+            }
+
+            //Convert all primitives to simple primitives
+            //While doing this, compile a command list of actions to set buffer data
+            vertices.ForEach(AddVertex);
+
+            _bounds = bounds ?? new AABB(Vector3.Zero, Vector3.Zero);
+            _triangles = triangleIndices.SelectEvery(3, x => new IndexTriangle(x[0], x[1], x[2])).ToList();
+            _type = EPrimitiveType.Triangles;
+            VertexCount = triVertices.Count;
+
+            InitMeshBuffers(
+                vertexActions.ContainsKey(1),
+                vertexActions.ContainsKey(2),
+                maxColorCount,
+                maxTexCoordCount);
+
+            vertexActions.TryAdd(6, (i, x, vtx) => PositionsBuffer!.SetDataRawAtIndex((uint)i, vtx?.Position ?? Vector3.Zero));
+
+            //Fill the buffers with the vertex data using the command list
+            //We can do this in parallel since each vertex is independent
+            PopulateVertexData(vertexActions.Values, triVertices, VertexCount, true);
         }
 
         /// <summary>
