@@ -46,6 +46,8 @@ namespace XREngine.Input.Devices
         public ButtonManager? RightClick => _buttonStates[(int)EMouseButton.RightClick];
         public ButtonManager? MiddleClick => _buttonStates[(int)EMouseButton.MiddleClick];
 
+        public abstract bool HideCursor { get; set; }
+
         public bool GetButtonState(EMouseButton button, EButtonInputType type)
             => FindOrCacheButton(button)?.GetState(type) ?? false;
     }

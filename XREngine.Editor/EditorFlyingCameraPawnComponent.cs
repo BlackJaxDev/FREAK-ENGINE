@@ -110,7 +110,7 @@ public class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent, IRende
         if (rend is null)
             return;
 
-        var vp = Engine.Rendering.State.PipelineState?.WindowViewport;
+        var vp = Engine.Rendering.State.RenderingPipelineState?.WindowViewport;
         if (vp is null)
             return;
 

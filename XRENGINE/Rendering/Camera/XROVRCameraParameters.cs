@@ -21,6 +21,18 @@ namespace XREngine.Rendering
             set => SetField(ref _leftEye, value);
         }
 
+        public override Vector2 GetSizeAtDistance(float drawDistance)
+        {
+            var invProj = GetProjectionMatrix().Inverted();
+            float normDist = (drawDistance - NearZ) / (FarZ - NearZ);
+            //unproject the the points on the clip space box at normalized distance
+            Vector3 bottomLeft = Vector3.Transform(new Vector3(-1, -1, normDist), invProj);
+            Vector3 bottomRight = Vector3.Transform(new Vector3(1, -1, normDist), invProj);
+            Vector3 topLeft = Vector3.Transform(new Vector3(-1, 1, normDist), invProj);
+            //calculate the size of the frustum at the given distance
+            return new Vector2((bottomRight - bottomLeft).Length(), (topLeft - bottomLeft).Length());
+        }
+
         protected override Matrix4x4 CalculateProjectionMatrix()
         {
             return Engine.VRState.Api.IsHeadsetPresent && Engine.VRState.Api.CVR is not null

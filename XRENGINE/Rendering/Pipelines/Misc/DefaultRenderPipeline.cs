@@ -33,7 +33,7 @@ public class DefaultRenderPipeline : RenderPipeline
 
     private XRMaterial MakeInvalidMaterial()
     {
-        Debug.Out("Generating invalid material");
+        //Debug.Out("Generating invalid material");
         return XRMaterial.CreateColorMaterialDeferred();
     }
 
@@ -133,8 +133,8 @@ public class DefaultRenderPipeline : RenderPipeline
             }
 
             c.Add<VPRC_DepthTest>().Enable = false;
-            c.Add<VPRC_BlitFBO>().SetTargets(SSAOFBOName, SSAOBlurFBOName);
-            c.Add<VPRC_BlitFBO>().SetTargets(SSAOBlurFBOName, GBufferFBOName);
+            c.Add<VPRC_RenderQuadToFBO>().SetTargets(SSAOFBOName, SSAOBlurFBOName);
+            c.Add<VPRC_RenderQuadToFBO>().SetTargets(SSAOBlurFBOName, GBufferFBOName);
 
             //LightCombine FBO
             c.Add<VPRC_CacheOrCreateFBO>().SetOptions(
@@ -157,12 +157,15 @@ public class DefaultRenderPipeline : RenderPipeline
                 CreateForwardPassFBO,
                 GetDesiredFBOSizeInternal);
 
-            //Render the LightCombine fbo to the ForwardPass fbo
+            //Render forward pass - GBuffer results + forward lit meshes + debug data
             using (c.AddUsing<VPRC_BindFBOByName>(x => x.FrameBufferName = ForwardPassFBOName))
             {
+                //c.Add<VPRC_StencilMask>().Set(~0u);
+                //c.Add<VPRC_ClearByBoundFBO>();
+
                 //Render the deferred pass lighting result, no depth testing
                 c.Add<VPRC_DepthTest>().Enable = false;
-                c.Add<VPRC_BlitFBO>().SourceQuadFBOName = LightCombineFBOName;
+                c.Add<VPRC_RenderQuadToFBO>().SourceQuadFBOName = LightCombineFBOName;
 
                 //No depth writing for backgrounds (skybox)
                 c.Add<VPRC_DepthTest>().Enable = false;
@@ -469,7 +472,7 @@ public class DefaultRenderPipeline : RenderPipeline
     }
     private void PostProcess_SettingUniforms(XRRenderProgram program)
     {
-        var sceneCam = PipelineState?.SceneCamera;
+        var sceneCam = RenderingPipelineState?.SceneCamera;
         if (sceneCam is null)
             return;
 
@@ -513,7 +516,7 @@ public class DefaultRenderPipeline : RenderPipeline
 
     private void BrightPassFBO_SettingUniforms(XRRenderProgram program)
     {
-        var sceneCam = PipelineState?.SceneCamera;
+        var sceneCam = RenderingPipelineState?.SceneCamera;
         if (sceneCam is null)
             return;
 
@@ -546,6 +549,7 @@ public class DefaultRenderPipeline : RenderPipeline
                     Function = EComparison.Always,
                     UpdateDepth = false,
                 },
+                //RequiredEngineUniforms = EUniformRequirements.Camera
             }
         };
 
@@ -560,7 +564,7 @@ public class DefaultRenderPipeline : RenderPipeline
         if (RenderingWorld is null)
             return;
 
-        var sceneCam = PipelineState?.SceneCamera;
+        var sceneCam = RenderingPipelineState?.SceneCamera;
         if (sceneCam is null)
             return;
         

@@ -38,25 +38,25 @@ public abstract class RenderPipeline : XRBase
     protected abstract Dictionary<int, IComparer<RenderCommand>?> GetPassIndicesAndSorters();
 
     public static RenderingState State 
-        => CurrentPipeline!.State;
+        => CurrentRenderingPipeline!.RenderState;
 
     public static T? GetTexture<T>(string name) where T : XRTexture
-        => CurrentPipeline!.GetTexture<T>(name);
+        => CurrentRenderingPipeline!.GetTexture<T>(name);
 
     public static bool TryGetTexture(string name, out XRTexture? texture)
-        => CurrentPipeline!.TryGetTexture(name, out texture);
+        => CurrentRenderingPipeline!.TryGetTexture(name, out texture);
 
     public static void SetTexture(XRTexture texture)
-        => CurrentPipeline!.SetTexture(texture);
+        => CurrentRenderingPipeline!.SetTexture(texture);
 
     public static T? GetFBO<T>(string name) where T : XRFrameBuffer
-        => CurrentPipeline!.GetFBO<T>(name);
+        => CurrentRenderingPipeline!.GetFBO<T>(name);
 
     public static bool TryGetFBO(string name, out XRFrameBuffer? fbo)
-        => CurrentPipeline!.TryGetFBO(name, out fbo);
+        => CurrentRenderingPipeline!.TryGetFBO(name, out fbo);
 
     public static void SetFBO(XRFrameBuffer fbo)
-        => CurrentPipeline!.SetFBO(fbo);
+        => CurrentRenderingPipeline!.SetFBO(fbo);
 
     protected static uint InternalWidth
         => (uint)State.WindowViewport!.InternalWidth;

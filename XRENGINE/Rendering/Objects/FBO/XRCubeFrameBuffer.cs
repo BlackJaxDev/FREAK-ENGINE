@@ -71,7 +71,7 @@ namespace XREngine.Rendering
         /// </summary>
         public void RenderFullscreen(ECubemapFace face)
         {
-            var state = Engine.Rendering.State.PipelineState;
+            var state = Engine.Rendering.State.RenderingPipelineState;
             if (state != null)
             {
                 using (state.PushRenderingCamera(_cameras[(int)face]))

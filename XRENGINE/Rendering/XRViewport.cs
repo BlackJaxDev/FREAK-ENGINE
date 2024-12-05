@@ -112,50 +112,95 @@ namespace XREngine.Rendering
             Resize(width, height);
         }
 
-        private void CollectVisible()
+        public bool AutomaticallyCollectVisible { get; set; } = true;
+        public bool AutomaticallySwapBuffers { get; set; } = true;
+        public bool AllowUIRender { get; set; } = true;
+
+        private void CollectVisibleInternal()
         {
-            XRCamera? camera = ActiveCamera;
+            CollectVisible(null, null, false);
+        }
+        public void CollectVisible(XRWorldInstance? worldOverride, XRCamera? cameraOverride, bool shadowPass)
+        {
+            XRCamera? camera = cameraOverride ?? ActiveCamera;
             if (camera is null)
                 return;
 
-            World?.VisualScene?.CollectRenderedItems(
+            (worldOverride ?? World)?.VisualScene?.CollectRenderedItems(
                 _renderPipeline.MeshRenderCommands,
                 camera,
                 CameraComponent?.CullWithFrustum ?? true,
                 CameraComponent?.CullingCameraOverride,
-                false);
+                shadowPass);
 
-            CameraComponent?.UserInterfaceOverlay?.CollectRenderedItems(this);
+            CollectVisibleScreenSpaceUI();
         }
 
-        private void SwapBuffers()
+        private void CollectVisibleScreenSpaceUI()
+        {
+            if (!AllowUIRender)
+                return;
+
+            var ui = CameraComponent?.GetUserInterfaceOverlay();
+            if (ui is null)
+                return;
+
+            if (ui.CanvasTransform.DrawSpace == ECanvasDrawSpace.Screen)
+                ui?.CollectVisibleItemsScreenSpace();
+        }
+
+        private void SwapBuffersInternal()
         {
             XRCamera? camera = ActiveCamera;
             if (camera is null)
                 return;
 
-            _renderPipeline.MeshRenderCommands.SwapBuffers(false);
-            CameraComponent?.UserInterfaceOverlay?.SwapBuffers();
+            SwapBuffers(false);
+        }
+        public void SwapBuffers(bool shadowPass)
+        {
+            _renderPipeline.MeshRenderCommands.SwapBuffers(shadowPass);
+            SwapScreenSpaceUIBuffers();
         }
 
-        public static XRViewport ForTotalViewportCount(XRWindow window, int totalViewportCount)
+        private void SwapScreenSpaceUIBuffers()
         {
-            int index = totalViewportCount;
-            XRViewport viewport = new(window);
-            if (index == 0)
-            {
-                viewport.Index = index;
-                viewport.SetFullScreen();
-            }
-            else
-                viewport.ViewportCountChanged(
-                    index,
-                    totalViewportCount + 1,
-                    Engine.GameSettings.TwoPlayerViewportPreference,
-                    Engine.GameSettings.ThreePlayerViewportPreference);
+            if (!AllowUIRender)
+                return;
 
-            viewport.Index = index;
-            return viewport;
+            var ui = CameraComponent?.GetUserInterfaceOverlay();
+            if (ui is null)
+                return;
+
+            if (ui.CanvasTransform.DrawSpace == ECanvasDrawSpace.Screen)
+                ui?.SwapBuffersScreenSpace();
+        }
+
+        /// <summary>
+        /// Renders this camera's view to the specified viewport.
+        /// </summary>
+        /// <param name="vp"></param>
+        /// <param name="targetFbo"></param>
+        public void Render(XRFrameBuffer? targetFbo = null, XRWorldInstance? worldOverride = null, XRCamera? cameraOverride = null, bool shadowPass = false, XRMaterial? shadowPassMaterial = null)
+        {
+            XRCamera? camera = cameraOverride ?? ActiveCamera;
+            if (camera is null)
+                return;
+
+            var world = worldOverride ?? World;
+            if (world is null)
+            {
+                Debug.LogWarning("No world is set to this viewport.");
+                return;
+            }
+
+            if (State.RenderingPipelineState?.ViewportStack.Contains(this) ?? false)
+            {
+                Debug.LogWarning("Render recursion: Viewport is already currently rendering.");
+                return;
+            }
+
+            _renderPipeline.Render(world.VisualScene, camera, this, targetFbo, AllowUIRender ? CameraComponent?.GetUserInterfaceOverlay() : null, shadowPass, shadowPassMaterial);
         }
 
         private CameraComponent? _cameraComponent = null;
@@ -176,31 +221,6 @@ namespace XREngine.Rendering
 
         public XRCamera? ActiveCamera => _cameraComponent?.Camera ?? _camera;
 
-        /// <summary>
-        /// Renders this camera's view to the specified viewport.
-        /// </summary>
-        /// <param name="vp"></param>
-        /// <param name="targetFbo"></param>
-        public void Render(XRFrameBuffer? targetFbo = null, XRWorldInstance? worldOverride = null, bool allowUIRender = true)
-        {
-            XRCamera? camera = ActiveCamera;
-            if (camera is null)
-                return;
-
-            var world = worldOverride ?? World;
-            if (world is null || (State.PipelineState?.ViewportStack.Contains(this) ?? false))
-                return;
-
-            if (worldOverride is not null)
-            {
-                //Collect and swap now
-                CollectVisible();
-                SwapBuffers();
-            }
-
-            _renderPipeline.Render(world.VisualScene, camera, this, targetFbo, allowUIRender ? CameraComponent?.UserInterfaceOverlay : null);
-        }
-
         private readonly XRRenderPipelineInstance _renderPipeline = new();
         public XRRenderPipelineInstance RenderPipelineInstance => _renderPipeline;
 
@@ -215,8 +235,8 @@ namespace XREngine.Rendering
                         if (_camera is not null)
                         {
                             _camera.Viewports.Remove(this);
-                            Engine.Time.Timer.SwapBuffers -= SwapBuffers;
-                            Engine.Time.Timer.CollectVisible -= CollectVisible;
+                            Engine.Time.Timer.SwapBuffers -= SwapBuffersInternal;
+                            Engine.Time.Timer.CollectVisible -= CollectVisibleInternal;
                         }
                         break;
                 }
@@ -234,8 +254,8 @@ namespace XREngine.Rendering
                         if (!_camera.Viewports.Contains(this))
                             _camera.Viewports.Add(this);
                         SetAspectRatioToCamera();
-                        Engine.Time.Timer.SwapBuffers += SwapBuffers;
-                        Engine.Time.Timer.CollectVisible += CollectVisible;
+                        Engine.Time.Timer.SwapBuffers += SwapBuffersInternal;
+                        Engine.Time.Timer.CollectVisible += CollectVisibleInternal;
                     }
                     if (SetRenderPipelineFromCamera)
                         _renderPipeline.Pipeline = _camera?.RenderPipeline;
@@ -293,7 +313,11 @@ namespace XREngine.Rendering
             ResizeCameraComponentUI();
             SetAspectRatioToCamera();
             ResizeRenderPipeline();
+            Resized?.Invoke(this);
         }
+
+        public event Action<XRViewport>? Resized;
+        public event Action<XRViewport>? InternalResolutionResized;
 
         private void ResizeRenderPipeline()
             => _renderPipeline.ViewportResized(Width, Height);
@@ -308,10 +332,11 @@ namespace XREngine.Rendering
 
         private void ResizeCameraComponentUI()
         {
-            if (CameraComponent?.UserInterfaceOverlay is null)
+            var overlay = CameraComponent?.GetUserInterfaceOverlay();
+            if (overlay is null)
                 return;
 
-            CameraComponent.UserInterfaceOverlay.CanvasTransform.Size = (Vector2)_region.Size;
+            overlay.CanvasTransform.Size = (Vector2)_region.Size;
         }
 
         /// <summary>
@@ -333,10 +358,31 @@ namespace XREngine.Rendering
                     _internalResolutionRegion.Width = (int)(_internalResolutionRegion.Height * aspect);
             }
             _renderPipeline.InternalResolutionResized(InternalWidth, InternalHeight);
+            InternalResolutionResized?.Invoke(this);
         }
 
         public void SetInternalResolutionPercentage(float widthPercent, float heightPercent)
             => SetInternalResolution((int)(widthPercent * _region.Width), (int)(heightPercent * _region.Height), true);
+
+        public static XRViewport ForTotalViewportCount(XRWindow window, int totalViewportCount)
+        {
+            int index = totalViewportCount;
+            XRViewport viewport = new(window);
+            if (index == 0)
+            {
+                viewport.Index = index;
+                viewport.SetFullScreen();
+            }
+            else
+                viewport.ViewportCountChanged(
+                    index,
+                    totalViewportCount + 1,
+                    Engine.GameSettings.TwoPlayerViewportPreference,
+                    Engine.GameSettings.ThreePlayerViewportPreference);
+
+            viewport.Index = index;
+            return viewport;
+        }
 
         #region Coordinate conversion
         /// <summary>
@@ -435,7 +481,7 @@ namespace XREngine.Rendering
         public Segment GetWorldSegment(Vector2 normalizedViewportPoint)
         {
             if (_camera is null)
-                throw new InvalidOperationException("No camera is set to this viewport.");
+                return new Segment(Vector3.Zero, Vector3.Zero);
 
             return _camera.GetWorldSegment(normalizedViewportPoint);
         }
@@ -474,7 +520,7 @@ namespace XREngine.Rendering
 
             if (testHud)
             {
-                UIComponent? hudComp = CameraComponent.UserInterfaceOverlay?.FindDeepestComponent(normalizedViewportPosition);
+                UIComponent? hudComp = CameraComponent.GetUserInterfaceOverlay()?.FindDeepestComponent(normalizedViewportPosition);
                 bool hasHit = hudComp?.IsVisible ?? false;
                 bool hitValidated = !interactableHudOnly || hudComp is UIInteractableComponent;
                 if (hasHit && hitValidated)

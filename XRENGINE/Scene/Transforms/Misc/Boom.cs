@@ -77,14 +77,14 @@ namespace XREngine.Components.Scene.Transforms
         protected override Matrix4x4 CreateLocalMatrix()
             => Matrix4x4.CreateTranslation(0.0f, 0.0f, _currentLength);
 
-        protected internal override void Start()
+        protected internal override void OnSceneNodeActivated()
         {
-            base.Start();
+            base.OnSceneNodeActivated();
             RegisterTick(ETickGroup.PostPhysics, (int)ETickOrder.Scene, Tick);
         }
-        protected internal override void Stop()
+        protected internal override void OnSceneNodeDeactivated()
         {
-            base.Stop();
+            base.OnSceneNodeDeactivated();
             UnregisterTick(ETickGroup.PostPhysics, (int)ETickOrder.Scene, Tick);
         }
 

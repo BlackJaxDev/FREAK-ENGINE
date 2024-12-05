@@ -113,20 +113,7 @@ namespace XREngine.Components
         public SceneNode SceneNode
         {
             get => _sceneNode;
-            private set
-            {
-                _sceneNode.PropertyChanging -= SceneNodePropertyChanging;
-                _sceneNode.PropertyChanged -= SceneNodePropertyChanged;
-                OnTransformChanging();
-
-                SetField(ref _sceneNode, value);
-
-                World = _sceneNode.World;
-
-                _sceneNode.PropertyChanging += SceneNodePropertyChanging;
-                _sceneNode.PropertyChanged += SceneNodePropertyChanged;
-                OnTransformChanged();
-            }
+            private set => SetField(ref _sceneNode, value);
         }
 
         private void SceneNodePropertyChanging(object? sender, PropertyChangingEventArgs e)
@@ -181,7 +168,7 @@ namespace XREngine.Components
         /// <summary>
         /// Called right before the transform object is changed.
         /// </summary>
-        private void OnTransformChanging()
+        protected virtual void OnTransformChanging()
         {
             Transform.LocalMatrixChanged -= OnTransformLocalMatrixChanged;
             Transform.WorldMatrixChanged -= OnTransformWorldMatrixChanged;
@@ -204,6 +191,22 @@ namespace XREngine.Components
         protected virtual void OnTransformWorldMatrixChanged(TransformBase transform)
             => WorldMatrixChanged.Invoke((this, transform));
 
+        protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
+        {
+            bool change = base.OnPropertyChanging(propName, field, @new);
+            if (change)
+            {
+                switch (propName)
+                {
+                    case nameof(SceneNode):
+                        _sceneNode.PropertyChanging -= SceneNodePropertyChanging;
+                        _sceneNode.PropertyChanged -= SceneNodePropertyChanged;
+                        OnTransformChanging();
+                        break;
+                }
+            }
+            return change;
+        }
         protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
         {
             base.OnPropertyChanged(propName, prev, field);
@@ -223,6 +226,12 @@ namespace XREngine.Components
                         if (UnregisterTicksOnStop)
                             ClearTicks();
                     }
+                    break;
+                case nameof(SceneNode):
+                    World = _sceneNode.World;
+                    _sceneNode.PropertyChanging += SceneNodePropertyChanging;
+                    _sceneNode.PropertyChanged += SceneNodePropertyChanged;
+                    OnTransformChanged();
                     break;
             }
         }

@@ -4,8 +4,8 @@
     {
         protected override void Execute()
         {
-            using (Pipeline.State.PushRenderingCamera(Pipeline.State.SceneCamera))
-                Pipeline.State.WindowViewport?.World?.PhysicsScene?.DebugRender();
+            using (Pipeline.RenderState.PushRenderingCamera(Pipeline.RenderState.SceneCamera))
+                Pipeline.RenderState.WindowViewport?.World?.PhysicsScene?.DebugRender();
         }
     }
 }

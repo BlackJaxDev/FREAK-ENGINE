@@ -1055,7 +1055,7 @@ namespace XREngine.Actors.Types
             
             Engine.Rendering.Debug.RenderPoint(_lastPointWorld, ColorF4.Black, false);
             Vector3 worldNormal = Vector3.TransformNormal(_localDragPlaneNormal, Transform.WorldMatrix);
-            var camera = Engine.Rendering.State.PipelineState?.RenderingCamera;
+            var camera = Engine.Rendering.State.RenderingPipelineState?.RenderingCamera;
             if (camera != null)
                 Engine.Rendering.Debug.RenderLine(_lastPointWorld, _lastPointWorld + worldNormal * camera.DistanceScaleOrthographic(Transform.WorldTranslation, 2.0f), ColorF4.Black, false);
         }

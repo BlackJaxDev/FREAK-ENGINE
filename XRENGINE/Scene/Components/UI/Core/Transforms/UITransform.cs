@@ -9,7 +9,11 @@ using XREngine.Scene.Transforms;
 
 namespace XREngine.Rendering.UI
 {
-    public class UITransform : TransformBase
+    /// <summary>
+    /// Represents a UI transform in 2D space.
+    /// Does not have a rotation component for layouting purposes.
+    /// </summary>
+    public class UITransform : TransformBase, IRenderable
     {
         //Transformation fields
         protected Vector2 _translation = Vector2.Zero;
@@ -57,7 +61,9 @@ namespace XREngine.Rendering.UI
         public RenderInfo2D RenderInfoUI { get; private set; }
 
         public UITransform() : this(null) { }
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
         public UITransform(TransformBase? parent) : base(parent)
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
         {
             Children.PostAnythingAdded += OnChildAdded;
             Children.PostAnythingRemoved += OnChildRemoved;

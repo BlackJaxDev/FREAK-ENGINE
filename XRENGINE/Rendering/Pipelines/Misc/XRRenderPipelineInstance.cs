@@ -62,8 +62,9 @@ public sealed partial class XRRenderPipelineInstance : XRBase
                 break;
         }
     }
-
-    public RenderingState State { get; } = new();
+    
+    public RenderingState CollectVisibleState { get; } = new();
+    public RenderingState RenderState { get; } = new();
     public XRMaterial? InvalidMaterial { get; set; }
 
     /// <summary>
@@ -89,11 +90,26 @@ public sealed partial class XRRenderPipelineInstance : XRBase
             return;
         }
 
-        using (PushPipeline(this))
+        using (PushRenderingPipeline(this))
         {
-            using (State.PushMainAttributes(viewport, scene, camera, targetFBO, shadowPass, shadowMaterial, userInterface))
+            using (RenderState.PushMainAttributes(viewport, scene, camera, targetFBO, shadowPass, shadowMaterial, userInterface))
             {
                 Pipeline.CommandChain.Execute();
+            }
+        }
+    }
+    public void CollectVisible(VisualScene scene, XRCamera? camera, XRViewport viewport, XRFrameBuffer? targetFBO, bool shadowPass, UICanvasComponent? userInterface = null)
+    {
+        if (Pipeline is null)
+        {
+            Debug.LogWarning("No render pipeline is set.");
+            return;
+        }
+        using (PushRenderingPipeline(this))
+        {
+            using (CollectVisibleState.PushMainAttributes(viewport, scene, camera, targetFBO, shadowPass, null, userInterface))
+            {
+                scene.GlobalCollectVisible();
             }
         }
     }

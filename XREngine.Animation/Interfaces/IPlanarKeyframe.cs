@@ -8,7 +8,7 @@ namespace XREngine.Animation
         object OutValue { get; set; }
         object InTangent { get; set; }
         object OutTangent { get; set; }
-        EVectorInterpType InterpolationType { get; set; }
+        EVectorInterpType InterpolationTypeOut { get; set; }
 
         void UnifyKeyframe(EUnifyBias bias);
         void UnifyValues(EUnifyBias bias);

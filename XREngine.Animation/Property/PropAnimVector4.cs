@@ -16,45 +16,44 @@ namespace XREngine.Animation
             : base(frameCount, FPS, looped, useKeyframes) { }
 
         protected override Vector4 LerpValues(Vector4 t1, Vector4 t2, float time) => Vector4.Lerp(t1, t2, time);
-        protected override float[] GetComponents(Vector4 value) => new float[] { value.X, value.Y, value.Z, value.W };
-        protected override Vector4 GetMaxValue() => new Vector4(float.MaxValue);
-        protected override Vector4 GetMinValue() => new Vector4(float.MinValue);
+        protected override float[] GetComponents(Vector4 value) => [value.X, value.Y, value.Z, value.W];
+        protected override Vector4 GetMaxValue() => new(float.MaxValue);
+        protected override Vector4 GetMinValue() => new(float.MinValue);
         protected override float GetVelocityMagnitude()
         {
             Vector4 b = CurrentVelocity;
             float a = 1.0f;
-            Vec5 start = Vec5.Zero;
-            Vec5 end = new Vec5(a, b.X, b.Y, b.Z, b.W);
+            Vector5 start = Vector5.Zero;
+            Vector5 end = new(a, b.X, b.Y, b.Z, b.W);
             return start.DistanceTo(end);
         }
-        private struct Vec5
+
+        private struct Vector5(float x, float y, float z, float u, float v)
         {
-            public float X, Y, Z, U, V;
+            public float X = x, Y = y, Z = z, U = u, V = v;
 
-            public static readonly Vec5 Zero = new Vec5();
-
-            public Vec5(float x, float y, float z, float u, float v)
-            {
-                X = x;
-                Y = y;
-                Z = z;
-                U = u;
-                V = v;
-            }
+            public static readonly Vector5 Zero = new();
 
             [Browsable(false)]
-            public float LengthSquared => X * X + Y * Y + Z * Z + U * U + V * V;
-            [Browsable(false)]
-            public float Length => (float)Math.Sqrt(LengthSquared);
-            [Browsable(false)]
-            public float LengthFast => 1.0f / XRMath.InverseSqrtFast(LengthSquared);
+            public readonly float LengthSquared
+                => X * X + Y * Y + Z * Z + U * U + V * V;
 
-            public float DistanceTo(Vec5 point) => (point - this).Length;
-            public float DistanceToFast(Vec5 point) => (point - this).LengthFast;
-            public float DistanceToSquared(Vec5 point) => (point - this).LengthSquared;
+            [Browsable(false)]
+            public readonly float Length
+                => (float)Math.Sqrt(LengthSquared);
+            [Browsable(false)]
+            public readonly float LengthFast
+                => 1.0f / XRMath.InverseSqrtFast(LengthSquared);
 
-            public static Vec5 operator -(Vec5 left, Vec5 right)
-                => new Vec5(
+            public readonly float DistanceTo(Vector5 point)
+                => (point - this).Length;
+            public readonly float DistanceToFast(Vector5 point)
+                => (point - this).LengthFast;
+            public readonly float DistanceToSquared(Vector5 point)
+                => (point - this).LengthSquared;
+
+            public static Vector5 operator -(Vector5 left, Vector5 right)
+                => new(
                     left.X - right.X,
                     left.Y - right.Y,
                     left.Z - right.Z,
@@ -77,21 +76,21 @@ namespace XREngine.Animation
         public Vector4Keyframe(float second, Vector4 inValue, Vector4 outValue, Vector4 inTangent, Vector4 outTangent, EVectorInterpType type)
             : base(second, inValue, outValue, inTangent, outTangent, type) { }
 
-        public override Vector4 Lerp(VectorKeyframe<Vector4> next, float diff, float span)
+        public override Vector4 LerpOut(VectorKeyframe<Vector4> next, float diff, float span)
             => Interp.Lerp(OutValue, next.InValue, span.IsZero() ? 0.0f : diff / span);
-        public override Vector4 LerpVelocity(VectorKeyframe<Vector4> next, float diff, float span)
+        public override Vector4 LerpVelocityOut(VectorKeyframe<Vector4> next, float diff, float span)
             => span.IsZero() ? Vector4.Zero : (next.InValue - OutValue) / (diff / span);
 
-        public override Vector4 CubicBezier(VectorKeyframe<Vector4> next, float diff, float span)
+        public override Vector4 CubicBezierOut(VectorKeyframe<Vector4> next, float diff, float span)
             => Interp.CubicBezier(OutValue, OutValue + OutTangent * span, next.InValue + next.InTangent * span, next.InValue, span.IsZero() ? 0.0f : diff / span);
-        public override Vector4 CubicBezierVelocity(VectorKeyframe<Vector4> next, float diff, float span)
+        public override Vector4 CubicBezierVelocityOut(VectorKeyframe<Vector4> next, float diff, float span)
             => Interp.CubicBezierVelocity(OutValue, OutValue + OutTangent * span, next.InValue + next.InTangent * span, next.InValue, span.IsZero() ? 0.0f : diff / span);
-        public override Vector4 CubicBezierAcceleration(VectorKeyframe<Vector4> next, float diff, float span)
+        public override Vector4 CubicBezierAccelerationOut(VectorKeyframe<Vector4> next, float diff, float span)
             => Interp.CubicBezierAcceleration(OutValue, OutValue + OutTangent * span, next.InValue + next.InTangent * span, next.InValue, span.IsZero() ? 0.0f : diff / span);
 
         public override string WriteToString()
         {
-            return string.Format("{0} {1} {2} {3} {4} {5} {6} {7} {8} {9} {10} {11} {12} {13} {14} {15} {16} {17}", Second, InValue.X, InValue.Y, InValue.Z, InValue.W, OutValue.X, OutValue.Y, OutValue.Z, OutValue.W, InTangent.X, InTangent.Y, InTangent.Z, InTangent.W, OutTangent.X, OutTangent.Y, OutTangent.Z, OutTangent.W, InterpolationType);
+            return string.Format("{0} {1} {2} {3} {4} {5} {6} {7} {8} {9} {10} {11} {12} {13} {14} {15} {16} {17}", Second, InValue.X, InValue.Y, InValue.Z, InValue.W, OutValue.X, OutValue.Y, OutValue.Z, OutValue.W, InTangent.X, InTangent.Y, InTangent.Z, InTangent.W, OutTangent.X, OutTangent.Y, OutTangent.Z, OutTangent.W, InterpolationTypeOut);
             //return string.Format("{0} {1} {2} {3} {4} {5}", Second, InValue.WriteToString(), OutValue.WriteToString(), InTangent.WriteToString(), OutTangent.WriteToString(), InterpolationType);
         }
         public override void ReadFromString(string str)
@@ -102,7 +101,7 @@ namespace XREngine.Animation
             OutValue = new Vector4(float.Parse(parts[5]), float.Parse(parts[6]), float.Parse(parts[7]), float.Parse(parts[8]));
             InTangent = new Vector4(float.Parse(parts[9]), float.Parse(parts[10]), float.Parse(parts[11]), float.Parse(parts[12]));
             OutTangent = new Vector4(float.Parse(parts[13]), float.Parse(parts[14]), float.Parse(parts[15]), float.Parse(parts[16]));
-            InterpolationType = parts[17].AsEnum<EVectorInterpType>();
+            InterpolationTypeOut = parts[17].AsEnum<EVectorInterpType>();
         }
 
         public override void MakeOutLinear()
@@ -238,6 +237,36 @@ namespace XREngine.Animation
                     InValue = OutValue;
                     break;
             }
+        }
+
+        public override Vector4 LerpIn(VectorKeyframe<Vector4>? prev, float diff, float span)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Vector4 LerpVelocityIn(VectorKeyframe<Vector4>? prev, float diff, float span)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Vector4 CubicBezierIn(VectorKeyframe<Vector4>? prev, float diff, float span)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Vector4 CubicBezierVelocityIn(VectorKeyframe<Vector4>? prev, float diff, float span)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Vector4 CubicBezierAccelerationIn(VectorKeyframe<Vector4>? prev, float diff, float span)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Vector4 LerpValues(Vector4 a, Vector4 b, float t)
+        {
+            throw new NotImplementedException();
         }
     }
 }

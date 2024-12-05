@@ -28,14 +28,18 @@ namespace XREngine.Animation
             OutValue = outValue;
             InTangent = inTangent;
             OutTangent = outTangent;
-            InterpolationType = type;
+            InterpolationTypeOut = type;
         }
 
-        protected delegate T DelInterpolate(VectorKeyframe<T>? next, float timeOffset, float timeSpan);
-        protected EVectorInterpType _interpolationType;
-        protected DelInterpolate _interpolate;
-        protected DelInterpolate _interpolateVelocity;
-        protected DelInterpolate _interpolateAcceleration;
+        protected delegate T DelInterpolate(VectorKeyframe<T>? other, float timeOffset, float timeSpan);
+        protected EVectorInterpType _interpolationTypeOut;
+        protected DelInterpolate _interpolateOut;
+        protected DelInterpolate _interpolateVelocityOut;
+        protected DelInterpolate _interpolateAccelerationOut;
+        protected EVectorInterpType _interpolationTypeIn;
+        protected DelInterpolate _interpolateIn;
+        protected DelInterpolate _interpolateVelocityIn;
+        protected DelInterpolate _interpolateAccelerationIn;
 
         [Browsable(false)]
         public override Type ValueType => typeof(T);
@@ -173,34 +177,67 @@ namespace XREngine.Animation
             //set => _prev = value;
         }
 
-        public EVectorInterpType InterpolationType
+        public EVectorInterpType InterpolationTypeIn
         {
-            get => _interpolationType;
+            get => _interpolationTypeIn;
             set
             {
-                _interpolationType = value;
-                switch (_interpolationType)
+                _interpolationTypeIn = value;
+                switch (_interpolationTypeIn)
                 {
                     case EVectorInterpType.Step:
-                        _interpolate = Step;
-                        _interpolateVelocity = StepVelocity;
-                        _interpolateAcceleration = StepAcceleration;
+                        _interpolateIn = StepOut;
+                        _interpolateVelocityIn = StepVelocityOut;
+                        _interpolateAccelerationIn = StepAccelerationOut;
                         break;
                     case EVectorInterpType.Linear:
-                        _interpolate = Lerp;
-                        _interpolateVelocity = LerpVelocity;
-                        _interpolateAcceleration = LerpAcceleration;
+                        _interpolateIn = LerpOut;
+                        _interpolateVelocityIn = LerpVelocityOut;
+                        _interpolateAccelerationIn = LerpAccelerationOut;
                         break;
                     case EVectorInterpType.Smooth:
-                        _interpolate = CubicBezier;
-                        _interpolateVelocity = CubicBezierVelocity;
-                        _interpolateAcceleration = CubicBezierAcceleration;
+                        _interpolateIn = CubicBezierOut;
+                        _interpolateVelocityIn = CubicBezierVelocityOut;
+                        _interpolateAccelerationIn = CubicBezierAccelerationOut;
+                        break;
+                }
+                OwningTrack?.OnChanged();
+            }
+        }
+        public EVectorInterpType InterpolationTypeOut
+        {
+            get => _interpolationTypeOut;
+            set
+            {
+                _interpolationTypeOut = value;
+                switch (_interpolationTypeOut)
+                {
+                    case EVectorInterpType.Step:
+                        _interpolateOut = StepOut;
+                        _interpolateVelocityOut = StepVelocityOut;
+                        _interpolateAccelerationOut = StepAccelerationOut;
+                        break;
+                    case EVectorInterpType.Linear:
+                        _interpolateOut = LerpOut;
+                        _interpolateVelocityOut = LerpVelocityOut;
+                        _interpolateAccelerationOut = LerpAccelerationOut;
+                        break;
+                    case EVectorInterpType.Smooth:
+                        _interpolateOut = CubicBezierOut;
+                        _interpolateVelocityOut = CubicBezierVelocityOut;
+                        _interpolateAccelerationOut = CubicBezierAccelerationOut;
                         break;
                 }
                 OwningTrack?.OnChanged();
             }
         }
 
+        /// <summary>
+        /// Returns the next keyframe in the track, and the timespan in seconds between this keyframe and the next.
+        /// If the next keyframe is the first keyframe in the track, the timespan will be the time from this keyframe to the end of the track.
+        /// </summary>
+        /// <param name="span"></param>
+        /// <returns></returns>
         public VectorKeyframe<T>? GetNextKeyframe(out float span)
         {
             float nextSecond = Next?.Second ?? 0.0f;
@@ -249,9 +286,19 @@ namespace XREngine.Animation
         public T InterpolatePositionNextNormalized(float time)
         {
             var next = GetNextKeyframe(out float span);
+
+            //If no next, this is the last keyframe in the track
             if (next is null)
                 return OutValue;
-            return _interpolate(next, span * time, span);
+
+            //If the next keyframe has the same interpolation type as this keyframe, we can just use normal interpolation
+            if (next.InterpolationTypeIn == InterpolationTypeOut)
+                return _interpolateOut(next, span * time, span);
+
+            //If the next keyframe has a different interpolation type, we need to interpolate with both types and then lerp between the results at the given time
+            var outInterp = _interpolateOut(next, span * time, span);
+            var inInterp = next._interpolateIn(this, span * time, span);
+            return LerpValues(outInterp, inInterp, time);
         }
 
         /// <summary>
@@ -262,7 +309,7 @@ namespace XREngine.Animation
             var next = GetNextKeyframe(out float span);
             if (next is null)
                 return OutTangent;
-            return _interpolateVelocity(next, span * time, span);
+            return _interpolateVelocityOut(next, span * time, span);
         }
 
         /// <summary>
@@ -273,7 +320,7 @@ namespace XREngine.Animation
             var next = GetNextKeyframe(out float span);
             if (next is null)
                 return default;
-            return _interpolateAcceleration(next, span * time, span);
+            return _interpolateAccelerationOut(next, span * time, span);
         }
 
         /// <summary>
@@ -291,7 +338,7 @@ namespace XREngine.Animation
             if (span.IsZero())
                 return OutValue;
 
-            return _interpolate(next, span * time, span);
+            return _interpolateOut(next, span * time, span);
         }
 
         /// <summary>
@@ -309,7 +356,7 @@ namespace XREngine.Animation
             if (span.IsZero())
                 return OutTangent;
 
-            return _interpolateVelocity(next, span * time, span);
+            return _interpolateVelocityOut(next, span * time, span);
         }
 
         /// <summary>
@@ -327,7 +374,7 @@ namespace XREngine.Animation
             if (span.IsZero())
                 return default;
 
-            return _interpolateAcceleration(next, span * time, span);
+            return _interpolateAccelerationOut(next, span * time, span);
         }
 
         public T? Interpolate(float desiredSecond, EVectorValueType type)
@@ -380,9 +427,9 @@ namespace XREngine.Animation
 
             return type switch
             {
-                EVectorValueType.Velocity => key1._interpolateVelocity(key2, diff, span),
-                EVectorValueType.Acceleration => key1._interpolateAcceleration(key2, diff, span),
-                _ => key1._interpolate(key2, diff, span),
+                EVectorValueType.Velocity => key1._interpolateVelocityOut(key2, diff, span),
+                EVectorValueType.Acceleration => key1._interpolateAccelerationOut(key2, diff, span),
+                _ => key1._interpolateOut(key2, diff, span),
             };
         }
         public T Interpolate(
@@ -453,9 +500,9 @@ namespace XREngine.Animation
             normalizedTime = diff / span;
             return type switch
             {
-                EVectorValueType.Velocity => key1._interpolateVelocity(key2, diff, span),
-                EVectorValueType.Acceleration => key1._interpolateAcceleration(key2, diff, span),
-                _ => key1._interpolate(key2, diff, span),
+                EVectorValueType.Velocity => key1._interpolateVelocityOut(key2, diff, span),
+                EVectorValueType.Acceleration => key1._interpolateAccelerationOut(key2, diff, span),
+                _ => key1._interpolateOut(key2, diff, span),
             };
         }
         public void Interpolate(
@@ -552,22 +599,44 @@ namespace XREngine.Animation
             }
 
             normalizedTime = diff / span;
-            position = key1._interpolate(key2, diff, span);
-            velocity = key1._interpolateVelocity(key2, diff, span);
-            acceleration = key1._interpolateAcceleration(key2, diff, span);
+            position = key1._interpolateOut(key2, diff, span);
+            velocity = key1._interpolateVelocityOut(key2, diff, span);
+            acceleration = key1._interpolateAccelerationOut(key2, diff, span);
         }
 
-        public T Step(VectorKeyframe<T>? next, float diff, float span) => (diff / span) < 1.0f ? OutValue : (next?.OutValue ?? new ());
-        public T StepVelocity(VectorKeyframe<T>? next, float diff, float span) => new();
-        public T StepAcceleration(VectorKeyframe<T>? next, float diff, float span) => new();
+        public T StepOut(VectorKeyframe<T>? next, float diff, float span)
+            => (diff / span) < 1.0f ? OutValue : (next?.OutValue ?? new ());
+        public T StepVelocityOut(VectorKeyframe<T>? next, float diff, float span)
+            => new();
+        public T StepAccelerationOut(VectorKeyframe<T>? next, float diff, float span)
+            => new();
 
-        public abstract T Lerp(VectorKeyframe<T>? next, float diff, float span);
-        public abstract T LerpVelocity(VectorKeyframe<T>? next, float diff, float span);
-        public T LerpAcceleration(VectorKeyframe<T>? next, float diff, float span) => new();
+        public abstract T LerpOut(VectorKeyframe<T>? next, float diff, float span);
+        public abstract T LerpVelocityOut(VectorKeyframe<T>? next, float diff, float span);
+        public T LerpAccelerationOut(VectorKeyframe<T>? next, float diff, float span)
+            => new();
 
-        public abstract T CubicBezier(VectorKeyframe<T>? next, float diff, float span);
-        public abstract T CubicBezierVelocity(VectorKeyframe<T>? next, float diff, float span);
-        public abstract T CubicBezierAcceleration(VectorKeyframe<T>? next, float diff, float span);
+        public abstract T CubicBezierOut(VectorKeyframe<T>? next, float diff, float span);
+        public abstract T CubicBezierVelocityOut(VectorKeyframe<T>? next, float diff, float span);
+        public abstract T CubicBezierAccelerationOut(VectorKeyframe<T>? next, float diff, float span);
+
+        public T StepIn(VectorKeyframe<T>? prev, float diff, float span)
+            => (diff / span) < 1.0f ? InValue : (prev?.InValue ?? new());
+        public T StepVelocityIn(VectorKeyframe<T>? prev, float diff, float span)
+            => new();
+        public T StepAccelerationIn(VectorKeyframe<T>? prev, float diff, float span)
+            => new();
+
+        public abstract T LerpIn(VectorKeyframe<T>? prev, float diff, float span);
+        public abstract T LerpVelocityIn(VectorKeyframe<T>? prev, float diff, float span);
+        public T LerpAccelerationIn(VectorKeyframe<T>? prev, float diff, float span)
+            => new();
+
+        public abstract T CubicBezierIn(VectorKeyframe<T>? prev, float diff, float span);
+        public abstract T CubicBezierVelocityIn(VectorKeyframe<T>? prev, float diff, float span);
+        public abstract T CubicBezierAccelerationIn(VectorKeyframe<T>? prev, float diff, float span);
+
+        public abstract T LerpValues(T a, T b, float t);
 
         public void AverageKeyframe(
             EUnifyBias valueBias,

@@ -1,8 +1,6 @@
-﻿using System.Numerics;
-using XREngine.Components.Lights;
+﻿using XREngine.Components.Lights;
 using XREngine.Data.Rendering;
 using XREngine.Rendering.Models.Materials;
-using XREngine.Scene;
 
 namespace XREngine.Rendering.Pipelines.Commands
 {
@@ -32,7 +30,7 @@ namespace XREngine.Rendering.Pipelines.Commands
 
         protected override void Execute()
         {
-            if (Pipeline.State.Scene is null)
+            if (Pipeline.RenderState.Scene is null)
                 return;
 
             var albOpacTex = Pipeline.GetTexture<XRTexture2D>(AlbedoOpacityTexture);
@@ -54,11 +52,11 @@ namespace XREngine.Rendering.Pipelines.Commands
                 CreateLightRenderers(albOpacTex, normTex, rmsiTex, depthViewTex);
             }
 
-            var lights = Pipeline.State.WindowViewport?.World?.Lights;
+            var lights = Pipeline.RenderState.WindowViewport?.World?.Lights;
             if (lights is null)
                 return;
 
-            using (Pipeline.State.PushRenderingCamera(Pipeline.State.SceneCamera))
+            using (Pipeline.RenderState.PushRenderingCamera(Pipeline.RenderState.SceneCamera))
             {
                 foreach (PointLightComponent c in lights.PointLights)
                     RenderPointLight(c);

@@ -6,7 +6,7 @@
     /// </summary>
     /// <param name="source"></param>
     /// <param name="destination"></param>
-    public class VPRC_BlitFBO : ViewportRenderCommand
+    public class VPRC_RenderQuadToFBO : ViewportRenderCommand
     {
         public string? SourceQuadFBOName { get; set; }
         public string? DestinationFBOName { get; set; } = null;

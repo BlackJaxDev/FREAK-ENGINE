@@ -11,7 +11,7 @@
 
         protected override void Execute()
         {
-            var fbo = Pipeline.State.OutputFBO;
+            var fbo = Pipeline.RenderState.OutputFBO;
             if (fbo != null)
             {
                 if (Write)

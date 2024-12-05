@@ -65,12 +65,12 @@ namespace XREngine.Components.Scene.Transforms
                 _interpPoint = Interp.Lerp(_currentPoint, _destPoint, Engine.SmoothedDelta, InterpSpeed);
             MarkWorldModified();
         }
-        protected internal override void Start()
+        protected internal override void OnSceneNodeActivated()
         {
             _currentPoint = WorldMatrix.Translation;
             RegisterTick(ETickGroup.Normal, (int)ETickOrder.Scene, Tick);
         }
-        protected internal override void Stop()
+        protected internal override void OnSceneNodeDeactivated()
         {
             UnregisterTick(ETickGroup.Normal, (int)ETickOrder.Scene, Tick);
         }

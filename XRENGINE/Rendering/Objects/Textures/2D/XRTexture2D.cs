@@ -11,7 +11,7 @@ namespace XREngine.Rendering
     [XR3rdPartyExtensions("png", "jpg", "jpeg", "tif", "tiff", "tga", "exr", "hdr")]
     public class XRTexture2D : XRTexture, IFrameBufferAttachement
     {
-        public override void Load3rdParty(string filePath)
+        public override bool Load3rdParty(string filePath)
         {
             Mipmap2D[] mips = [new Mipmap2D(1, 1, EPixelInternalFormat.Red, EPixelFormat.Red, EPixelType.UnsignedByte, true)];
             //mips = GetMipmapsFromImage(image);
@@ -21,6 +21,7 @@ namespace XREngine.Rendering
 
             //TODO: load async and ensure the texture is pushed after the black default texture
             Task.Run(() => mips[0].SetFromImage(new MagickImage(filePath)));
+            return true;
         }
 
         public static Mipmap2D[] GetMipmapsFromImage(MagickImage image)

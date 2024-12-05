@@ -1,9 +1,27 @@
-﻿using YamlDotNet.Serialization;
+﻿using System.Diagnostics;
+using XREngine.Core.Files;
+using XREngine.Data;
+using YamlDotNet.Core;
+using YamlDotNet.Serialization;
 
 namespace Unity
 {
-    public class UnityAnimationClip
+    [XR3rdPartyExtensions("anim:static")]
+    public class UnityAnimationClip : XRAsset
     {
+        public class Wrapper
+        {
+            [YamlMember(Alias = "AnimationClip")]
+            public UnityAnimationClip? Clip { get; set; }
+        }
+        public static UnityAnimationClip? Load3rdPartyStatic(string filePath)
+        {
+            // Load the Unity animation clip from the specified file path
+            //IDeserializer deserializer = new StaticDeserializerBuilder(new UnityStaticContext()).WithTagMapping(new TagName("tag:unity3d.com,2011:74"), typeof(Wrapper)).Build();
+            IDeserializer deserializer = new DeserializerBuilder().WithTagMapping(new TagName("tag:unity3d.com,2011:74"), typeof(Wrapper)).Build();
+            return deserializer.Deserialize<Wrapper>(File.ReadAllText(filePath)).Clip;
+        }
+
         [YamlMember(Alias = "m_ObjectHideFlags")]
         public int ObjectHideFlags { get; set; }
 
@@ -14,7 +32,11 @@ namespace Unity
         public PrefabObject? PrefabInternal { get; set; }
 
         [YamlMember(Alias = "m_Name")]
-        public string? Name { get; set; }
+        public string? ClipName
+        {
+            get => Name;
+            set => Name = value;
+        }
 
         [YamlMember(Alias = "serializedVersion")]
         public int SerializedVersion { get; set; }
@@ -56,7 +78,7 @@ namespace Unity
         public int WrapMode { get; set; }
 
         [YamlMember(Alias = "m_Bounds")]
-        public Bounds? Bounds { get; set; }
+        public UnityBounds? Bounds { get; set; }
 
         [YamlMember(Alias = "m_ClipBindingConstant")]
         public ClipBindingConstant? ClipBindingConstant { get; set; }
@@ -148,19 +170,45 @@ namespace Unity
         public float OutSlope { get; set; }
 
         [YamlMember(Alias = "tangentMode")]
-        public int TangentMode { get; set; }
+        public int CombinedTangentMode { get; set; }
     }
 
-    public class Bounds
+    public enum TangentMode
+    {
+        //
+        // Summary:
+        //     The tangent can be freely set by dragging the tangent handle.
+        Free,
+        //
+        // Summary:
+        //     The tangents are automatically set to make the curve go smoothly through the
+        //     key.
+        Auto,
+        //
+        // Summary:
+        //     The tangent points towards the neighboring key.
+        Linear,
+        //
+        // Summary:
+        //     The curve retains a constant value between two keys.
+        Constant,
+        //
+        // Summary:
+        //     The tangents are automatically set to make the curve go smoothly through the
+        //     key.
+        ClampedAuto
+    }
+
+    public class UnityBounds
     {
         [YamlMember(Alias = "m_Center")]
-        public Vector3? Center { get; set; }
+        public UnityVector3? Center { get; set; }
 
         [YamlMember(Alias = "m_Extent")]
-        public Vector3? Extent { get; set; }
+        public UnityVector3? Extent { get; set; }
     }
 
-    public class Vector3
+    public class UnityVector3
     {
         [YamlMember(Alias = "x")]
         public float X { get; set; }
@@ -187,10 +235,10 @@ namespace Unity
         public int SerializedVersion { get; set; }
 
         [YamlMember(Alias = "path")]
-        public int Path { get; set; }
+        public string? Path { get; set; }
 
         [YamlMember(Alias = "attribute")]
-        public int Attribute { get; set; }
+        public string? Attribute { get; set; }
 
         [YamlMember(Alias = "script")]
         public PrefabObject? Script { get; set; }

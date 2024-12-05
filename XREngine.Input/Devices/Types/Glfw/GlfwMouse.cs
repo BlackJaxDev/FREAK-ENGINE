@@ -14,6 +14,12 @@ namespace XREngine.Input.Devices.Glfw
             get => _mouse.Position;
             set => _mouse.Position = value;
         }
+        public override bool HideCursor
+        {
+            get => _mouse.Cursor.CursorMode == CursorMode.Raw;
+            set => _mouse.Cursor.CursorMode = value ? CursorMode.Raw : CursorMode.Normal;
+        }
+
         private float _lastScroll = 0.0f;
 
         public GlfwMouse(IMouse mouse) : base(mouse.Index)

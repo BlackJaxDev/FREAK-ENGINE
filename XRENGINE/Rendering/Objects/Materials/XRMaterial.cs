@@ -142,35 +142,33 @@ namespace XREngine.Rendering
         public static XRMaterial CreateLitColorMaterial(bool deferred = true)
             => CreateLitColorMaterial(Color.DarkTurquoise, deferred);
 
+        /// <summary>
+        /// Creates a material for lit color rendering.
+        /// Parameters are:
+        /// ShaderVector3("BaseColor", color),
+        /// ShaderFloat("Opacity", color.A),
+        /// ShaderFloat("Specular", 1.0f),
+        /// ShaderFloat("Roughness", 1.0f),
+        /// ShaderFloat("Metallic", 0.0f),
+        /// ShaderFloat("IndexOfRefraction", 1.0f)
+        /// </summary>
+        /// <param name="color"></param>
+        /// <param name="deferred"></param>
+        /// <returns></returns>
         public static XRMaterial CreateLitColorMaterial(ColorF4 color, bool deferred = true)
         {
             ShaderVar[] parameters;
-            XRShader frag;
-            if (deferred)
-            {
-                frag = ShaderHelper.LitColorFragDeferred();
-                parameters =
-                [
-                    new ShaderVector3((ColorF3)color, "BaseColor"),
-                    new ShaderFloat(color.A, "Opacity"),
-                    new ShaderFloat(1.0f, "Specular"),
-                    new ShaderFloat(1.0f, "Roughness"),
-                    new ShaderFloat(0.0f, "Metallic"),
-                    new ShaderFloat(1.0f, "IndexOfRefraction"),
-                ];
-            }
-            else
-            {
-                frag = ShaderHelper.LitColorFragForward();
-                parameters =
-                [
-                    new ShaderVector4(color, "MatColor"),
-                    new ShaderFloat(20.0f, "MatSpecularIntensity"),
-                    // ShaderFloat(128.0f, "MatShininess"),
-                ];
-            }
-
-            return new(parameters, frag);
+            XRShader? frag = deferred ? ShaderHelper.LitColorFragDeferred() : ShaderHelper.LitColorFragForward();
+            parameters =
+            [
+                new ShaderVector3((ColorF3)color, "BaseColor"),
+                new ShaderFloat(color.A, "Opacity"),
+                new ShaderFloat(1.0f, "Specular"),
+                new ShaderFloat(1.0f, "Roughness"),
+                new ShaderFloat(0.0f, "Metallic"),
+                new ShaderFloat(1.0f, "IndexOfRefraction"),
+            ];
+            return new(parameters, frag!);
         }
         public enum EOpaque
         {

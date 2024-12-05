@@ -1,5 +1,6 @@
 ﻿using Extensions;
 using System.ComponentModel;
+using XREngine.Data.Core;
 
 namespace XREngine.Animation
 {
@@ -7,7 +8,7 @@ namespace XREngine.Animation
     /// Represents a keyframe in an animation.
     /// Stored as a linked list, because animations will be playing forward and backward, but usually not seeking.
     /// </summary>
-    public abstract class Keyframe : IKeyframe
+    public abstract class Keyframe : XRBase, IKeyframe
     {
         protected float _second;
         protected Keyframe? _next;

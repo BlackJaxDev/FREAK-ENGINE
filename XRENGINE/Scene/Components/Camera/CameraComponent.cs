@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Numerics;
 using XREngine.Data.Geometry;
 using XREngine.Rendering;
+using XREngine.Rendering.UI;
 
 namespace XREngine.Components
 {
@@ -32,7 +33,7 @@ namespace XREngine.Components
         /// <summary>
         /// Provides the option for the user to manually set a canvas to render on top of the camera.
         /// </summary>
-        public UICanvasComponent? UserInterfaceOverlay
+        public UICanvasComponent? UserInterface
         {
             get => _userInterfaceOverlay;
             set
@@ -83,21 +84,22 @@ namespace XREngine.Components
             set => SetField(ref _cullingCameraOverride, value);
         }
 
+        private XRCamera CameraFactory()
+        {
+            var cam = new XRCamera(Transform);
+            //cam.PropertyChanged += CameraPropertyChanged;
+            return cam;
+        }
         public CameraComponent() : base()
         {
-            _camera = new(() => new XRCamera(Transform), true);
-            //Engine.State.LocalPlayerAdded += LocalPlayerAdded;
-        }
-        ~CameraComponent()
-        {
-            //Engine.State.LocalPlayerAdded -= LocalPlayerAdded;
+            _camera = new(CameraFactory, true);
         }
 
-        //private void LocalPlayerAdded(LocalPlayerController controller)
-        //{
-        //    if (controller.LocalPlayerIndex == LocalPlayerIndex)
-        //        controller.Cameras.Add(this);
-        //}
+        protected override void OnTransformChanged()
+        {
+            base.OnTransformChanged();
+            Camera.Transform = Transform;
+        }
 
         protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
         {
@@ -148,18 +150,75 @@ namespace XREngine.Components
             }
         }
 
+        private void CameraParameterPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            switch (e.PropertyName)
+            {
+                case nameof(XRPerspectiveCameraParameters.VerticalFieldOfView):
+                case nameof(XRPerspectiveCameraParameters.AspectRatio):
+                case nameof(XROrthographicCameraParameters.Width):
+                case nameof(XROrthographicCameraParameters.Height):
+                    CameraResized(Camera.Parameters);
+                    break;
+            }
+        }
+
         protected override void Constructing()
         {
             Camera.Transform = Transform;
 
             Camera.PropertyChanged += CameraPropertyChanged;
+            Camera.ViewportAdded += ViewportAdded;
+            Camera.ViewportRemoved += ViewportRemoved;
+            Camera.Parameters.PropertyChanged += CameraParameterPropertyChanged;
+
             SceneNode.PropertyChanged += SceneNodePropertyChanged;
+
+            if (Camera.Viewports.Count > 0)
+            {
+                foreach (var vp in Camera.Viewports)
+                    ViewportAdded(Camera, vp);
+                ViewportResized(Camera.Viewports[0]); //TODO: support rendering in screenspace to more than one viewport?
+            }
+
+            CameraResized(Camera.Parameters);
         }
 
         protected override void OnDestroying()
         {
             Camera.PropertyChanged -= CameraPropertyChanged;
+            Camera.ViewportAdded -= ViewportAdded;
+            Camera.ViewportRemoved -= ViewportRemoved;
+            Camera.Parameters.PropertyChanged -= CameraParameterPropertyChanged;
+
             SceneNode.PropertyChanged -= SceneNodePropertyChanged;
+
+            if (Camera.Viewports.Count > 0)
+                foreach (var vp in Camera.Viewports)
+                    ViewportRemoved(Camera, vp);
+        }
+
+        private void ViewportRemoved(XRCamera camera, XRViewport viewport)
+        {
+            viewport.Resized -= ViewportResized;
+        }
+        private void ViewportAdded(XRCamera camera, XRViewport viewport)
+        {
+            viewport.Resized += ViewportResized;
+        }
+
+        private void ViewportResized(XRViewport viewport)
+        {
+            if (UserInterface is not null && UserInterface.CanvasTransform.DrawSpace == ECanvasDrawSpace.Screen)
+                UserInterface.CanvasTransform.Size = viewport.Region.Size;
+        }
+        private void CameraResized(XRCameraParameters parameters)
+        {
+            if (UserInterface is null || UserInterface.CanvasTransform.DrawSpace != ECanvasDrawSpace.Camera)
+                return;
+
+            //Calculate world-space size of the camera frustum at draw distance
+            UserInterface.CanvasTransform.Size = parameters.GetSizeAtDistance(UserInterface.CanvasTransform.CameraDrawSpaceDistance);
         }
 
         private void CameraPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -182,8 +241,6 @@ namespace XREngine.Components
                     break;
             }
         }
-
-        private readonly XRRenderPipelineInstance _fboRenderPipeline = new();
 
         //public List<View> CalculateMirrorBounces(int max = 4)
         //{

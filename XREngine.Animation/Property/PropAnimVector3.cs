@@ -41,21 +41,21 @@ namespace XREngine.Animation
         public Vector3Keyframe(float second, Vector3 inValue, Vector3 outValue, Vector3 inTangent, Vector3 outTangent, EVectorInterpType type)
             : base(second, inValue, outValue, inTangent, outTangent, type) { }
         
-        public override Vector3 Lerp(VectorKeyframe<Vector3> next, float diff, float span)
+        public override Vector3 LerpOut(VectorKeyframe<Vector3> next, float diff, float span)
           => Interp.Lerp(OutValue, next.InValue, span.IsZero() ? 0.0f : diff / span);
-        public override Vector3 LerpVelocity(VectorKeyframe<Vector3> next, float diff, float span)
+        public override Vector3 LerpVelocityOut(VectorKeyframe<Vector3> next, float diff, float span)
             => span.IsZero() ? Vector3.Zero : (next.InValue - OutValue) / (diff / span);
 
-        public override Vector3 CubicBezier(VectorKeyframe<Vector3> next, float diff, float span)
+        public override Vector3 CubicBezierOut(VectorKeyframe<Vector3> next, float diff, float span)
             => Interp.CubicBezier(OutValue, OutValue + OutTangent * span, next.InValue + next.InTangent * span, next.InValue, span.IsZero() ? 0.0f : diff / span);
-        public override Vector3 CubicBezierVelocity(VectorKeyframe<Vector3> next, float diff, float span)
+        public override Vector3 CubicBezierVelocityOut(VectorKeyframe<Vector3> next, float diff, float span)
             => Interp.CubicBezierVelocity(OutValue, OutValue + OutTangent * span, next.InValue + next.InTangent * span, next.InValue, span.IsZero() ? 0.0f : diff / span);
-        public override Vector3 CubicBezierAcceleration(VectorKeyframe<Vector3> next, float diff, float span)
+        public override Vector3 CubicBezierAccelerationOut(VectorKeyframe<Vector3> next, float diff, float span)
             => Interp.CubicBezierAcceleration(OutValue, OutValue + OutTangent * span, next.InValue + next.InTangent * span, next.InValue, span.IsZero() ? 0.0f : diff / span);
 
         public override string WriteToString()
         {
-            return string.Format("{0} {1} {2} {3} {4} {5} {6} {7} {8} {9} {10} {11} {12} {13}", Second, InValue.X, InValue.Y, InValue.Z, OutValue.X, OutValue.Y, OutValue.Z, InTangent.X, InTangent.Y, InTangent.Z, OutTangent.X, OutTangent.Y, OutTangent.Z, InterpolationType);
+            return string.Format("{0} {1} {2} {3} {4} {5} {6} {7} {8} {9} {10} {11} {12} {13}", Second, InValue.X, InValue.Y, InValue.Z, OutValue.X, OutValue.Y, OutValue.Z, InTangent.X, InTangent.Y, InTangent.Z, OutTangent.X, OutTangent.Y, OutTangent.Z, InterpolationTypeOut);
             //return string.Format("{0} {1} {2} {3} {4} {5}", Second, InValue.WriteToString(), OutValue.WriteToString(), InTangent.WriteToString(), OutTangent.WriteToString(), InterpolationType);
         }
         public override void ReadFromString(string str)
@@ -66,7 +66,7 @@ namespace XREngine.Animation
             OutValue = new Vector3(float.Parse(parts[4]), float.Parse(parts[5]), float.Parse(parts[6]));
             InTangent = new Vector3(float.Parse(parts[7]), float.Parse(parts[8]), float.Parse(parts[9]));
             OutTangent = new Vector3(float.Parse(parts[10]), float.Parse(parts[11]), float.Parse(parts[12]));
-            InterpolationType = parts[13].AsEnum<EVectorInterpType>();
+            InterpolationTypeOut = parts[13].AsEnum<EVectorInterpType>();
         }
 
         public override void MakeOutLinear()
@@ -202,6 +202,36 @@ namespace XREngine.Animation
                     InValue = OutValue;
                     break;
             }
+        }
+
+        public override Vector3 LerpIn(VectorKeyframe<Vector3>? prev, float diff, float span)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Vector3 LerpVelocityIn(VectorKeyframe<Vector3>? prev, float diff, float span)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Vector3 CubicBezierIn(VectorKeyframe<Vector3>? prev, float diff, float span)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Vector3 CubicBezierVelocityIn(VectorKeyframe<Vector3>? prev, float diff, float span)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Vector3 CubicBezierAccelerationIn(VectorKeyframe<Vector3>? prev, float diff, float span)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Vector3 LerpValues(Vector3 a, Vector3 b, float t)
+        {
+            throw new NotImplementedException();
         }
     }
 }

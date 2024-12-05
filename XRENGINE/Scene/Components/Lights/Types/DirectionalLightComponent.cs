@@ -3,7 +3,6 @@ using XREngine.Core.Attributes;
 using XREngine.Data.Rendering;
 using XREngine.Rendering;
 using XREngine.Rendering.Models.Materials;
-using XREngine.Scene;
 using XREngine.Scene.Transforms;
 
 namespace XREngine.Components.Lights

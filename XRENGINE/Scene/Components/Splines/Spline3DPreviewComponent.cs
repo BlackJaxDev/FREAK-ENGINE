@@ -12,7 +12,7 @@ using XREngine.Scene.Transforms;
 
 namespace XREngine.Components.Scene
 {
-    public class Spline3DComponent : XRComponent, IRenderable
+    public class Spline3DPreviewComponent : XRComponent, IRenderable
     {
         public RenderInfo3D RenderInfo { get; }
 
@@ -141,8 +141,8 @@ namespace XREngine.Components.Scene
             RegenerateSplinePrimitive();
         }
 
-        public Spline3DComponent() : this(null) { }
-        public Spline3DComponent(PropAnimVector3? spline) : base()
+        public Spline3DPreviewComponent() : this(null) { }
+        public Spline3DPreviewComponent(PropAnimVector3? spline) : base()
         {
             Spline = spline;
             RenderInfo = RenderInfo3D.New(this, _rcCurrentPoint, _rcSpline, _rcVelocityTangents, _rcPoints, _rcKeyframeTangents, _rcKfLines, _rcExtrema);

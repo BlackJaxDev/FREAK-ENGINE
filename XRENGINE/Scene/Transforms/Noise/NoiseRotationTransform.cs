@@ -59,17 +59,17 @@ namespace XREngine.Components.Scene.Transforms
         private readonly Rotator _rotation = new();
         private readonly FastNoise _noise = new();
 
-        protected internal override void Start()
+        protected internal override void OnSceneNodeActivated()
         {
-            base.Start();
+            base.OnSceneNodeActivated();
             _time = 0.0f;
             _noise.Frequency = _noiseFrequency;
             RegisterTick(ETickGroup.Normal, (int)ETickOrder.Logic, NoiseTick);
         }
 
-        protected internal override void Stop()
+        protected internal override void OnSceneNodeDeactivated()
         {
-            base.Stop();
+            base.OnSceneNodeDeactivated();
             UnregisterTick(ETickGroup.Normal, (int)ETickOrder.Logic, NoiseTick);
             _time = 0.0f;
         }

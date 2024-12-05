@@ -1,5 +1,4 @@
-﻿using System.Numerics;
-using XREngine.Data.Colors;
+﻿using XREngine.Data.Colors;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
 using XREngine.Rendering;
@@ -20,28 +19,45 @@ namespace XREngine
             /// </summary>
             public static partial class State
             {
-                public static BoundingRectangle RenderArea => PipelineState?.CurrentRenderRegion ?? BoundingRectangle.Empty;
+                public static BoundingRectangle RenderArea => RenderingPipelineState?.CurrentRenderRegion ?? BoundingRectangle.Empty;
                 public static XRWorldInstance? RenderingWorld => RenderingViewport?.World;
-                public static XRViewport? RenderingViewport => PipelineState?.WindowViewport;
-                public static VisualScene? RenderingScene => PipelineState?.Scene;
-                public static XRCamera? RenderingCamera => PipelineState?.RenderingCamera;
-                public static XRFrameBuffer? TargetOutputFBO => PipelineState?.OutputFBO;
-                public static XRMaterial? OverrideMaterial => PipelineState?.OverrideMaterial;
+                public static XRViewport? RenderingViewport => RenderingPipelineState?.WindowViewport;
+                public static VisualScene? RenderingScene => RenderingPipelineState?.Scene;
+                public static XRCamera? RenderingCamera => RenderingPipelineState?.RenderingCamera;
+                public static XRFrameBuffer? RenderingTargetOutputFBO => RenderingPipelineState?.OutputFBO;
 
-                private static Stack<XRRenderPipelineInstance> PipelineStack { get; } = new();
-                public static StateObject PushPipeline(XRRenderPipelineInstance pipeline)
+                public static XRMaterial? OverrideMaterial => RenderingPipelineState?.OverrideMaterial;
+
+                private static Stack<XRRenderPipelineInstance> RenderingPipelineStack { get; } = new();
+                private static Stack<XRRenderPipelineInstance> CollectingVisiblePipelineStack { get; } = new();
+
+                public static StateObject PushRenderingPipeline(XRRenderPipelineInstance pipeline)
                 {
-                    PipelineStack.Push(pipeline);
-                    return new StateObject(PopPipeline);
+                    RenderingPipelineStack.Push(pipeline);
+                    return new StateObject(PopRenderingPipeline);
                 }
-                public static void PopPipeline()
+                public static StateObject PushCollectingVisiblePipeline(XRRenderPipelineInstance pipeline)
                 {
-                    if (PipelineStack.Count > 0)
-                        PipelineStack.Pop();
+                    CollectingVisiblePipelineStack.Push(pipeline);
+                    return new StateObject(PopCollectingVisiblePipeline);
                 }
 
-                public static XRRenderPipelineInstance? CurrentPipeline => PipelineStack.Count > 0 ? PipelineStack.Peek() : null;
-                public static XRRenderPipelineInstance.RenderingState? PipelineState => CurrentPipeline?.State;
+                public static void PopRenderingPipeline()
+                {
+                    if (RenderingPipelineStack.Count > 0)
+                        RenderingPipelineStack.Pop();
+                }
+                public static void PopCollectingVisiblePipeline()
+                {
+                    if (CollectingVisiblePipelineStack.Count > 0)
+                        CollectingVisiblePipelineStack.Pop();
+                }
+
+                public static XRRenderPipelineInstance? CurrentRenderingPipeline => RenderingPipelineStack.Count > 0 ? RenderingPipelineStack.Peek() : null;
+                public static XRRenderPipelineInstance.RenderingState? RenderingPipelineState => CurrentRenderingPipeline?.RenderState;
+
+                public static XRRenderPipelineInstance? CurrentCollectingVisiblePipeline => CollectingVisiblePipelineStack.Count > 0 ? CollectingVisiblePipelineStack.Peek() : null;
+                public static XRRenderPipelineInstance.RenderingState? CollectingVisiblePipelineState => CurrentCollectingVisiblePipeline?.RenderState;
 
                 public static void ClearColor(ColorF4 color)
                     => AbstractRenderer.Current?.ClearColor(color);

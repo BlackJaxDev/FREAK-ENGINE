@@ -1,29 +1,27 @@
 ﻿using System.Numerics;
-using XREngine.Components.Scene.Transforms;
 using XREngine.Core.Attributes;
-using XREngine.Data.Components;
 using XREngine.Data.Transforms.Rotations;
 using XREngine.Input.Devices;
-using XREngine.Physics;
-using XREngine.Scene;
 using XREngine.Scene.Transforms;
 using XREngine.Timers;
 
 namespace XREngine.Components
 {
-    [RequireComponents(typeof(CharacterMovement3DComponent), typeof(CapsuleYComponent))]
+    /// <summary>
+    /// Pawn used for moveable player characters.
+    /// Converts inputs into kinematic rigid body movements and provides inputs for a camera view.
+    /// </summary>
+    [RequireComponents(typeof(CharacterMovement3DComponent))]
     public class CharacterComponent : PawnComponent
     {
-        public CapsuleYComponent? RootCapsule => GetSiblingComponent<CapsuleYComponent>(true);
         private CharacterMovement3DComponent Movement => GetSiblingComponent<CharacterMovement3DComponent>(true)!;
-        public SceneNode? ViewSceneNode { get; set; }
         
         private readonly GameTimerComponent _respawnTimer = new();
         private Rotator _viewRotation = Rotator.GetZero(ERotationOrder.YPR);
         private float _gamePadMovementInputMultiplier = 51.0f;
-        private float _keyboardMovementInputMultiplier = 51.0f;
-        private float _mouseXLookInputMultiplier = 0.5f;
-        private float _mouseYLookInputMultiplier = 0.5f;
+        private float _keyboardMovementInputMultiplier = 200.0f;
+        private float _mouseXLookInputMultiplier = 0.3f;
+        private float _mouseYLookInputMultiplier = 0.3f;
         private float _gamePadXLookInputMultiplier = 1.0f;
         private float _gamePadYLookInputMultiplier = 1.0f;
 
@@ -89,45 +87,42 @@ namespace XREngine.Components
             //RootComponent.WorldMatrix.Value = transform;
             //Engine.World.SpawnActor(this);
         }
-        //protected override void OnSpawnedPostComponentSpawn()
-        //{
-        //    RegisterTick(ETickGroup.PrePhysics, (int)ETickOrder.Logic, TickMovementInput);
-        //    //RootComponent.PhysicsDriver.SimulatingPhysics = true;
-        //}
-        //protected override void OnDespawned()
-        //{
-        //    UnregisterTick(ETickGroup.PrePhysics, (int)ETickOrder.Logic, TickMovementInput);
-        //    base.OnDespawned();
-        //}
+        protected internal override void OnComponentActivated()
+        {
+            base.OnComponentActivated();
+            RegisterTick(ETickGroup.Normal, ETickOrder.Logic, TickMovementInput);
+        }
         protected virtual void TickMovementInput()
         {
-            if (ViewSceneNode is null)
-                return;
-
-            Vector3 forward = ViewSceneNode.Transform.WorldForward;
-            Vector3 right = Vector3.Cross(forward, Globals.Up);
+            Vector3 forward = Transform.WorldForward;
+            Vector3 right = Transform.WorldRight;
 
             bool keyboardMovement = _keyboardMovementInput.X != 0.0f || _keyboardMovementInput.Y != 0.0f;
             bool gamepadMovement = _gamepadMovementInput.X != 0.0f || _gamepadMovementInput.Y != 0.0f;
 
-            Vector3 input;
             if (keyboardMovement)
             {
-                input = forward * _keyboardMovementInput.Y + right * _keyboardMovementInput.X;
-                input = Vector3.Normalize(input);
-                Movement.AddMovementInput(input * Engine.UndilatedDelta * KeyboardMovementInputMultiplier);
+                Vector3 input = forward * _keyboardMovementInput.Y + right * _keyboardMovementInput.X;
+                Movement.AddMovementInput(Engine.Delta * KeyboardMovementInputMultiplier * Vector3.Normalize(input));
             }
+
             if (gamepadMovement)
             {
-                input = forward * _gamepadMovementInput.Y + right * _gamepadMovementInput.X;
-                Movement.AddMovementInput(input * Engine.UndilatedDelta * GamePadMovementInputMultiplier);
+                Vector3 input = forward * _gamepadMovementInput.Y + right * _gamepadMovementInput.X;
+                Movement.AddMovementInput(Engine.Delta * GamePadMovementInputMultiplier * Vector3.Normalize(input));
             }
+
             //if (gamepadMovement || keyboardMovement)
             //    _meshComp.Rotation.Yaw = _movement.TargetFrameInputDirection.LookatAngles().Yaw + 180.0f;
+
+            var cam = GetCamera();
+            if (cam is not null)
+                cam.SceneNode.GetTransformAs<Transform>(true)!.Rotator = _viewRotation;
         }
         public override void RegisterInput(InputInterface input)
         {
-            //input.Mouse.WrapCursorWithinClip = input.IsRegistering;
+            input.HideCursor = !input.Unregister;
+
             input.RegisterMouseMove(Look, EMouseMoveType.Relative);
 
             input.RegisterAxisUpdate(EGamePadAxis.LeftThumbstickX, MoveRight, true);
@@ -138,13 +133,29 @@ namespace XREngine.Components
 
             input.RegisterButtonEvent(EGamePadButton.FaceDown, EButtonInputType.Pressed, Jump);
 
-            input.RegisterKeyContinuousState(EKey.W, MoveForward);
-            input.RegisterKeyContinuousState(EKey.A, MoveLeft);
-            input.RegisterKeyContinuousState(EKey.S, MoveBackward);
-            input.RegisterKeyContinuousState(EKey.D, MoveRight);
+            input.RegisterKeyStateChange(EKey.W, MoveForward);
+            input.RegisterKeyStateChange(EKey.A, MoveLeft);
+            input.RegisterKeyStateChange(EKey.S, MoveBackward);
+            input.RegisterKeyStateChange(EKey.D, MoveRight);
 
             input.RegisterKeyEvent(EKey.Space, EButtonInputType.Pressed, Jump);
+            input.RegisterKeyEvent(EKey.C, EButtonInputType.Pressed, ToggleCrouch);
+            input.RegisterKeyEvent(EKey.Z, EButtonInputType.Pressed, ToggleProne);
+
+            input.RegisterKeyEvent(EKey.Escape, EButtonInputType.Pressed, Quit);
+            input.RegisterKeyEvent(EKey.Backspace, EButtonInputType.Pressed, ToggleMouseCapture);
         }
+
+        private void ToggleMouseCapture()
+        {
+            if (LocalInput is null)
+                return;
+
+            LocalInput.HideCursor = !LocalInput.HideCursor;
+        }
+
+        private void Quit()
+            => Engine.ShutDown();
 
         protected virtual void MoveForward(bool pressed)
             => _keyboardMovementInput.Y += pressed ? 1.0f : -1.0f;
@@ -157,6 +168,17 @@ namespace XREngine.Components
 
         protected virtual void Jump()
             => Movement.Jump();
+
+        protected virtual void ToggleCrouch()
+            => Movement.CrouchState = Movement.CrouchState == CharacterMovement3DComponent.ECrouchState.Crouched 
+                ? CharacterMovement3DComponent.ECrouchState.Standing
+                : CharacterMovement3DComponent.ECrouchState.Crouched;
+
+        protected virtual void ToggleProne()
+            => Movement.CrouchState = Movement.CrouchState == CharacterMovement3DComponent.ECrouchState.Prone
+                ? CharacterMovement3DComponent.ECrouchState.Standing
+                : CharacterMovement3DComponent.ECrouchState.Prone;
+
         protected virtual void MoveRight(float value)
             => _gamepadMovementInput.X = value;
         protected virtual void MoveForward(float value)
@@ -166,71 +188,33 @@ namespace XREngine.Components
         {
             _viewRotation.Pitch += y * MouseYLookInputMultiplier;
             _viewRotation.Yaw -= x * MouseXLookInputMultiplier;
-
-            //float yaw = _viewRotation.Yaw.RemapToRange(0.0f, 360.0f);
-            //if (yaw < 45.0f || yaw >= 315.0f)
-            //{
-            //    _meshComp.Rotation.Yaw = 180.0f;
-            //}
-            //else if (yaw < 135.0f)
-            //{
-            //    _meshComp.Rotation.Yaw = 270.0f;
-            //}
-            //else if (yaw < 225.0f)
-            //{
-            //    _meshComp.Rotation.Yaw = 0.0f;
-            //}
-            //else if (yaw < 315.0f)
-            //{
-            //    _meshComp.Rotation.Yaw = 90.0f;
-            //}
-
-            //_fpCameraComponent.Camera.AddRotation(y, 0.0f);
+            ClampPitch();
+            RemapYaw();
         }
-
         protected virtual void LookRight(float value)
-            => _viewRotation.Yaw -= value * GamePadXLookInputMultiplier;
-
-        protected virtual void LookUp(float value)
-            => _viewRotation.Pitch += value * GamePadYLookInputMultiplier;
-
-        private void RigidBodyCollision_Collided(XRCollisionObject @this, XRCollisionObject other, XRContactInfo info, bool thisIsA)
-            => Movement.OnHit(other, info, thisIsA);
-
-        protected internal override void OnComponentActivated()
         {
-            base.OnComponentActivated();
-
-            float radius = CharacterWidthMeters / 2.0f;
-            float capsuleTotalHalfHeight = CharacterHeightMeters / 2.0f;
-            float halfHeight = capsuleTotalHalfHeight - CharacterWidthMeters; //subtract radius from the top and bottom, aka just the width (diameter)
-
-            RigidBodyConstructionInfo info = new()
-            {
-                Mass = 59.0f,
-                AdditionalDamping = false,
-                AngularDamping = 0.0f,
-                LinearDamping = 0.0f,
-                Restitution = 0.0f,
-                Friction = 1.0f,
-                RollingFriction = 0.01f,
-                CollisionEnabled = true,
-                SimulatePhysics = true,
-                SleepingEnabled = false,
-                CollisionGroup = (ushort)ECollisionGroup.Characters,
-                CollidesWith = (ushort)(ECollisionGroup.StaticWorld | ECollisionGroup.DynamicWorld),
-            };
-
-            CapsuleYComponent rootCapsule = new(radius, halfHeight, info);
-            XRRigidBody? body = rootCapsule.CollisionObject as XRRigidBody;
-            if (body is not null)
-            {
-                body.Collided += RigidBodyCollision_Collided;
-                body.AngularFactor = Vector3.Zero;
-            }
-
-            if (rootCapsule.TransformIs<Transform>(out var tfm))
-                tfm!.Translation = new Vector3(0.0f, capsuleTotalHalfHeight + 10.0f, 0.0f);
+            _viewRotation.Yaw -= value * GamePadXLookInputMultiplier;
+            RemapYaw();
+        }
+        protected virtual void LookUp(float value)
+        {
+            _viewRotation.Pitch += value * GamePadYLookInputMultiplier;
+            ClampPitch();
+        }
+        private void ClampPitch()
+        {
+            if (_viewRotation.Pitch > 89.0f)
+                _viewRotation.Pitch = 89.0f;
+            else if (_viewRotation.Pitch < -89.0f)
+                _viewRotation.Pitch = -89.0f;
+        }
+        private void RemapYaw()
+        {
+            //don't let the yaw or pitch exceed 180 or -180
+            if (_viewRotation.Yaw > 180.0f)
+                _viewRotation.Yaw -= 360.0f;
+            else if (_viewRotation.Yaw < -180.0f)
+                _viewRotation.Yaw += 360.0f;
         }
     }
 }

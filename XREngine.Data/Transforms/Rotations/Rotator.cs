@@ -80,12 +80,12 @@ namespace XREngine.Data.Transforms.Rotations
             Quaternion r = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, XRMath.DegToRad(Roll));
             return Order switch
             {
-                ERotationOrder.PYR => r * y * p,
-                ERotationOrder.PRY => y * r * p,
-                ERotationOrder.YRP => p * r * y,
-                ERotationOrder.YPR => r * p * y,
-                ERotationOrder.RPY => y * p * r,
-                ERotationOrder.RYP => p * y * r,
+                ERotationOrder.RYP => r * y * p,
+                ERotationOrder.YRP => y * r * p,
+                ERotationOrder.PRY => p * r * y,
+                ERotationOrder.RPY => r * p * y,
+                ERotationOrder.YPR => y * p * r,
+                ERotationOrder.PYR => p * y * r,
                 _ => Quaternion.Identity,
             };
         }

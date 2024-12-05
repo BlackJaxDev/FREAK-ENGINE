@@ -82,7 +82,7 @@ namespace XREngine.Data
             set => SetField(ref _channelCount, value);
         }
 
-        public override void Load3rdParty(string filePath)
+        public override bool Load3rdParty(string filePath)
         {
             string ext = Path.GetExtension(filePath).ToLowerInvariant();
             if (ext.StartsWith('.'))
@@ -102,6 +102,7 @@ namespace XREngine.Data
                     LoadFlac(filePath);
                     break;
             }
+            return true;
         }
 
         private void LoadOgg(string filePath)

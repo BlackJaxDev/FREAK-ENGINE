@@ -42,7 +42,7 @@ public sealed partial class XRRenderPipelineInstance
             XRFrameBuffer? target,
             bool shadowPass,
             XRMaterial? shadowMaterial,
-            UICanvasComponent? userInterface)
+            UICanvasComponent? screenSpaceUI)
         {
             WindowViewport = viewport;
             Scene = scene;
@@ -50,7 +50,7 @@ public sealed partial class XRRenderPipelineInstance
             OutputFBO = target;
             ShadowPass = shadowPass;
             GlobalMaterialOverride = shadowMaterial;
-            UserInterface = userInterface?.CanvasTransform?.DrawSpace == ECanvasDrawSpace.Screen ? userInterface : null;
+            UserInterface = screenSpaceUI?.CanvasTransform?.DrawSpace == ECanvasDrawSpace.Screen ? screenSpaceUI : null;
 
             if (WindowViewport is not null)
                 _renderingViewports.Push(WindowViewport);

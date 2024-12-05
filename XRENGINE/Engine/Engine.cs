@@ -107,7 +107,7 @@ namespace XREngine
         {
             Initialize(startupSettings, state);
             Run();
-            ShutDown();
+            Cleanup();
         }
 
         /// <summary>
@@ -292,25 +292,34 @@ namespace XREngine
             => Time.Timer.Run(RunAsLongAs);
 
         /// <summary>
-        /// Stops the engine, disposes of all allocated data, and closes all windows.
+        /// Closes all windows, resulting in the engine shutting down and the process ending.
         /// </summary>
         public static void ShutDown()
         {
-            //foreach (var window in _windows)
-            //    window.Window.Close();
-            //_windows.Clear();
+            var windows = _windows.ToArray();
+            foreach (var window in windows)
+                window.Window.Close();
+        }   
 
-            ShuttingDown = true;
-            Time.Timer.Stop();
-            Assets.Dispose();
-            ShuttingDown = false;
+        /// <summary>
+        /// Stops the engine and disposes of all allocated data.
+        /// Called internally once no windows remain active.
+        /// </summary>
+        internal static void Cleanup()
+        {
+            //TODO: clean shutdown. Each window should dispose of assets its allocated upon its own closure
+
+            //ShuttingDown = true;
+            //Time.Timer.Stop();
+            //Assets.Dispose();
+            //ShuttingDown = false;
         }
 
         public static void RemoveWindow(XRWindow window)
         {
             _windows.Remove(window);
             if (_windows.Count == 0)
-                ShutDown();
+                Cleanup();
         }
 
         public delegate int DelBeginOperation(

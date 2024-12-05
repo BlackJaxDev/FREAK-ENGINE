@@ -1,5 +1,4 @@
-﻿using System.Numerics;
-using XREngine.Data.Geometry;
+﻿using XREngine.Data.Geometry;
 using XREngine.Scene;
 using XREngine.Scene.Transforms;
 
@@ -7,11 +6,6 @@ namespace XREngine.Rendering.UI
 {
     public class UICanvasTransform : UIBoundableTransform
     {
-        protected override Matrix4x4 CreateLocalMatrix()
-        {
-            return base.CreateLocalMatrix();
-        }
-
         public UICanvasTransform()
         {
             Camera2D = new XRCamera(new Transform());
@@ -54,31 +48,21 @@ namespace XREngine.Rendering.UI
         /// </summary>
         public VisualScene2D Scene2D { get; }
 
-        protected void OnResizeLayout(BoundingRectangleF parentRegion)
+        protected virtual void ResizeLayout(BoundingRectangleF parentRegion)
         {
-            Scene2D?.RenderTree.Remake(parentRegion);
-            if (Camera2D.Parameters is not XROrthographicCameraParameters orthoParams)
-                Camera2D.Parameters = orthoParams = new XROrthographicCameraParameters(parentRegion.Width, parentRegion.Height, -0.5f, 0.5f);
-            orthoParams.SetOriginBottomLeft();
-            orthoParams.Resize(parentRegion.Width, parentRegion.Height);
+            foreach (var child in Children)
+            {
+                if (child is UIBoundableTransform boundable)
+                    boundable.FitLayout(parentRegion);
+            }
         }
 
-        protected virtual void ResizeLayout()
-        {
-            OnResizeLayout(new BoundingRectangleF(Translation, Size));
-        }
-
-        public bool IsLayoutInvalidated { get; private set; }
+        public bool IsLayoutInvalidated { get; private set; } = true;
         public override void InvalidateLayout()
         {
             base.InvalidateLayout();
             IsLayoutInvalidated = true;
-            //World?.AddDirtyTransform(this, out _, false);
         }
-        //protected internal override bool ParallelDepthRecalculate()
-        //{
-        //    return base.ParallelDepthRecalculate();
-        //}
 
         public event Action<UICanvasTransform>? ResizeStarted;
         public event Action<UICanvasTransform>? ResizeFinished;
@@ -86,12 +70,27 @@ namespace XREngine.Rendering.UI
 
         public virtual void UpdateLayout()
         {
+            //If the layout is not invalidated, don't update it.
             if (!IsLayoutInvalidated)
                 return;
             
             IsResizing = true;
             ResizeStarted?.Invoke(this);
-            ResizeLayout();
+
+            //Create the canvas region.
+            var parentRegion = new BoundingRectangleF(Translation, Size);
+
+            //Recreate the size of the render tree to match the new size.
+            Scene2D?.RenderTree.Remake(parentRegion);
+
+            //Update the camera parameters to match the new size.
+            if (Camera2D.Parameters is not XROrthographicCameraParameters orthoParams)
+                Camera2D.Parameters = orthoParams = new XROrthographicCameraParameters(parentRegion.Width, parentRegion.Height, -0.5f, 0.5f);
+            orthoParams.SetOriginBottomLeft();
+            orthoParams.Resize(parentRegion.Width, parentRegion.Height);
+
+            ResizeLayout(parentRegion);
+
             IsLayoutInvalidated = false;
             IsResizing = false;
             ResizeFinished?.Invoke(this);

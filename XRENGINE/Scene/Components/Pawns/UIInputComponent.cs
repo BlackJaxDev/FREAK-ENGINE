@@ -8,7 +8,6 @@ using XREngine.Data.Geometry;
 using XREngine.Input.Devices;
 using XREngine.Rendering.Info;
 using XREngine.Rendering.UI;
-using XREngine.Scene;
 
 namespace XREngine.Components
 {

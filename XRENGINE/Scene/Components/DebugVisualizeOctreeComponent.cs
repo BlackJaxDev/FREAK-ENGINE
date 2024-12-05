@@ -25,24 +25,24 @@ namespace XREngine.Data.Components
         }
         protected override void RenderInfo_PreRenderCallback(RenderInfo info, RenderCommand command, XRCamera? camera, bool shadowPass)
         {
-            base.RenderInfo_PreRenderCallback(info, command, camera, shadowPass);
-
-            if (shadowPass || World?.VisualScene is not VisualScene3D scene)
+            if (shadowPass)
                 return;
+
+            base.RenderInfo_PreRenderCallback(info, command, camera, shadowPass);
 
             static void AddNodes((OctreeNodeBase node, bool intersects) d)
                 => _octreeNodesUpdating.Add(d);
 
             //Debug.LogWarning("DebugVisualizeOctreeComponent.RenderInfo_PreRenderCallback");
-            scene.RenderTree.CollectVisibleNodes(camera?.WorldFrustum(), false, AddNodes);
+            World?.VisualScene?.RenderTree?.CollectVisibleNodes(camera?.WorldFrustum(), false, AddNodes);
         }
 
         protected override void Render(bool shadowPass)
         {
-            base.Render(shadowPass);
-
             if (shadowPass)
                 return;
+
+            base.Render(shadowPass);
 
             //Debug.LogWarning("DebugVisualizeOctreeComponent.Render");
             foreach ((OctreeNodeBase node, bool intersects) in _octreeNodesRendering)

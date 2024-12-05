@@ -136,8 +136,10 @@ namespace XREngine.Animation
         {
             if (_baked is null)
                 throw new InvalidOperationException("Cannot get baked value when not baked.");
+
             float frameTime = second.RemapToRange(0, LengthInSeconds) * BakedFramesPerSecond;
             int frame = (int)frameTime;
+
             if (LerpConstrainedFPS)
             {
                 if (frame == _baked.Length - 1)
@@ -183,8 +185,10 @@ namespace XREngine.Animation
         {
             if (_baked is null)
                 throw new InvalidOperationException("Cannot get baked value when not baked.");
+
             if (!_baked.IndexInRangeArrayT(frame))
                 return new TValue();
+
             return _baked[frame.Clamp(0, _baked.Length - 1)];
         }
         /// <summary>
@@ -425,7 +429,7 @@ namespace XREngine.Animation
                 inComps = GetComponents(velocity ? next.InTangent : next.InValue);
                 outComps = GetComponents(velocity ? kf.OutTangent : kf.OutValue);
 
-                bool cubic = kf.InterpolationType == EVectorInterpType.Smooth;
+                bool cubic = kf.InterpolationTypeOut == EVectorInterpType.Smooth;
                 if (cubic)
                 {
                     inTanComps = GetComponents(next.InTangent);

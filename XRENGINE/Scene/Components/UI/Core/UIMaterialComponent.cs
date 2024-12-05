@@ -1,5 +1,6 @@
 ﻿using Extensions;
 using System.Drawing;
+using System.Numerics;
 using XREngine.Core.Attributes;
 using XREngine.Data.Rendering;
 using XREngine.Rendering.Commands;
@@ -12,6 +13,8 @@ namespace XREngine.Rendering.UI
     [RequiresTransform(typeof(UIBoundableTransform))]
     public class UIMaterialComponent : UIComponent, IRenderable
     {
+        public UIBoundableTransform BoundableTransform => TransformAs<UIBoundableTransform>(true)!;
+
         public UIMaterialComponent() 
             : this(XRMaterial.CreateUnlitColorMaterialForward(Color.Magenta)) { }
         public UIMaterialComponent(XRMaterial material, bool flipVerticalUVCoord = false)
@@ -20,32 +23,8 @@ namespace XREngine.Rendering.UI
             RenderCommand.Mesh = new XRMeshRenderer(quadData, material);
             RenderCommand.ZIndex = 0;
 
-            RenderedObjects = [RenderInfo2D.New(this)];
+            RenderedObjects = [RenderInfo2D.New(this, RenderCommand)];
         }
-
-        //[Category("Rendering")]
-        //public IRenderInfo2D RenderInfo { get; } = new RenderInfo2D(0, 0);
-
-        //[Category("Rendering")]
-        //public override int LayerIndex
-        //{
-        //    get => base.LayerIndex;
-        //    set
-        //    {
-        //        base.LayerIndex = value;
-        //        RenderInfo.LayerIndex = value;
-        //    }
-        //}
-        //[Category("Rendering")]
-        //public override int IndexWithinLayer
-        //{
-        //    get => base.IndexWithinLayer;
-        //    set
-        //    {
-        //        base.IndexWithinLayer = value;
-        //        RenderInfo.IndexWithinLayer = value;
-        //    }
-        //}
 
         /// <summary>
         /// The material used to render on this UI component.
@@ -85,48 +64,18 @@ namespace XREngine.Rendering.UI
         public T2 Parameter<T2>(string name) where T2 : ShaderVar
             => RenderCommand.Mesh.Parameter<T2>(name);
 
-        // 3--2
-        // |\ |
-        // | \|
-        // 0--1
-        //public unsafe override Vector2 Resize(Vector2 parentBounds)
-        //{
-        //    //013312
-
-        //    Vector2 r = base.Resize(parentBounds);
-
-        //    DataBuffer buffer = _quad.Data[0];
-        //    Vector3* data = (Vector3*)buffer.Address;
-        //    data[0] = new Vector3(0.0f);
-        //    data[1] = data[4] = new Vector3(Width, 0.0f, 0.0f);
-        //    data[2] = data[3] = new Vector3(0.0f, Height, 0.0f);
-        //    data[5] = new Vector3(Width, Height, 0.0f);
-        //    buffer.PushData();
-
-        //    return r;
-        //}
-
-        //protected override void OnRecalcLocalTransform(out Matrix4 localTransform, out Matrix4 inverseLocalTransform)
-        //{
-        //    base.OnRecalcLocalTransform(out localTransform, out inverseLocalTransform);
-        //    localTransform = localTransform * Matrix4.CreateScale(_size.X, _size.Y, 1.0f);
-        //    inverseLocalTransform = Matrix4.CreateScale(1.0f / _size.X, 1.0f / _size.Y, 1.0f) * inverseLocalTransform;
-        //}
-
         protected override void OnTransformWorldMatrixChanged(TransformBase transform)
         {
             base.OnTransformWorldMatrixChanged(transform);
-            //RenderCommand.WorldMatrix = Transform.WorldMatrix * Matrix4x4.CreateScale(ActualWidth, ActualHeight, 1.0f);
+
+            float w = BoundableTransform.ActualWidth;
+            float h = BoundableTransform.ActualHeight;
+            RenderCommand.WorldMatrix = Matrix4x4.CreateScale(w, h, 1.0f) * Transform.WorldMatrix;
         }
 
         public RenderCommandMesh2D RenderCommand { get; } = new RenderCommandMesh2D(0);
         public RenderInfo[] RenderedObjects { get; }
         
-        public void AddRenderCommands(RenderCommandCollection passes, XRCamera camera)
-        {
-            passes.Add(RenderCommand);
-        }
-
         //public enum BackgroundImageDisplay
         //{
         //    Stretch,

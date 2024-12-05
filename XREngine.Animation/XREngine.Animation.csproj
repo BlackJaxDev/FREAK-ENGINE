@@ -34,9 +34,5 @@
   <ItemGroup>
     <ProjectReference Include="..\XREngine.Data\XREngine.Data.csproj" />
   </ItemGroup>
-  
-  <ItemGroup>
-    <Folder Include="Animation\" />
-  </ItemGroup>
 
 </Project>

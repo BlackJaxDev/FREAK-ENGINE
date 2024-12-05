@@ -34,9 +34,9 @@ namespace XREngine.Components.Scene.Transforms
             set => SetField(ref _invTransInterpSec, value);
         }
 
-        protected internal override void Start()
+        protected internal override void OnSceneNodeActivated()
             => RegisterTick(ETickGroup.Normal, (int)ETickOrder.Logic, Tick);
-        protected internal override void Stop()
+        protected internal override void OnSceneNodeDeactivated()
             => UnregisterTick(ETickGroup.Normal, (int)ETickOrder.Logic, Tick);
 
         protected virtual void Tick()

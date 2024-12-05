@@ -2,6 +2,8 @@
 {
     public class ServerInputInterface : InputInterface
     {
+        public override bool HideCursor { get; set; }
+
         public ServerInputInterface(int serverPlayerIndex) : base(serverPlayerIndex)
         {
 
@@ -97,7 +99,7 @@
             throw new NotImplementedException();
         }
 
-        public override void RegisterKeyContinuousState(EKey button, DelButtonState func)
+        public override void RegisterKeyStateChange(EKey button, DelButtonState func)
         {
             throw new NotImplementedException();
         }

@@ -7,7 +7,7 @@ namespace XREngine.Rendering.UI
     /// </summary>
     public class UIViewportComponent : UIMaterialComponent, IRenderable
     {
-        public event DelSetUniforms SettingUniforms;
+        public event DelSetUniforms? SettingUniforms;
 
         private readonly XRMaterialFrameBuffer _fbo;
 
@@ -16,25 +16,24 @@ namespace XREngine.Rendering.UI
         private bool _swapping = false;
         private bool _rendering = false;
 
-        public UIViewportComponent() : base(GetViewporXRMaterial())
+        public UIViewportComponent() : base(GetViewportMaterial())
         {
             _fbo = new XRMaterialFrameBuffer(Material);
-            RenderCommand.Mesh.SettingUniforms += SetUniforms;
+
+            if (RenderCommand.Mesh is not null)
+                RenderCommand.Mesh.SettingUniforms += SetUniforms;
 
             Engine.Time.Timer.SwapBuffers += SwapBuffers;
             //Engine.Time.Timer.UpdateFrame += Update;
             Engine.Time.Timer.RenderFrame += Render;
         }
 
-        private static XRMaterial GetViewporXRMaterial()
-            => new(
-                [
-                    XRTexture2D.CreateFrameBufferTexture(1u, 1u,
-                        EPixelInternalFormat.Rgba16f,
-                        EPixelFormat.Rgba,
-                        EPixelType.Float,
-                        EFrameBufferAttachment.ColorAttachment0),
-                ],
+        private static XRMaterial GetViewportMaterial()
+            => new([XRTexture2D.CreateFrameBufferTexture(1u, 1u,
+                    EPixelInternalFormat.Rgba16f,
+                    EPixelFormat.Rgba,
+                    EPixelType.Float,
+                    EFrameBufferAttachment.ColorAttachment0)],
                 XRShader.EngineShader(Path.Combine("Common", "UnlitTexturedForward.fs"), EShaderType.Fragment));
 
         private void SetUniforms(XRRenderProgram vertexProgram, XRRenderProgram materialProgram)

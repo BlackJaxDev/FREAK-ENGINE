@@ -1,11 +1,12 @@
 ﻿using Extensions;
 using System.ComponentModel;
+using XREngine.Core.Files;
 using XREngine.Data.Animation;
 using XREngine.Data.Core;
 
 namespace XREngine.Animation
 {
-    public abstract class BaseAnimation : XRBase
+    public abstract class BaseAnimation : XRAsset
     {
         protected const string AnimCategory = "Animation";
 
@@ -59,7 +60,7 @@ namespace XREngine.Animation
         }
 
         /// <summary>
-        /// How fast the animation plays back, in meters per second.
+        /// The speed at which the animation plays back.
         /// A speed of 2.0f would shorten the animation to play in half the time, where 0.5f would be lengthen the animation to play two times slower.
         /// CAN be negative to play the animation in reverse.
         /// </summary>

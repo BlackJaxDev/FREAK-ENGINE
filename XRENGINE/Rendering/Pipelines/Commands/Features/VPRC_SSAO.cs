@@ -206,15 +206,15 @@ namespace XREngine.Rendering.Pipelines.Commands
             program.Uniform("NoiseScale", NoiseScale);
             program.Uniform("Samples", Kernel!);
 
-            var rc = Pipeline.State.SceneCamera;
+            var rc = Pipeline.RenderState.SceneCamera;
             if (rc is null)
                 return;
             
             rc.SetUniforms(program);
             rc.SetAmbientOcclusionUniforms(program);
 
-            program.Uniform(EEngineUniform.ScreenWidth.ToString(), Pipeline.State.CurrentRenderRegion.Width);
-            program.Uniform(EEngineUniform.ScreenHeight.ToString(), Pipeline.State.CurrentRenderRegion.Height);
+            program.Uniform(EEngineUniform.ScreenWidth.ToString(), Pipeline.RenderState.CurrentRenderRegion.Width);
+            program.Uniform(EEngineUniform.ScreenHeight.ToString(), Pipeline.RenderState.CurrentRenderRegion.Height);
             program.Uniform(EEngineUniform.ScreenOrigin.ToString(), 0.0f);
         }
 

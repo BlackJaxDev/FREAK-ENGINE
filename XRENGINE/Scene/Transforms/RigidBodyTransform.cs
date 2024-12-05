@@ -1,6 +1,7 @@
 ﻿using Extensions;
 using System.Numerics;
 using XREngine.Components;
+using XREngine.Data.Core;
 
 namespace XREngine.Scene.Transforms
 {
@@ -20,7 +21,7 @@ namespace XREngine.Scene.Transforms
             Extrapolate
         }
 
-        private EInterpolationMode _interpolationMode = EInterpolationMode.Extrapolate;
+        private EInterpolationMode _interpolationMode = EInterpolationMode.Discrete;
         public EInterpolationMode InterpolationMode
         {
             get => _interpolationMode;
@@ -35,15 +36,14 @@ namespace XREngine.Scene.Transforms
         }
 
         private Quaternion _rotation;
-
         public Quaternion Rotation
         {
             get => _rotation;
             private set => SetField(ref _rotation, value);
         }
 
-        private Quaternion _rotationOffset = Quaternion.Identity;
-        public Quaternion RotationOffset
+        private Quaternion _rotationOffset = Quaternion.CreateFromAxisAngle(Globals.Backward, XRMath.DegToRad(-90.0f));
+        public Quaternion PostRotationOffset
         {
             get => _rotationOffset;
             set => SetField(ref _rotationOffset, value);
@@ -165,6 +165,6 @@ namespace XREngine.Scene.Transforms
         protected override Matrix4x4 CreateLocalMatrix()
             => Matrix4x4.Identity;
         protected override Matrix4x4 CreateWorldMatrix()
-            => Matrix4x4.CreateFromQuaternion(RotationOffset * Rotation) * Matrix4x4.CreateTranslation(PositionOffset + Position);
+            => Matrix4x4.CreateFromQuaternion(PostRotationOffset * Rotation) * Matrix4x4.CreateTranslation(PositionOffset + Position);
     }
 }

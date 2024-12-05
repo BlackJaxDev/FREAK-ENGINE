@@ -126,9 +126,9 @@ namespace XREngine.Animation
         }
 
         public void Add(IEnumerable<T> keys)
-            => keys.ForEach(x => Add(x));
+            => keys.ForEach(Add);
         public void Add(params T[] keys)
-            => keys.ForEach(x => Add(x));
+            => keys.ForEach(Add);
 
         public void Add(T key)
         {

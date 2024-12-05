@@ -91,15 +91,15 @@ namespace XREngine.Core.Files
         /// Called when the filePath has an extension that is in the XR3rdPartyExtensionsAttribute list.
         /// </summary>
         /// <param name="filePath"></param>
-        public virtual void Load3rdParty(string filePath)
+        public virtual bool Load3rdParty(string filePath)
         {
-
+            return false;
         }
 
-        public virtual async Task Load3rdPartyAsync(string filePath)
+        public virtual async Task<bool> Load3rdPartyAsync(string filePath)
         {
             //Run the synchronous version of the method async by default
-            await Task.Run(() => Load3rdParty(filePath));
+            return await Task.Run(() => Load3rdParty(filePath));
         }
     }
 }

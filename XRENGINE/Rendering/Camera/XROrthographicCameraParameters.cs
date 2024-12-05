@@ -113,5 +113,8 @@ namespace XREngine.Rendering
 
         public BoundingRectangleF GetBounds()
             => new(_orthoLeft, _orthoRight, _orthoBottom, _orthoTop);
+
+        public override Vector2 GetSizeAtDistance(float drawDistance)
+            => new(Width, Height);
     }
 }

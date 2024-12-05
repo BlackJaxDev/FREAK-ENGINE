@@ -91,7 +91,7 @@
     <PackageReference Include="SkiaSharp" Version="2.88.9" />
     <PackageReference Include="Steamworks.NET" Version="2024.8.0" />
     <PackageReference Include="StirlingLabs.Assimp.Net" Version="23.4.1" />
-    <PackageReference Include="YamlDotNet" Version="16.2.0" />
+    <PackageReference Include="YamlDotNet" Version="16.2.1" />
   </ItemGroup>
 
   <ItemGroup>

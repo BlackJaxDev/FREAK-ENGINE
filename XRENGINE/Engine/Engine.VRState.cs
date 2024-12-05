@@ -136,6 +136,8 @@ namespace XREngine
 
                 var leftVP = LeftEyeViewport = new XRViewport(window) { Index = 0 };
                 var rightVP = RightEyeViewport = new XRViewport(window) { Index = 1 };
+                leftVP.AllowUIRender = false;
+                rightVP.AllowUIRender = false;
                 leftVP.SetFullScreen();
                 rightVP.SetFullScreen();
                 leftVP.SetInternalResolution((int)rW, (int)rH, false);

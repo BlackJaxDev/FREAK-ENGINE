@@ -52,8 +52,8 @@ namespace XREngine.Rendering.Physics.Physx
         {
             var tfm = PhysxScene.MakeTransform(position, rotation);
             var shapeTfm = PhysxScene.MakeTransform(shapeOffsetTranslation, shapeOffsetRotation);
-            var structObj = geometry.GetStruct();
-            _obj = PhysxScene.PhysicsPtr->PhysPxCreateStatic(&tfm, structObj.Address.As<PxGeometry>(), material.MaterialPtr, &shapeTfm);
+            using var structObj = geometry.GetStruct();
+            _obj = PhysxScene.PhysicsPtr->PhysPxCreateStatic(&tfm, structObj.ToStructPtr<PxGeometry>(), material.MaterialPtr, &shapeTfm);
             AllActors.Add((nint)_obj, this);
             AllRigidActors.Add((nint)_obj, this);
             AllStaticRigidBodies.Add((nint)_obj, this);
@@ -68,8 +68,6 @@ namespace XREngine.Rendering.Physics.Physx
             => CreatePlane(PxPlane_new_1(normal.X, normal.Y, normal.Z, distance), material);
         public static PhysxStaticRigidBody CreatePlane(PhysxPlane plane, PhysxMaterial material)
             => CreatePlane(plane.InternalPlane.n, plane.InternalPlane.d, material);
-        public static PhysxStaticRigidBody CreatePlane(Plane plane, PhysxMaterial material, Vector3 position, Quaternion rotation)
-            => CreatePlane(plane.Normal, plane.D, material);
 
         public override unsafe PxRigidActor* RigidActorPtr => (PxRigidActor*)_obj;
         public override unsafe PxActor* ActorPtr => (PxActor*)_obj;

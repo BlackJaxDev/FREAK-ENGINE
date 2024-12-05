@@ -165,15 +165,15 @@ namespace XREngine.Components
         /// Enqueues this pawn for possession by the local player with the given index.
         /// If the currently possessed pawn is null, possesses this pawn immediately.
         /// </summary>
-        /// <param name="one"></param>
-        public void EnqueuePossessionByLocalPlayer(ELocalPlayerIndex one)
-            => Engine.State.GetOrCreateLocalPlayer(one).EnqueuePosession(this);
+        /// <param name="player"></param>
+        public void EnqueuePossessionByLocalPlayer(ELocalPlayerIndex player)
+            => Engine.State.GetOrCreateLocalPlayer(player).EnqueuePosession(this);
         /// <summary>
         /// Sets the controlled pawn of the local player with the given index to this pawn.
         /// </summary>
-        /// <param name="one"></param>
-        public void PossessByLocalPlayer(ELocalPlayerIndex one)
-            => Engine.State.GetOrCreateLocalPlayer(one).ControlledPawn = this;
+        /// <param name="player"></param>
+        public void PossessByLocalPlayer(ELocalPlayerIndex player)
+            => Engine.State.GetOrCreateLocalPlayer(player).ControlledPawn = this;
 
         public CameraComponent? GetCamera()
             => CameraComponent is not null ? CameraComponent : GetSiblingComponent<CameraComponent>();

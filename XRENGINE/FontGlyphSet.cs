@@ -30,7 +30,7 @@ namespace XREngine.Rendering
             set => SetField(ref _atlas, value);
         }
 
-        public override void Load3rdParty(string filePath)
+        public override bool Load3rdParty(string filePath)
         {
             string folder = Path.GetDirectoryName(filePath)!;
             string name = Path.GetFileNameWithoutExtension(filePath);
@@ -53,6 +53,7 @@ namespace XREngine.Rendering
             Characters = characters;
             SKTypeface typeface = SKTypeface.FromFile(filePath);
             GenerateFontAtlas(typeface, characters, Path.Combine(folder, $"{name}.png"), 100.0f);
+            return true;
         }
 
         public static HashSet<uint> GetSupportedCharacters(Face face)

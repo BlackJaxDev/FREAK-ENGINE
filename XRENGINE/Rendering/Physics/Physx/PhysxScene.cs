@@ -1,5 +1,6 @@
 ﻿using MagicPhysX;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using XREngine.Data;
 using XREngine.Data.Colors;
 using XREngine.Data.Geometry;
@@ -11,7 +12,7 @@ using Quaternion = System.Numerics.Quaternion;
 
 namespace XREngine.Rendering.Physics.Physx
 {
-    public unsafe class PhysxScene : AbstractPhysicsScene
+    public unsafe partial class PhysxScene : AbstractPhysicsScene
     {
         private static PxFoundation* _foundationPtr;
         public static PxFoundation* FoundationPtr => _foundationPtr;
@@ -67,6 +68,26 @@ namespace XREngine.Rendering.Physics.Physx
             if (_dispatcher is not null)
                 ((PxDefaultCpuDispatcher*)_dispatcher)->ReleaseMut();
         }
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate void CustomFilterShaderDelegate(FilterShaderCallbackInfo* callbackInfo, PxFilterFlags filterFlags);
+
+        public CustomFilterShaderDelegate CustomFilterShaderInstance = CustomFilterShader;
+        static void CustomFilterShader(FilterShaderCallbackInfo* callbackInfo, PxFilterFlags filterFlags)
+        {
+            PxPairFlags flags = PxPairFlags.ContactDefault | PxPairFlags.NotifyTouchFound;
+            callbackInfo->pairFlags[0] = flags;
+        }
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate void CollisionCallback(IntPtr userData, PxContactPairHeader pairHeader, PxContactPair contacts, uint flags);
+
+        public CollisionCallback OnContactDelegateInstance = OnContact;
+        static void OnContact(IntPtr userData, PxContactPairHeader pairHeader, PxContactPair contacts, uint flags)
+        {
+            Debug.Out($"Contact: {pairHeader.nbPairs}");
+        }
+
         public override void Initialize()
         {
             //PxPvd pvd;
@@ -79,12 +100,20 @@ namespace XREngine.Rendering.Physics.Physx
             //scale->speed = 980;
             var sceneDesc = PxSceneDesc_new(scale);
             sceneDesc.gravity = DefaultGravity;
+            sceneDesc.cpuDispatcher = _dispatcher = (PxCpuDispatcher*)phys_PxDefaultCpuDispatcherCreate(4, null, PxDefaultCpuDispatcherWaitForWorkMode.WaitForWork, 0);
 
-            _dispatcher = (PxCpuDispatcher*)phys_PxDefaultCpuDispatcherCreate(4, null, PxDefaultCpuDispatcherWaitForWorkMode.WaitForWork, 0);
-            sceneDesc.cpuDispatcher = _dispatcher;
-            sceneDesc.filterShader = get_default_simulation_filter_shader();
-            sceneDesc.flags |= PxSceneFlags.EnableCcd | PxSceneFlags.EnableGpuDynamics;
-            sceneDesc.broadPhaseType = PxBroadPhaseType.Gpu;
+            var simEventCallback = new SimulationEventCallbackInfo
+            {
+                collision_callback = (delegate* unmanaged[Cdecl]<void*, PxContactPairHeader*, PxContactPair*, uint, void>)Marshal.GetFunctionPointerForDelegate(OnContactDelegateInstance).ToPointer()
+            };
+            sceneDesc.simulationEventCallback = create_simulation_event_callbacks(&simEventCallback);
+
+            //sceneDesc.filterShader = get_default_simulation_filter_shader();
+            var filterShaderCallback = (delegate* unmanaged[Cdecl]<FilterShaderCallbackInfo*, PxFilterFlags>)Marshal.GetFunctionPointerForDelegate(CustomFilterShaderInstance).ToPointer();
+            enable_custom_filter_shader(&sceneDesc, filterShaderCallback, 1u);
+
+            //sceneDesc.flags |= PxSceneFlags.EnableCcd | PxSceneFlags.EnableGpuDynamics;
+            //sceneDesc.broadPhaseType = PxBroadPhaseType.Gpu;
             sceneDesc.gpuDynamicsConfig = new PxgDynamicsMemoryConfig()
             {
 
@@ -796,8 +825,18 @@ namespace XREngine.Rendering.Physics.Physx
         public PxSceneWriteLock* WriteLockNewAlloc(byte* file, uint line)
             => _scene->WriteLockNewAlloc(file, line);
 
-        public PxControllerManager* CreateControllerManager(bool lockingEnabled)
-            => _scene->PhysPxCreateControllerManager(lockingEnabled);
+        private ControllerManager? _controllerManager;
+        public ControllerManager CreateOrCreateControllerManager(bool lockingEnabled = false)
+            => _controllerManager ??= new ControllerManager(_scene->PhysPxCreateControllerManager(lockingEnabled));
+
+        public void ReleaseControllerManager()
+        {
+            if (_controllerManager == null)
+                return;
+            
+            _controllerManager.ControllerManagerPtr->ReleaseMut();
+            _controllerManager = null;
+        }
 
         public bool RaycastAny(
             Vector3 origin,

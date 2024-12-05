@@ -77,7 +77,7 @@ namespace XREngine.Rendering
         public void Render(XRFrameBuffer? target = null)
         {
             target?.BindForWriting();
-            var state = Engine.Rendering.State.PipelineState;
+            var state = Engine.Rendering.State.RenderingPipelineState;
             if (state != null)
             {
                 using (state.PushRenderingCamera(null))

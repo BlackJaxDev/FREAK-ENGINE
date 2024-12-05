@@ -147,6 +147,10 @@ namespace XREngine.Data
         {
             return Marshal.PtrToStructure<T>(Address);
         }
+        public unsafe T* ToStructPtr<T>() where T : unmanaged
+        {
+            return (T*)Address;
+        }
 
         public static unsafe DataSource? FromSpan<T>(Span<T> data) where T : unmanaged
         {

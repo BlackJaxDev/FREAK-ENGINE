@@ -589,17 +589,17 @@ namespace XREngine.Scene.Transforms
         //    All = 0xF,
         //}
 
-        protected internal virtual void Start()
+        protected internal virtual void OnSceneNodeActivated()
         {
             lock (Children)
                 foreach (TransformBase child in Children)
-                    child.Start();
+                    child.OnSceneNodeActivated();
         }
-        protected internal virtual void Stop()
+        protected internal virtual void OnSceneNodeDeactivated()
         {
             lock (Children)
                 foreach (TransformBase child in Children)
-                    child.Stop();
+                    child.OnSceneNodeDeactivated();
             ClearTicks();
         }
 

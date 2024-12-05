@@ -1,18 +1,31 @@
 ﻿using MagicPhysX;
 using System.Numerics;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using XREngine.Data.Geometry;
 
 namespace XREngine.Rendering.Physics.Physx
 {
-    public unsafe abstract class PhysxShape(PhysxScene scene, PxShape* shape) : PhysxRefCounted, IAbstractPhysicsShape
+    public unsafe abstract class PhysxShape : PhysxRefCounted, IAbstractPhysicsShape
     {
-        public PxShape* ShapePtr => shape;
-        public PhysxScene Scene => scene;
+        private readonly PhysxScene _scene;
+        private readonly unsafe PxShape* _shape;
 
-        public override unsafe PxBase* BasePtr => (PxBase*)shape;
-        public override unsafe PxRefCounted* RefCountedPtr => (PxRefCounted*)shape;
+        public PhysxShape(PhysxScene scene, PxShape* shape)
+        {
+            _scene = scene;
+            _shape = shape;
+            All.Add((nint)shape, this);
+        }
+
+        public PxShape* ShapePtr => _shape;
+        public PhysxScene Scene => _scene;
+
+        public override unsafe PxBase* BasePtr => (PxBase*)_shape;
+        public override unsafe PxRefCounted* RefCountedPtr => (PxRefCounted*)_shape;
+
+        public static Dictionary<nint, PhysxShape> All { get; } = [];
+        public static PhysxShape? Get(PxShape* ptr)
+            => All.TryGetValue((nint)ptr, out var shape) ? shape : null;
 
         public bool SimulationShape
         {

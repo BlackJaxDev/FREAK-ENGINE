@@ -7,7 +7,6 @@ using XREngine.Rendering;
 using XREngine.Rendering.Commands;
 using XREngine.Rendering.Info;
 using XREngine.Rendering.Models.Materials;
-using XREngine.Scene;
 using XREngine.Scene.Transforms;
 
 namespace XREngine.Components.Lights
@@ -19,43 +18,11 @@ namespace XREngine.Components.Lights
         /// </summary>
         double[] IVertex.Position => [Transform.WorldTranslation.X, Transform.WorldTranslation.Y, Transform.WorldTranslation.Z];
 
-        private void EnsureCaptured(bool shadowPass)
-        {
-            if (shadowPass)
-                return;
-
-            //if (!_hasCaptured)
-            //{
-            //    FullCapture(
-            //        ColorResolution,
-            //        CaptureDepthCubeMap,
-            //        DepthResolution);
-            //}
-            //else
-            if (RealTimeCapture && (RealTimeCaptureUpdateInterval is null || DateTime.Now - _lastUpdateTime >= RealTimeCaptureUpdateInterval))
-            {
-                _lastUpdateTime = DateTime.Now;
-                Capture();
-            }
-
-            if (_generateIrradiance)
-            {
-                _generateIrradiance = false;
-                GenerateIrradianceInternal();
-            }
-            if (_generatePrefilter)
-            {
-                _generatePrefilter = false;
-                GeneratePrefilterInternal();
-            }
-        }
-
         public LightProbeComponent() : base()
         {
             RenderedObjects = 
             [
                 VisualRenderInfo = RenderInfo3D.New(this, _visualRC = new RenderCommandMesh3D((int)EDefaultRenderPass.OpaqueForward)),
-                PreRenderInfo = RenderInfo3D.New(this, new RenderCommandMethod3D((int)EDefaultRenderPass.PreRender, EnsureCaptured))
             ];
         }
 
@@ -68,7 +35,6 @@ namespace XREngine.Components.Lights
         }
 
         public RenderInfo3D VisualRenderInfo { get; }
-        public RenderInfo3D PreRenderInfo { get; }
         public RenderInfo[] RenderedObjects { get; }
 
         private bool _generateIrradiance = false;
@@ -122,7 +88,7 @@ namespace XREngine.Components.Lights
             Prefilter,
         }
 
-        private ERenderPreview _previewDisplay = ERenderPreview.Irradiance;
+        private ERenderPreview _previewDisplay = ERenderPreview.Environment;
         public ERenderPreview PreviewDisplay
         {
             get => _previewDisplay;
@@ -159,14 +125,9 @@ namespace XREngine.Components.Lights
 
             _hasCaptured = true;
             SetCaptureResolution(colorResolution, captureDepth, depthResolution);
-            Capture();
-        }
-
-        public override void Capture()
-        {
-            base.Capture();
-            GenerateIrradianceMap();
-            GeneratePrefilterMap();
+            CollectVisible();
+            SwapBuffers();
+            Render();
         }
 
         protected override void InitializeForCapture()
@@ -306,7 +267,7 @@ namespace XREngine.Components.Lights
 
             uint res = IrradianceTexture.Extent;
             //AbstractRenderer.Current?.SetRenderArea(new BoundingRectangle(IVector2.Zero, new IVector2((int)res, (int)res)));
-            using (Engine.Rendering.State.PipelineState?.PushRenderArea(new BoundingRectangle(IVector2.Zero, new IVector2((int)res, (int)res))))
+            using (Engine.Rendering.State.RenderingPipelineState?.PushRenderArea(new BoundingRectangle(IVector2.Zero, new IVector2((int)res, (int)res))))
             {
                 for (int i = 0; i < 6; ++i)
                 {
@@ -347,7 +308,7 @@ namespace XREngine.Components.Lights
                 _prefilterFBO.Material.Parameter<ShaderFloat>(0)!.Value = roughness;
                 _prefilterFBO.Material.Parameter<ShaderInt>(1)!.Value = (int)ColorResolution;
 
-                using (Engine.Rendering.State.PipelineState?.PushRenderArea(new BoundingRectangle(IVector2.Zero, new IVector2(mipWidth, mipHeight))))
+                using (Engine.Rendering.State.RenderingPipelineState?.PushRenderArea(new BoundingRectangle(IVector2.Zero, new IVector2(mipWidth, mipHeight))))
                 {
                     for (int i = 0; i < 6; ++i)
                     {
@@ -387,6 +348,31 @@ namespace XREngine.Components.Lights
         {
             base.OnComponentDeactivated();
             World?.Lights.LightProbes.Remove(this);
+        }
+
+        private bool _capturing = false;
+        public override void CollectVisible()
+        {
+            if (!RealTimeCapture || RealTimeCaptureUpdateInterval is not null && !(DateTime.Now - _lastUpdateTime >= RealTimeCaptureUpdateInterval))
+                return;
+            
+            _lastUpdateTime = DateTime.Now;
+            _capturing = true;
+            base.CollectVisible();
+        }
+        public override void SwapBuffers()
+        {
+            if (_capturing)
+                base.SwapBuffers();
+        }
+        public override void Render()
+        {
+            if (!_capturing)
+                return;
+
+            base.Render();
+            GenerateIrradianceInternal();
+            GeneratePrefilterInternal();
         }
     }
 }

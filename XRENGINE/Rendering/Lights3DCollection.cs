@@ -57,6 +57,9 @@ namespace XREngine.Scene
 
             foreach (PointLightComponent l in PointLights)
                 l.CollectVisibleItems(World);
+
+            foreach (LightProbeComponent l in LightProbes)
+                l.CollectVisible();
         }
 
         public void SwapBuffers()
@@ -68,6 +71,9 @@ namespace XREngine.Scene
                 l.SwapBuffers();
 
             foreach (PointLightComponent l in PointLights)
+                l.SwapBuffers();
+
+            foreach (LightProbeComponent l in LightProbes)
                 l.SwapBuffers();
         }
 
@@ -85,6 +91,9 @@ namespace XREngine.Scene
                 l.RenderShadowMap(World, collectVisibleNow);
 
             RenderingShadowMaps = false;
+
+            foreach (LightProbeComponent l in LightProbes)
+                l.Render();
         }
 
         public void Clear()
@@ -98,12 +107,10 @@ namespace XREngine.Scene
         /// Renders the scene from each light probe's perspective.
         /// </summary>
         public void CaptureLightProbes()
-        {
-            Engine.EnqueueMainThreadTask(() => CaptureLightProbes(
-                Engine.Rendering.Settings.LightProbeDefaultColorResolution, 
+            => CaptureLightProbes(
+                Engine.Rendering.Settings.LightProbeDefaultColorResolution,
                 Engine.Rendering.Settings.ShouldLightProbesCaptureDepth,
-                Engine.Rendering.Settings.LightProbeDefaultDepthResolution));
-        }
+                Engine.Rendering.Settings.LightProbeDefaultDepthResolution);
 
         /// <summary>
         /// Renders the scene from each light probe's perspective.

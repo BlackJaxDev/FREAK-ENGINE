@@ -8,6 +8,7 @@ using XREngine.Components;
 using XREngine.Components.Lights;
 using XREngine.Components.Scene;
 using XREngine.Components.Scene.Mesh;
+using XREngine.Core.Tools.Unity;
 using XREngine.Data;
 using XREngine.Data.Colors;
 using XREngine.Data.Components;
@@ -29,6 +30,7 @@ using XREngine.Scene.Components.Physics;
 using XREngine.Scene.Transforms;
 using XREngine.VRClient;
 using static XREngine.Audio.AudioSource;
+using static XREngine.Scene.Transforms.RigidBodyTransform;
 using ActionType = OpenVR.NET.Manifest.ActionType;
 using Quaternion = System.Numerics.Quaternion;
 
@@ -69,7 +71,7 @@ internal class Program
         int w = 1920;
         int h = 1080;
         float updateHz = 60.0f;
-        float renderHz = 90.0f;
+        float renderHz = 0.0f;
         float fixedHz = 30.0f;
 
         int primaryX = NativeMethods.GetSystemMetrics(0);
@@ -98,17 +100,17 @@ internal class Program
             },
             TargetUpdatesPerSecond = updateHz,
             FixedFramesPerSecond = fixedHz,
-            ActionManifest = new ActionManifest<EVRActionCategory, EVRGameAction>()
-            {
-                Actions = GetActions(),
-            },
-            VRManifest = new VrManifest()
-            {
-                AppKey = "XRE.VR.Test",
-                IsDashboardOverlay = false,
-                WindowsPath = Environment.ProcessPath,
-                WindowsArguments = "",
-            },
+            //ActionManifest = new ActionManifest<EVRActionCategory, EVRGameAction>()
+            //{
+            //    Actions = GetActions(),
+            //},
+            //VRManifest = new VrManifest()
+            //{
+            //    AppKey = "XRE.VR.Test",
+            //    IsDashboardOverlay = false,
+            //    WindowsPath = Environment.ProcessPath,
+            //    WindowsArguments = "",
+            //},
         };
     }
 
@@ -116,6 +118,12 @@ internal class Program
     {
         string desktopDir = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
         //UnityPackageExtractor.ExtractAsync(Path.Combine(desktopDir, "Animations.unitypackage"), Path.Combine(desktopDir, "Extracted"), true);
+
+        //var anim = Engine.Assets.Load<Unity.UnityAnimationClip>(Path.Combine(desktopDir, "walk.anim"));
+        //if (anim is not null)
+        //{
+        //    var anims = UnityConverter.ConvertFloatAnimation(anim);
+        //}
 
         var world = new XRWorld() { Name = "TestWorld" };
         var scene = new XRScene() { Name = "TestScene" };
@@ -125,13 +133,15 @@ internal class Program
         //Visualize the octree
         rootNode.AddComponent<DebugVisualizeOctreeComponent>();
 
-        SceneNode cameraNode = CreateCamera(rootNode);
+        SceneNode cameraNode = CreateCamera(rootNode, out var camComp);
+        CreateUserInterface(camComp);
+        CreateDesktopViewerPawn(cameraNode);
+        //SceneNode cameraNode = CreateDesktopCharacterPawn(rootNode);
         AddFPSText(Engine.Assets.LoadEngineAsset<FontGlyphSet>("Fonts", "Roboto", "Roboto-Regular.ttf"), cameraNode);
-        CreatePlayerPawn(cameraNode);
-        CreateVRPawn(rootNode);
+        //CreateVRPawn(rootNode);
         //AddTestBox(rootNode);
-        AddDirLight(rootNode);
-        //AddSpotLight(rootNode);
+        //AddDirLight(rootNode);
+        AddSpotLight(rootNode);
         //AddDirLight2(rootNode, dirLightTransform, dirLightComp);
         //AddPointLight(rootNode);
         AddSoundNode(rootNode);
@@ -141,9 +151,59 @@ internal class Program
         AddLightProbe(rootNode, skyEquirect);
         AddSkybox(rootNode, skyEquirect);
         AddPhysics(rootNode);
+        AddPBRTestOrbs(rootNode, 15.0f);
         //AddSpline(rootNode);
         //ImportModels(desktopDir, rootNode);
         return world;
+    }
+
+    private static void AddPBRTestOrbs(SceneNode rootNode, float y)
+    {
+        for (int metallic = 0; metallic < 10; metallic++)
+            for (int roughness = 0; roughness < 10; roughness++)
+                AddPBRTestOrb(rootNode, metallic / 10.0f, roughness / 10.0f, 0.5f, 0.5f, 10, 10, y);
+    }
+
+    private static void AddPBRTestOrb(SceneNode rootNode, float metallic, float roughness, float radius, float padding, int metallicCount, int roughnessCount, float y)
+    {
+        var orb1 = new SceneNode(rootNode) { Name = "TestOrb1" };
+        var orb1Transform = orb1.SetTransform<Transform>();
+
+        //arrange in grid using metallic and roughness
+        orb1Transform.Translation = new Vector3(
+            (metallic * 2.0f - 1.0f) * (radius + padding) * metallicCount,
+            y + padding + radius,
+            (roughness * 2.0f - 1.0f) * (radius + padding) * roughnessCount);
+
+        var orb1Model = orb1.AddComponent<ModelComponent>()!;
+        var mat = XRMaterial.CreateLitColorMaterial(ColorF4.Blue);
+        mat.Parameter<ShaderFloat>("Roughness")!.Value = roughness;
+        mat.Parameter<ShaderFloat>("Metallic")!.Value = metallic;
+        orb1Model.Model = new Model([new SubMesh(XRMesh.Shapes.SolidSphere(Vector3.Zero, radius, 16), mat)]);
+    }
+
+    private static void CreateUserInterface(CameraComponent? camComp)
+    {
+        if (camComp is null)
+            return;
+
+        var uiNode = new SceneNode(camComp.SceneNode) { Name = "TestUINode" };
+        var ui = uiNode.AddComponent<UICanvasComponent>()!;
+        var uiTransform = uiNode.GetTransformAs<UICanvasTransform>(true)!;
+        uiTransform.DrawSpace = ECanvasDrawSpace.World;
+        uiTransform.Width = 1920.0f;
+        uiTransform.Height = 1080.0f;
+
+        var uiPanel = new SceneNode(uiNode) { Name = "TestUIPanel" };
+        var uiPanelComp = uiPanel.AddComponent<UIMaterialComponent>()!;
+        var uiPanelTransform = uiPanel.GetTransformAs<UIBoundableTransform>(true)!;
+        uiPanelTransform.HorizontalAlignment = EHorizontalAlign.Stretch;
+        uiPanelTransform.VerticalAlignment = EVerticalAlign.Stretch;
+        uiPanelComp.Material = XRMaterial.CreateUnlitColorMaterialForward(ColorF4.Orange);
+
+        //var uiInteract = uiNode.AddComponent<UIInputComponent>();
+
+        //camComp.UserInterface = ui;
     }
 
     private static void CreateVRPawn(SceneNode rootNode)
@@ -179,36 +239,41 @@ internal class Program
         var floorTfm = floor.SetTransform<RigidBodyTransform>();
         var floorComp = floor.AddComponent<StaticRigidBodyComponent>()!;
 
-        var ball = new SceneNode(rootNode) { Name = "Ball" };
-        ball.SetTransform<RigidBodyTransform>();
-        var ballComp = ball.AddComponent<DynamicRigidBodyComponent>()!;
-
         PhysxMaterial floorMat = new(0.5f, 0.5f, 0.1f);
         PhysxMaterial ballMat = new(0.5f, 0.5f, 0.9f);
 
-        var ballBody = new PhysxDynamicRigidBody(ballMat, new PhysxGeometry.Sphere(ballRadius), 10.0f);
         var floorBody = PhysxStaticRigidBody.CreatePlane(Globals.Up, 0.0f, floorMat);
-
-        ballBody.Transform = (new Vector3(0.0f, 5.0f, 0.0f), Quaternion.Identity);
-        ballBody.AngularDamping = 0.5f;
-        ballBody.SetAngularVelocity(new Vector3(60.0f, 0.0f, 0.0f));
-        ballBody.SetLinearVelocity(new Vector3(0.0f, 10.0f, 0.0f));
-
-        floorBody.SetTransform(new Vector3(0.0f, 0.0f, 0.0f), Quaternion.CreateFromAxisAngle(Globals.Backward, XRMath.DegToRad(95.0f)), true);
-        floorTfm.RotationOffset = Quaternion.CreateFromAxisAngle(Globals.Backward, XRMath.DegToRad(-90.0f));
-
+            //new PhysxStaticRigidBody(floorMat, new PhysxGeometry.Box(new Vector3(100.0f, 2.0f, 100.0f)));
+        floorBody.SetTransform(new Vector3(0.0f, -10.0f, 0.0f), Quaternion.CreateFromAxisAngle(Globals.Backward, XRMath.DegToRad(90.0f)), true);
         floorComp.RigidBody = floorBody;
-        ballComp.RigidBody = ballBody;
-
-        var ballModel = ball.AddComponent<ModelComponent>()!;
-        ballModel.Model = new Model([new SubMesh(XRMesh.Shapes.SolidSphere(Vector3.Zero, ballRadius, 16), XRMaterial.CreateUnlitColorMaterialForward(ColorF4.Red))]);
         var floorModel = floor.AddComponent<ModelComponent>()!;
         floorModel.Model = new Model([new SubMesh(XRMesh.Create(VertexQuad.PosY(100.0f)), XRMaterial.CreateUnlitColorMaterialForward(ColorF4.Green))]);
+            //new Model([new SubMesh(XRMesh.Shapes.SolidBox(new Vector3(-100.0f, -2.0f, -100.0f), new Vector3(100.0f, 2.0f, 100.0f)), XRMaterial.CreateUnlitColorMaterialForward(ColorF4.Green))]);
+
+        Random random = new();
+        for (int i = 0; i < 1; i++)
+            AddBall(rootNode, ballMat, ballRadius, random);
+    }
+
+    private static void AddBall(SceneNode rootNode, PhysxMaterial ballMat, float ballRadius, Random random)
+    {
+        var ballBody = new PhysxDynamicRigidBody(ballMat, new PhysxGeometry.Sphere(ballRadius), 10.0f);
+        ballBody.Transform = (new Vector3(random.NextSingle() * 10.0f, random.NextSingle() * 10.0f, random.NextSingle() * 10.0f), Quaternion.Identity);
+        ballBody.AngularDamping = 0.5f;
+        ballBody.SetAngularVelocity(new Vector3(random.NextSingle() * 100.0f, random.NextSingle() * 100.0f, random.NextSingle() * 100.0f));
+        ballBody.SetLinearVelocity(new Vector3(random.NextSingle() * 10.0f, random.NextSingle() * 10.0f, random.NextSingle() * 10.0f));
+        var ball = new SceneNode(rootNode) { Name = "Ball" };
+        var ballTfm = ball.SetTransform<RigidBodyTransform>();
+        ballTfm.InterpolationMode = EInterpolationMode.Extrapolate;
+        var ballComp = ball.AddComponent<DynamicRigidBodyComponent>()!;
+        ballComp.RigidBody = ballBody;
+        var ballModel = ball.AddComponent<ModelComponent>()!;
+        ballModel.Model = new Model([new SubMesh(XRMesh.Shapes.SolidSphere(Vector3.Zero, ballRadius, 16), XRMaterial.CreateUnlitColorMaterialForward(ColorF4.Red))]);
     }
 
     private static void AddSpline(SceneNode rootNode)
     {
-        var spline = rootNode.AddComponent<Spline3DComponent>();
+        var spline = rootNode.AddComponent<Spline3DPreviewComponent>();
         PropAnimVector3 anim = new();
         Random r = new();
         float len = r.NextSingle() * 10.0f;
@@ -224,27 +289,27 @@ internal class Program
         spline!.Spline = anim;
     }
 
-    private static SceneNode CreateCamera(SceneNode rootNode)
+    private static SceneNode CreateCamera(SceneNode parentNode, out CameraComponent? camComp, bool smoothed = false)
     {
-        var cameraNode = new SceneNode(rootNode) { Name = "TestCameraNode" };
+        var cameraNode = new SceneNode(parentNode) { Name = "TestCameraNode" };
 
-        //var orbitTransform = cameraNode.SetTransform<OrbitTransform>();
-        //orbitTransform.Radius = 5.0f;
-        //orbitTransform.IgnoreRotation = false;
-        //orbitTransform.RegisterAnimationTick<OrbitTransform>(t => t.Angle += Engine.DilatedDelta * 0.5f);
-
-        var laggedTransform = cameraNode.GetTransformAs<SmoothedTransform>(true)!;
-        //laggedTransform.Translation = new Vector3(0.0f, 0.0f, 5.0f);
-        laggedTransform.RotationSmoothingSpeed = 30.0f;
-        laggedTransform.TranslationSmoothingSpeed = 15.0f;
-        laggedTransform.ScaleSmoothingSpeed = 15.0f;
+        if (smoothed)
+        {
+            var laggedTransform = cameraNode.GetTransformAs<SmoothedTransform>(true)!;
+            laggedTransform.RotationSmoothingSpeed = 30.0f;
+            laggedTransform.TranslationSmoothingSpeed = 15.0f;
+            laggedTransform.ScaleSmoothingSpeed = 15.0f;
+        }
 
         if (cameraNode.TryAddComponent<CameraComponent>(out var cameraComp))
         {
             cameraComp!.Name = "TestCamera";
             cameraComp.Camera.Parameters = new XRPerspectiveCameraParameters(60.0f, null, 0.1f, 100000.0f);
-            //cameraComp.CullWithFrustum = false;
+            cameraComp.CullWithFrustum = false;
+            camComp = cameraComp;
         }
+        else
+            camComp = null;
 
         return cameraNode;
     }
@@ -261,17 +326,33 @@ internal class Program
         textTransform.Scale = new Vector3(0.0002f);
     }
 
-    private static void CreatePlayerPawn(SceneNode cameraNode)
+    private static void CreateDesktopViewerPawn(SceneNode cameraNode)
     {
         var pawnComp = cameraNode.AddComponent<EditorFlyingCameraPawnComponent>();
         cameraNode.AddComponent<AudioListenerComponent>();
+
         pawnComp!.Name = "TestPawn";
         pawnComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
+    }
 
-        //var canvas = cameraNode.AddComponent<UICanvasComponent>();
-        //var input = cameraNode.AddComponent<UIInputComponent>();
-        //input!.OwningPawn = cameraNode.GetComponent<EditorFlyingCameraPawnComponent>();
-        //cameraNode.GetComponent<CameraComponent>()!.UserInterfaceOverlay = canvas;
+    private static SceneNode CreateDesktopCharacterPawn(SceneNode rootNode)
+    {
+        SceneNode characterNode = new(rootNode) { Name = "TestPlayerNode" };
+        var characterTfm = characterNode.SetTransform<RigidBodyTransform>();
+        characterTfm.InterpolationMode = EInterpolationMode.Interpolate;
+
+        SceneNode cameraNode = CreateCamera(characterNode, out CameraComponent? camComp);
+        cameraNode.AddComponent<AudioListenerComponent>();
+
+        var characterComp = characterNode.AddComponent<CharacterComponent>();
+        characterComp!.CameraComponent = camComp;
+        var movementComp = characterNode.AddComponent<CharacterMovement3DComponent>();
+        movementComp!.StandingHeight = 1.89f;
+        movementComp!.SpawnPosition = new Vector3(0.0f, 5.0f, 0.0f);
+        movementComp.Velocity = new Vector3(0.0f, 0.1f, 0.0f);
+        characterComp!.Name = "TestPawn";
+        characterComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
+        return cameraNode;
     }
 
     private static void AddTestBox(SceneNode rootNode)
@@ -402,14 +483,14 @@ internal class Program
             return;
         
         probeComp!.Name = "TestLightProbe";
-        probeComp.ColorResolution = 512;
-        probeComp.EnvironmentTextureEquirect = skyEquirect;
-        Engine.EnqueueMainThreadTask(probeComp.GenerateIrradianceMap);
-        Engine.EnqueueMainThreadTask(probeComp.GeneratePrefilterMap);
+        //probeComp.ColorResolution = 512;
+        //probeComp.EnvironmentTextureEquirect = skyEquirect;
+        //Engine.EnqueueMainThreadTask(probeComp.GenerateIrradianceMap);
+        //Engine.EnqueueMainThreadTask(probeComp.GeneratePrefilterMap);
 
-        //probeComp.SetCaptureResolution(512, false, 512);
-        //probeComp.RealTimeCapture = true;
-        //probeComp.RealTimeCaptureUpdateInterval = TimeSpan.FromSeconds(1);
+        probeComp.SetCaptureResolution(512, false, 512);
+        probeComp.RealTimeCapture = false;
+        probeComp.RealTimeCaptureUpdateInterval = TimeSpan.FromSeconds(1);
 
         //Task.Run(async () =>
         //{
@@ -437,7 +518,7 @@ internal class Program
 
         ModelImporter.ImportAsync(fbxPathDesktop, flags, null, MaterialFactory, importedModelsNode, 1, true).ContinueWith(OnFinishedAvatar);
 
-        //ModelImporter.ImportAsync(Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj"), flags, null, MaterialFactory, importedModelsNode, 1, false).ContinueWith(OnFinishedWorld);
+        ModelImporter.ImportAsync(Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj"), flags, null, MaterialFactory, importedModelsNode, 1, false).ContinueWith(OnFinishedWorld);
     }
 
     private static void AddSkybox(SceneNode rootNode, XRTexture2D skyEquirect)

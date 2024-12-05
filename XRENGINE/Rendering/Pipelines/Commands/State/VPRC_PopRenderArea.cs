@@ -3,6 +3,6 @@
     public class VPRC_PopRenderArea : ViewportPopStateRenderCommand
     {
         protected override void Execute()
-            => Pipeline.State.PopRenderArea();
+            => Pipeline.RenderState.PopRenderArea();
     }
 }

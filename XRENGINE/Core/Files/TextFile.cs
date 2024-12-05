@@ -62,15 +62,23 @@ namespace XREngine.Core.Files
             _text = Encoding.GetString((byte*)map.Address + bomLength, map.Length - bomLength);
         }
 
-        public async Task LoadTextAsync(string path)
+        public async Task<bool> LoadTextAsync(string path)
         {
             if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
+            {
                 _text = await File.ReadAllTextAsync(path, Encoding = GetEncoding(path));
+                return true;
+            }
+            return false;
         }
-        public void LoadText(string path)
+        public bool LoadText(string path)
         {
             if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
+            {
                 _text = File.ReadAllText(path, Encoding = GetEncoding(path));
+                return true;
+            }
+            return false;
         }
 
         /// <summary>
@@ -129,9 +137,9 @@ namespace XREngine.Core.Files
             return Encoding.Default;
         }
 
-        public override void Load3rdParty(string filePath)
+        public override bool Load3rdParty(string filePath)
             => LoadText(filePath);
-        public override async Task Load3rdPartyAsync(string filePath)
+        public override async Task<bool> Load3rdPartyAsync(string filePath)
             => await LoadTextAsync(filePath);
 
         public void SaveTo(string path)

@@ -21,6 +21,15 @@ namespace XREngine.Input.Devices
             get => _localPlayerIndex;
             set => SetField(ref _localPlayerIndex, value);
         }
+        public override bool HideCursor
+        {
+            get => Mouse?.HideCursor ?? false;
+            set
+            {
+                if (Mouse is not null)
+                    Mouse.HideCursor = value;
+            }
+        }
 
         public LocalInputInterface(int localPlayerIndex) : base(localPlayerIndex)
         {
@@ -94,7 +103,7 @@ namespace XREngine.Input.Devices
         #endregion
 
         #region Keyboard input registration
-        public override void RegisterKeyContinuousState(EKey button, DelButtonState func)
+        public override void RegisterKeyStateChange(EKey button, DelButtonState func)
             => Keyboard?.RegisterKeyPressed(button, func, Unregister);
         public override void RegisterKeyEvent(EKey button, EButtonInputType type, Action func)
             => Keyboard?.RegisterKeyEvent(button, type, func, Unregister);

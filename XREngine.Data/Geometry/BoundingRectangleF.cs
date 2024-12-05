@@ -73,16 +73,20 @@ Bottom left point of this rectangle is Position - LocalOrigin.")]
         /// The horizontal translation of this rectangle's position. 0 is fully left, positive values are right.
         /// </summary>
         public float X
-        { readonly get => OriginTranslation.X;
+        {
+            readonly get => OriginTranslation.X;
             set => _translation.X = value - LocalOrigin.X;
         }
+
         /// <summary>
         /// The vertical translation of this rectangle's position. 0 is fully down, positive values are up.
         /// </summary>
         public float Y
-        { readonly get => OriginTranslation.Y;
+        {
+            readonly get => OriginTranslation.Y;
             set => _translation.Y = value - LocalOrigin.Y;
         }
+
         /// <summary>
         /// The width of this rectangle.
         /// </summary>
@@ -95,6 +99,7 @@ Bottom left point of this rectangle is Position - LocalOrigin.")]
                 CheckProperDimensions();
             }
         }
+
         /// <summary>
         /// The height of this rectangle.
         /// </summary>
@@ -107,6 +112,7 @@ Bottom left point of this rectangle is Position - LocalOrigin.")]
                 CheckProperDimensions();
             }
         }
+
         /// <summary>
         /// The X value of the right boundary line.
         /// Only moves the right edge by resizing width.
@@ -120,6 +126,7 @@ Bottom left point of this rectangle is Position - LocalOrigin.")]
                 _bounds.X = value - _translation.X;
             }
         }
+
         /// <summary>
         /// The Y value of the top boundary line.
         /// Only moves the top edge by resizing height.
@@ -149,6 +156,7 @@ Bottom left point of this rectangle is Position - LocalOrigin.")]
                 _bounds.X = origX - _translation.X;
             }
         }
+
         public Vector2 Min
         {
             readonly get => _translation + new Vector2(Width < 0 ? Width : 0, Height < 0 ? Height : 0);
@@ -160,6 +168,7 @@ Bottom left point of this rectangle is Position - LocalOrigin.")]
                 _bounds = orig - _translation;
             }
         }
+
         public Vector2 Max
         {
             readonly get => _translation + new Vector2(Width > 0 ? Width : 0, Height > 0 ? Height : 0);
@@ -169,6 +178,7 @@ Bottom left point of this rectangle is Position - LocalOrigin.")]
                 _bounds = value - _translation;
             }
         }
+
         /// <summary>
         /// The Y value of the bottom boundary line.
         /// Only moves the bottom edge by resizing height.
@@ -184,25 +194,31 @@ Bottom left point of this rectangle is Position - LocalOrigin.")]
                 Height = origY - _translation.Y;
             }
         }
+
         /// <summary>
         /// The world position of the center point of the rectangle (regardless of the local origin).
         /// </summary>
         public Vector2 Center
-        { readonly get => _translation + (_bounds / 2.0f);
+        {
+            readonly get => _translation + (_bounds / 2.0f);
             set => _translation = value - (_bounds / 2.0f);
         }
+
         /// <summary>
         /// The width and height of this rectangle.
         /// </summary>
         public Vector2 Extents
-        { readonly get => _bounds;
+        {
+            readonly get => _bounds;
             set => _bounds = value;
         }
+
         /// <summary>
         /// The location of this rectangle's bottom left point (top right if both width and height are negative). 0 is fully left/down, positive values are right/up.
         /// </summary>
         public Vector2 Translation
-        { readonly get => _translation;
+        {
+            readonly get => _translation;
             set => _translation = value;
         }
         /// <summary>
@@ -272,28 +288,32 @@ Bottom left point of this rectangle is Position - LocalOrigin.")]
         /// The horizontal location of this rectangle's origin, as an integer value floored from float value. 0 is fully left, positive values are right.
         /// </summary>
         public int IntX
-        { readonly get => (int)X;
+        {
+            readonly get => (int)X;
             set => X = value;
         }
         /// <summary>
         /// The vertical location of this rectangle's origin, as an integer value floored from float value. 0 is fully down, positive values are up.
         /// </summary>
         public int IntY
-        { readonly get => (int)Y;
+        {
+            readonly get => (int)Y;
             set => Y = value;
         }
         /// <summary>
         /// The width of this rectangle, as an integer value floored from float value.
         /// </summary>
         public int IntWidth
-        { readonly get => (int)Width;
+        {
+            readonly get => (int)Width;
             set => Width = value;
         }
         /// <summary>
         /// The height of this rectangle, as an integer value floored from float value.
         /// </summary>
         public int IntHeight
-        { readonly get => (int)Height;
+        {
+            readonly get => (int)Height;
             set => Height = value;
         }
         /// <summary>

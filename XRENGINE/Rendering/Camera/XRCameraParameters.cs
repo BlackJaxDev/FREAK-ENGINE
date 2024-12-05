@@ -88,5 +88,7 @@ namespace XREngine.Rendering
             program.Uniform(EEngineUniform.ScreenHeight.ToString(), (float)area.Height);
             program.Uniform(EEngineUniform.ScreenOrigin.ToString(), new Vector2(0.0f, 0.0f));
         }
+
+        public abstract Vector2 GetSizeAtDistance(float drawDistance);
     }
 }

@@ -1,8 +1,6 @@
-﻿using Silk.NET.OpenXR;
-using System.Numerics;
+﻿using System.Numerics;
 using XREngine.Data.Core;
 using XREngine.Data.Geometry;
-using static Google.Api.Distribution.Types.BucketOptions.Types;
 
 namespace XREngine.Rendering
 {
@@ -75,6 +73,13 @@ namespace XREngine.Rendering
             program.Uniform(EEngineUniform.CameraFovY.ToString(), VerticalFieldOfView);
             program.Uniform(EEngineUniform.CameraFovX.ToString(), HorizontalFieldOfView);
             program.Uniform(EEngineUniform.CameraAspect.ToString(), AspectRatio);
+        }
+
+        public override Vector2 GetSizeAtDistance(float distance)
+        {
+            float height = 2.0f * distance * MathF.Tan(VerticalFieldOfView / 2.0f);
+            float width = height * AspectRatio;
+            return new Vector2(width, height);
         }
     }
 }

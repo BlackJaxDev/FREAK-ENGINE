@@ -36,18 +36,25 @@ namespace XREngine.Rendering
             }
         }
 
-        public List<XRViewport> Viewports { get; set; } = [];
+        public EventList<XRViewport> Viewports { get; set; } = [];
 
-        public XRCamera() { }
-        public XRCamera(TransformBase transform)
+        public event Action<XRCamera, XRViewport>? ViewportAdded;
+        public event Action<XRCamera, XRViewport>? ViewportRemoved;
+
+        public XRCamera()
         {
-            Transform = transform;
+            Viewports.PostAnythingAdded += OnViewportAdded;
+            Viewports.PostAnythingRemoved += OnViewportRemoved;
         }
-        public XRCamera(TransformBase transform, XRCameraParameters parameters)
-        {
-            Transform = transform;
-            Parameters = parameters;
-        }
+        public XRCamera(TransformBase transform) : this()
+            => Transform = transform;
+        public XRCamera(TransformBase transform, XRCameraParameters parameters) : this(transform)
+            => Parameters = parameters;
+
+        private void OnViewportRemoved(XRViewport item)
+            => ViewportRemoved?.Invoke(this, item);
+        private void OnViewportAdded(XRViewport item)
+            => ViewportAdded?.Invoke(this, item);
 
         private TransformBase? _transform;
         public TransformBase Transform

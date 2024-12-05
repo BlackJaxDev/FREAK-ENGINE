@@ -25,14 +25,13 @@ namespace XREngine.Animation
             property.SetValue(obj, GetCurrentValueGeneric());
             Tick(delta);
         }
-        private readonly object[] _memberParamCache = new object[1];
         /// <summary>
         /// Call to set this animation's current value to an object's method that takes it as a single argument and then advance the animation by the given delta.
         /// </summary>
-        public void Tick(object obj, MethodInfo method, float delta)
+        public void Tick(object obj, MethodInfo method, float delta, int valueArgumentIndex, object[] methodArguments)
         {
-            _memberParamCache[0] = GetCurrentValueGeneric();
-            method.Invoke(obj, _memberParamCache);
+            methodArguments[valueArgumentIndex] = GetCurrentValueGeneric();
+            method.Invoke(obj, methodArguments);
             Tick(delta);
         }
 

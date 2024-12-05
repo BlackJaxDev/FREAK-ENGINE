@@ -1,6 +1,5 @@
 ﻿using XREngine.Data.Rendering;
 using XREngine.Rendering;
-using XREngine.Scene;
 
 namespace XREngine.Components.Lights
 {
@@ -26,7 +25,15 @@ namespace XREngine.Components.Lights
             set => SetField(ref _captureDepthCubeMap, value);
         }
 
-        protected XRViewport? _viewport;
+        protected XRViewport? XPosVP => Viewports[0];
+        protected XRViewport? XNegVP => Viewports[1];
+        protected XRViewport? YPosVP => Viewports[2];
+        protected XRViewport? YNegVP => Viewports[3];
+        protected XRViewport? ZPosVP => Viewports[4];
+        protected XRViewport? ZNegVP => Viewports[5];
+
+        public XRViewport?[] Viewports { get; } = new XRViewport?[6];
+
         protected XRTextureCube? _environmentTextureCubemap;
         protected XRTextureCube? _environmentDepthTextureCubemap;
         protected XRRenderBuffer? _tempDepth;
@@ -49,15 +56,14 @@ namespace XREngine.Components.Lights
             InitializeForCapture();
         }
 
+        protected internal override void OnComponentActivated()
+        {
+            base.OnComponentActivated();
+            InitializeForCapture();
+        }
+
         protected virtual void InitializeForCapture()
         {
-            _viewport = new XRViewport(null, ColorResolution, ColorResolution)
-            {
-                WorldInstanceOverride = World,
-                RenderPipeline = new DefaultRenderPipeline(),
-                SetRenderPipelineFromCamera = false
-            };
-
             _environmentTextureCubemap?.Destroy();
             _environmentTextureCubemap = new XRTextureCube(ColorResolution, EPixelInternalFormat.Rgb8, EPixelFormat.Rgb, EPixelType.UnsignedByte, false)
             {
@@ -102,8 +108,19 @@ namespace XREngine.Components.Lights
             _renderFBO = new XRCubeFrameBuffer(null, Transform, 0.1f, 10000.0f, true);
             //_renderFBO.Generate();
 
+            int i = 0;
             foreach (XRCamera cam in _renderFBO)
             {
+                Viewports[i++] = new XRViewport(null, ColorResolution, ColorResolution)
+                {
+                    WorldInstanceOverride = World,
+                    Camera = cam,
+                    RenderPipeline = new DefaultRenderPipeline(),
+                    SetRenderPipelineFromCamera = false,
+                    AutomaticallyCollectVisible = false,
+                    AutomaticallySwapBuffers = false,
+                    AllowUIRender = false,
+                };
                 cam.PostProcessing = new PostProcessingSettings();
                 cam.PostProcessing.ColorGrading.AutoExposure = false;
                 cam.PostProcessing.ColorGrading.Exposure = 1.0f;
@@ -117,15 +134,13 @@ namespace XREngine.Components.Lights
         /// <summary>
         /// Renders the scene to the ResultTexture cubemap.
         /// </summary>
-        public virtual void Capture()
+        public virtual void Render()
         {
             if (World is null)
                 return;
 
             if (RenderFBO is null)
                 SetCaptureResolution(1024);
-
-            World.Lights.RenderShadowMaps(true);
 
             IFrameBufferAttachement depthAttachment;
             int[] depthLayers;
@@ -146,8 +161,7 @@ namespace XREngine.Components.Lights
                     (_environmentTextureCubemap!, EFrameBufferAttachment.ColorAttachment0, 0, i),
                     (depthAttachment, EFrameBufferAttachment.DepthStencilAttachment, 0, depthLayers[i]));
 
-                _viewport!.Camera = RenderFBO.Cameras[i];
-                _viewport.Render(RenderFBO, World);
+                Viewports[i]!.Render(RenderFBO, null, null, false, null);
             }
 
             if (_environmentTextureCubemap is not null)
@@ -155,6 +169,24 @@ namespace XREngine.Components.Lights
                 _environmentTextureCubemap.Bind();
                 _environmentTextureCubemap.GenerateMipmapsGPU();
             }
+        }
+
+        public virtual void CollectVisible()
+        {
+            if (_renderFBO is null)
+                SetCaptureResolution(1024);
+
+            for (int i = 0; i < 6; ++i)
+                Viewports[i]!.CollectVisible(null, null, false);
+        }
+
+        public virtual void SwapBuffers()
+        {
+            if (_renderFBO is null)
+                SetCaptureResolution(1024);
+
+            for (int i = 0; i < 6; ++i)
+                Viewports[i]!.SwapBuffers(false);
         }
     }
 }

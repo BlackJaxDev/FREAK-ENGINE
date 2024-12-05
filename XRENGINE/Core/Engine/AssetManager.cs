@@ -432,50 +432,116 @@ namespace XREngine
             //.WithNodeDeserializer(new XRAssetDeserializer(), w => w.OnTop())
             .Build();
 
-        private static T? Deserialize<T>(string filePath) where T : XRAsset, new()
+        private static T? Deserialize<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)] T>(string filePath) where T : XRAsset, new()
         {
             string ext = Path.GetExtension(filePath)[1..].ToLowerInvariant();
             if (ext == AssetExtension)
                 return Deserializer.Deserialize<T>(File.ReadAllText(filePath));
             else
-            {
-                var extensions3rdParty = typeof(T).GetCustomAttribute<XR3rdPartyExtensionsAttribute>()?.Extensions;
-                if (extensions3rdParty?.Contains(ext) ?? false)
-                {
-                    var asset = new T
-                    {
-                        OriginalPath = filePath
-                    };
-                    asset.Load3rdParty(filePath);
-                    return asset;
-                }
-                else
-                {
-                    Debug.LogWarning($"The file extension '{ext}' is not supported by the asset type '{typeof(T).Name}'.");
-                    return null;
-                }
-            }
+                return Load3rdParty<T>(filePath, ext);
         }
 
-        private static async Task<T?> DeserializeAsync<T>(string filePath) where T : XRAsset, new()
+        private static async Task<T?> DeserializeAsync<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)] T>(string filePath) where T : XRAsset, new()
         {
             string ext = Path.GetExtension(filePath)[1..].ToLowerInvariant();
             if (ext == AssetExtension)
                 return await Task.Run(async () => Deserializer.Deserialize<T>(await File.ReadAllTextAsync(filePath)));
             else
+                return await Load3rdPartyAsync<T>(filePath, ext);
+        }
+
+        private static T? Load3rdParty<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)] T>(string filePath, string ext) where T : XRAsset, new()
+        {
+            var exts = typeof(T).GetCustomAttribute<XR3rdPartyExtensionsAttribute>()?.Extensions;
+            var match = exts?.FirstOrDefault(e => e.ext == ext);
+            if (match is not null)
             {
-                var exts = typeof(T).GetCustomAttribute<XR3rdPartyExtensionsAttribute>()?.Extensions;
-                if (exts?.Contains(ext) ?? false)
+                if (match.Value.staticLoad)
                 {
-                    var asset = new T();
-                    await asset.Load3rdPartyAsync(filePath);
-                    return asset;
+                    var method = typeof(T).GetMethod("Load3rdPartyStatic", BindingFlags.Public | BindingFlags.Static);
+                    if (method is not null)
+                    {
+                        var asset = method.Invoke(null, [filePath]) as T;
+                        if (asset is not null)
+                            return asset;
+                        else
+                        {
+                            Debug.LogWarning($"The asset type '{typeof(T).Name}' has a 3rd party extension '{ext}' but the static method does not return the correct type.");
+                            return null;
+                        }
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"The asset type '{typeof(T).Name}' has a 3rd party extension '{ext}' but does not have a static load method.");
+                        return null;
+                    }
                 }
                 else
                 {
-                    Debug.LogWarning($"The file extension '{ext}' is not supported by the asset type '{typeof(T).Name}'.");
-                    return null;
+                    var asset = new T
+                    {
+                        OriginalPath = filePath
+                    };
+                    if (asset.Load3rdParty(filePath))
+                        return asset;
+                    else
+                    {
+                        Debug.LogWarning($"Failed to load 3rd party asset '{filePath}' as type '{typeof(T).Name}'.");
+                        return null;
+                    }
                 }
+            }
+            else
+            {
+                Debug.LogWarning($"The file extension '{ext}' is not supported by the asset type '{typeof(T).Name}'.");
+                return null;
+            }
+        }
+        private static async Task<T?> Load3rdPartyAsync<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)] T>(string filePath, string ext) where T : XRAsset, new()
+        {
+            var exts = typeof(T).GetCustomAttribute<XR3rdPartyExtensionsAttribute>()?.Extensions;
+            var match = exts?.FirstOrDefault(e => e.ext == ext);
+            if (match is not null)
+            {
+                if (match.Value.staticLoad)
+                {
+                    var method = typeof(T).GetMethod("Load3rdPartyStaticAsync", BindingFlags.Public | BindingFlags.Static);
+                    if (method is not null)
+                    {
+                        var assetTask = method.Invoke(null, [filePath]) as Task<T?>;
+                        if (assetTask is not null)
+                            return await assetTask;
+                        else
+                        {
+                            Debug.LogWarning($"The asset type '{typeof(T).Name}' has a 3rd party extension '{ext}' but the static method does not return the correct type.");
+                            return null;
+                        }
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"The asset type '{typeof(T).Name}' has a 3rd party extension '{ext}' but does not have a static load method.");
+                        return null;
+                    }
+                }
+                else
+                {
+                    var asset = new T
+                    {
+                        OriginalPath = filePath
+                    };
+                    if (await asset.Load3rdPartyAsync(filePath))
+                        return asset;
+                    else
+                    {
+                        Debug.LogWarning($"Failed to load 3rd party asset '{filePath}' as type '{typeof(T).Name}'.");
+                        return null;
+                    }
+                }
+            }
+            else
+            {
+                Debug.LogWarning($"The file extension '{ext}' is not supported by the asset type '{typeof(T).Name}'.");
+                return null;
             }
         }
     }

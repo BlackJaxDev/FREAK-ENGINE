@@ -119,7 +119,7 @@ namespace XREngine.Rendering.Physics.Physx
             var tfm = PhysxScene.MakeTransform(position, rotation);
             var shapeTfm = PhysxScene.MakeTransform(shapeOffsetTranslation, shapeOffsetRotation);
             using var structObj = geometry.GetStruct();
-            _obj = PhysxScene.PhysicsPtr->PhysPxCreateDynamic(&tfm, structObj.Address.As<PxGeometry>(), material.MaterialPtr, density, &shapeTfm);
+            _obj = PhysxScene.PhysicsPtr->PhysPxCreateDynamic(&tfm, structObj.ToStructPtr<PxGeometry>(), material.MaterialPtr, density, &shapeTfm);
             AllActors.Add((nint)_obj, this);
             AllRigidActors.Add((nint)_obj, this);
             AllDynamic.Add((nint)_obj, this);

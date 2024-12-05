@@ -1,493 +1,452 @@
-﻿using Extensions;
+﻿using Assimp;
+using MagicPhysX;
+using SharpFont.Cache;
 using System.Numerics;
 using XREngine.Core.Attributes;
-using XREngine.Data.Components;
 using XREngine.Data.Core;
-using XREngine.Physics;
-using XREngine.Physics.ShapeTracing;
+using XREngine.Rendering.Physics.Physx;
 using XREngine.Scene;
 using XREngine.Scene.Transforms;
 
 namespace XREngine.Components
 {
-    [RequiresTransform(typeof(Transform))]
-    [RequireComponents(typeof(CapsuleYComponent))]
+    [RequiresTransform(typeof(RigidBodyTransform))]
     public class CharacterMovement3DComponent : PlayerMovementComponentBase
     {
-        public CapsuleYComponent? RootCapsule => GetSiblingComponent<CapsuleYComponent>(true);
+        public RigidBodyTransform RigidBodyTransform => SceneNode.GetTransformAs<RigidBodyTransform>(true)!;
 
-        private float _verticalStepUpHeight = 1.0f;
-        private float _maxWalkAngle = 50.0f;
-        private float _walkingMovementSpeed = 0.17f;
-        private float _jumpSpeed = 8.0f;
-        private float _fallingMovementSpeed = 10.0f;
-        private bool _alignInputToGround = true;
+        private float _stepOffset = 0.5f;
+        private float _slopeLimitCosine = 0.0f;
+        private float _walkingMovementSpeed = 1000.0f;
+        private float _jumpSpeed = 8000.0f;
+        private Func<Vector3, Vector3>? _subUpdateTick;
+        private ECrouchState _crouchState = ECrouchState.Standing;
+        private float _invisibleWallHeight = 0.0f;
+        private float _density = 1.0f;
+        private float _scaleCoeff = 0.8f;
+        private float _volumeGrowth = 1.5f;
+        private bool _slideOnSteepSlopes = true;
+        private PhysxMaterial _material = new(0.1f, 0.1f, 0.1f);
+        private float _radius = 2.0f;
+        private float _standingHeight = 1.0f;
+        private float _crouchedHeight = 0.4f;
+        private float _proneHeight = 0.2f;
+        private bool _constrainedClimbing = false;
+        private CapsuleController? _controller;
+        private float _minMoveDistance = 0.001f;
+        private float _contactOffset = 0.1f;
+        private Vector3 _upDirection = Globals.Up;
+        private Vector3 _spawnPosition = Vector3.Zero;
 
-        private EMovementMode _currentMovementMode = EMovementMode.Falling;
-        private Vector3 _worldGroundContactPoint;
-        private XRCollisionObject? _currentWalkingSurface;
-        private Vector3 _groundNormal;
-        private Action<Vector3>? _subUpdateTick;
-        private Vector3 
-            _position, _prevPosition,
-            _velocity, _prevVelocity,
-            _acceleration;
-        private bool _postWalkAllowJump = false, _justJumped = false;
-        private ShapeTraceClosest _closestTrace = new(
-            null, Matrix4x4.Identity, Matrix4x4.Identity,
-            (ushort)ECollisionGroup.Characters,
-            (ushort)(ECollisionGroup.StaticWorld | ECollisionGroup.DynamicWorld));
-
-        private bool _isCrouched = false;
-        private Quaternion _upToGroundNormalRotation = Quaternion.Identity;
-        private float _allowJumpTimeDelta;
-        private float _allowJumpExtraTime = 1.0f;
-
-        public Vector3 CurrentPosition => _position;
-        public Vector3 CurrentVelocity => _velocity;
-        public Vector3 CurrentAcceleration => _acceleration;
-        public float VerticalStepUpHeight
+        public Vector3 FootPosition
         {
-            get => _verticalStepUpHeight;
-            set => SetField(ref _verticalStepUpHeight, value);
+            get => Controller?.FootPosition ?? (Transform.WorldTranslation - UpDirection * (CurrentHeight + Radius + ContactOffset));
+            set
+            {
+                if (Controller is not null)
+                    Controller.FootPosition = value;
+            }
         }
-        public float MaxWalkAngle
+        public Vector3 Position
         {
-            get => _maxWalkAngle;
-            set => SetField(ref _maxWalkAngle, value);
+            get => Controller?.Position ?? Transform.WorldTranslation;
+            set
+            {
+                if (Controller is not null)
+                    Controller.Position = value;
+            }
+        }
+        public Vector3 UpDirection
+        { 
+            get => _upDirection;
+            set => SetField(ref _upDirection, value);
+        }
+        public float StepOffset
+        {
+            get => _stepOffset;
+            set => SetField(ref _stepOffset, value);
+        }
+        /// <summary>
+        /// The maximum slope which the character can walk up.
+        /// In general it is desirable to limit where the character can walk, in particular it is unrealistic for the character to be able to climb arbitary slopes.
+        /// The limit is expressed as the cosine of desired limit angle.
+        /// A value of 0 disables this feature.
+        /// </summary>
+        public float SlopeLimitCosine
+        {
+            get => _slopeLimitCosine;
+            set => SetField(ref _slopeLimitCosine, value);
+        }
+        public float SlopeLimitAngleRad
+        {
+            get => (float) Math.Acos(SlopeLimitCosine);
+            set => SlopeLimitCosine = (float)Math.Cos(value);
+        }
+        public float SlopeLimitAngleDeg
+        {
+            get => XRMath.RadToDeg(SlopeLimitAngleRad);
+            set => SlopeLimitAngleRad = XRMath.DegToRad(value);
         }
         public float WalkingMovementSpeed
         {
             get => _walkingMovementSpeed;
             set => SetField(ref _walkingMovementSpeed, value);
         }
+        /// <summary>
+        /// Maximum height a jumping character can reach.
+        /// This is only used if invisible walls are created(‘invisibleWallHeight’ is non zero).
+        /// When a character jumps, the non-walkable triangles he might fly over are not found by the collision queries
+        /// (since the character’s bounding volume does not touch them).
+        /// Thus those non-walkable triangles do not create invisible walls, and it is possible for a jumping character to land on a non-walkable triangle,
+        /// while he wouldn’t have reached that place by just walking.
+        /// The ‘maxJumpHeight’ variable is used to extend the size of the collision volume downward.
+        /// This way, all the non-walkable triangles are properly found by the collision queries and it becomes impossible to ‘jump over’ invisible walls.
+        /// If the character in your game can not jump, it is safe to use 0.0 here.Otherwise it is best to keep this value as small as possible, 
+        /// since a larger collision volume means more triangles to process.
+        /// </summary>
+        public float MaxJumpHeight
+        {
+            get => _jumpSpeed;
+            set => SetField(ref _jumpSpeed, value);
+        }
+        /// <summary>
+        /// The contact offset used by the controller.
+        /// Specifies a skin around the object within which contacts will be generated.Use it to avoid numerical precision issues.
+        /// This is dependant on the scale of the users world, but should be a small, positive non zero value.
+        /// </summary>
+        public float ContactOffset
+        {
+            get => _contactOffset;
+            set => SetField(ref _contactOffset, value);
+        }
+        public enum ECrouchState
+        {
+            Standing,
+            Crouched,
+            Prone
+        }
+        public ECrouchState CrouchState
+        {
+            get => _crouchState;
+            set => SetField(ref _crouchState, value);
+        }
+        /// <summary>
+        /// Height of invisible walls created around non-walkable triangles.
+        /// The library can automatically create invisible walls around non-walkable triangles defined by the ‘slopeLimit’ parameter.
+        /// This defines the height of those walls.
+        /// If it is 0.0, then no extra triangles are created.
+        /// </summary>
+        public float InvisibleWallHeight
+        {
+            get => _invisibleWallHeight;
+            set => SetField(ref _invisibleWallHeight, value);
+        }
+        /// <summary>
+        /// Density of underlying kinematic actor.
+        /// The CCT creates a PhysX’s kinematic actor under the hood.This controls its density.
+        /// </summary>
+        public float Density
+        {
+            get => _density;
+            set => SetField(ref _density, value);
+        }
+        /// <summary>
+        /// Scale coefficient for underlying kinematic actor.
+        /// The CCT creates a PhysX’s kinematic actor under the hood.
+        /// This controls its scale factor.
+        /// This should be a number a bit smaller than 1.0.
+        /// This scale factor affects how the character interacts with dynamic rigid bodies around it (e.g.pushing them, etc).
+        /// With a scale factor < 1, the underlying kinematic actor will not touch surrounding rigid bodies - they will only interact with the character controller’s shapes (capsules or boxes),
+        /// and users will have full control over the interactions(i.e.they will have to push the objects with explicit forces themselves).
+        /// With a scale factor >=1, the underlying kinematic actor will touch and push surrounding rigid bodies based on PhysX’s computations, 
+        /// as if there would be no character controller involved.This works fine except when you push objects into a wall.
+        /// PhysX has no control over kinematic actors(since they are kinematic) so they would freely push dynamic objects into walls, and make them tunnel / explode / behave badly.
+        /// With a smaller kinematic actor however, the character controller’s swept shape touches dynamic rigid bodies first, 
+        /// and can apply forces to them to move them away (or not, depending on what the gameplay needs).
+        /// Meanwhile the character controller’s swept shape itself is stopped by these dynamic bodies.
+        /// Setting the scale factor to 1 could still work, but it is unreliable.
+        /// Depending on FPU accuracy you could end up with either the CCT’s volume or the underlying kinematic actor touching the dynamic bodies first, and this could change from one moment to the next.
+        /// </summary>
+        public float ScaleCoeff
+        {
+            get => _scaleCoeff;
+            set => SetField(ref _scaleCoeff, value);
+        }
+        /// <summary>
+        /// Cached volume growth.
+        /// Amount of space around the controller we cache to improve performance.
+        /// This is a scale factor that should be higher than 1.0f but not too big, ideally lower than 2.0f.
+        /// </summary>
+        public float VolumeGrowth
+        {
+            get => _volumeGrowth;
+            set => SetField(ref _volumeGrowth, value);
+        }
+        /// <summary>
+        /// The non-walkable mode controls if a character controller slides or not on a non-walkable part.
+        /// This is only used when slopeLimit is non zero.
+        /// </summary>
+        public bool SlideOnSteepSlopes
+        {
+            get => _slideOnSteepSlopes;
+            set => SetField(ref _slideOnSteepSlopes, value);
+        }
+        public PhysxMaterial Material
+        {
+            get => _material;
+            set => SetField(ref _material, value);
+        }
+        public float Radius
+        {
+            get => _radius;
+            set => SetField(ref _radius, value);
+        }
+        public float StandingHeight
+        {
+            get => _standingHeight;
+            set => SetField(ref _standingHeight, value);
+        }
+        public float ProneHeight
+        {
+            get => _proneHeight;
+            set => SetField(ref _proneHeight, value);
+        }
+        public float CrouchedHeight
+        {
+            get => _crouchedHeight;
+            set => SetField(ref _crouchedHeight, value);
+        }
+
+        public float CurrentHeight => Controller?.Height ?? GetCurrentHeight();
+
+        private float GetCurrentHeight()
+            => CrouchState switch
+            {
+                ECrouchState.Standing => StandingHeight,
+                ECrouchState.Crouched => CrouchedHeight,
+                ECrouchState.Prone => ProneHeight,
+                _ => 0.0f,
+            };
+
+        public bool ConstrainedClimbing
+        {
+            get => _constrainedClimbing;
+            set => SetField(ref _constrainedClimbing, value);
+        }
+        /// <summary>
+        /// The minimum travelled distance to consider.
+        /// If travelled distance is smaller, the character doesn’t move.
+        /// This is used to stop the recursive motion algorithm when remaining distance to travel is small.
+        /// </summary>
+        public float MinMoveDistance
+        {
+            get => _minMoveDistance;
+            set => SetField(ref _minMoveDistance, value);
+        }
+        public CapsuleController? Controller
+        {
+            get => _controller;
+            private set => SetField(ref _controller, value);
+        }
         public float JumpSpeed
         {
             get => _jumpSpeed;
             set => SetField(ref _jumpSpeed, value);
         }
-        public float FallingMovementSpeed
+
+        public PhysxDynamicRigidBody? RigidBody => Controller?.Actor;
+
+        public void GetState(
+            out Vector3 deltaXP,
+            out PhysxShape? touchedShape,
+            out PhysxRigidActor? touchedActor,
+            out uint touchedObstacleHandle,
+            out uint collisionFlags,
+            out bool standOnAnotherCCT,
+            out bool standOnObstacle,
+            out bool isMovingUp)
         {
-            get => _fallingMovementSpeed;
-            set => SetField(ref _fallingMovementSpeed, value);
-        }
-        public bool AlignInputToGround
-        {
-            get => _alignInputToGround;
-            set => SetField(ref _alignInputToGround, value);
-        }
-        public bool IsCrouched
-        {
-            get => _isCrouched;
-            set => SetField(ref _isCrouched, value);
-        }
-        public Quaternion UpToGroundNormalRotation
-        {
-            get => _upToGroundNormalRotation;
-            private set => SetField(ref _upToGroundNormalRotation, value);
-        }
-        public float AllowJumpTimeDelta
-        {
-            get => _allowJumpTimeDelta;
-            set => SetField(ref _allowJumpTimeDelta, value);
-        }
-        public float AllowJumpExtraTime
-        {
-            get => _allowJumpExtraTime;
-            set => SetField(ref _allowJumpExtraTime, value);
-        }
-        public Vector3 GroundNormal
-        {
-            get => _groundNormal;
-            private set
+            if (Controller is null)
             {
-                SetField(ref _groundNormal, value);
-                UpToGroundNormalRotation = XRMath.RotationBetweenVectors(Globals.Up, GroundNormal);
+                deltaXP = Vector3.Zero;
+                touchedShape = null;
+                touchedActor = null;
+                touchedObstacleHandle = 0;
+                collisionFlags = 0;
+                standOnAnotherCCT = false;
+                standOnObstacle = false;
+                isMovingUp = false;
+                return;
             }
+
+            var state = Controller.State;
+            deltaXP = state.deltaXP;
+            touchedShape = state.touchedShape;
+            touchedActor = state.touchedActor;
+            touchedObstacleHandle = state.touchedObstacleHandle;
+            collisionFlags = state.collisionFlags;
+            standOnAnotherCCT = state.standOnAnotherCCT;
+            standOnObstacle = state.standOnObstacle;
+            isMovingUp = state.isMovingUp;
+            return;
         }
-        public EMovementMode CurrentMovementMode
+
+        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
         {
-            get => _currentMovementMode;
-            protected set
+            base.OnPropertyChanged(propName, prev, field);
+            switch (propName)
             {
-                if (_currentMovementMode == value)
-                    return;
-
-                if (SceneNode.TryGetComponent(out CapsuleYComponent? root) && root?.CollisionObject is XRRigidBody body)
-                {
-                    body.SimulatingPhysics = true;
-                    switch (value)
-                    {
-                        case EMovementMode.Walking:
-
-                            _justJumped = false;
-                            //_velocity = root.PhysicsDriver.CollisionObject.LinearVelocity;
-                            //body.SimulatingPhysics = false;
-                            body.IsKinematic = true;
-                            //Physics simulation updates the world matrix, but not its components (translation, for example)
-                            //Do that now
-                            root.TransformAs<Transform>().Translation = root.Transform.WorldTranslation;
-                            
-                            _subUpdateTick = TickWalking;
-                            break;
-                        case EMovementMode.Falling:
-
-                            if (_postWalkAllowJump = _currentMovementMode == EMovementMode.Walking && !_justJumped)
-                            {
-                                AllowJumpTimeDelta = 0.0f;
-                                _velocity.Y = 0.0f;
-                            }
-
-                            body.IsKinematic = false;
-                            body.LinearVelocity = _velocity;
-
-                            CurrentWalkingSurface = null;
-
-                            _subUpdateTick = TickFalling;
-                            break;
-                    }
-                }
-                _currentMovementMode = value;
-            }
-        }
-        public XRCollisionObject? CurrentWalkingSurface
-        {
-            get => _currentWalkingSurface;
-            set
-            {
-                if (_currentWalkingSurface?.Owner is XRComponent comp1)
-                    comp1.Transform.WorldMatrixChanged -= FloorTransformChanged;
-
-                SetField(ref _currentWalkingSurface, value);
-
-                if (_currentWalkingSurface?.Owner is XRComponent comp2)
-                    comp2.Transform.WorldMatrixChanged += FloorTransformChanged;
+                case nameof(StandingHeight):
+                    if (CrouchState == ECrouchState.Standing)
+                        Controller?.Resize(StandingHeight);
+                    break;
+                case nameof(CrouchedHeight):
+                    if (CrouchState == ECrouchState.Crouched)
+                        Controller?.Resize(CrouchedHeight);
+                    break;
+                case nameof(ProneHeight):
+                    if (CrouchState == ECrouchState.Prone)
+                        Controller?.Resize(ProneHeight);
+                    break;
+                case nameof(CrouchState):
+                    Controller?.Resize(GetCurrentHeight());
+                    break;
+                case nameof(Radius):
+                    if (Controller is not null)
+                        Controller.Radius = Radius;
+                    break;
+                case nameof(SlopeLimitCosine):
+                    if (Controller is not null)
+                        Controller.SlopeLimit = SlopeLimitCosine;
+                    break;
+                case nameof(StepOffset):
+                    if (Controller is not null)
+                        Controller.StepOffset = StepOffset;
+                    break;
+                case nameof(ContactOffset):
+                    if (Controller is not null)
+                        Controller.ContactOffset = ContactOffset;
+                    break;
+                case nameof(UpDirection):
+                    if (Controller is not null)
+                        Controller.UpDirection = UpDirection;
+                    break;
+                case nameof(SlideOnSteepSlopes):
+                    if (Controller is not null)
+                        Controller.ClimbingMode = ConstrainedClimbing 
+                            ? PxCapsuleClimbingMode.Constrained
+                            : PxCapsuleClimbingMode.Easy;
+                    break;
             }
         }
 
-        protected internal override void OnComponentActivated()
+        public Vector3 SpawnPosition
         {
-            CurrentWalkingSurface = null;
-            _subUpdateTick = TickFalling;
-            RegisterTick(ETickGroup.PrePhysics, (int)ETickOrder.Input, MainUpdateTick);
+            get => _spawnPosition;
+            set => SetField(ref _spawnPosition, value);
+        }
+
+        protected internal unsafe override void OnComponentActivated()
+        {
+            _subUpdateTick = GroundMovementTick;
+            RegisterTick(ETickGroup.Normal, (int)ETickOrder.Scene, MainUpdateTick);
+
+            var scene = World?.PhysicsScene as PhysxScene;
+            var manager = scene?.CreateOrCreateControllerManager();
+            if (manager is null)
+                return;
+
+            Vector3 pos = SpawnPosition;
+            Vector3 up = Globals.Up;
+            Controller = manager.CreateCapsuleController(
+                pos,
+                up,
+                SlopeLimitCosine,
+                InvisibleWallHeight,
+                MaxJumpHeight,
+                ContactOffset,
+                StepOffset,
+                Density,
+                ScaleCoeff,
+                VolumeGrowth,
+                SlideOnSteepSlopes 
+                    ? PxControllerNonWalkableMode.PreventClimbingAndForceSliding
+                    : PxControllerNonWalkableMode.PreventClimbing,
+                Material,
+                0,
+                null,
+                Radius,
+                StandingHeight,
+                ConstrainedClimbing 
+                    ? PxCapsuleClimbingMode.Constrained
+                    : PxCapsuleClimbingMode.Easy);
+
+            //Wrap the hidden actor and apply to the transform
+            //The constructor automatically caches the actor
+            RigidBodyTransform.RigidBody = new PhysxDynamicRigidBody(Controller.ControllerPtr->GetActor());
         }
 
         protected internal override void OnComponentDeactivated()
         {
             _subUpdateTick = null;
-            UnregisterTick(ETickGroup.PrePhysics, (int)ETickOrder.Input, MainUpdateTick);
+
+            if (World is not null && RigidBody is not null)
+                World.PhysicsScene.RemoveActor(RigidBody);
+            RigidBodyTransform.RigidBody = null;
+
+            Controller?.Release();
+            Controller = null;
         }
 
-        private void FloorTransformChanged(TransformBase floor)
+        private unsafe void MainUpdateTick()
         {
-            //TODO: calculate relative transform from floor world transform to character world transform.
-            //Use that to move the character with the floor.
-
-            //TODO: change to falling if ground accelerates down with gravity faster than the character
-            //CapsuleYComponent root = OwningActor.RootComponent as CapsuleYComponent;
-            //ISceneComponent comp = (ISceneComponent)_currentWalkingSurface.Owner;
-            ////Matrix4x4 transformDelta = comp.PreviousInverseWorldMatrix * comp.WorldMatrix;
-            //root.WorldMatrix.Value = root.WorldMatrix * comp.PreviousInverseWorldMatrix * comp.WorldMatrix;
-            //Vector3 point = newWorldMatrix.Translation;
-
-            //root.Translation = point;
-            //root.Rotation.Yaw += transformDelta.ExtractRotation(true).ToYawPitchRoll().Yaw;
-        }
-        private void MainUpdateTick()
-        {
-            if (_postWalkAllowJump)
-            {
-                AllowJumpTimeDelta += Engine.UndilatedDelta;
-                if (AllowJumpTimeDelta > AllowJumpExtraTime)
-                    _postWalkAllowJump = false;
-            }
-            _subUpdateTick?.Invoke(ConsumeInput());
-        }
-        protected virtual void TickWalking(Vector3 movementInput)
-        {
-            CapsuleYComponent root = RootCapsule!;
-            Transform rootTfm = root.TransformAs<Transform>();
-
-            XRCollisionShape? shape = root.CollisionObject?.CollisionShape;
-            XRRigidBody? body = root.CollisionObject as XRRigidBody;
-
-            _prevPosition = rootTfm.Translation;
-
-            //Use gravity currently affecting this body
-            Vector3 gravity = body?.Gravity ?? Vector3.Zero;
-
-            Vector3 down = gravity;
-            down = Vector3.Normalize(down);
-            Vector3 stepUpVector = -VerticalStepUpHeight * down;
-            Matrix4x4 stepUpMatrix = Matrix4x4.CreateTranslation(stepUpVector);
-
-            //TODO: ground test first, then add input
-
-            //Add input
-            Quaternion groundRot = AlignInputToGround ? UpToGroundNormalRotation : Quaternion.Identity;
-
-            _closestTrace.Shape = shape;
-
-            //Add movement input
-            ConsumeMovement(ref movementInput, out Matrix4x4 inputTransform, root, rootTfm, stepUpMatrix, ref groundRot);
-
-            //Test for walkable ground where we've moved to
-            GroundTest(root, rootTfm, body, ref down, stepUpMatrix, out inputTransform);
-
-            if (root.CollisionObject is not null)
-                root.CollisionObject.WorldTransform = root.Transform.WorldMatrix;
-
-            UpdatePhysics(root);
-        }
-
-        private void UpdatePhysics(CapsuleYComponent root)
-        {
-            _prevVelocity = _velocity;
-            _position = root.Transform.WorldTranslation;
-            _velocity = (_position - _prevPosition) / Engine.UndilatedDelta;
-            _acceleration = (_velocity - _prevVelocity) / Engine.UndilatedDelta;
-        }
-
-        private void GroundTest(CapsuleYComponent root, Transform rootTfm, XRRigidBody? body, ref Vector3 down, Matrix4x4 stepUpMatrix, out Matrix4x4 inputTransform)
-        {
-            float centerToGroundDist = root.Shape.HalfHeight + root.Shape.Radius;
-            float marginDist = (CurrentWalkingSurface?.CollisionShape?.Margin ?? 0.0f) + (body?.CollisionShape?.Margin ?? 0.0f);
-            float groundTestDist = 2.0f;// centerToGroundDist + marginDist;
-            down *= groundTestDist;
-            inputTransform = Matrix4x4.CreateTranslation(down);
-
-            _closestTrace.Start = stepUpMatrix * root.Transform.WorldMatrix;
-            _closestTrace.End = stepUpMatrix * inputTransform * root.Transform.WorldMatrix;
-
-            bool traceSuccess = World?.PhysicsScene?.Trace(_closestTrace) ?? false;
-            bool walkSuccess = traceSuccess && IsSurfaceNormalWalkable(_closestTrace.HitNormalWorld);
-            if (!walkSuccess)
-            {
-                //Engine.Out(traceSuccess ? "walk surface failed" : "walk trace failed");
-
-                CurrentMovementMode = EMovementMode.Falling;
+            if (Controller is null)
                 return;
-            }
 
-            _worldGroundContactPoint = _closestTrace.HitPointWorld;
-            //Vector3 diff = Vector3.Lerp(stepUpVector, down, _closestTrace.HitFraction);
-            rootTfm.Translation = new Vector3(rootTfm.Translation.X, _worldGroundContactPoint.Y + centerToGroundDist, rootTfm.Translation.Z);
+            var scene = World?.PhysicsScene as PhysxScene;
+            var manager = scene?.CreateOrCreateControllerManager();
+            if (manager is null)
+                return;
 
-            GroundNormal = _closestTrace.HitNormalWorld;
-            CurrentWalkingSurface = _closestTrace.CollisionObject as XRRigidBody;
+            //Move this to tick in world instance
+            manager.ComputeInteractions(Engine.Delta);
+
+            var delta = _subUpdateTick?.Invoke(ConsumeInput()) ?? Vector3.Zero;
+            if (delta.LengthSquared() > float.Epsilon)
+                Controller.Move(delta, MinMoveDistance, Engine.Delta, manager.ControllerFilters, manager.GetObstacleContext(0u).ContextPtr);
         }
 
-        private void ConsumeMovement(ref Vector3 movementInput, out Matrix4x4 inputTransform, CapsuleYComponent root, Transform rootTfm, Matrix4x4 stepUpMatrix, ref Quaternion groundRot)
+        public Vector3 Velocity { get; set; } = Vector3.Zero;
+
+        protected virtual unsafe Vector3 GroundMovementTick(Vector3 movementInput)
         {
-            inputTransform = Matrix4x4.Identity;
-            while (true)
+            if (Controller is null)
+                return Vector3.Zero;
+
+            if (World?.PhysicsScene is not PhysxScene scene)
+                return Vector3.Zero;
+
+            Vector3 delta = movementInput * WalkingMovementSpeed;
+            if (!Controller.CollidingDown)
             {
-                if (movementInput.LengthSquared() < float.Epsilon)
-                    break;
-                
-                Vector3 finalInput = Vector3.Transform(movementInput * WalkingMovementSpeed, groundRot);
-                groundRot = Quaternion.Identity;
-                inputTransform = Matrix4x4.CreateTranslation(finalInput);
-
-                Matrix4x4 wm = root.Transform.WorldMatrix;
-                _closestTrace.Start = stepUpMatrix * wm;
-                _closestTrace.End = stepUpMatrix * inputTransform * wm;
-
-                if (SceneNode.World?.PhysicsScene?.Trace(_closestTrace) ?? false)
-                {
-                    if (PhysicsMove(ref movementInput, rootTfm, ref groundRot, ref finalInput))
-                        continue;
-                }
-                else
-                    rootTfm.Translation += finalInput;
-                break;
-            }
-        }
-
-        private bool PhysicsMove(ref Vector3 movementInput, Transform rootTfm, ref Quaternion groundRot, ref Vector3 finalInput)
-            => _closestTrace.HitFraction.IsZero()
-                ? PhysicsMoveNonBlocking(ref movementInput, finalInput)
-                : PhysicsMoveBlocking(ref movementInput, rootTfm, ref finalInput);
-
-        private bool PhysicsMoveBlocking(ref Vector3 movementInput, Transform rootTfm, ref Vector3 finalInput)
-        {
-            float hitF = _closestTrace.HitFraction;
-
-            //Something is in the way
-            rootTfm.Translation += finalInput * hitF;
-
-            Vector3 normal = _closestTrace.HitNormalWorld;
-            if (IsSurfaceNormalWalkable(normal))
-            {
-                GroundNormal = normal;
-                //var groundRot = UpToGroundNormalRotation;
-
-                XRRigidBody? rigidBody = _closestTrace.CollisionObject as XRRigidBody;
-                //if (CurrentWalkingSurface == d)
-                //    break;
-
-                CurrentWalkingSurface = rigidBody;
-                if (!(hitF - 1.0f).IsZero())
-                {
-                    float invHitF = 1.0f - hitF;
-                    movementInput = movementInput * invHitF;
-                    return true;
-                }
+                Vector3 gravAccel = scene.Gravity * Engine.Delta * 0.01f;
+                Velocity += gravAccel;
+                delta += Velocity;
             }
             else
             {
-                finalInput = finalInput.Normalized();
-                float dot = Vector3.Dot(normal, finalInput);
-                if (dot < 0.0f)
-                {
-                    //running left is up, right is down
-                    Vector3 up = finalInput.Cross(normal);
-                    movementInput = normal.Cross(up);
-                    return true;
-                }
+                Velocity = Vector3.Zero;
             }
-            return false;
+            return delta;
         }
 
-        private bool PhysicsMoveNonBlocking(ref Vector3 movementInput, Vector3 finalInput)
-        {
-            Vector3 hitNormal = _closestTrace.HitNormalWorld;
-            finalInput.Normalized();
-            float dot = Vector3.Dot(hitNormal, finalInput);
-            if (dot < 0.0f)
-            {
-                //running left is up, right is down
-                Vector3 up = Vector3.Cross(finalInput, hitNormal);
-                Vector3 newMovement = Vector3.Cross(hitNormal, up);
-                if (!newMovement.Equals(movementInput))
-                {
-                    movementInput = newMovement;
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        protected virtual void TickFalling(Vector3 movementInput)
-        {
-            if (RootCapsule!.CollisionObject is not XRRigidBody body)
-                return;
-            
-            Vector3 v = body.LinearVelocity;
-            if (v.XZ().Length() < 8.667842f)
-                body.ApplyCentralForce((body.Mass * FallingMovementSpeed) * movementInput);
-        }
         public void Jump()
         {
-            //Nothing to jump OFF of?
-            if (_currentMovementMode != EMovementMode.Walking && !_postWalkAllowJump)
+            if (Controller is null)
                 return;
 
-            //Get root component of the character
-            IGenericCollidable root = RootCapsule as IGenericCollidable;
-
-            //If the root has no rigid body, the player can't jump
-            if (root?.CollisionObject is not XRRigidBody chara)
-                return;
-
-            _postWalkAllowJump = false;
-            _justJumped = true;
-            
-            Vector3 up = chara.Gravity;
-            up = Vector3.Normalize(up);
-            up = -up;
-
-            if (_postWalkAllowJump = _currentMovementMode == EMovementMode.Walking && !_justJumped)
-            {
-                AllowJumpTimeDelta = 0.0f;
-                _velocity.Y = 0.0f;
-            }
-
-            chara.SimulatingPhysics = true;
-            _subUpdateTick = TickFalling;
-
-            if (_currentWalkingSurface != null)
-                chara.Translate(up * 2.0f);
-
-            chara.LinearVelocity = _velocity;
-
-            if (_currentWalkingSurface != null && 
-                _currentWalkingSurface is XRRigidBody rigid &&
-                rigid.SimulatingPhysics &&
-                rigid.LinearFactor != Vector3.Zero)
-            {
-                //TODO: calculate push off force using ground's mass.
-                //For example, you can't jump off a piece of debris.
-                float surfaceMass = rigid.Mass;
-                float charaMass = chara.Mass;
-                Vector3 surfaceVelInitial = rigid.LinearVelocity;
-                Vector3 charaVelInitial = chara.LinearVelocity;
-
-                Vector3 charaVelFinal = up * JumpSpeed;
-                Vector3 surfaceVelFinal = (surfaceMass * surfaceVelInitial + charaMass * charaVelInitial - charaMass * charaVelFinal) / surfaceMass;
-
-                Vector3 surfaceImpulse = (surfaceVelFinal - surfaceVelInitial) * surfaceMass;
-                rigid.ApplyImpulse(surfaceImpulse, Vector3.Transform(_worldGroundContactPoint, rigid.WorldTransform.Inverted()));
-                chara.ApplyCentralImpulse(charaVelFinal * (1.0f / chara.Mass));
-            }
-            else
-            {
-                //The ground isn't movable, so just apply the jump force directly.
-                //impulse = mass * velocity change
-                chara.ApplyCentralImpulse(up * (JumpSpeed * chara.Mass));
-            }
-
-            CurrentMovementMode = EMovementMode.Falling;
-            CurrentWalkingSurface = null;
-        }
-        public void EndJump()
-        {
-
-        }
-        public void ToggleCrouch()
-        {
-
-        }
-        public void SetCrouched()
-        {
-
-        }
-        public bool IsSurfaceNormalWalkable(Vector3 normal)
-        {
-            //TODO: use friction between surfaces, not just a constant angle
-            return XRMath.AngleBetween(Globals.Up, normal) <= MaxWalkAngle;
-        }
-        public void OnHit(XRCollisionObject other, XRContactInfo point, bool thisIsA)
-        {
-            Vector3 normal;
-            if (thisIsA)
-            {
-                _worldGroundContactPoint = point.PositionWorldOnB;
-                normal = point.NormalWorldOnB;
-            }
-            else
-            {
-                _worldGroundContactPoint = point.PositionWorldOnA;
-                normal = -point.NormalWorldOnB;
-            }
-            normal = Vector3.Normalize(normal);
-            if (CurrentMovementMode == EMovementMode.Falling)
-            {
-                if (IsSurfaceNormalWalkable(normal))
-                {
-                    CurrentWalkingSurface = other;
-                    CurrentMovementMode = EMovementMode.Walking;
-                    RootCapsule!.TransformAs<Transform>().Translation += normal * -point.Distance;
-                }
-            }
-            else if (CurrentMovementMode == EMovementMode.Walking)
-            {
-                //other.Activate();
-            }
-        }
-        public void OnContactEnded(XRRigidBody other)
-        {
-
+            //if (Controller.CollidingDown)
+                Velocity = UpDirection * JumpSpeed;
         }
     }
 }

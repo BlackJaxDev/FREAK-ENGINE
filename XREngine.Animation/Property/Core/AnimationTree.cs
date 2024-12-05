@@ -14,14 +14,14 @@ namespace XREngine.Animation
 
         public AnimationTree(string animationName, string memberPath, BasePropAnim anim) : this()
         {
-            //Name = animationName;
+            Name = animationName;
 
             string[] memberPathParts = memberPath.Split('.');
             AnimationMember? last = null;
 
             foreach (string childMemberName in memberPathParts)
             {
-                AnimationMember member = new AnimationMember(childMemberName);
+                AnimationMember member = new(childMemberName);
 
                 if (last is null)
                     RootMember = member;
@@ -84,7 +84,7 @@ namespace XREngine.Animation
         }
         public Dictionary<string, BasePropAnim> GetAllAnimations()
         {
-            Dictionary<string, BasePropAnim> anims = new Dictionary<string, BasePropAnim>();
+            Dictionary<string, BasePropAnim> anims = [];
             _root.CollectAnimations(null, anims);
             return anims;
         }
@@ -100,7 +100,7 @@ namespace XREngine.Animation
         protected override void OnProgressed(float delta)
         {
             foreach (XRObjectBase obj in Owners)
-                _root?._tick(obj, delta);
+                _root?._tick?.Invoke(obj, delta);
         }
     }
 }

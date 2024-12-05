@@ -11,14 +11,14 @@
 
         protected override void Execute()
         {
-            var vp = Pipeline.State.WindowViewport;
+            var vp = Pipeline.RenderState.WindowViewport;
             if (vp is null)
             {
                 PopCommand.ShouldExecute = false;
                 return;
             }
 
-            Pipeline.State.PushRenderArea(
+            Pipeline.RenderState.PushRenderArea(
                 UseInternalResolution
                     ? vp.InternalResolutionRegion
                     : vp.Region);

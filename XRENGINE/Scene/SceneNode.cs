@@ -140,16 +140,22 @@ namespace XREngine.Scene
 
         private void UnlinkTransform()
         {
+            if (IsActiveInHierarchy)
+                Transform.OnSceneNodeDeactivated();
             Transform.PropertyChanged -= TransformPropertyChanged;
             Transform.PropertyChanging -= TransformPropertyChanging;
             Transform.SceneNode = null;
+            Transform.World = null;
         }
 
         private void LinkTransform()
         {
             Transform.SceneNode = this;
+            Transform.World = World;
             Transform.PropertyChanged += TransformPropertyChanged;
             Transform.PropertyChanging += TransformPropertyChanging;
+            if (IsActiveInHierarchy)
+                Transform.OnSceneNodeActivated();
         }
 
         private void TransformPropertyChanging(object? sender, PropertyChangingEventArgs e)
@@ -539,8 +545,7 @@ namespace XREngine.Scene
         /// </summary>
         public void OnSceneNodeActivated()
         {
-            //foreach (var item in Transform.RenderedObjects)
-            //    item.WorldInstance = World;
+            Transform.OnSceneNodeActivated();
 
             foreach (XRComponent component in this)
                 if (component.IsActive)
@@ -567,6 +572,8 @@ namespace XREngine.Scene
         /// </summary>
         public void OnSceneNodeDeactivated()
         {
+            Transform.OnSceneNodeDeactivated();
+
             foreach (XRComponent component in this)
                 if (component.IsActive)
                 {

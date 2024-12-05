@@ -15,8 +15,8 @@ namespace XREngine.Rendering.UI
             _maxSize = Vector2.Zero;
             _margins = Vector4.Zero;
             _padding = Vector4.Zero;
-            _verticalAlign = EVerticalAlign.Positional;
-            _horizontalAlign = EHorizontalAlign.Positional;
+            _verticalAlign = EVerticalAlign.None;
+            _horizontalAlign = EHorizontalAlign.None;
         }
         
         protected Vector2 _actualSize = new();
@@ -37,7 +37,7 @@ namespace XREngine.Rendering.UI
         /// </summary>
         public float ActualHeight => ActualSize.Y;
 
-        private EVerticalAlign _verticalAlign = EVerticalAlign.Positional;
+        private EVerticalAlign _verticalAlign = EVerticalAlign.None;
         /// <summary>
         /// How to vertically align this component within its parent.
         /// </summary>
@@ -47,24 +47,17 @@ namespace XREngine.Rendering.UI
             set
             {
                 SetField(ref _verticalAlign, value);
-                InvalidateLayout();
             }
         }
-
-        private EHorizontalAlign _horizontalAlign = EHorizontalAlign.Positional;
+        private EHorizontalAlign _horizontalAlign = EHorizontalAlign.None;
         /// <summary>
         /// How to horizontally align this component within its parent.
         /// </summary>
         public EHorizontalAlign HorizontalAlignment
         {
             get => _horizontalAlign;
-            set
-            {
-                SetField(ref _horizontalAlign, value);
-                InvalidateLayout();
-            }
+            set => SetField(ref _horizontalAlign, value);
         }
-
         private Vector2 _size;
         /// <summary>
         /// The requested width and height of this component before layouting.
@@ -185,11 +178,17 @@ namespace XREngine.Rendering.UI
                 case nameof(MaxSize):
                 case nameof(OriginPercent):
                 case nameof(ParentPaddingOffset):
+                case nameof(HorizontalAlignment):
+                case nameof(VerticalAlignment):
                     InvalidateLayout();
                     break;
             }
         }
 
+        /// <summary>
+        /// Creates the local transformation of the origin relative to the parent UI transform.
+        /// </summary>
+        /// <returns></returns>
         protected override Matrix4x4 CreateLocalMatrix()
             => base.CreateLocalMatrix() * Matrix4x4.CreateTranslation(ParentPaddingOffset.X - OriginTranslationX, ParentPaddingOffset.Y - OriginTranslationY, 0.0f);
         
@@ -214,7 +213,7 @@ namespace XREngine.Rendering.UI
                     float extra = parentBounds.Width - Size.X;
                     _translation.X = extra * 0.5f;
                     break;
-                case EHorizontalAlign.Positional:
+                case EHorizontalAlign.None:
                     _actualSize.X = Size.X;
                     break;
             }
@@ -238,7 +237,7 @@ namespace XREngine.Rendering.UI
                     float extra = parentBounds.Height - Size.Y;
                     _translation.Y = extra * 0.5f;
                     break;
-                case EVerticalAlign.Positional:
+                case EVerticalAlign.None:
                     _actualSize.Y = Size.Y;
                     break;
             }
@@ -260,6 +259,7 @@ namespace XREngine.Rendering.UI
             //Set the bounds to the parent bounds.
             //This will be adjusted by the padding after the local matrix is recalculated.
             _bounds = parentBounds;
+
             ParentPaddingOffset = parentBounds.Translation;
             OnResizeActual(parentBounds);
             MarkLocalModified();
@@ -268,6 +268,7 @@ namespace XREngine.Rendering.UI
         protected override void OnLocalMatrixChanged()
         {
             base.OnLocalMatrixChanged();
+
             //Update the bounds to account for the padding.
             ApplyPadding(ref _bounds);
             OnResizeChildComponents(_bounds);

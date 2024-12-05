@@ -20,6 +20,7 @@ namespace XREngine.Input.Devices
         /// Unregister is true when the controller has lost focus and inputs are being removed.
         /// </summary>
         public bool Unregister { get; set; } = false;
+        public abstract bool HideCursor { get; set; }
 
         public abstract void TryRegisterInput();
         public abstract void TryUnregisterInput();
@@ -47,11 +48,11 @@ namespace XREngine.Input.Devices
         public abstract void RegisterMouseMove(DelCursorUpdate func, EMouseMoveType type);
 
         /// <summary>
-        /// The function provided will be called every frame with the current state of the key.
+        /// The function provided will be called if the key's pressed state changes.
         /// </summary>
         /// <param name="button"></param>
         /// <param name="func"></param>
-        public abstract void RegisterKeyContinuousState(EKey button, DelButtonState func);
+        public abstract void RegisterKeyStateChange(EKey button, DelButtonState func);
         public abstract void RegisterKeyEvent(EKey button, EButtonInputType type, Action func);
 
         public abstract void RegisterAxisButtonPressed(EGamePadAxis axis, DelButtonState func);

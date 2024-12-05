@@ -9,6 +9,9 @@ namespace XREngine.Rendering.Pipelines.Commands
         private readonly List<ViewportRenderCommand> _commands = [];
         public IReadOnlyList<ViewportRenderCommand> Commands => _commands;
 
+        private readonly List<ViewportRenderCommand> _collecVisibleCommands = [];
+        public IReadOnlyList<ViewportRenderCommand> CollecVisibleCommands => _collecVisibleCommands;
+
         //public bool FBOsInitialized { get; private set; } = false;
         //public bool ModifyingFBOs { get; protected set; } = false;
 
@@ -16,12 +19,25 @@ namespace XREngine.Rendering.Pipelines.Commands
 
         public ViewportRenderCommand this[int index] => Commands[index];
 
+        /// <summary>
+        /// Adds a command that pushes a new state and pops it later with another command when the using block ends.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="setOptionsFunc"></param>
+        /// <returns></returns>
         public StateObject AddUsing<T>(Action<T>? setOptionsFunc = null) where T : ViewportStateRenderCommandBase, new()
         {
             T cmd = Add<T>();
             setOptionsFunc?.Invoke(cmd);
             return cmd.GetUsingState();
         }
+        /// <summary>
+        /// Adds a command that pushes a new state and pops it later with another command when the using block ends.
+        /// </summary>
+        /// <param name="t"></param>
+        /// <param name="setOptionsFunc"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
         public StateObject AddUsing([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type t, Action<ViewportStateRenderCommandBase>? setOptionsFunc = null)
         {
             if (!typeof(ViewportStateRenderCommandBase).IsAssignableFrom(t))
@@ -31,12 +47,21 @@ namespace XREngine.Rendering.Pipelines.Commands
             setOptionsFunc?.Invoke(cmd);
             return cmd.GetUsingState();
         }
+        /// <summary>
+        /// Adds a command that pushes a new state and pops it later with another command when the using block ends.
+        /// </summary>
+        /// <param name="cmd"></param>
+        /// <returns></returns>
         public StateObject AddUsing(ViewportStateRenderCommandBase cmd)
         {
             Add(cmd);
             return cmd.GetUsingState();
         }
-
+        /// <summary>
+        /// Adds a command to the viewport render command list.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
         public T Add<T>() where T : ViewportRenderCommand, new()
         {
             //Create instance with this as the only parameter
@@ -44,6 +69,12 @@ namespace XREngine.Rendering.Pipelines.Commands
             Add(cmd);
             return cmd;
         }
+        /// <summary>
+        /// Adds a command to the viewport render command list.
+        /// </summary>
+        /// <param name="t"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
         public ViewportRenderCommand Add([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type t)
         {
             if (!typeof(ViewportRenderCommand).IsAssignableFrom(t))
@@ -53,10 +84,16 @@ namespace XREngine.Rendering.Pipelines.Commands
             Add(cmd);
             return cmd;
         }
+        /// <summary>
+        /// Adds a command to the viewport render command list.
+        /// </summary>
+        /// <param name="cmd"></param>
         public void Add(ViewportRenderCommand cmd)
         {
             cmd.CommandContainer = this;
             _commands.Add(cmd);
+            if (cmd.NeedsCollecVisible)
+                _collecVisibleCommands.Add(cmd);
         }
 
         public IEnumerator<ViewportRenderCommand> GetEnumerator()
@@ -70,10 +107,17 @@ namespace XREngine.Rendering.Pipelines.Commands
         public void Execute()
         {
             for (int i = 0; i < _commands.Count; i++)
-            {
-                ViewportRenderCommand command = _commands[i];
-                command.ExecuteIfShould();
-            }
+                _commands[i].ExecuteIfShould();
+        }
+        public void CollectVisible()
+        {
+            for (int i = 0; i < _collecVisibleCommands.Count; i++)
+                _collecVisibleCommands[i].CollectVisible();
+        }
+        public void SwapBuffers()
+        {
+            for (int i = 0; i < _collecVisibleCommands.Count; i++)
+                _collecVisibleCommands[i].SwapBuffers();
         }
         //public void GenerateFBOs()
         //{

@@ -98,22 +98,22 @@ namespace XREngine.Components
 
             input.RegisterMouseButtonContinuousState(EMouseButton.RightClick, OnRightClick);
 
-            input.RegisterKeyContinuousState(EKey.A, MoveLeft);
-            input.RegisterKeyContinuousState(EKey.W, MoveForward);
-            input.RegisterKeyContinuousState(EKey.S, MoveBackward);
-            input.RegisterKeyContinuousState(EKey.D, MoveRight);
-            input.RegisterKeyContinuousState(EKey.Q, MoveDown);
-            input.RegisterKeyContinuousState(EKey.E, MoveUp);
+            input.RegisterKeyStateChange(EKey.A, MoveLeft);
+            input.RegisterKeyStateChange(EKey.W, MoveForward);
+            input.RegisterKeyStateChange(EKey.S, MoveBackward);
+            input.RegisterKeyStateChange(EKey.D, MoveRight);
+            input.RegisterKeyStateChange(EKey.Q, MoveDown);
+            input.RegisterKeyStateChange(EKey.E, MoveUp);
 
-            input.RegisterKeyContinuousState(EKey.Up, PitchUp);
-            input.RegisterKeyContinuousState(EKey.Down, PitchDown);
-            input.RegisterKeyContinuousState(EKey.Left, YawLeft);
-            input.RegisterKeyContinuousState(EKey.Right, YawRight);
+            input.RegisterKeyStateChange(EKey.Up, PitchUp);
+            input.RegisterKeyStateChange(EKey.Down, PitchDown);
+            input.RegisterKeyStateChange(EKey.Left, YawLeft);
+            input.RegisterKeyStateChange(EKey.Right, YawRight);
 
-            input.RegisterKeyContinuousState(EKey.ControlLeft, OnControl);
-            input.RegisterKeyContinuousState(EKey.ControlRight, OnControl);
-            input.RegisterKeyContinuousState(EKey.ShiftLeft, OnShift);
-            input.RegisterKeyContinuousState(EKey.ShiftRight, OnShift);
+            input.RegisterKeyStateChange(EKey.ControlLeft, OnControl);
+            input.RegisterKeyStateChange(EKey.ControlRight, OnControl);
+            input.RegisterKeyStateChange(EKey.ShiftLeft, OnShift);
+            input.RegisterKeyStateChange(EKey.ShiftRight, OnShift);
 
             input.RegisterAxisUpdate(EGamePadAxis.LeftThumbstickX, OnLeftStickX, false);
             input.RegisterAxisUpdate(EGamePadAxis.LeftThumbstickY, OnLeftStickY, false);
