@@ -127,5 +127,28 @@ namespace XREngine.Rendering.Info
             var containment = cullingVolume?.ContainsBox(worldCullingVolume.Value) ?? EContainment.Contains;
             return containsOnly ? containment == EContainment.Contains : containment != EContainment.Disjoint;
         }
+
+        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+        {
+            base.OnPropertyChanged(propName, prev, field);
+            switch (propName)
+            {
+                case nameof(WorldInstance):
+                    if (IsVisible)
+                    {
+                        if (prev is XRWorldInstance prevInstance)
+                            prevInstance.VisualScene?.RemoveRenderable(this);
+                        if (field is XRWorldInstance newInstance)
+                            newInstance.VisualScene?.AddRenderable(this);
+                    }
+                    break;
+                case (nameof(IsVisible)):
+                    if (IsVisible)
+                        WorldInstance?.VisualScene?.AddRenderable(this);
+                    else
+                        WorldInstance?.VisualScene?.RemoveRenderable(this);
+                    break;
+            }
+        }
     }
 }

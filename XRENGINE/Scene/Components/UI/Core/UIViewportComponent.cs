@@ -54,7 +54,7 @@ namespace XREngine.Rendering.UI
 
         public void Update(XRCamera camera)
         {
-            if (!IsVisible || _updating)
+            if (!IsActive || _updating)
                 return;
 
             _updating = true;
@@ -63,7 +63,7 @@ namespace XREngine.Rendering.UI
         }
         public void SwapBuffers()
         {
-            if (!IsVisible || _swapping)
+            if (!IsActive || _swapping)
                 return;
 
             _swapping = true;
@@ -72,7 +72,7 @@ namespace XREngine.Rendering.UI
         }
         public void Render()
         {
-            if (!IsVisible || _rendering)
+            if (!IsActive || _rendering)
                 return;
 
             _rendering = true;

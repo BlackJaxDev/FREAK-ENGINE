@@ -12,11 +12,7 @@ namespace XREngine.Core.Files
         public string? Text
         {
             get => _text;
-            set
-            {
-                _text = value;
-                OnTextChanged();
-            }
+            set => SetField(ref _text, value);
         }
 
         private Encoding _encoding = Encoding.Default;
@@ -34,7 +30,21 @@ namespace XREngine.Core.Files
             }
         }
 
-        protected void OnTextChanged() => TextChanged?.Invoke();
+        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+        {
+            switch (propName)
+            {
+                case nameof(Text):
+                    OnTextChanged();
+                    break;
+            }
+        }
+
+        protected void OnTextChanged()
+        {
+            MarkDirty();
+            TextChanged?.Invoke();
+        }
 
         public TextFile()
         {
@@ -59,14 +69,14 @@ namespace XREngine.Core.Files
         {
             using FileMap map = FileMap.FromFile(path, FileMapProtect.Read);
             Encoding = GetEncoding(map, out int bomLength);
-            _text = Encoding.GetString((byte*)map.Address + bomLength, map.Length - bomLength);
+            Text = Encoding.GetString((byte*)map.Address + bomLength, map.Length - bomLength);
         }
 
         public async Task<bool> LoadTextAsync(string path)
         {
             if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
             {
-                _text = await File.ReadAllTextAsync(path, Encoding = GetEncoding(path));
+                Text = await File.ReadAllTextAsync(path, Encoding = GetEncoding(path));
                 return true;
             }
             return false;
@@ -75,7 +85,7 @@ namespace XREngine.Core.Files
         {
             if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
             {
-                _text = File.ReadAllText(path, Encoding = GetEncoding(path));
+                Text = File.ReadAllText(path, Encoding = GetEncoding(path));
                 return true;
             }
             return false;
@@ -136,6 +146,11 @@ namespace XREngine.Core.Files
             bomLength = 0;
             return Encoding.Default;
         }
+
+        protected override void Reload3rdParty(string path)
+            => LoadText(path);
+        protected override async Task Reload3rdPartyAsync(string path)
+            => await LoadTextAsync(path);
 
         public override bool Load3rdParty(string filePath)
             => LoadText(filePath);

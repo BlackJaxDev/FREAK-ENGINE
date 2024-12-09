@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using XREngine.Data;
+using XREngine.Data.Core;
 using XREngine.Data.Rendering;
 using XREngine.Rendering.Models.Materials;
 
@@ -128,7 +129,7 @@ namespace XREngine.Rendering.OpenGL
                     Data.Mesh.DataChanged -= OnMeshChanged;
             }
 
-            private void OnDataPropertyChanged(object? sender, PropertyChangedEventArgs e)
+            private void OnDataPropertyChanged(object? sender, IXRPropertyChangedEventArgs e)
             {
                 switch (e.PropertyName)
                 {
@@ -138,7 +139,7 @@ namespace XREngine.Rendering.OpenGL
                 }
             }
 
-            private void OnDataPropertyChanging(object? sender, PropertyChangingEventArgs e)
+            private void OnDataPropertyChanging(object? sender, IXRPropertyChangingEventArgs e)
             {
                 //switch (e.PropertyName)
                 //{
@@ -245,12 +246,9 @@ namespace XREngine.Rendering.OpenGL
             }
 
             private bool GetPrograms(GLMaterial material, [MaybeNullWhen(false)] out GLRenderProgram? vertexProgram, [MaybeNullWhen(false)] out GLRenderProgram? materialProgram)
-            {
-                if (Engine.Rendering.Settings.AllowShaderPipelines)
-                    return GetPipelinePrograms(material, out vertexProgram, out materialProgram);
-                else
-                    return GetCombinedProgram(out vertexProgram, out materialProgram);
-            }
+                => Engine.Rendering.Settings.AllowShaderPipelines
+                    ? GetPipelinePrograms(material, out vertexProgram, out materialProgram)
+                    : GetCombinedProgram(out vertexProgram, out materialProgram);
 
             private bool GetCombinedProgram(out GLRenderProgram? vertexProgram, out GLRenderProgram? materialProgram)
             {
@@ -407,7 +405,7 @@ namespace XREngine.Rendering.OpenGL
                 _bufferCache.Add(key, Renderer.GenericToAPI<GLDataBuffer>(value)!);
             }
 
-            private void SeparatedProgramPropertyChanged(object? sender, PropertyChangedEventArgs e)
+            private void SeparatedProgramPropertyChanged(object? sender, IXRPropertyChangedEventArgs e)
             {
                 if (e.PropertyName != nameof(GLRenderProgram.IsLinked) || !(_separatedVertexProgram?.IsLinked ?? false))
                     return;
@@ -420,7 +418,7 @@ namespace XREngine.Rendering.OpenGL
                     LinkSeparatedVertex();
             }
 
-            private void CombinedProgramPropertyChanged(object? s, PropertyChangedEventArgs e)
+            private void CombinedProgramPropertyChanged(object? s, IXRPropertyChangedEventArgs e)
             {
                 if (e.PropertyName != nameof(GLRenderProgram.IsLinked) || !(_combinedProgram?.IsLinked ?? false))
                     return;

@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel;
 using System.Numerics;
+using XREngine.Core.Files;
 using XREngine.Data.Colors;
 using XREngine.Rendering.Models.Materials;
 using Color = System.Drawing.Color;
@@ -29,50 +30,93 @@ namespace XREngine.Rendering
         public XRMaterial()
         {
             _shaders = [];
-            _shaders.PostModified += ShadersChanged;
-            ShadersChanged();
+            PostShadersSet();
         }
         public XRMaterial(params XRShader[] shaders)
         {
             _shaders = new EventList<XRShader>(shaders);
-            _shaders.PostModified += ShadersChanged;
-            ShadersChanged();
+            PostShadersSet();
         }
         public XRMaterial(ShaderVar[] parameters, params XRShader[] shaders) : base(parameters)
         {
             _shaders = new EventList<XRShader>(shaders);
-            _shaders.PostModified += ShadersChanged;
-            ShadersChanged();
+            PostShadersSet();
         }
         public XRMaterial(XRTexture?[] textures, params XRShader[] shaders) : base(textures)
         {
             _shaders = new EventList<XRShader>(shaders);
-            _shaders.PostModified += ShadersChanged;
-            ShadersChanged();
+            PostShadersSet();
         }
         public XRMaterial(ShaderVar[] parameters, XRTexture?[] textures, params XRShader[] shaders) : base(parameters, textures)
         {
             _shaders = new EventList<XRShader>(shaders);
-            _shaders.PostModified += ShadersChanged;
-            ShadersChanged();
+            PostShadersSet();
         }
         public XRMaterial(XRTexture?[] textures, ShaderVar[] parameters, params XRShader[] shaders) : base(parameters, textures)
         {
             _shaders = new EventList<XRShader>(shaders);
-            _shaders.PostModified += ShadersChanged;
-            ShadersChanged();
+            PostShadersSet();
         }
 
         public EventList<XRShader> Shaders
         {
             get => _shaders;
-            set
+            set => SetField(ref _shaders, value);
+        }
+
+        protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
+        {
+            bool change = base.OnPropertyChanging(propName, field, @new);
+            if (change)
+                switch (propName)
+                {
+                    case nameof(Shaders):
+                        PreShadersSet();
+                        break;
+                }
+            return change;
+        }
+        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+        {
+            switch (propName)
             {
-                _shaders.PostModified -= ShadersChanged;
-                _shaders = value ?? [];
-                _shaders.PostModified += ShadersChanged;
-                ShadersChanged();
+                case nameof(Shaders):
+                    PostShadersSet();
+                    break;
             }
+        }
+
+        private void PreShadersSet()
+        {
+            _shaders.PostModified -= ShadersChanged;
+            _shaders.PostAnythingAdded -= ShaderAdded;
+            _shaders.PostAnythingRemoved -= ShaderRemoved;
+        }
+
+        private void PostShadersSet()
+        {
+            _shaders.PostModified += ShadersChanged;
+            _shaders.PostAnythingAdded += ShaderAdded;
+            _shaders.PostAnythingRemoved += ShaderRemoved;
+
+            foreach (var shader in _shaders)
+                ShaderAdded(shader);
+            ShadersChanged();
+        }
+
+        private void ShaderRemoved(XRShader item)
+        {
+            item.Reloaded -= ShaderReloaded;
+        }
+
+        private void ShaderAdded(XRShader item)
+        {
+            item.Reloaded += ShaderReloaded;
+        }
+
+        private void ShaderReloaded(XRAsset asset)
+        {
+            ShadersChanged();
         }
 
         //[TPostDeserialize]
@@ -84,11 +128,9 @@ namespace XREngine.Rendering
             _tessEvalShaders.Clear();
             _vertexShaders.Clear();
 
-            _shaderPipelineProgram?.Destroy();
-            _shaderPipelineProgram = null;
-            
             foreach (var shader in Shaders)
                 if (shader != null)
+                {
                     switch (shader.Type)
                     {
                         case EShaderType.Vertex:
@@ -107,16 +149,19 @@ namespace XREngine.Rendering
                             _tessEvalShaders.Add(shader);
                             break;
                     }
-            
-            if (Engine.Rendering.Settings.AllowShaderPipelines)
-                _shaderPipelineProgram = new XRRenderProgram(Shaders.Where(x => x.Type != EShaderType.Vertex));
+                }
+
+            ShaderPipelineProgram?.Destroy();
+            ShaderPipelineProgram = Engine.Rendering.Settings.AllowShaderPipelines
+                ? new XRRenderProgram(Shaders.Where(x => x.Type != EShaderType.Vertex))
+                : null;
         }
 
         public static XRMaterial CreateUnlitAlphaTextureMaterialForward(XRTexture2D texture)
-            => new(new[] { texture }, ShaderHelper.UnlitAlphaTextureFragForward());
+            => new([texture], ShaderHelper.UnlitAlphaTextureFragForward());
 
         public static XRMaterial CreateUnlitTextureMaterialForward(XRTexture2D texture)
-            => new(new[] { texture }, ShaderHelper.UnlitTextureFragForward());
+            => new([texture], ShaderHelper.UnlitTextureFragForward());
 
         public static XRMaterial CreateUnlitTextureMaterialForward()
             => new(ShaderHelper.UnlitTextureFragForward());

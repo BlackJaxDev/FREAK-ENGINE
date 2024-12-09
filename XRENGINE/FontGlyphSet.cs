@@ -30,6 +30,10 @@ namespace XREngine.Rendering
             set => SetField(ref _atlas, value);
         }
 
+        protected override void Reload3rdParty(string path)
+        {
+            Load3rdParty(path);
+        }
         public override bool Load3rdParty(string filePath)
         {
             string folder = Path.GetDirectoryName(filePath)!;

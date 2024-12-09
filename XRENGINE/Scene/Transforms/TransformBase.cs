@@ -48,7 +48,7 @@ namespace XREngine.Scene.Transforms
             _inverseLocalMatrix = new MatrixInfo { NeedsRecalc = true };
             _inverseWorldMatrix = new MatrixInfo { NeedsRecalc = true };
 
-            RenderInfo = RenderInfo3D.New(this, new RenderCommandMethod3D((int)EDefaultRenderPass.OpaqueForward, RenderDebugLineToParent));
+            RenderInfo = RenderInfo3D.New(this, new RenderCommandMethod3D((int)EDefaultRenderPass.OpaqueForward, RenderDebug));
             RenderedObjects = GetDebugRenderInfo();
             DebugRender = false;
 
@@ -85,7 +85,7 @@ namespace XREngine.Scene.Transforms
             return [RenderInfo];
         }
 
-        protected virtual void RenderDebugLineToParent(bool shadowPass)
+        protected virtual void RenderDebug(bool shadowPass)
         {
             if (shadowPass)
                 return;
@@ -123,6 +123,11 @@ namespace XREngine.Scene.Transforms
         {
             get => _parent;
             set => SetField(ref _parent, value);
+        }
+
+        public virtual void SetParent(TransformBase? newParent, bool retainWorldTransform)
+        {
+            Parent = newParent;
         }
 
         protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)

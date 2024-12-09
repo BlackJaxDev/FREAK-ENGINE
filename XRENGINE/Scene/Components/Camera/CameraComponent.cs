@@ -1,6 +1,7 @@
-﻿using Extensions;
+﻿using Silk.NET.OpenXR;
 using System.ComponentModel;
 using System.Numerics;
+using XREngine.Data.Core;
 using XREngine.Data.Geometry;
 using XREngine.Rendering;
 using XREngine.Rendering.UI;
@@ -29,23 +30,14 @@ namespace XREngine.Components
         //    set => SetField(ref _localPlayerIndex, value);
         //}
 
-        public UICanvasComponent? _userInterfaceOverlay;
+        public UICanvasComponent? _userInterface;
         /// <summary>
         /// Provides the option for the user to manually set a canvas to render on top of the camera.
         /// </summary>
         public UICanvasComponent? UserInterface
         {
-            get => _userInterfaceOverlay;
-            set
-            {
-                SetField(ref _userInterfaceOverlay, value);
-
-                //TODO: resize based on if located on top, in camera, or in world.
-                //If this camera is being rendered to multiple viewports, the ui will need to be sized to each viewport.
-                //_userInterface?.Resize(Camera.Viewports[0].Region.Extents);
-
-                Debug.Out($"Set camera user interface: {_userInterfaceOverlay?.GetType()?.GetFriendlyName() ?? "null"}");
-            }
+            get => _userInterface;
+            set => SetField(ref _userInterface, value);
         }
 
         /// <summary>
@@ -54,8 +46,8 @@ namespace XREngine.Components
         /// <returns></returns>
         public UICanvasComponent? GetUserInterfaceOverlay()
         {
-            if (_userInterfaceOverlay is not null)
-                return _userInterfaceOverlay;
+            if (_userInterface is not null)
+                return _userInterface;
 
             if (GetSiblingComponent<UICanvasComponent>() is UICanvasComponent ui)
                 return ui;
@@ -120,6 +112,10 @@ namespace XREngine.Components
                         if (DefaultRenderTarget is not null && World is not null)
                             World.FramebufferCameras.Remove(this);
                         break;
+                    case nameof(UserInterface):
+                        if (UserInterface is not null)
+                            UserInterface.CanvasTransform.CameraSpaceCamera = null;
+                        break;
                 }
             }
             return change;
@@ -147,10 +143,17 @@ namespace XREngine.Components
                         if (!World.FramebufferCameras.Contains(this))
                             World.FramebufferCameras.Add(this);
                     break;
+                case nameof(UserInterface):
+                    if (UserInterface is not null)
+                    {
+                        UserInterface.CanvasTransform.Size = Camera.Parameters.GetFrustumSizeAtDistance(UserInterface.CanvasTransform.CameraDrawSpaceDistance);
+                        UserInterface.CanvasTransform.CameraSpaceCamera = Camera;
+                    }
+                    break;
             }
         }
 
-        private void CameraParameterPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        private void CameraParameterPropertyChanged(object? sender, IXRPropertyChangedEventArgs e)
         {
             switch (e.PropertyName)
             {
@@ -218,10 +221,10 @@ namespace XREngine.Components
                 return;
 
             //Calculate world-space size of the camera frustum at draw distance
-            UserInterface.CanvasTransform.Size = parameters.GetSizeAtDistance(UserInterface.CanvasTransform.CameraDrawSpaceDistance);
+            UserInterface.CanvasTransform.Size = parameters.GetFrustumSizeAtDistance(UserInterface.CanvasTransform.CameraDrawSpaceDistance);
         }
 
-        private void CameraPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        private void CameraPropertyChanged(object? sender, IXRPropertyChangedEventArgs e)
         {
             switch (e.PropertyName)
             {
@@ -232,7 +235,7 @@ namespace XREngine.Components
             }
         }
 
-        private void SceneNodePropertyChanged(object? sender, PropertyChangedEventArgs e)
+        private void SceneNodePropertyChanged(object? sender, IXRPropertyChangedEventArgs e)
         {
             switch (e.PropertyName)
             {

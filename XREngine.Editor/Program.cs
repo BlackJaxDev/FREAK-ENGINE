@@ -8,7 +8,6 @@ using XREngine.Components;
 using XREngine.Components.Lights;
 using XREngine.Components.Scene;
 using XREngine.Components.Scene.Mesh;
-using XREngine.Core.Tools.Unity;
 using XREngine.Data;
 using XREngine.Data.Colors;
 using XREngine.Data.Components;
@@ -134,7 +133,7 @@ internal class Program
         rootNode.AddComponent<DebugVisualizeOctreeComponent>();
 
         SceneNode cameraNode = CreateCamera(rootNode, out var camComp);
-        CreateUserInterface(camComp);
+        CreateUserInterface(rootNode, camComp);
         CreateDesktopViewerPawn(cameraNode);
         //SceneNode cameraNode = CreateDesktopCharacterPawn(rootNode);
         AddFPSText(Engine.Assets.LoadEngineAsset<FontGlyphSet>("Fonts", "Roboto", "Roboto-Regular.ttf"), cameraNode);
@@ -182,24 +181,36 @@ internal class Program
         orb1Model.Model = new Model([new SubMesh(XRMesh.Shapes.SolidSphere(Vector3.Zero, radius, 16), mat)]);
     }
 
-    private static void CreateUserInterface(CameraComponent? camComp)
+    private static void CreateUserInterface(SceneNode parent, CameraComponent? camComp)
     {
-        if (camComp is null)
-            return;
-
-        var uiNode = new SceneNode(camComp.SceneNode) { Name = "TestUINode" };
+        var uiNode = new SceneNode(parent) { Name = "TestUINode" };
         var ui = uiNode.AddComponent<UICanvasComponent>()!;
         var uiTransform = uiNode.GetTransformAs<UICanvasTransform>(true)!;
-        uiTransform.DrawSpace = ECanvasDrawSpace.World;
+        uiTransform.DrawSpace = ECanvasDrawSpace.Screen;
         uiTransform.Width = 1920.0f;
         uiTransform.Height = 1080.0f;
+        uiTransform.CameraDrawSpaceDistance = 500.0f;
+
+        if (camComp is not null)
+            camComp.UserInterface = ui;
 
         var uiPanel = new SceneNode(uiNode) { Name = "TestUIPanel" };
         var uiPanelComp = uiPanel.AddComponent<UIMaterialComponent>()!;
         var uiPanelTransform = uiPanel.GetTransformAs<UIBoundableTransform>(true)!;
         uiPanelTransform.HorizontalAlignment = EHorizontalAlign.Stretch;
         uiPanelTransform.VerticalAlignment = EVerticalAlign.Stretch;
-        uiPanelComp.Material = XRMaterial.CreateUnlitColorMaterialForward(ColorF4.Orange);
+        var mat = XRMaterial.CreateUnlitColorMaterialForward(ColorF4.Orange);
+        mat.RenderOptions = new RenderingParameters()
+        {
+            CullMode = ECullMode.None,
+            DepthTest = new DepthTest()
+            {
+                UpdateDepth = true,
+                Enabled = ERenderParamUsage.Enabled,
+                Function = EComparison.Less,
+            },
+        };
+        uiPanelComp.Material = mat;
 
         //var uiInteract = uiNode.AddComponent<UIInputComponent>();
 

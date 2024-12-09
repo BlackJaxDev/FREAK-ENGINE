@@ -89,6 +89,6 @@ namespace XREngine.Rendering
             program.Uniform(EEngineUniform.ScreenOrigin.ToString(), new Vector2(0.0f, 0.0f));
         }
 
-        public abstract Vector2 GetSizeAtDistance(float drawDistance);
+        public abstract Vector2 GetFrustumSizeAtDistance(float drawDistance);
     }
 }

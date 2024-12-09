@@ -6,10 +6,10 @@
     /// <typeparam name="T">The type of value to animate.</typeparam>
     public class PropAnimMethod<T> : BasePropAnimBakeable
     {
-        public delegate T DelGetValue(float second);
+        public delegate T? DelGetValue(float second);
 
-        private DelGetValue _tickMethod = null;
-        public DelGetValue TickMethod
+        private DelGetValue? _tickMethod = null;
+        public DelGetValue? TickMethod
         {
             get => _tickMethod;
             set
@@ -19,13 +19,13 @@
                     GetValue = _tickMethod;
             }
         }
-        public DelGetValue GetValue { get; private set; }
+        public DelGetValue? GetValue { get; private set; }
         
-        private T[]? _baked = null;
+        private T?[]? _baked = null;
         /// <summary>
         /// The default value to return when the tick method is not set.
         /// </summary>
-        public T DefaultValue { get; set; }
+        public T? DefaultValue { get; set; }
         
         public PropAnimMethod() 
             : base(0.0f, false) { }
@@ -41,28 +41,31 @@
         public PropAnimMethod(int frameCount, float FPS, bool looped, DelGetValue method)
             : base(frameCount, FPS, looped) => TickMethod = method;
 
-        public T GetValueMethod(float second)
+        public T? GetValueMethod(float second)
             => TickMethod != null ? TickMethod(second) : DefaultValue;
-        protected override object GetValueGeneric(float second)
-            => GetValue(second);
-        public T GetValueBaked(float second)
-            => _baked[(int)Math.Floor(second * BakedFramesPerSecond)];
-        public T GetValueBaked(int frameIndex)
-            => _baked[frameIndex];
+        protected override object? GetValueGeneric(float second)
+            => GetValue != null ? GetValue(second) : DefaultValue;
+        public T? GetValueBaked(float second)
+            => _baked != null ? _baked[(int)Math.Floor(second * BakedFramesPerSecond)] : DefaultValue;
+        public T? GetValueBaked(int frameIndex)
+            => _baked != null ? _baked[frameIndex] : DefaultValue;
 
         protected override void BakedChanged()
-            => GetValue = !IsBaked ? (DelGetValue)GetValueMethod : GetValueBaked;
+            => GetValue = !IsBaked ? GetValueMethod : GetValueBaked;
 
         public override void Bake(float framesPerSecond)
         {
             _bakedFPS = framesPerSecond;
             _bakedFrameCount = (int)Math.Ceiling(LengthInSeconds * framesPerSecond);
             _baked = new T[BakedFrameCount];
+            float invFPS = 1.0f / _bakedFPS;
             for (int i = 0; i < BakedFrameCount; ++i)
-                _baked[i] = TickMethod(i);
+                _baked[i] = GetValueMethod(i * invFPS);
         }
 
-        protected override object GetCurrentValueGeneric() => GetValue(CurrentTime);
+        protected override object? GetCurrentValueGeneric()
+            => GetValueGeneric(CurrentTime);
+
         protected override void OnProgressed(float delta) { }
     }
 }

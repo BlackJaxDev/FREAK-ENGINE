@@ -36,7 +36,7 @@ namespace XREngine.Rendering.Models.Materials.Textures
                     side.PropertyChanged -= MipmapPropertyChanged;
             }
 
-            private void MipmapPropertyChanged(object? sender, PropertyChangedEventArgs e)
+            private void MipmapPropertyChanged(object? sender, IXRPropertyChangedEventArgs e)
             {
                 switch (e.PropertyName)
                 {
@@ -70,7 +70,7 @@ namespace XREngine.Rendering.Models.Materials.Textures
 
         public MipmapInfo[] Mipmaps { get; private set; } = [];
 
-        protected override void DataPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        protected override void DataPropertyChanged(object? sender, IXRPropertyChangedEventArgs e)
         {
             base.DataPropertyChanged(sender, e);
             switch (e.PropertyName)

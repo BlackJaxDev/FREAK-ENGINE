@@ -21,7 +21,7 @@ namespace XREngine.Rendering
             set => SetField(ref _leftEye, value);
         }
 
-        public override Vector2 GetSizeAtDistance(float drawDistance)
+        public override Vector2 GetFrustumSizeAtDistance(float drawDistance)
         {
             var invProj = GetProjectionMatrix().Inverted();
             float normDist = (drawDistance - NearZ) / (FarZ - NearZ);

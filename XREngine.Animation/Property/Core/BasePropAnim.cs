@@ -28,7 +28,7 @@ namespace XREngine.Animation
         /// <summary>
         /// Call to set this animation's current value to an object's method that takes it as a single argument and then advance the animation by the given delta.
         /// </summary>
-        public void Tick(object obj, MethodInfo method, float delta, int valueArgumentIndex, object[] methodArguments)
+        public void Tick(object obj, MethodInfo method, float delta, int valueArgumentIndex, object?[] methodArguments)
         {
             methodArguments[valueArgumentIndex] = GetCurrentValueGeneric();
             method.Invoke(obj, methodArguments);
@@ -40,12 +40,12 @@ namespace XREngine.Animation
         /// Used by the internal animation implementation to set property/field values and call methods,
         /// so must be overridden.
         /// </summary>
-        protected abstract object GetCurrentValueGeneric();
+        protected abstract object? GetCurrentValueGeneric();
         /// <summary>
         /// Retrieves the value for the given second.
         /// Used by the internal animation implementation to set property/field values and call methods,
         /// so must be overridden.
         /// </summary>
-        protected abstract object GetValueGeneric(float second);
+        protected abstract object? GetValueGeneric(float second);
     }
 }

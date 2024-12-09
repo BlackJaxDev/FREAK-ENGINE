@@ -45,6 +45,8 @@ namespace XREngine.Core.Files
         }
 
         private XRAsset? _sourceAsset = null;
+        private bool _isDirty = false;
+
         /// <summary>
         /// The root asset that this asset resides inside of.
         /// The root asset is the one actually written as a file instead of being included in another asset.
@@ -100,6 +102,51 @@ namespace XREngine.Core.Files
         {
             //Run the synchronous version of the method async by default
             return await Task.Run(() => Load3rdParty(filePath));
+        }
+
+        public bool IsDirty
+        {
+            get => _isDirty;
+            private set => SetField(ref _isDirty, value);
+        }
+
+        public void MarkDirty()
+        {
+            IsDirty = true;
+        }
+        internal void ClearDirty()
+        {
+            IsDirty = false;
+        }
+
+        public event Action<XRAsset>? Reloaded;
+
+        public void Reload3rdPartyAsset()
+        {
+            if (OriginalPath is null)
+                return;
+
+            Reload3rdParty(OriginalPath);
+            Reloaded?.Invoke(this);
+        }
+
+        protected virtual void Reload3rdParty(string path)
+        {
+
+        }
+
+        public async Task Reload3rdPartyAssetAsync()
+        {
+            if (OriginalPath is null)
+                return;
+
+            await Reload3rdPartyAsync(OriginalPath);
+            Reloaded?.Invoke(this);
+        }
+
+        protected virtual async Task Reload3rdPartyAsync(string path)
+        {
+            await Task.Run(() => Reload3rdParty(path));
         }
     }
 }

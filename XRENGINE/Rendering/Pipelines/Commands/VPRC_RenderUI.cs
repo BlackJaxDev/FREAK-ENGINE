@@ -38,7 +38,7 @@
             if (ui is null)
                 return;
             
-            var fbo = Pipeline.GetFBO<XRQuadFrameBuffer>(UserInterfaceFBOName);
+            var fbo = Pipeline.GetFBO<XRFrameBuffer>(UserInterfaceFBOName);
             if (fbo is not null)
                 ui?.Render(fbo);
         }

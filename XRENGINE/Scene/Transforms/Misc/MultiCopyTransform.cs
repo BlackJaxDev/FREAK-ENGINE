@@ -53,7 +53,7 @@ namespace XREngine.Scene.Transforms
             UnlinkTransform(item);
         }
 
-        private void SourcePropertyChanging(object? sender, PropertyChangingEventArgs e)
+        private void SourcePropertyChanging(object? sender, IXRPropertyChangingEventArgs e)
         {
             if (sender is not WeightedSource item)
                 return;
@@ -66,7 +66,7 @@ namespace XREngine.Scene.Transforms
             }
         }
 
-        private void SourcePropertyChanged(object? sender, PropertyChangedEventArgs e)
+        private void SourcePropertyChanged(object? sender, IXRPropertyChangedEventArgs e)
         {
             if (sender is not WeightedSource item)
                 return;

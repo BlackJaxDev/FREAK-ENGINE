@@ -75,11 +75,31 @@ namespace XREngine.Rendering
             program.Uniform(EEngineUniform.CameraAspect.ToString(), AspectRatio);
         }
 
-        public override Vector2 GetSizeAtDistance(float distance)
+        public override Vector2 GetFrustumSizeAtDistance(float distance)
         {
-            float height = 2.0f * distance * MathF.Tan(VerticalFieldOfView / 2.0f);
+            float height = 2.0f * distance * MathF.Tan(float.DegreesToRadians(VerticalFieldOfView) / 2.0f);
             float width = height * AspectRatio;
             return new Vector2(width, height);
+        }
+
+        public Frustum GetUntransformedFrustumSlice(float nearZ, float farZ)
+            => new(VerticalFieldOfView, AspectRatio, nearZ, farZ, Globals.Forward, Globals.Up, Vector3.Zero);
+
+        public Matrix4x4 GetProjectionSlice(float nearZ, float farZ)
+        {
+            float fovY = XRMath.DegToRad(VerticalFieldOfView);
+            float yMax = nearZ * (float)MathF.Tan(0.5f * fovY);
+            float yMin = -yMax;
+            float xMin = yMin * AspectRatio;
+            float xMax = yMax * AspectRatio;
+            return Matrix4x4.CreatePerspectiveOffCenter(xMin, xMax, yMin, yMax, nearZ, farZ);
+        }
+
+        public Matrix4x4 GetNormalizedProjectionSlice(float nearDepth, float farDepth)
+        {
+            float nearZ = XRMath.DepthToDistance(nearDepth, NearZ, FarZ);
+            float farZ = XRMath.DepthToDistance(farDepth, NearZ, FarZ);
+            return GetProjectionSlice(nearZ, farZ);
         }
     }
 }

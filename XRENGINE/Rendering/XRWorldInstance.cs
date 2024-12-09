@@ -271,7 +271,7 @@ namespace XREngine.Rendering
                 UnloadVisibleScene(scene);
         }
 
-        void ScenePropertyChanged(object? sender, PropertyChangedEventArgs args)
+        void ScenePropertyChanged(object? sender, IXRPropertyChangedEventArgs args)
         {
             if (sender is not XRScene scene)
                 return;

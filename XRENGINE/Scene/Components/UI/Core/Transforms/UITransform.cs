@@ -58,7 +58,7 @@ namespace XREngine.Rendering.UI
         }
 
         public RenderCommandMethod2D _debugRC;
-        public RenderInfo2D RenderInfoUI { get; private set; }
+        public RenderInfo2D DebugRenderInfo2D { get; private set; }
 
         public UITransform() : this(null) { }
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
@@ -75,7 +75,7 @@ namespace XREngine.Rendering.UI
         }
 
         protected override RenderInfo[] GetDebugRenderInfo()
-            => [RenderInfoUI = RenderInfo2D.New(this, _debugRC = new RenderCommandMethod2D(0, RenderVisualGuides))];
+            => [DebugRenderInfo2D = RenderInfo2D.New(this, _debugRC = new RenderCommandMethod2D(0, RenderVisualGuides))];
 
         protected override Matrix4x4 CreateLocalMatrix()
             => Matrix4x4.CreateScale(Scale) * Matrix4x4.CreateTranslation(new Vector3(Translation, DepthTranslation));
@@ -320,7 +320,7 @@ namespace XREngine.Rendering.UI
                     MarkLocalModified();
                     break;
                 case nameof(Visibility):
-                    RenderInfoUI.IsVisible = IsVisible;
+                    DebugRenderInfo2D.IsVisible = IsVisible;
                     break;
                 case nameof(ParentCanvas):
                     lock (Children)
@@ -335,7 +335,12 @@ namespace XREngine.Rendering.UI
                     ParentCanvas?.InvalidateLayout();
                     break;
                 case nameof(Parent):
-                    ParentCanvas = Parent is UITransform uiTfm ? uiTfm.ParentCanvas : null;
+                    ParentCanvas = Parent switch
+                    {
+                        UICanvasTransform uiCanvas => uiCanvas,
+                        UITransform uiTfm => uiTfm.ParentCanvas,
+                        _ => null,
+                    };
                     break;
             }
         }

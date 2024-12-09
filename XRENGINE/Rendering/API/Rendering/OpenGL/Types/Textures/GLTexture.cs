@@ -1,4 +1,5 @@
 ﻿using Silk.NET.OpenGL;
+using Silk.NET.OpenXR;
 using System.ComponentModel;
 using XREngine.Data.Colors;
 using XREngine.Data.Core;
@@ -48,12 +49,12 @@ namespace XREngine.Rendering.OpenGL
             Data.PropertyChanging += DataPropertyChanging;
         }
 
-        protected virtual void DataPropertyChanging(object? sender, PropertyChangingEventArgs e)
+        protected virtual void DataPropertyChanging(object? sender, IXRPropertyChangingEventArgs e)
         {
 
         }
 
-        protected virtual void DataPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        protected virtual void DataPropertyChanged(object? sender, IXRPropertyChangedEventArgs e)
         {
             switch (e.PropertyName)
             {

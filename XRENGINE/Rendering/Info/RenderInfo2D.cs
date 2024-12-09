@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using XREngine.Components;
 using XREngine.Data.Geometry;
 using XREngine.Data.Trees;
 using XREngine.Rendering.Commands;
@@ -89,5 +90,28 @@ namespace XREngine.Rendering.Info
 
         public bool DeeperThan(IQuadtreeItem other)
             => other is RenderInfo2D other2D && DeeperThan(other2D);
+
+        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+        {
+            base.OnPropertyChanged(propName, prev, field);
+            switch (propName)
+            {
+                case nameof(UserInterfaceCanvas):
+                    if (IsVisible)
+                    {
+                        if (prev is UICanvasComponent prevInstance)
+                            prevInstance.VisualScene2D?.RemoveRenderable(this);
+                        if (field is UICanvasComponent newInstance)
+                            newInstance.VisualScene2D?.AddRenderable(this);
+                    }
+                    break;
+                case (nameof(IsVisible)):
+                    if (IsVisible)
+                        UserInterfaceCanvas?.VisualScene2D?.AddRenderable(this);
+                    else
+                        UserInterfaceCanvas?.VisualScene2D?.RemoveRenderable(this);
+                    break;
+            }
+        }
     }
 }

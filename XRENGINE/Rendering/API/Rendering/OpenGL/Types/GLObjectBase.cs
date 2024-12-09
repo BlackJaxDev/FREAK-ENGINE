@@ -43,7 +43,14 @@ namespace XREngine.Rendering.OpenGL
 
             public override void Destroy()
             {
-                DeleteObject();
+                //TODO: make an internal overrideable version and a public callable version of this method so we can force it to run on the main thread.
+                if (Engine.IsRenderThread)
+                    DeleteObject();
+                else
+                {
+                    Engine.EnqueueMainThreadTask(Destroy);
+                    return;
+                }
 
                 _invalidated = true;
                 _hasSentInvalidationWarning = false;

@@ -58,5 +58,24 @@ namespace XREngine.Scene
 
             RenderTree.CollectVisible(collectionVolume, false, AddRenderCommands, IntersectionTest);
         }
+
+        public IReadOnlyList<RenderInfo3D> Renderables => _renderables;
+        private readonly List<RenderInfo3D> _renderables = [];
+        public void AddRenderable(RenderInfo3D renderable)
+        {
+            _renderables.Add(renderable);
+            RenderTree.Add(renderable);
+        }
+        public void RemoveRenderable(RenderInfo3D renderable)
+        {
+            _renderables.Remove(renderable);
+            RenderTree.Remove(renderable);
+        }
+
+        public override IEnumerator<RenderInfo> GetEnumerator()
+        {
+            foreach (var renderable in _renderables)
+                yield return renderable;
+        }
     }
 }

@@ -1,7 +1,6 @@
 ﻿using Extensions;
 using XREngine.Data.Rendering;
 using XREngine.Rendering.Models.Materials;
-using static XREngine.Rendering.OpenGL.OpenGLRenderer;
 
 namespace XREngine.Rendering.OpenGL
 {
@@ -28,20 +27,20 @@ namespace XREngine.Rendering.OpenGL
             protected override void UnlinkData()
             {
                 foreach (var tex in Data.Textures)
-                    if (Renderer.TryGetAPIRenderObject(tex, out var apiObj))
+                    if (tex is not null && Renderer.TryGetAPIRenderObject(tex, out var apiObj))
                         apiObj?.Destroy();
-
+                
                 Data.Textures.PostAnythingAdded -= TextureAdded;
                 Data.Textures.PostAnythingRemoved -= TextureRemoved;
             }
 
-            private void TextureRemoved(XRTexture tex)
+            private void TextureRemoved(XRTexture? tex)
             {
-                if (Renderer.TryGetAPIRenderObject(tex, out var apiObj))
+                if (tex is not null && Renderer.TryGetAPIRenderObject(tex, out var apiObj))
                     apiObj?.Destroy();
             }
             
-            private void TextureAdded(XRTexture tex)
+            private void TextureAdded(XRTexture? tex)
             {
             }
 
@@ -51,7 +50,7 @@ namespace XREngine.Rendering.OpenGL
                 if (Data.RenderOptions != null)
                     Renderer.ApplyRenderParameters(Data.RenderOptions);
 
-                program ??= Renderer.GenericToAPI<GLRenderProgram>(Data.ShaderPipelineProgram);
+                program ??= Program;
                 if (program is null)
                     return;
 

@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-
-namespace XREngine.Rendering.OpenGL
+﻿namespace XREngine.Rendering.OpenGL
 {
     public unsafe partial class OpenGLRenderer
     {

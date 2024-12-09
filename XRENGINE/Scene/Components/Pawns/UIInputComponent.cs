@@ -147,8 +147,6 @@ namespace XREngine.Components
 
             var canvasTransform = Canvas.CanvasTransform;
             var space = canvasTransform.DrawSpace;
-            var scene = canvasTransform.Scene2D;
-            var tree = scene.RenderTree;
 
             Vector2 uiCoord;
 
@@ -199,7 +197,9 @@ namespace XREngine.Components
             }
             LastCursorPositionWorld2D = CursorPositionWorld2D;
             CursorPositionWorld2D = uiCoord;
-            tree.FindAllIntersectingSorted(uiCoord, InteractableIntersections, InteractablePredicate);
+            var scene = Canvas.VisualScene2D;
+            var tree = scene?.RenderTree;
+            tree?.FindAllIntersectingSorted(uiCoord, InteractableIntersections, InteractablePredicate);
             TopMostInteractable = InteractableIntersections.Min?.Owner as UIInteractableComponent;
             ValidateAndSwapIntersections();
         }

@@ -5,6 +5,71 @@ using XREngine.Scene.Transforms;
 
 namespace XREngine.Rendering.UI
 {
+    /// <summary>
+    /// Aligns a bounded UI component within its parent using special alignment settings.
+    /// </summary>
+    public class UIFittedTransform : UIBoundableTransform
+    {
+        public enum EFitType
+        {
+            None,
+            Stretch,
+            Center,
+            Fill,
+        }
+        private EFitType _fitType = EFitType.None;
+        /// <summary>
+        /// How to fit the component within its parent.
+        /// </summary>
+        public EFitType FitType
+        {
+            get => _fitType;
+            set => SetField(ref _fitType, value);
+        }
+        protected override void OnResizeActual(BoundingRectangleF parentBounds)
+        {
+            base.OnResizeActual(parentBounds);
+            switch (FitType)
+            {
+                case EFitType.None:
+                    break;
+                case EFitType.Stretch:
+                    _actualSize = parentBounds.Extents;
+                    break;
+                case EFitType.Center:
+                    float aspect = Size.X / Size.Y;
+                    float parentAspect = parentBounds.Width / parentBounds.Height;
+                    if (aspect > parentAspect)
+                    {
+                        _actualSize.X = parentBounds.Width;
+                        _actualSize.Y = parentBounds.Width / aspect;
+                    }
+                    else
+                    {
+                        _actualSize.Y = parentBounds.Height;
+                        _actualSize.X = parentBounds.Height * aspect;
+                    }
+                    break;
+                case EFitType.Fill:
+                    aspect = Size.X / Size.Y;
+                    parentAspect = parentBounds.Width / parentBounds.Height;
+                    if (aspect > parentAspect)
+                    {
+                        _actualSize.Y = parentBounds.Height;
+                        _actualSize.X = parentBounds.Height * aspect;
+                    }
+                    else
+                    {
+                        _actualSize.X = parentBounds.Width;
+                        _actualSize.Y = parentBounds.Width / aspect;
+                    }
+                    break;
+            }
+        }
+    }
+    /// <summary>
+    /// Represents a UI component with area that can be aligned within its parent.
+    /// </summary>
     public class UIBoundableTransform : UITransform
     {
         public UIBoundableTransform() : base(null)
@@ -301,7 +366,7 @@ namespace XREngine.Rendering.UI
             Vector2 min = new(Math.Min(minPos.X, maxPos.X), Math.Min(minPos.Y, maxPos.Y));
             Vector2 max = new(Math.Max(minPos.X, maxPos.X), Math.Max(minPos.Y, maxPos.Y));
 
-            RenderInfoUI.CullingVolume = BoundingRectangleF.FromMinMaxSides(min.X, max.X, min.Y, max.Y, 0.0f, 0.0f);
+            DebugRenderInfo2D.CullingVolume = BoundingRectangleF.FromMinMaxSides(min.X, max.X, min.Y, max.Y, 0.0f, 0.0f);
             //Engine.PrintLine($"Axis-aligned region remade: {_axisAlignedRegion.Translation} {_axisAlignedRegion.Extents}");
         }
         public UITransform? FindDeepestComponent(Vector2 worldPoint, bool includeThis)

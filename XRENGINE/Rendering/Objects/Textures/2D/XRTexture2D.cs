@@ -11,6 +11,10 @@ namespace XREngine.Rendering
     [XR3rdPartyExtensions("png", "jpg", "jpeg", "tif", "tiff", "tga", "exr", "hdr")]
     public class XRTexture2D : XRTexture, IFrameBufferAttachement
     {
+        protected override void Reload3rdParty(string path)
+        {
+            Load3rdParty(path);
+        }
         public override bool Load3rdParty(string filePath)
         {
             Mipmap2D[] mips = [new Mipmap2D(1, 1, EPixelInternalFormat.Red, EPixelFormat.Red, EPixelType.UnsignedByte, true)];

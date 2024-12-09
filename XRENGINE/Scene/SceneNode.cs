@@ -115,6 +115,21 @@ namespace XREngine.Scene
             }
         }
 
+        protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
+        {
+            bool change = base.OnPropertyChanging(propName, field, @new);
+            if (change)
+            {
+                switch (propName)
+                {
+                    case nameof(Transform):
+                        if (_transform != null)
+                            UnlinkTransform();
+                        break;
+                }
+            }
+            return change;
+        }
         protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
         {
             base.OnPropertyChanged(propName, prev, field);
@@ -130,35 +145,47 @@ namespace XREngine.Scene
                     SetWorldToChildNodes(World);
                     break;
                 case nameof(Transform):
-                    Transform.Name = Name;
+                    if (_transform != null)
+                    {
+                        _transform.Name = Name;
+                        LinkTransform();
+                    }
                     break;
                 case nameof(Name):
-                    Transform.Name = Name;
+                    if (_transform != null)
+                        _transform.Name = Name;
                     break;
             }
         }
 
         private void UnlinkTransform()
         {
+            if (_transform is null)
+                return;
+
             if (IsActiveInHierarchy)
-                Transform.OnSceneNodeDeactivated();
-            Transform.PropertyChanged -= TransformPropertyChanged;
-            Transform.PropertyChanging -= TransformPropertyChanging;
-            Transform.SceneNode = null;
-            Transform.World = null;
+                _transform.OnSceneNodeDeactivated();
+            _transform.PropertyChanged -= TransformPropertyChanged;
+            _transform.PropertyChanging -= TransformPropertyChanging;
+            _transform.SceneNode = null;
+            _transform.World = null;
+            _transform.Parent = null;
         }
 
         private void LinkTransform()
         {
-            Transform.SceneNode = this;
-            Transform.World = World;
-            Transform.PropertyChanged += TransformPropertyChanged;
-            Transform.PropertyChanging += TransformPropertyChanging;
+            if (_transform is null)
+                return;
+
+            _transform.SceneNode = this;
+            _transform.World = World;
+            _transform.PropertyChanged += TransformPropertyChanged;
+            _transform.PropertyChanging += TransformPropertyChanging;
             if (IsActiveInHierarchy)
-                Transform.OnSceneNodeActivated();
+                _transform.OnSceneNodeActivated();
         }
 
-        private void TransformPropertyChanging(object? sender, PropertyChangingEventArgs e)
+        private void TransformPropertyChanging(object? sender, IXRPropertyChangingEventArgs e)
         {
             switch (e.PropertyName)
             {
@@ -168,7 +195,7 @@ namespace XREngine.Scene
             }
         }
 
-        private void TransformPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        private void TransformPropertyChanged(object? sender, IXRPropertyChangedEventArgs e)
         {
             switch (e.PropertyName)
             {
@@ -205,13 +232,30 @@ namespace XREngine.Scene
             {
                 if (_transform is null)
                     SetTransform<Transform>();
-
                 return _transform!;
+            }
+            private set
+            {
+                //if (_settingTransform)
+                //    return;
+                //try
+                //{
+                //    _settingTransform = true;
+                    SetField(ref _transform, value);
+                //}
+                //finally
+                //{
+                //    _settingTransform = false;
+                //}
             }
         }
 
         public T? GetTransformAs<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(bool forceConvert = false) where T : TransformBase, new()
-            => !forceConvert ? Transform as T : Transform is T value ? value : SetTransform<T>();
+            => !forceConvert 
+                ? Transform as T : 
+                Transform is T value 
+                    ? value 
+                    : SetTransform<T>();
 
         public bool TryGetTransformAs<T>([MaybeNullWhen(false)] out T? transform) where T : TransformBase
         {
@@ -219,21 +263,19 @@ namespace XREngine.Scene
             return transform != null;
         }
 
+        private bool _settingTransform = false;
         /// <summary>
         /// Sets the transform of this scene node.
         /// If retainParent is true, the parent of the new transform will be set to the parent of the current transform.
         /// </summary>
         /// <param name="transform"></param>
         /// <param name="retainParent"></param>
-        public void SetTransform(TransformBase transform, bool retainParent = true)
+        public void SetTransform(TransformBase transform, bool retainParent = true, bool retainWorldTransform = false)
         {
             if (retainParent)
-                transform.Parent = _transform?.Parent;
-            if (_transform is not null)
-                UnlinkTransform();
-            SetField(ref _transform, transform);
-            if (_transform is not null)
-                LinkTransform();
+                transform.SetParent(_transform?.Parent, retainWorldTransform);
+
+            Transform = transform;
         }
 
         /// <summary>
@@ -254,8 +296,12 @@ namespace XREngine.Scene
         /// </summary>
         public SceneNode? Parent
         {
-            get => Transform.Parent?.SceneNode;
-            set => Transform.Parent = value?.Transform;
+            get => _transform?.Parent?.SceneNode;
+            set
+            {
+                if (_transform is not null)
+                    _transform.Parent = value?.Transform;
+            }
         }
 
         // TODO: set and unset world to transform and components when enabled and disabled
@@ -687,6 +733,11 @@ namespace XREngine.Scene
         public bool IsSynchronized => ((ICollection)ComponentsInternal).IsSynchronized;
 
         public object SyncRoot => ((ICollection)ComponentsInternal).SyncRoot;
+
+        /// <summary>
+        /// Use this before updating transform callbacks in case your code tries to set the transform while simultaneously linking or unlinking it.
+        /// </summary>
+        public bool IsTransformNull => _transform is null;
 
         public event EventList<XRComponent>.SingleCancelableHandler PreAnythingAdded
         {

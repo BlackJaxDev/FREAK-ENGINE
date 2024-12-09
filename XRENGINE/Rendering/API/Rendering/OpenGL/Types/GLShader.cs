@@ -1,6 +1,7 @@
 ﻿using Extensions;
 using Silk.NET.OpenGL;
 using System.ComponentModel;
+using XREngine.Data.Core;
 
 namespace XREngine.Rendering.OpenGL
 {
@@ -21,7 +22,7 @@ namespace XREngine.Rendering.OpenGL
                 OnSourceChanged();
             }
 
-            private void Data_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+            private void Data_PropertyChanged(object? sender, IXRPropertyChangedEventArgs e)
             {
                 switch (e.PropertyName)
                 {
@@ -81,6 +82,12 @@ namespace XREngine.Rendering.OpenGL
 
             private void PushSource(bool compile = true)
             {
+                if (!Engine.IsRenderThread)
+                {
+                    Engine.EnqueueMainThreadTask(() => PushSource(compile));
+                    return;
+                }
+
                 if (string.IsNullOrWhiteSpace(SourceText))
                     return;
 

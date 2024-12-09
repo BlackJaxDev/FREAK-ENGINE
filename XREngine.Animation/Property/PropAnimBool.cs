@@ -42,8 +42,9 @@ namespace XREngine.Animation
             _bakedFPS = framesPerSecond;
             _bakedFrameCount = (int)Math.Ceiling(LengthInSeconds * framesPerSecond);
             _baked = new bool[BakedFrameCount];
+            float invFPS = 1.0f / _bakedFPS;
             for (int i = 0; i < BakedFrameCount; ++i)
-                _baked[i] = GetValueKeyframed(i);
+                _baked[i] = GetValueKeyframed(i * invFPS);
         }
 
         protected override void OnProgressed(float delta)

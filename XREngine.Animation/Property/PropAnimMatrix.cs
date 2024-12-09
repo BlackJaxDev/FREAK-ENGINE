@@ -4,7 +4,7 @@ using System.Numerics;
 
 namespace XREngine.Animation
 {
-    public class PropAnimMatrix4 : PropAnimKeyframed<Matrix4Keyframe>, IEnumerable<Matrix4Keyframe>
+    public class PropAnimMatrix : PropAnimKeyframed<MatrixKeyframe>, IEnumerable<MatrixKeyframe>
     {
         private DelGetValue<Matrix4x4> _getValue;
 
@@ -14,16 +14,16 @@ namespace XREngine.Animation
         /// </summary>
         public Matrix4x4 DefaultValue { get; set; } = Matrix4x4.Identity;
 
-        public PropAnimMatrix4() : base(0.0f, false)
+        public PropAnimMatrix() : base(0.0f, false)
         {
             _getValue = GetValueKeyframed;
         }
-        public PropAnimMatrix4(float lengthInSeconds, bool looped, bool useKeyframes)
+        public PropAnimMatrix(float lengthInSeconds, bool looped, bool useKeyframes)
             : base(lengthInSeconds, looped, useKeyframes)
         {
             _getValue = GetValueKeyframed;
         }
-        public PropAnimMatrix4(int frameCount, float FPS, bool looped, bool useKeyframes) 
+        public PropAnimMatrix(int frameCount, float FPS, bool looped, bool useKeyframes) 
             : base(frameCount, FPS, looped, useKeyframes)
         {
             _getValue = GetValueKeyframed;
@@ -50,8 +50,9 @@ namespace XREngine.Animation
             _bakedFPS = framesPerSecond;
             _bakedFrameCount = (int)Math.Ceiling(LengthInSeconds * framesPerSecond);
             _baked = new Matrix4x4[BakedFrameCount];
+            float invFPS = 1.0f / _bakedFPS;
             for (int i = 0; i < BakedFrameCount; ++i)
-                _baked[i] = GetValueKeyframed(i);
+                _baked[i] = GetValueKeyframed(i * invFPS);
         }
         protected override object GetCurrentValueGeneric()
         {
@@ -62,31 +63,31 @@ namespace XREngine.Animation
             throw new NotImplementedException();
         }
     }
-    public class Matrix4Keyframe : Keyframe, IStepKeyframe
+    public class MatrixKeyframe : Keyframe, IStepKeyframe
     {
-        public Matrix4Keyframe() { }
-        public Matrix4Keyframe(float second, Matrix4x4 value) : base()
+        public MatrixKeyframe() { }
+        public MatrixKeyframe(float second, Matrix4x4 value) : base()
         {
             Second = second;
             Value = value;
         }
 
-        protected delegate Matrix4x4 DelInterpolate(Matrix4Keyframe key1, Matrix4Keyframe key2, float time);
+        protected delegate Matrix4x4 DelInterpolate(MatrixKeyframe key1, MatrixKeyframe key2, float time);
         
         public Matrix4x4 Value { get; set; }
         [Browsable(false)]
         public override Type ValueType => typeof(Matrix4x4);
 
         [Browsable(false)]
-        public new Matrix4Keyframe Next
+        public new MatrixKeyframe Next
         {
-            get => _next as Matrix4Keyframe;
+            get => _next as MatrixKeyframe;
             set => _next = value;
         }
         [Browsable(false)]
-        public new Matrix4Keyframe Prev
+        public new MatrixKeyframe Prev
         {
-            get => _prev as Matrix4Keyframe;
+            get => _prev as MatrixKeyframe;
             set => _prev = value;
         }
 
@@ -116,9 +117,9 @@ namespace XREngine.Animation
         public override string WriteToString()
             => string.Format("{0} {1}", Second, WriteMatrixToString(Value));
 
-        private string WriteMatrixToString(Matrix4x4 value)
+        private static string WriteMatrixToString(Matrix4x4 value)
             => $"{value.M11} {value.M12} {value.M13} {value.M14} {value.M21} {value.M22} {value.M23} {value.M24} {value.M31} {value.M32} {value.M33} {value.M34} {value.M41} {value.M42} {value.M43} {value.M44}";
-        private Matrix4x4 ReadMatrixFromString(string v)
+        private static Matrix4x4 ReadMatrixFromString(string v)
         {
             string[] values = v.Split(' ');
             return new Matrix4x4(

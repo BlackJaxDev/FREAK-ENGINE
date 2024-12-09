@@ -39,14 +39,18 @@ namespace XREngine.Rendering
             Textures = new EventList<XRTexture?>(textures);
         }
 
-        protected XRRenderProgram? _shaderPipelineProgram;
+        private XRRenderProgram? _shaderPipelineProgram;
         /// <summary>
         /// This is the program that represents this material.
         /// Will only be set if the renderer is using shader pipelines, so it can be combined later.
         /// May contain all kinds of shaders, including vertex, fragment, geometry, compute, etc.
         /// If contains a vertex shader, the default generated vertex shader will not be used.
         /// </summary>
-        public XRRenderProgram? ShaderPipelineProgram => _shaderPipelineProgram;
+        public XRRenderProgram? ShaderPipelineProgram
+        {
+            get => _shaderPipelineProgram;
+            protected set => SetField(ref _shaderPipelineProgram, value);
+        }
 
         private RenderingParameters _renderOptions = new();
         /// <summary>

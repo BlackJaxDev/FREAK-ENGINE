@@ -55,7 +55,7 @@ namespace XREngine.Components.Scene.Mesh
             {
                 var renderer = lod.NewRenderer();
                 renderer.SettingUniforms += SettingUniforms;
-                void UpdateReferences(object? s, System.ComponentModel.PropertyChangedEventArgs e)
+                void UpdateReferences(object? s, IXRPropertyChangedEventArgs e)
                 {
                     if (e.PropertyName == nameof(SubMeshLOD.Mesh))
                         renderer.Mesh = lod.Mesh;
@@ -92,7 +92,7 @@ namespace XREngine.Components.Scene.Mesh
             vertexProgram.Uniform(EEngineUniform.RootInvModelMatrix.ToString(), /*RootTransform?.InverseWorldMatrix ?? */Matrix4x4.Identity);
         }
 
-        private void BeforeAdd(RenderInfo info, RenderCommandCollection passes, XRCamera? camera)
+        private bool BeforeAdd(RenderInfo info, RenderCommandCollection passes, XRCamera? camera)
         {
             var rend = CurrentLODRenderer;
             bool skinned = (rend?.Mesh?.HasSkinning ?? false);
@@ -109,6 +109,8 @@ namespace XREngine.Components.Scene.Mesh
             var mat = rend?.Material;
             if (mat is not null)
                 _rc.RenderPass = mat.RenderPass;
+
+            return true;
         }
 
         public record RenderableLOD(XRMeshRenderer Renderer, float MaxVisibleDistance);

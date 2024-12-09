@@ -4,8 +4,6 @@ using System.Numerics;
 using XREngine.Data;
 using XREngine.Physics;
 using XREngine.Physics.ShapeTracing;
-using XREngine.Rendering.Commands;
-using XREngine.Rendering.Info;
 using XREngine.Scene.Transforms;
 
 namespace XREngine.Components.Scene.Transforms
@@ -15,10 +13,6 @@ namespace XREngine.Components.Scene.Transforms
     /// </summary>
     public class BoomTransform : TransformBase, IRenderable
     {
-        public BoomTransform() : this(null) { }
-        public BoomTransform(TransformBase? parent) : base(parent)
-            => RenderedObjects = [RenderInfo = RenderInfo3D.New(this, new RenderCommandMethod3D(0, DebugRender))];
-
         public delegate void DelDistanceChange(float newLength);
         public event DelDistanceChange? CurrentDistanceChanged;
 
@@ -65,11 +59,13 @@ namespace XREngine.Components.Scene.Transforms
             set => SetField(ref _zoomOutSpeed, value);
         }
 
-        public RenderInfo[] RenderedObjects { get; }
-        public RenderInfo3D RenderInfo { get; protected set; }
-
-        private void DebugRender(bool shadowPass)
+        protected override void RenderDebug(bool shadowPass)
         {
+            //base.RenderDebug(shadowPass);
+
+            if (shadowPass)
+                return;
+
             Engine.Rendering.Debug.RenderSphere(WorldTranslation, _traceShape.Radius, false, Color.Black);
             Engine.Rendering.Debug.RenderLine(ParentWorldMatrix.Translation, WorldTranslation, Color.Black);
         }

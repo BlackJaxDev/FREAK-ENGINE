@@ -521,7 +521,7 @@ namespace XREngine.Rendering
             if (testHud)
             {
                 UIComponent? hudComp = CameraComponent.GetUserInterfaceOverlay()?.FindDeepestComponent(normalizedViewportPosition);
-                bool hasHit = hudComp?.IsVisible ?? false;
+                bool hasHit = hudComp?.IsActive ?? false;
                 bool hitValidated = !interactableHudOnly || hudComp is UIInteractableComponent;
                 if (hasHit && hitValidated)
                 {

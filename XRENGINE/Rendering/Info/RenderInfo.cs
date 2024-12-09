@@ -1,4 +1,5 @@
-﻿using XREngine.Data.Core;
+﻿using XREngine.Components;
+using XREngine.Data.Core;
 using XREngine.Data.Rendering;
 using XREngine.Data.Trees;
 using XREngine.Rendering.Commands;
@@ -85,41 +86,32 @@ namespace XREngine.Rendering.Info
             internal set => SetField(ref _worldInstance, value);
         }
 
-        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+        private UICanvasComponent? _userInterfaceCanvas;
+        public UICanvasComponent? UserInterfaceCanvas
         {
-            base.OnPropertyChanged(propName, prev, field);
-            switch (propName)
-            {
-                case nameof(WorldInstance):
-                    if (IsVisible)
-                    {
-                        if (prev is XRWorldInstance prevInstance)
-                            prevInstance.VisualScene?.RemoveRenderable(this);
-                        if (field is XRWorldInstance newInstance)
-                            newInstance.VisualScene?.AddRenderable(this);
-                    }
-                    break;
-                case (nameof(IsVisible)):
-                    if (IsVisible)
-                        WorldInstance?.VisualScene?.AddRenderable(this);
-                    else
-                        WorldInstance?.VisualScene?.RemoveRenderable(this);
-                    break;
-            }
+            get => _userInterfaceCanvas;
+            set => SetField(ref _userInterfaceCanvas, value);
         }
 
-        public delegate void DelAddRenderCommandsCallback(RenderInfo info, RenderCommandCollection passes, XRCamera? camera);
+        public delegate bool DelAddRenderCommandsCallback(RenderInfo info, RenderCommandCollection passes, XRCamera? camera);
+
+        /// <summary>
+        /// This callback is called before render commands are added to the render pass.
+        /// Return false to skip adding render commands.
+        /// </summary>
         public DelAddRenderCommandsCallback? PreAddRenderCommandsCallback { get; set; }
 
         public void AddRenderCommands(RenderCommandCollection passes, XRCamera? camera, bool shadowPass)
         {
-            PreAddRenderCommandsCallback?.Invoke(this, passes, camera);
+            if (!(PreAddRenderCommandsCallback?.Invoke(this, passes, camera) ?? true))
+                return;
+
             for (int i = 0; i < RenderCommands.Count; i++)
             {
                 RenderCommand cmd = RenderCommands[i];
                 if (!cmd.Enabled)
                     continue;
-                
+
                 cmd.PreRender(camera, shadowPass);
                 passes.Add(cmd);
             }

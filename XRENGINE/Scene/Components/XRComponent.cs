@@ -1,8 +1,10 @@
-﻿using System.ComponentModel;
+﻿using Silk.NET.OpenXR;
+using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.Serialization;
 using XREngine.Data.Core;
+using XREngine.Rendering.UI;
 using XREngine.Scene;
 using XREngine.Scene.Transforms;
 
@@ -28,7 +30,6 @@ namespace XREngine.Components
             set => SetField(ref _isActive, value);
         }
 
-        public XREvent<XRComponent> TransformChanged;
         public XREvent<(XRComponent, TransformBase)> LocalMatrixChanged;
         public XREvent<(XRComponent, TransformBase)> WorldMatrixChanged;
 
@@ -116,16 +117,6 @@ namespace XREngine.Components
             private set => SetField(ref _sceneNode, value);
         }
 
-        private void SceneNodePropertyChanging(object? sender, PropertyChangingEventArgs e)
-        {
-            switch (e.PropertyName)
-            {
-                case nameof(XREngine.Scene.SceneNode.Transform):
-                    OnTransformChanging();
-                    break;
-            }
-        }
-
         /// <summary>
         /// The transform of the scene node this component is attached to.
         /// Will never be null, because components always have to exist attached to a scene node.
@@ -155,12 +146,24 @@ namespace XREngine.Components
             return false;
         }
 
-        private void SceneNodePropertyChanged(object? sender, PropertyChangedEventArgs e)
+        private void SceneNodePropertyChanging(object? sender, IXRPropertyChangingEventArgs e)
         {
             switch (e.PropertyName)
             {
                 case nameof(XREngine.Scene.SceneNode.Transform):
-                    OnTransformChanged();
+                    if (!SceneNode.IsTransformNull)
+                        OnTransformChanging();
+                    break;
+            }
+        }
+
+        private void SceneNodePropertyChanged(object? sender, IXRPropertyChangedEventArgs e)
+        {
+            switch (e.PropertyName)
+            {
+                case nameof(XREngine.Scene.SceneNode.Transform):
+                    if (!SceneNode.IsTransformNull)
+                        OnTransformChanged();
                     break;
             }
         }
@@ -170,6 +173,9 @@ namespace XREngine.Components
         /// </summary>
         protected virtual void OnTransformChanging()
         {
+            if (SceneNode.IsTransformNull)
+                return;
+
             Transform.LocalMatrixChanged -= OnTransformLocalMatrixChanged;
             Transform.WorldMatrixChanged -= OnTransformWorldMatrixChanged;
         }
@@ -179,7 +185,9 @@ namespace XREngine.Components
         /// </summary>
         protected virtual void OnTransformChanged()
         {
-            TransformChanged.Invoke(this);
+            if (SceneNode.IsTransformNull)
+                return;
+
             Transform.LocalMatrixChanged += OnTransformLocalMatrixChanged;
             Transform.WorldMatrixChanged += OnTransformWorldMatrixChanged;
             OnTransformLocalMatrixChanged(Transform);
@@ -272,7 +280,7 @@ namespace XREngine.Components
         /// This method is called when the component is set to active in the world.
         /// It will check for known engine interfaces set by the user and apply engine data to them.
         /// </summary>
-        internal void VerifyInterfacesOnStart()
+        internal virtual void VerifyInterfacesOnStart()
         {
             if (this is IRenderable rend)
             {
@@ -287,7 +295,7 @@ namespace XREngine.Components
         /// This method is called when the component is set to inactive in the world.
         /// It will check for known engine interfaces set by the user and clear engine data from them.
         /// </summary>
-        internal void VerifyInterfacesOnStop()
+        internal virtual void VerifyInterfacesOnStop()
         {
             if (this is IRenderable rend)
             {

@@ -1,6 +1,7 @@
 ﻿using Extensions;
 using System.ComponentModel;
 using XREngine.Core;
+using XREngine.Data.Core;
 using XREngine.Data.Geometry;
 using XREngine.Scene.Transforms;
 
@@ -391,7 +392,7 @@ namespace XREngine.Rendering.UI
             OnChildrenChanged();
         }
 
-        private void Info_PropertyChanging(object? sender, PropertyChangingEventArgs e)
+        private void Info_PropertyChanging(object? sender, IXRPropertyChangingEventArgs e)
         {
             if (sender is not UIGridChildPlacementInfo info)
                 return;
@@ -414,7 +415,7 @@ namespace XREngine.Rendering.UI
             OnChildrenChanged();
         }
 
-        private void Info_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        private void Info_PropertyChanged(object? sender, IXRPropertyChangedEventArgs e)
         {
             if (sender is not UIGridChildPlacementInfo info)
                 return;

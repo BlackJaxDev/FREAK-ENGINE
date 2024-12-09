@@ -39,7 +39,7 @@ namespace XREngine.Rendering.Shaders.Generator
                 Line($"mat4 mvpMatrix = {EEngineUniform.ProjMatrix} * mvMatrix;");
                 Line($"mat4 vpMatrix = {EEngineUniform.ProjMatrix} * ViewMatrix;");
                 if (Mesh.NormalsBuffer is not null)
-                    Line("mat3 normalMatrix = transpose(inverse(mat3(mvMatrix)));");
+                    Line("mat3 normalMatrix = mat3(transpose(inverse(mvMatrix)));");
                 Line();
 
                 //Transform position, normals and tangents
@@ -261,12 +261,12 @@ namespace XREngine.Rendering.Shaders.Generator
             if (hasNormals)
             {
                 Line("vec3 finalNormal = vec3(0.0f);");
-                Line($"vec4 baseNormal = vec4({ECommonBufferType.Normal}, 0.0);");
+                Line($"vec3 baseNormal = {ECommonBufferType.Normal};");
             }
             if (hasTangents)
             {
                 Line("vec3 finalTangent = vec3(0.0f);");
-                Line($"vec4 baseTangent = vec4({ECommonBufferType.Tangent}, 0.0);");
+                Line($"vec3 baseTangent = {ECommonBufferType.Tangent};");
             }
 
             Line();
@@ -288,8 +288,9 @@ namespace XREngine.Rendering.Shaders.Generator
                     Line($"float weight = {ECommonBufferType.BoneMatrixCount}[i];");
                     Line($"mat4 boneMatrix = {ECommonBufferType.BoneInvBindMatrices}[boneIndex] * {ECommonBufferType.BoneMatrices}[boneIndex] * {EEngineUniform.RootInvModelMatrix};");
                     Line("finalPosition += (boneMatrix * basePosition) * weight;");
-                    Line("finalNormal += (boneMatrix * baseNormal).xyz * weight;");
-                    Line("finalTangent += (boneMatrix * baseTangent).xyz * weight;");
+                    Line("mat3 boneMatrix3 = mat3(transpose(inverse(boneMatrix)));");
+                    Line("finalNormal += (boneMatrix3 * baseNormal) * weight;");
+                    Line("finalTangent += (boneMatrix3 * baseTangent) * weight;");
                 }
             }
             else
@@ -303,8 +304,9 @@ namespace XREngine.Rendering.Shaders.Generator
                     Line($"float weight = {ECommonBufferType.BoneMatrixWeights}[index];");
                     Line($"mat4 boneMatrix = {ECommonBufferType.BoneInvBindMatrices}[boneIndex] * {ECommonBufferType.BoneMatrices}[boneIndex] * {EEngineUniform.RootInvModelMatrix};");
                     Line("finalPosition += (boneMatrix * basePosition) * weight;");
-                    Line("finalNormal += (boneMatrix * baseNormal).xyz * weight;");
-                    Line("finalTangent += (boneMatrix * baseTangent).xyz * weight;");
+                    Line("mat3 boneMatrix3 = mat3(transpose(inverse(boneMatrix)));");
+                    Line("finalNormal += (boneMatrix3 * baseNormal) * weight;");
+                    Line("finalTangent += (boneMatrix3 * baseTangent) * weight;");
                 }
             }
 

@@ -3,21 +3,31 @@ using System.Runtime.CompilerServices;
 
 namespace XREngine.Data.Core
 {
+    public interface IXRNotifyPropertyChanged
+    {
+        event XRPropertyChangedEventHandler? PropertyChanged;
+    }
+    public interface IXRNotifyPropertyChanging
+    {
+        event XRPropertyChangingEventHandler? PropertyChanging;
+    }
+    public delegate void XRPropertyChangedEventHandler(object? sender, IXRPropertyChangedEventArgs e);
+    public delegate void XRPropertyChangingEventHandler(object? sender, IXRPropertyChangingEventArgs e);
     /// <summary>
     /// Common base class for objects. Contains special handling for setting fields and notifying listeners of changes.
     /// </summary>
     [Serializable]
-    public abstract class XRBase : INotifyPropertyChanged, INotifyPropertyChanging
+    public abstract class XRBase : IXRNotifyPropertyChanged, IXRNotifyPropertyChanging
     {
         /// <summary>
         /// This event is called after the value of a property's backing field changes.
         /// </summary>
-        public event PropertyChangedEventHandler? PropertyChanged;
+        public event XRPropertyChangedEventHandler? PropertyChanged;
 
         /// <summary>
         /// This event is called before the value of a property's backing field changes.
         /// </summary>
-        public event PropertyChangingEventHandler? PropertyChanging;
+        public event XRPropertyChangingEventHandler? PropertyChanging;
 
         /// <summary>
         /// Helper method to set a field.

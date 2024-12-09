@@ -58,7 +58,7 @@ public class DefaultRenderPipeline : RenderPipeline
     public const string DiffuseTextureName = "LightingTexture";
     public const string HDRSceneTextureName = "HDRSceneTex";
     public const string BloomBlurTextureName = "BloomBlurTexture";
-    public const string HUDTextureName = "HUDTex";
+    public const string UserInterfaceTextureName = "HUDTex";
     public const string BRDFTextureName = "BRDF";
 
     protected override ViewportRenderCommandContainer GenerateCommandChain()
@@ -204,8 +204,8 @@ public class DefaultRenderPipeline : RenderPipeline
                 c.Add<VPRC_DepthFunc>().Comp = EComparison.Always;
                 c.Add<VPRC_DepthWrite>().Allow = false;
 
-                c.Add<VPRC_RenderQuadFBO>().FrameBufferName = PostProcessFBOName;
                 c.Add<VPRC_RenderUI>().UserInterfaceFBOName = UserInterfaceFBOName;
+                c.Add<VPRC_RenderQuadFBO>().FrameBufferName = PostProcessFBOName;
             }
         }
         c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.PostRender;
@@ -214,22 +214,23 @@ public class DefaultRenderPipeline : RenderPipeline
 
     private XRFrameBuffer CreateUserInterfaceFBO()
     {
-        var hudTexture = GetTexture<XRTexture2D>(HUDTextureName)!;
-        XRShader hudShader = XRShader.EngineShader(Path.Combine(SceneShaderPath, "HudFBO.fs"), EShaderType.Fragment);
-        XRTexture2D[] hudRefs = { hudTexture };
-        XRMaterial hudMat = new(hudRefs, hudShader)
-        {
-            RenderOptions = new RenderingParameters()
-            {
-                DepthTest = new()
-                {
-                    Enabled = ERenderParamUsage.Unchanged,
-                    Function = EComparison.Always,
-                    UpdateDepth = false,
-                },
-            }
-        };
-        var uiFBO = new XRQuadFrameBuffer(hudMat);
+        var hudTexture = GetTexture<XRTexture2D>(UserInterfaceTextureName)!;
+        //XRShader hudShader = XRShader.EngineShader(Path.Combine(SceneShaderPath, "HudFBO.fs"), EShaderType.Fragment);
+        //XRTexture2D[] hudRefs = { hudTexture };
+        //XRMaterial hudMat = new(hudRefs, hudShader)
+        //{
+        //    RenderOptions = new RenderingParameters()
+        //    {
+        //        DepthTest = new()
+        //        {
+        //            Enabled = ERenderParamUsage.Unchanged,
+        //            Function = EComparison.Always,
+        //            UpdateDepth = false,
+        //        },
+        //    }
+        //};
+        //var uiFBO = new XRQuadFrameBuffer(hudMat);
+        var uiFBO = new XRFrameBuffer();
         uiFBO.SetRenderTargets((hudTexture, EFrameBufferAttachment.ColorAttachment0, 0, -1));
         return uiFBO;
     }
@@ -421,7 +422,7 @@ public class DefaultRenderPipeline : RenderPipeline
 
         //HUD texture
         c.Add<VPRC_CacheOrCreateTexture>().SetOptions(
-            HUDTextureName,
+            UserInterfaceTextureName,
             CreateHUDTexture,
             NeedsRecreateTextureFullSize,
             ResizeTextureFullSize);
@@ -432,14 +433,14 @@ public class DefaultRenderPipeline : RenderPipeline
         var hudTexture = XRTexture2D.CreateFrameBufferTexture(
             (uint)State.WindowViewport!.Width,
             (uint)State.WindowViewport!.Height,
-            EPixelInternalFormat.Rgba16f,
+            EPixelInternalFormat.Rgba8,
             EPixelFormat.Rgba,
-            EPixelType.HalfFloat);
+            EPixelType.UnsignedByte);
         hudTexture.MinFilter = ETexMinFilter.Nearest;
         hudTexture.MagFilter = ETexMagFilter.Nearest;
         hudTexture.UWrap = ETexWrapMode.ClampToEdge;
         hudTexture.VWrap = ETexWrapMode.ClampToEdge;
-        hudTexture.SamplerName = HUDTextureName;
+        hudTexture.SamplerName = UserInterfaceTextureName;
         return hudTexture;
     }
 
@@ -451,7 +452,7 @@ public class DefaultRenderPipeline : RenderPipeline
             GetTexture<XRTexture2D>(BloomBlurTextureName)!,
             GetTexture<XRTexture2DView>(DepthViewTextureName)!,
             GetTexture<XRTexture2DView>(StencilViewTextureName)!,
-            GetTexture<XRTexture2D>(HUDTextureName)!,
+            GetTexture<XRTexture2D>(UserInterfaceTextureName)!,
         ];
         XRShader postProcessShader = XRShader.EngineShader(Path.Combine(SceneShaderPath, "PostProcess.fs"), EShaderType.Fragment);
         XRMaterial postProcessMat = new(postProcessRefs, postProcessShader)
