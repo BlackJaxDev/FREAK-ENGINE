@@ -1,9 +1,9 @@
-﻿using System.ComponentModel;
-using System.Numerics;
+﻿using System.Numerics;
 using XREngine.Core.Attributes;
 using XREngine.Data.Core;
 using XREngine.Data.Geometry;
 using XREngine.Rendering;
+using XREngine.Rendering.Info;
 using XREngine.Rendering.UI;
 using XREngine.Scene;
 using XREngine.Scene.Transforms;
@@ -17,6 +17,20 @@ namespace XREngine.Components
     public class UICanvasComponent : XRComponent
     {
         public UICanvasTransform CanvasTransform => TransformAs<UICanvasTransform>(true)!;
+
+        public const float DefaultNearZ = -0.5f;
+        public const float DefaultFarZ = 0.5f;
+
+        public float NearZ
+        {
+            get => Camera2D.Parameters.NearZ;
+            set => Camera2D.Parameters.NearZ = value;
+        }
+        public float FarZ
+        {
+            get => Camera2D.Parameters.FarZ;
+            set => Camera2D.Parameters.FarZ = value;
+        }
 
         protected override void OnTransformChanging()
         {
@@ -46,39 +60,39 @@ namespace XREngine.Components
 
         private void ResizeScreenSpace(BoundingRectangleF bounds)
         {
-            Camera2D ??= new(new Transform());
-            VisualScene2D ??= new();
-
             //Recreate the size of the render tree to match the new size.
-            VisualScene2D?.RenderTree.Remake(bounds);
+            VisualScene2D.RenderTree.Remake(bounds);
 
             //Update the camera parameters to match the new size.
-            if (Camera2D.Parameters is not XROrthographicCameraParameters orthoParams)
-                Camera2D.Parameters = orthoParams = new XROrthographicCameraParameters(bounds.Width, bounds.Height, -0.5f, 0.5f);
-            orthoParams.SetOriginBottomLeft();
-            orthoParams.Resize(bounds.Width, bounds.Height);
+            if (Camera2D.Parameters is XROrthographicCameraParameters orthoParams)
+            {
+                orthoParams.SetOriginBottomLeft();
+                orthoParams.Resize(bounds.Width, bounds.Height);
+            }
+            else
+                Camera2D.Parameters = new XROrthographicCameraParameters(bounds.Width, bounds.Height, DefaultNearZ, DefaultFarZ);
 
             if (Transform is UICanvasTransform tfm)
                 _renderPipeline.ViewportResized(tfm.ActualSize);
         }
 
-        private XRCamera? _screenSpaceCamera;
+        private XRCamera? _camera2D;
         /// <summary>
         /// This is the camera used to render the 2D canvas.
         /// </summary>
-        public XRCamera? Camera2D
+        public XRCamera Camera2D
         {
-            get => _screenSpaceCamera;
-            private set => SetField(ref _screenSpaceCamera, value);
+            get => _camera2D ??= new(new Transform());
+            private set => SetField(ref _camera2D, value);
         }
 
         private VisualScene2D? _visualScene2D;
         /// <summary>
         /// This is the scene that contains all the 2D renderables.
         /// </summary>
-        public VisualScene2D? VisualScene2D
+        public VisualScene2D VisualScene2D
         {
-            get => _visualScene2D;
+            get => _visualScene2D ??= new();
             private set => SetField(ref _visualScene2D, value);
         }
 
@@ -88,21 +102,13 @@ namespace XREngine.Components
         /// <returns></returns>
         public UIInputComponent? GetInputComponent() => GetSiblingComponent<UIInputComponent>();
 
-        public void Render(XRFrameBuffer outputFBO)
-        {
-            if (Transform is not UICanvasTransform tfm || 
-                tfm.DrawSpace != ECanvasDrawSpace.Screen || 
-                Camera2D is null || 
-                VisualScene2D is null)
-                return;
-
-            _renderPipeline.Render(VisualScene2D, Camera2D, null, outputFBO, null, false);
-        }
+        public void Render(XRViewport? viewport, XRFrameBuffer? outputFBO)
+            => _renderPipeline.Render(VisualScene2D, Camera2D, viewport, outputFBO, null, false);
 
         public void SwapBuffersScreenSpace()
         {
             _renderPipeline.MeshRenderCommands.SwapBuffers(false);
-            VisualScene2D?.GlobalSwapBuffers();
+            VisualScene2D.GlobalSwapBuffers();
         }
 
         protected internal override void OnComponentActivated()
@@ -131,18 +137,28 @@ namespace XREngine.Components
 
             //Collect the rendered items now that the layout is updated.
             if (_renderPipeline.Pipeline is not null)
-                VisualScene2D?.CollectRenderedItems(_renderPipeline.MeshRenderCommands, Camera2D, false, null, false);
+                VisualScene2D.CollectRenderedItems(_renderPipeline.MeshRenderCommands, Camera2D, false, null, false);
         }
 
-        private readonly XRRenderPipelineInstance _renderPipeline = new() { Pipeline = new DefaultRenderPipeline() };
+        public UIComponent? FindDeepestComponent(Vector2 normalizedViewportPosition)
+            => FindDeepestComponents(normalizedViewportPosition).LastOrDefault();
+
+        public UIComponent?[] FindDeepestComponents(Vector2 normalizedViewportPosition)
+        {
+            var results = VisualScene2D.RenderTree.Collect(x => x.Bounds.Contains(normalizedViewportPosition), y => y.CullingVolume?.Contains(normalizedViewportPosition) ?? true);
+            return OrderQuadtreeResultsByDepth(results).ToArray();
+        }
+
+        private static IEnumerable<UIComponent?> OrderQuadtreeResultsByDepth(SortedDictionary<int, List<RenderInfo2D>> results)
+            => results.Values.SelectMany(x => x).Select(x => x.Owner as UIComponent).Where(x => x is not null).OrderBy(x => x!.Transform.Depth);
+
+        private readonly XRRenderPipelineInstance _renderPipeline = new() { Pipeline = new UserInterfaceRenderPipeline() };
         public XRRenderPipelineInstance RenderPipelineInstance => _renderPipeline;
 
-        public UIComponent? FindDeepestComponent(Vector2 normalizedViewportPosition)
+        public RenderPipeline? RenderPipeline
         {
-            //if (CanvasTransform.DrawSpace == ECanvasDrawSpace.Screen)
-            //    return (CanvasTransform.ScreenSpaceWorld.VisualScene as VisualScene2D)?.RenderTree?.FindDeepestComponent(normalizedViewportPosition);
-
-            return null;
+            get => _renderPipeline.Pipeline;
+            set => _renderPipeline.Pipeline = value;
         }
     }
 }

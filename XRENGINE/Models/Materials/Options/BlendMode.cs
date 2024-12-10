@@ -18,7 +18,7 @@ namespace XREngine.Rendering.Models.Materials
         public bool IsDisable => Enabled == ERenderParamUsage.Disabled;
         public bool IsUnchanged => Enabled == ERenderParamUsage.Unchanged;
 
-        public uint Buffer
+        public uint DrawBufferIndex
         {
             get => _buffer;
             set => SetField(ref _buffer, value);

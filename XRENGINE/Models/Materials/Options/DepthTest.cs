@@ -36,6 +36,6 @@ namespace XREngine.Rendering.Models.Materials
                 ? "Unchanged" 
                 : Enabled == ERenderParamUsage.Disabled 
                     ? "Disabled" 
-                    : $"[{(EComparison)Function}, Write Depth:{UpdateDepth}]";
+                    : $"[{Function}, Write Depth:{UpdateDepth}]";
     }
 }

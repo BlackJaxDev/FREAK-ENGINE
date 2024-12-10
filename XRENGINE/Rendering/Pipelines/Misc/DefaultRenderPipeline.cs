@@ -4,7 +4,6 @@ using XREngine.Data.Rendering;
 using XREngine.Rendering.Commands;
 using XREngine.Rendering.Models.Materials;
 using XREngine.Rendering.Pipelines.Commands;
-using XREngine.Scene;
 using static XREngine.Engine.Rendering.State;
 
 namespace XREngine.Rendering;
@@ -75,7 +74,7 @@ public class DefaultRenderPipeline : RenderPipeline
     {
         ViewportRenderCommandContainer c = [];
 
-        c.Add<VPRC_SetClears>().Set(ColorF4.Black, 1.0f, 0);
+        c.Add<VPRC_SetClears>().Set(ColorF4.Transparent, 1.0f, 0);
         c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.PreRender;
 
         using (c.AddUsing<VPRC_PushOutputFBORenderArea>())
@@ -107,12 +106,7 @@ public class DefaultRenderPipeline : RenderPipeline
 
         //Create FBOs only after all their texture dependencies have been cached.
 
-        c.Add<VPRC_CacheOrCreateFBO>().SetOptions(
-            UserInterfaceFBOName,
-            CreateUserInterfaceFBO,
-            GetDesiredFBOSizeFull);
-
-        c.Add<VPRC_SetClears>().Set(ColorF4.Black, 1.0f, 0);
+        c.Add<VPRC_SetClears>().Set(ColorF4.Transparent, 1.0f, 0);
         c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.PreRender;
 
         using (c.AddUsing<VPRC_PushViewportRenderArea>(t => t.UseInternalResolution = true))
@@ -192,6 +186,11 @@ public class DefaultRenderPipeline : RenderPipeline
                 CreatePostProcessFBO,
                 GetDesiredFBOSizeInternal);
 
+            c.Add<VPRC_CacheOrCreateFBO>().SetOptions(
+                UserInterfaceFBOName,
+                CreateUserInterfaceFBO,
+                GetDesiredFBOSizeInternal);
+
             c.Add<VPRC_ExposureUpdate>().SetOptions(HDRSceneTextureName, true);
         }
         using (c.AddUsing<VPRC_PushViewportRenderArea>(t => t.UseInternalResolution = false))
@@ -204,8 +203,8 @@ public class DefaultRenderPipeline : RenderPipeline
                 c.Add<VPRC_DepthFunc>().Comp = EComparison.Always;
                 c.Add<VPRC_DepthWrite>().Allow = false;
 
-                c.Add<VPRC_RenderUI>().UserInterfaceFBOName = UserInterfaceFBOName;
                 c.Add<VPRC_RenderQuadFBO>().FrameBufferName = PostProcessFBOName;
+                c.Add<VPRC_RenderScreenSpaceUI>();
             }
         }
         c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.PostRender;
@@ -215,22 +214,21 @@ public class DefaultRenderPipeline : RenderPipeline
     private XRFrameBuffer CreateUserInterfaceFBO()
     {
         var hudTexture = GetTexture<XRTexture2D>(UserInterfaceTextureName)!;
-        //XRShader hudShader = XRShader.EngineShader(Path.Combine(SceneShaderPath, "HudFBO.fs"), EShaderType.Fragment);
-        //XRTexture2D[] hudRefs = { hudTexture };
-        //XRMaterial hudMat = new(hudRefs, hudShader)
-        //{
-        //    RenderOptions = new RenderingParameters()
-        //    {
-        //        DepthTest = new()
-        //        {
-        //            Enabled = ERenderParamUsage.Unchanged,
-        //            Function = EComparison.Always,
-        //            UpdateDepth = false,
-        //        },
-        //    }
-        //};
-        //var uiFBO = new XRQuadFrameBuffer(hudMat);
-        var uiFBO = new XRFrameBuffer();
+        XRShader hudShader = XRShader.EngineShader(Path.Combine(SceneShaderPath, "HudFBO.fs"), EShaderType.Fragment);
+        XRTexture2D[] hudRefs = { hudTexture };
+        XRMaterial hudMat = new(hudRefs, hudShader)
+        {
+            RenderOptions = new RenderingParameters()
+            {
+                DepthTest = new()
+                {
+                    Enabled = ERenderParamUsage.Unchanged,
+                    Function = EComparison.Always,
+                    UpdateDepth = false,
+                },
+            }
+        };
+        var uiFBO = new XRQuadFrameBuffer(hudMat);
         uiFBO.SetRenderTargets((hudTexture, EFrameBufferAttachment.ColorAttachment0, 0, -1));
         return uiFBO;
     }
@@ -452,7 +450,6 @@ public class DefaultRenderPipeline : RenderPipeline
             GetTexture<XRTexture2D>(BloomBlurTextureName)!,
             GetTexture<XRTexture2DView>(DepthViewTextureName)!,
             GetTexture<XRTexture2DView>(StencilViewTextureName)!,
-            GetTexture<XRTexture2D>(UserInterfaceTextureName)!,
         ];
         XRShader postProcessShader = XRShader.EngineShader(Path.Combine(SceneShaderPath, "PostProcess.fs"), EShaderType.Fragment);
         XRMaterial postProcessMat = new(postProcessRefs, postProcessShader)

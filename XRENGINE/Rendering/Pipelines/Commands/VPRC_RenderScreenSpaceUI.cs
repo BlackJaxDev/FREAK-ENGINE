@@ -3,9 +3,19 @@
     /// <summary>
     /// Render's the camera's screen space UI to the current viewport.
     /// </summary>
-    public class VPRC_RenderUI : ViewportRenderCommand
+    public class VPRC_RenderScreenSpaceUI : ViewportRenderCommand
     {
-        public string UserInterfaceFBOName { get; set; } = string.Empty;
+        /// <summary>
+        /// The name of the FBO to render the UI to.
+        /// If null, the UI will be rendered to the current viewport.
+        /// </summary>
+        public string? UserInterfaceFBOName { get; set; }
+
+        /// <summary>
+        /// If true, the command will not render anything if the FBO is not found.
+        /// </summary>
+        public bool FailRenderIfNoFBO { get; set; } = false;
+
         //public override bool NeedsCollecVisible => true;
 
         //public override void CollectVisible()
@@ -38,9 +48,10 @@
             if (ui is null)
                 return;
             
-            var fbo = Pipeline.GetFBO<XRFrameBuffer>(UserInterfaceFBOName);
-            if (fbo is not null)
-                ui?.Render(fbo);
+            var fbo = UserInterfaceFBOName is null ? null : Pipeline.GetFBO<XRFrameBuffer>(UserInterfaceFBOName);
+            if (FailRenderIfNoFBO && fbo is null)
+                return;
+            ui?.Render(Pipeline.RenderState.RenderingViewport, fbo);
         }
     }
 }

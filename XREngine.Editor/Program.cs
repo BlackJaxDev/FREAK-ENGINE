@@ -186,7 +186,7 @@ internal class Program
         var uiNode = new SceneNode(parent) { Name = "TestUINode" };
         var ui = uiNode.AddComponent<UICanvasComponent>()!;
         var uiTransform = uiNode.GetTransformAs<UICanvasTransform>(true)!;
-        uiTransform.DrawSpace = ECanvasDrawSpace.Screen;
+        uiTransform.DrawSpace = ECanvasDrawSpace.World;
         uiTransform.Width = 1920.0f;
         uiTransform.Height = 1080.0f;
         uiTransform.CameraDrawSpaceDistance = 500.0f;
@@ -199,21 +199,32 @@ internal class Program
         var uiPanelTransform = uiPanel.GetTransformAs<UIBoundableTransform>(true)!;
         uiPanelTransform.HorizontalAlignment = EHorizontalAlign.Stretch;
         uiPanelTransform.VerticalAlignment = EVerticalAlign.Stretch;
-        var mat = XRMaterial.CreateUnlitColorMaterialForward(ColorF4.Orange);
+        var mat = XRMaterial.CreateUnlitColorMaterialForward(new ColorF4(1.0f, 0.0f, 0.0f, 0.5f));
+        mat.RenderPass = (int)EDefaultRenderPass.TransparentForward;
         mat.RenderOptions = new RenderingParameters()
         {
-            CullMode = ECullMode.None,
+            CullMode = ECullMode.Back,
             DepthTest = new DepthTest()
             {
-                UpdateDepth = true,
+                UpdateDepth = false,
+                Enabled = ERenderParamUsage.Disabled,
+                Function = EComparison.Always,
+            },
+            BlendMode = new XREngine.Rendering.Models.Materials.BlendMode()
+            {
                 Enabled = ERenderParamUsage.Enabled,
-                Function = EComparison.Less,
+                RgbSrcFactor = EBlendingFactor.SrcAlpha,
+                AlphaSrcFactor = EBlendingFactor.SrcAlpha,
+                RgbDstFactor = EBlendingFactor.OneMinusSrcAlpha,
+                AlphaDstFactor = EBlendingFactor.OneMinusSrcAlpha,
+                RgbEquation = EBlendEquationMode.FuncAdd,
+                AlphaEquation = EBlendEquationMode.FuncAdd,
             },
         };
         uiPanelComp.Material = mat;
 
-        //var uiInteract = uiNode.AddComponent<UIInputComponent>();
 
+        //var uiInteract = uiNode.AddComponent<UIInputComponent>();
         //camComp.UserInterface = ui;
     }
 

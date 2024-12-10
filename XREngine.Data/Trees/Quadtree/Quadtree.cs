@@ -190,5 +190,12 @@ namespace XREngine.Data.Trees
 
         public void CollectVisibleNodes(BoundingRectangleF? cullingVolume, bool containsOnly, Action<(QuadtreeNodeBase node, bool intersects)> action)
             => _head.CollectVisibleNodes(cullingVolume, containsOnly, action);
+
+        public SortedDictionary<int, List<T>> Collect(Func<QuadtreeNode<T>, bool> nodeTest, Func<T, bool> itemTest)
+        {
+            var list = new SortedDictionary<int, List<T>>();
+            _head.Collect(nodeTest, itemTest, list, 0);
+            return list;
+        }
     }
 }

@@ -98,21 +98,21 @@ public sealed partial class XRRenderPipelineInstance : XRBase
             }
         }
     }
-    public void CollectVisible(VisualScene scene, XRCamera? camera, XRViewport viewport, XRFrameBuffer? targetFBO, bool shadowPass, UICanvasComponent? userInterface = null)
-    {
-        if (Pipeline is null)
-        {
-            Debug.LogWarning("No render pipeline is set.");
-            return;
-        }
-        using (PushRenderingPipeline(this))
-        {
-            using (CollectVisibleState.PushMainAttributes(viewport, scene, camera, targetFBO, shadowPass, null, userInterface))
-            {
-                scene.GlobalCollectVisible();
-            }
-        }
-    }
+    //public void CollectVisible(VisualScene scene, XRCamera? camera, XRViewport viewport, XRFrameBuffer? targetFBO, bool shadowPass, UICanvasComponent? userInterface = null)
+    //{
+    //    if (Pipeline is null)
+    //    {
+    //        Debug.LogWarning("No render pipeline is set.");
+    //        return;
+    //    }
+    //    using (PushRenderingPipeline(this))
+    //    {
+    //        using (CollectVisibleState.PushMainAttributes(viewport, scene, camera, targetFBO, shadowPass, null, userInterface))
+    //        {
+    //            scene.GlobalCollectVisible();
+    //        }
+    //    }
+    //}
 
     public void DestroyCache()
     {

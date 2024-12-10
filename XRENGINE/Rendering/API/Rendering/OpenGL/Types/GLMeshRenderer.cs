@@ -748,12 +748,12 @@ namespace XREngine.Rendering.OpenGL
                 Api.Enable(EnableCap.Blend);
 
                 Api.BlendEquationSeparate(
-                    r.BlendMode.Buffer,
+                    r.BlendMode.DrawBufferIndex,
                     ToGLEnum(r.BlendMode.RgbEquation),
                     ToGLEnum(r.BlendMode.AlphaEquation));
 
                 Api.BlendFuncSeparate(
-                    r.BlendMode.Buffer,
+                    r.BlendMode.DrawBufferIndex,
                     ToGLEnum(r.BlendMode.RgbSrcFactor),
                     ToGLEnum(r.BlendMode.RgbDstFactor),
                     ToGLEnum(r.BlendMode.AlphaSrcFactor),

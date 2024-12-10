@@ -7,7 +7,6 @@ uniform sampler2D HDRSceneTex; //HDR scene color
 uniform sampler2D Texture1; //Bloom
 uniform sampler2D Texture2; //Depth
 uniform usampler2D Texture3; //Stencil
-uniform sampler2D HUDTex; //HUD
 
 uniform vec3 HighlightColor = vec3(0.92f, 1.0f, 0.086f);
 
@@ -113,10 +112,6 @@ void main()
 	//vec2 vigUV = uv * (1.0f - uv.yx);
  	//float vig = clamp(pow(vigUV.x * vigUV.y * Vignette.Intensity, Vignette.Power), 0.0f, 1.0f);
 	//ldrSceneColor = mix(Vignette.Color, ldrSceneColor, vig);
-
-  //Add HUD on top of scene
-  vec4 hudColor = texture(HUDTex, uv);
-  ldrSceneColor = mix(ldrSceneColor, hudColor.rgb, hudColor.a);
 
 	//Gamma-correct
 	ldrSceneColor = pow(ldrSceneColor, vec3(1.0f / ColorGrade.Gamma));

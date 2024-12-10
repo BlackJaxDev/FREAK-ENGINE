@@ -650,6 +650,25 @@ namespace XREngine.Data.Trees
 
         }
 
+        public void Collect(Func<QuadtreeNode<T>, bool> nodeTest, Func<T, bool> itemTest, SortedDictionary<int, List<T>> list, int depth)
+        {
+            if (!nodeTest(this))
+                return;
+            
+            foreach (T item in _items)
+                if (itemTest(item))
+                {
+                    if (!list.TryGetValue(depth, out List<T>? value))
+                        list.Add(depth, [item]);
+                    else
+                        value.Add(item);
+                }
+
+            ++depth;
+            for (int i = 0; i < QuadtreeBase.MaxChildNodeCount; ++i)
+                _subNodes[i]?.Collect(nodeTest, itemTest, list, depth);
+        }
+
         #endregion
     }
 }
