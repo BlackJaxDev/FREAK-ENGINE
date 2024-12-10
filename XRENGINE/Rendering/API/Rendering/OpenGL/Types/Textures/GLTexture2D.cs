@@ -25,10 +25,18 @@ namespace XREngine.Rendering.OpenGL
                 _texture = texture;
                 _mipmap = mipmap;
                 _mipmap.PropertyChanged += MipmapPropertyChanged;
+                _mipmap.Invalidated += MipmapInvalidated;
             }
+
             ~MipmapInfo()
             {
                 _mipmap.PropertyChanged -= MipmapPropertyChanged;
+                _mipmap.Invalidated -= MipmapInvalidated;
+            }
+
+            private void MipmapInvalidated()
+            {
+                _texture.Invalidate();
             }
 
             private void MipmapPropertyChanged(object? sender, IXRPropertyChangedEventArgs e)

@@ -722,80 +722,143 @@ namespace XREngine.Rendering.OpenGL
             if (r is null)
                 return;
 
+            Api.PointSize(r.PointSize);
+            Api.LineWidth(r.LineWidth.Clamp(0.0f, 1.0f));
             Api.ColorMask(r.WriteRed, r.WriteGreen, r.WriteBlue, r.WriteAlpha);
-            if (r.CullMode != ECullMode.None)
+            ApplyCulling(r);
+            ApplyDepth(r);
+            ApplyBlending(r);
+            ApplyStencil(r);
+            //Alpha testing is done in-shader
+        }
+
+        private void ApplyStencil(RenderingParameters r)
+        {
+            switch (r.StencilTest.Enabled)
+            {
+                case ERenderParamUsage.Enabled:
+                    {
+                        StencilTest st = r.StencilTest;
+                        StencilTestFace b = st.BackFace;
+                        StencilTestFace f = st.FrontFace;
+                        Api.StencilOpSeparate(GLEnum.Back,
+                            (StencilOp)(int)b.BothFailOp,
+                            (StencilOp)(int)b.StencilPassDepthFailOp,
+                            (StencilOp)(int)b.BothPassOp);
+                        Api.StencilOpSeparate(GLEnum.Front,
+                            (StencilOp)(int)f.BothFailOp,
+                            (StencilOp)(int)f.StencilPassDepthFailOp,
+                            (StencilOp)(int)f.BothPassOp);
+                        Api.StencilMaskSeparate(GLEnum.Back, b.WriteMask);
+                        Api.StencilMaskSeparate(GLEnum.Front, f.WriteMask);
+                        Api.StencilFuncSeparate(GLEnum.Back,
+                            StencilFunction.Never + (int)b.Func, b.Ref, b.ReadMask);
+                        Api.StencilFuncSeparate(GLEnum.Front,
+                            StencilFunction.Never + (int)f.Func, f.Ref, f.ReadMask);
+                        break;
+                    }
+
+                case ERenderParamUsage.Disabled:
+                    //GL.Disable(EnableCap.StencilTest);
+                    Api.StencilMask(0);
+                    Api.StencilOp(GLEnum.Keep, GLEnum.Keep, GLEnum.Keep);
+                    Api.StencilFunc(StencilFunction.Always, 0, 0);
+                    break;
+            }
+        }
+
+        private void ApplyBlending(RenderingParameters r)
+        {
+            if (r.BlendModeAllDrawBuffers is not null)
+            {
+                var x = r.BlendModeAllDrawBuffers;
+                if (x.Enabled == ERenderParamUsage.Enabled)
+                {
+                    Api.Enable(EnableCap.Blend);
+
+                    Api.BlendEquationSeparate(
+                        ToGLEnum(x.RgbEquation),
+                        ToGLEnum(x.AlphaEquation));
+
+                    Api.BlendFuncSeparate(
+                        ToGLEnum(x.RgbSrcFactor),
+                        ToGLEnum(x.RgbDstFactor),
+                        ToGLEnum(x.AlphaSrcFactor),
+                        ToGLEnum(x.AlphaDstFactor));
+                }
+                else if (x.Enabled == ERenderParamUsage.Disabled)
+                    Api.Disable(EnableCap.Blend);
+            }
+            else if (r.BlendModesPerDrawBuffer is not null)
+            {
+                if (r.BlendModesPerDrawBuffer.Any(r => r.Value.Enabled == ERenderParamUsage.Enabled))
+                {
+                    Api.Enable(EnableCap.Blend);
+                    foreach (KeyValuePair<uint, BlendMode> pair in r.BlendModesPerDrawBuffer)
+                    {
+                        uint drawBuffer = pair.Key;
+                        BlendMode x = pair.Value;
+                        if (x.Enabled == ERenderParamUsage.Enabled)
+                        {
+                            Api.BlendEquationSeparate(
+                                drawBuffer,
+                                ToGLEnum(x.RgbEquation),
+                                ToGLEnum(x.AlphaEquation));
+
+                            Api.BlendFuncSeparate(
+                                drawBuffer,
+                                ToGLEnum(x.RgbSrcFactor),
+                                ToGLEnum(x.RgbDstFactor),
+                                ToGLEnum(x.AlphaSrcFactor),
+                                ToGLEnum(x.AlphaDstFactor));
+                        }
+                        else
+                        {
+                            //Apply a blend mode that mimics non-blending for this draw buffer
+
+                            Api.BlendEquationSeparate(
+                                drawBuffer,
+                                GLEnum.FuncAdd,
+                                GLEnum.FuncAdd);
+
+                            Api.BlendFuncSeparate(
+                                drawBuffer,
+                                GLEnum.One,
+                                GLEnum.Zero,
+                                GLEnum.One,
+                                GLEnum.Zero);
+                        }
+                    }
+                }
+                else if (r.BlendModesPerDrawBuffer.Any(r => r.Value.Enabled == ERenderParamUsage.Disabled))
+                    Api.Disable(EnableCap.Blend);
+            }
+        }
+
+        private void ApplyCulling(RenderingParameters r)
+        {
+            if (r.CullMode == ECullMode.None)
+                Api.Disable(EnableCap.CullFace);
+            else
             {
                 Api.Enable(EnableCap.CullFace);
                 Api.CullFace(ToGLEnum(r.CullMode));
             }
-            else
-                Api.Disable(EnableCap.CullFace);
+        }
 
-            Api.PointSize(r.PointSize);
-            Api.LineWidth(r.LineWidth.Clamp(0.0f, 1.0f));
-
-            if (r.DepthTest.Enabled == ERenderParamUsage.Enabled)
+        private void ApplyDepth(RenderingParameters r)
+        {
+            switch (r.DepthTest.Enabled)
             {
-                Api.Enable(EnableCap.DepthTest);
-                Api.DepthFunc(ToGLEnum(r.DepthTest.Function));
-                Api.DepthMask(r.DepthTest.UpdateDepth);
-            }
-            else if (r.DepthTest.Enabled == ERenderParamUsage.Disabled)
-                Api.Disable(EnableCap.DepthTest);
+                case ERenderParamUsage.Enabled:
+                    Api.Enable(EnableCap.DepthTest);
+                    Api.DepthFunc(ToGLEnum(r.DepthTest.Function));
+                    Api.DepthMask(r.DepthTest.UpdateDepth);
+                    break;
 
-            if (r.BlendMode.Enabled == ERenderParamUsage.Enabled)
-            {
-                Api.Enable(EnableCap.Blend);
-
-                Api.BlendEquationSeparate(
-                    r.BlendMode.DrawBufferIndex,
-                    ToGLEnum(r.BlendMode.RgbEquation),
-                    ToGLEnum(r.BlendMode.AlphaEquation));
-
-                Api.BlendFuncSeparate(
-                    r.BlendMode.DrawBufferIndex,
-                    ToGLEnum(r.BlendMode.RgbSrcFactor),
-                    ToGLEnum(r.BlendMode.RgbDstFactor),
-                    ToGLEnum(r.BlendMode.AlphaSrcFactor),
-                    ToGLEnum(r.BlendMode.AlphaDstFactor));
-            }
-            else if (r.BlendMode.Enabled == ERenderParamUsage.Disabled)
-                Api.Disable(EnableCap.Blend);
-
-            //if (r.AlphaTest.Enabled == ERenderParamUsage.Enabled)
-            //{
-            //    Api.Enable(EnableCap.AlphaTest);
-            //    Api.AlphaFunc(AlphaFunction.Never + (int)r.AlphaTest.Comp, r.AlphaTest.Ref);
-            //}
-            //else if (r.AlphaTest.Enabled == ERenderParamUsage.Disabled)
-            //    Api.Disable(EnableCap.AlphaTest);
-
-            if (r.StencilTest.Enabled == ERenderParamUsage.Enabled)
-            {
-                StencilTest st = r.StencilTest;
-                StencilTestFace b = st.BackFace;
-                StencilTestFace f = st.FrontFace;
-                Api.StencilOpSeparate(GLEnum.Back,
-                    (StencilOp)(int)b.BothFailOp,
-                    (StencilOp)(int)b.StencilPassDepthFailOp,
-                    (StencilOp)(int)b.BothPassOp);
-                Api.StencilOpSeparate(GLEnum.Front,
-                    (StencilOp)(int)f.BothFailOp,
-                    (StencilOp)(int)f.StencilPassDepthFailOp,
-                    (StencilOp)(int)f.BothPassOp);
-                Api.StencilMaskSeparate(GLEnum.Back, b.WriteMask);
-                Api.StencilMaskSeparate(GLEnum.Front, f.WriteMask);
-                Api.StencilFuncSeparate(GLEnum.Back,
-                    StencilFunction.Never + (int)b.Func, b.Ref, b.ReadMask);
-                Api.StencilFuncSeparate(GLEnum.Front,
-                    StencilFunction.Never + (int)f.Func, f.Ref, f.ReadMask);
-            }
-            else if (r.StencilTest.Enabled == ERenderParamUsage.Disabled)
-            {
-                //GL.Disable(EnableCap.StencilTest);
-                Api.StencilMask(0);
-                Api.StencilOp(GLEnum.Keep, GLEnum.Keep, GLEnum.Keep);
-                Api.StencilFunc(StencilFunction.Always, 0, 0);
+                case ERenderParamUsage.Disabled:
+                    Api.Disable(EnableCap.DepthTest);
+                    break;
             }
         }
 

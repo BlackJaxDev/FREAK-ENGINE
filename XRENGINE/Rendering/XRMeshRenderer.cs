@@ -122,29 +122,23 @@ namespace XREngine.Rendering
         {
             //using var timer = Engine.Profiler.Start();
 
-            uint arrLen = (uint)(Mesh?.UtilizedBones?.Length ?? 0);
+            uint boneCount = (uint)(Mesh?.UtilizedBones?.Length ?? 0);
 
-            //Allocate buffers
-
-            _bones = new RenderBone[arrLen];
-
-            BoneMatricesBuffer = new($"{ECommonBufferType.BoneMatrices}Buffer", EBufferTarget.ShaderStorageBuffer, arrLen + 1, EComponentType.Float, 16, false, false)
+            BoneMatricesBuffer = new($"{ECommonBufferType.BoneMatrices}Buffer", EBufferTarget.ShaderStorageBuffer, boneCount + 1, EComponentType.Float, 16, false, false)
             {
                 //RangeFlags = EBufferMapRangeFlags.Write | EBufferMapRangeFlags.Persistent | EBufferMapRangeFlags.Coherent;
                 //StorageFlags = EBufferMapStorageFlags.Write | EBufferMapStorageFlags.Persistent | EBufferMapStorageFlags.Coherent | EBufferMapStorageFlags.ClientStorage;
                 Usage = EBufferUsage.StreamDraw
             };
-
-            BoneInvBindMatricesBuffer = new($"{ECommonBufferType.BoneInvBindMatrices}Buffer", EBufferTarget.ShaderStorageBuffer, arrLen + 1, EComponentType.Float, 16, false, false)
+            BoneInvBindMatricesBuffer = new($"{ECommonBufferType.BoneInvBindMatrices}Buffer", EBufferTarget.ShaderStorageBuffer, boneCount + 1, EComponentType.Float, 16, false, false)
             {
                 Usage = EBufferUsage.StaticCopy
             };
 
-            //Populate buffers in parallel
-
             BoneMatricesBuffer.Set(0, Matrix4x4.Identity);
             BoneInvBindMatricesBuffer.Set(0, Matrix4x4.Identity);
 
+            _bones = new RenderBone[boneCount];
             for (int i = 0; i < _bones.Length; i++)
             {
                 var (tfm, invBindWorldMtx) = Mesh!.UtilizedBones[i];

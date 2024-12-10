@@ -1,6 +1,5 @@
 ﻿using Extensions;
 using System.Collections.Concurrent;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -10,7 +9,6 @@ using XREngine.Data.Core;
 using XREngine.Data.Geometry;
 using XREngine.Data.Trees;
 using XREngine.Rendering.Info;
-using XREngine.Rendering.Physics.Physx;
 using XREngine.Scene;
 using XREngine.Scene.Transforms;
 using static XREngine.Engine;

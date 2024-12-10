@@ -1,8 +1,4 @@
-﻿using Extensions;
-using System.Drawing;
-using XREngine.Rendering.Models.Materials;
-
-namespace XREngine.Rendering.UI
+﻿namespace XREngine.Rendering.UI
 {
     public class UIButtonComponent : UIInteractableComponent
     {

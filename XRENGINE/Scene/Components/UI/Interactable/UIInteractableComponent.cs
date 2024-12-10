@@ -84,12 +84,12 @@ namespace XREngine.Rendering.UI
         {
             if (RegisterInputsOnFocus)
             {
-                //var input = OwningUserInterface?.LocalPlayerController?.Input;
-                //if (input != null)
-                //{
-                //    input.Unregister = false;
-                //    RegisterInputs(input);
-                //}
+                var input = OwningUserInterface?.LocalPlayerController?.Input;
+                if (input != null)
+                {
+                    input.Unregister = false;
+                    RegisterInputs(input);
+                }
             }
 
             GotFocus?.Invoke(this);

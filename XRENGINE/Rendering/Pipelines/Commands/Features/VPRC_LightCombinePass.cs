@@ -136,7 +136,7 @@ namespace XREngine.Rendering.Pipelines.Commands
                 //and the light does not add itself twice for the front and back faces.
                 CullMode = ECullMode.Front,
                 RequiredEngineUniforms = EUniformRequirements.Camera,
-                BlendMode = new()
+                BlendModeAllDrawBuffers = new()
                 {
                     //Add the previous and current light colors together using FuncAdd with each mesh render
                     Enabled = ERenderParamUsage.Enabled,

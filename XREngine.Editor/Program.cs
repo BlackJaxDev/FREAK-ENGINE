@@ -31,6 +31,7 @@ using XREngine.VRClient;
 using static XREngine.Audio.AudioSource;
 using static XREngine.Scene.Transforms.RigidBodyTransform;
 using ActionType = OpenVR.NET.Manifest.ActionType;
+using BlendMode = XREngine.Rendering.Models.Materials.BlendMode;
 using Quaternion = System.Numerics.Quaternion;
 
 internal class Program
@@ -210,7 +211,7 @@ internal class Program
                 Enabled = ERenderParamUsage.Disabled,
                 Function = EComparison.Always,
             },
-            BlendMode = new XREngine.Rendering.Models.Materials.BlendMode()
+            BlendModeAllDrawBuffers = new BlendMode()
             {
                 Enabled = ERenderParamUsage.Enabled,
                 RgbSrcFactor = EBlendingFactor.SrcAlpha,

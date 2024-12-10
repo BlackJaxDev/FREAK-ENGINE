@@ -5,7 +5,6 @@ namespace XREngine.Rendering.Models.Materials
     [Serializable]
     public class BlendMode : XRBase
     {
-        private uint _buffer = 0u;
         private ERenderParamUsage _enabled = ERenderParamUsage.Disabled;
         private EBlendEquationMode _rgbEquation = EBlendEquationMode.FuncAdd;
         private EBlendEquationMode _alphaEquation = EBlendEquationMode.FuncAdd;
@@ -18,11 +17,6 @@ namespace XREngine.Rendering.Models.Materials
         public bool IsDisable => Enabled == ERenderParamUsage.Disabled;
         public bool IsUnchanged => Enabled == ERenderParamUsage.Unchanged;
 
-        public uint DrawBufferIndex
-        {
-            get => _buffer;
-            set => SetField(ref _buffer, value);
-        }
         public ERenderParamUsage Enabled
         {
             get => _enabled;

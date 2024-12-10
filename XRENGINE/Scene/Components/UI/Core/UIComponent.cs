@@ -8,6 +8,7 @@ namespace XREngine.Rendering.UI
     public class UIComponent : XRComponent
     {
         public UITransform UITransform => TransformAs<UITransform>(true)!;
+        public UICanvasComponent? UserInterfaceCanvas => UITransform.ParentCanvas?.SceneNode?.GetComponent<UICanvasComponent>();
 
         internal override void VerifyInterfacesOnStart()
         {
@@ -19,7 +20,7 @@ namespace XREngine.Rendering.UI
             UITransform.PropertyChanging += UITransformPropertyChanging;
             UITransform.PropertyChanged += UITransformPropertyChanged;
 
-            var canvas = UITransform.ParentCanvas?.SceneNode?.GetComponent<UICanvasComponent>();
+            var canvas = UserInterfaceCanvas;
             foreach (var obj in rend.RenderedObjects)
                 obj.UserInterfaceCanvas = canvas;
 
@@ -84,7 +85,7 @@ namespace XREngine.Rendering.UI
             if (e.PropertyName != nameof(UITransform.ParentCanvas) || this is not IRenderable rend)
                 return;
 
-            var canvas = UITransform.ParentCanvas?.SceneNode?.GetComponent<UICanvasComponent>();
+            var canvas = UserInterfaceCanvas;
             foreach (var obj in rend.RenderedObjects)
                 obj.UserInterfaceCanvas = canvas;
         }

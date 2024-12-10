@@ -1,5 +1,4 @@
 ﻿using System.Collections;
-using YamlDotNet.Serialization;
 
 namespace XREngine.Data.Core
 {

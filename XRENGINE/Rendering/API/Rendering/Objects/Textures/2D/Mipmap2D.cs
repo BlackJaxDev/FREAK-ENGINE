@@ -14,6 +14,9 @@ namespace XREngine.Rendering
     public class Mipmap2D : XRBase
     {
         private static object _lock = new();
+        
+        public event Action Invalidated;
+        public void Invalidate() => Invalidated?.Invoke();
 
         public Mipmap2D() { }
         public Mipmap2D(MagickImage? image)
@@ -173,21 +176,30 @@ namespace XREngine.Rendering
             set => SetField(ref _internalFormat, value);
         }
 
-        public void Resize(uint width, uint height)
+        public void Resize(uint width, uint height, bool ignoreImage = false)
         {
             if (Data is not null && Data.Length != 0 && Width != 0u && Height != 0u)
             {
-                try
-                {
-                    using var img = GetImage();
-                    img.Resize(width, height);
-                    SetFromImage(img);
-                }
-                catch (MagickException)
+                if (ignoreImage)
                 {
                     Width = width;
                     Height = height;
                     Data = new DataSource(XRTexture.AllocateBytes(width, height, PixelFormat, PixelType));
+                }
+                else
+                {
+                    try
+                    {
+                        using var img = GetImage();
+                        img.Resize(width, height);
+                        SetFromImage(img);
+                    }
+                    catch (MagickException)
+                    {
+                        Width = width;
+                        Height = height;
+                        Data = new DataSource(XRTexture.AllocateBytes(width, height, PixelFormat, PixelType));
+                    }
                 }
             }
             else

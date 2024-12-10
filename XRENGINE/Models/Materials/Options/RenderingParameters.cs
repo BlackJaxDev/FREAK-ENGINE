@@ -11,7 +11,7 @@ namespace XREngine.Rendering.Models.Materials
     {
         private DepthTest _depthTest = new();
         private StencilTest _stencilTest = new();
-        private BlendMode _blendMode = new();
+        private Dictionary<uint, BlendMode> _blendModesPerDrawBuffer = [];
         private float _lineWidth = AbstractRenderer.DefaultLineSize;
         private float _pointSize = AbstractRenderer.DefaultPointSize;
         private ECullMode _cullMode = ECullMode.Back;
@@ -21,23 +21,27 @@ namespace XREngine.Rendering.Models.Materials
         private bool _writeGreen = true;
         private bool _writeRed = true;
         private EUniformRequirements _requiredEngineUniforms = EUniformRequirements.None;
+        private BlendMode? _blendModeAllDrawBuffers;
 
         [Browsable(false)]
-        public bool HasTransparency => BlendMode.Enabled == ERenderParamUsage.Enabled;
+        public bool HasTransparency => BlendModesPerDrawBuffer.Values.Any(x => x.Enabled == ERenderParamUsage.Enabled) || BlendModeAllDrawBuffers?.Enabled == ERenderParamUsage.Enabled;
 
         public RenderingParameters() { }
-        public RenderingParameters(bool defaultBlendEnabled, float? defaultAlphaTestDiscardMax)
+        public RenderingParameters(bool defaultBlendEnabled)
         {
-            if (defaultBlendEnabled)
+            if (!defaultBlendEnabled)
+                return;
+            
+            BlendModeAllDrawBuffers = new BlendMode()
             {
-                BlendMode.Enabled = ERenderParamUsage.Enabled;
-                BlendMode.RgbSrcFactor = EBlendingFactor.SrcAlpha;
-                BlendMode.AlphaSrcFactor = EBlendingFactor.SrcAlpha;
-                BlendMode.RgbDstFactor = EBlendingFactor.OneMinusSrcAlpha;
-                BlendMode.AlphaDstFactor = EBlendingFactor.OneMinusSrcAlpha;
-                BlendMode.RgbEquation = EBlendEquationMode.FuncAdd;
-                BlendMode.AlphaEquation = EBlendEquationMode.FuncAdd;
-            }
+                Enabled = ERenderParamUsage.Enabled,
+                RgbSrcFactor = EBlendingFactor.SrcAlpha,
+                AlphaSrcFactor = EBlendingFactor.SrcAlpha,
+                RgbDstFactor = EBlendingFactor.OneMinusSrcAlpha,
+                AlphaDstFactor = EBlendingFactor.OneMinusSrcAlpha,
+                RgbEquation = EBlendEquationMode.FuncAdd,
+                AlphaEquation = EBlendEquationMode.FuncAdd
+            };
         }
 
         public EUniformRequirements RequiredEngineUniforms
@@ -95,10 +99,15 @@ namespace XREngine.Rendering.Models.Materials
             get => _stencilTest;
             set => SetField(ref _stencilTest, value);
         }
-        public BlendMode BlendMode
+        public Dictionary<uint, BlendMode> BlendModesPerDrawBuffer
         {
-            get => _blendMode;
-            set => SetField(ref _blendMode, value);
+            get => _blendModesPerDrawBuffer;
+            set => SetField(ref _blendModesPerDrawBuffer, value);
+        }
+        public BlendMode? BlendModeAllDrawBuffers
+        {
+            get => _blendModeAllDrawBuffers;
+            set => SetField(ref _blendModeAllDrawBuffers, value);
         }
     }
 }
