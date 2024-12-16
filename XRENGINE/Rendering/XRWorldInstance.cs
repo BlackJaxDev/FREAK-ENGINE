@@ -403,45 +403,33 @@ namespace XREngine.Rendering
             Sequences.Clear();
         }
 
-        public SortedDictionary<float, List<(ITreeItem item, object? data)>>? Raycast(
+        public bool Raycast(
             CameraComponent cameraComponent,
             Vector2 normalizedScreenPoint,
             bool testOctree,
             bool testPhysics,
-            out Vector3 hitNormalWorld,
-            out Vector3 hitPositionWorld,
-            out float hitDistance)
+            SortedDictionary<float, List<(XRComponent item, object? data)>> orderedResults)
             => Raycast(
                 cameraComponent.Camera.GetWorldSegment(normalizedScreenPoint),
                 testOctree,
                 testPhysics,
-                out hitNormalWorld,
-                out hitPositionWorld,
-                out hitDistance);
+                orderedResults);
 
-        public SortedDictionary<float, List<(ITreeItem item, object? data)>>? Raycast(
+        public bool Raycast(
             Segment worldSegment,
             bool testOctree,
             bool testPhysics,
-            out Vector3 hitNormalWorld,
-            out Vector3 hitPositionWorld,
-            out float hitDistance)
+            SortedDictionary<float, List<(XRComponent item, object? data)>> orderedResults)
         {
-            var items = new SortedDictionary<float, List<(ITreeItem item, object? data)>>();
-            if (testOctree)
-                VisualScene.Raycast(worldSegment, out items, DirectItemTest);
+            bool hasMatches = false;
+            //if (testOctree)
+            //    VisualScene.Raycast(worldSegment, orderedResults, DirectItemTest);
             if (testPhysics)
-                PhysicsScene.Raycast(worldSegment, items, out hitNormalWorld, out hitPositionWorld, out hitDistance);
-            else
-            {
-                hitNormalWorld = Vector3.Zero;
-                hitPositionWorld = Vector3.Zero;
-                hitDistance = float.MaxValue;
-            }
-            return items;
+                PhysicsScene.Raycast(worldSegment, orderedResults);
+            return hasMatches;
         }
 
-        private static (float? distance, object? data) DirectItemTest(ITreeItem item, Segment segment)
+        private static (float? distance, object? data) DirectItemTest(RenderInfo3D item, Segment segment)
         {
             if (item is not RenderInfo renderable)
                 return (null, null);

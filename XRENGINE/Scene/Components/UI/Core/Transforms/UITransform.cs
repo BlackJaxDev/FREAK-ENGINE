@@ -11,18 +11,9 @@ namespace XREngine.Rendering.UI
 {
     /// <summary>
     /// Represents a UI transform in 2D space.
-    /// Does not have a rotation component for layouting purposes.
     /// </summary>
     public class UITransform : TransformBase, IRenderable
     {
-        //Transformation fields
-        protected Vector2 _translation = Vector2.Zero;
-        protected float _z = 0.0f;
-        protected Vector3 _scale = Vector3.One;
-        private UIChildPlacementInfo? _placementInfo = null;
-
-        private Vector2 _actualTranslation = new();
-
         private UICanvasTransform? _parentCanvas;
         public UICanvasTransform? ParentCanvas
         {
@@ -30,12 +21,14 @@ namespace XREngine.Rendering.UI
             set => SetField(ref _parentCanvas, value);
         }
 
+        protected Vector2 _translation = Vector2.Zero;
         public virtual Vector2 Translation
         {
             get => _translation;
             set => SetField(ref _translation, value);
         }
 
+        protected Vector2 _actualTranslation = new();
         /// <summary>
         /// This is the translation after being potentially modified by the parent's placement info.
         /// </summary>
@@ -45,12 +38,14 @@ namespace XREngine.Rendering.UI
             set => SetField(ref _actualTranslation, value);
         }
 
+        protected float _z = 0.0f;
         public virtual float DepthTranslation
         {
             get => _z;
             set => SetField(ref _z, value);
         }
 
+        protected Vector3 _scale = Vector3.One;
         public virtual Vector3 Scale
         {
             get => _scale;
@@ -163,6 +158,7 @@ namespace XREngine.Rendering.UI
             set => SetField(ref _visibility, value);
         }
 
+        private UIChildPlacementInfo? _placementInfo = null;
         /// <summary>
         /// Dictates how this UI component is arranged within the parent transform's bounds.
         /// </summary>

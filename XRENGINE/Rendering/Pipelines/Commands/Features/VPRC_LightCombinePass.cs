@@ -136,6 +136,19 @@ namespace XREngine.Rendering.Pipelines.Commands
                 //and the light does not add itself twice for the front and back faces.
                 CullMode = ECullMode.Front,
                 RequiredEngineUniforms = EUniformRequirements.Camera,
+                //BlendModesPerDrawBuffer = new()
+                //{
+                //    [0] = new BlendMode()
+                //    {
+                //        Enabled = ERenderParamUsage.Enabled,
+                //        RgbSrcFactor = EBlendingFactor.One,
+                //        AlphaSrcFactor = EBlendingFactor.One,
+                //        RgbDstFactor = EBlendingFactor.One,
+                //        AlphaDstFactor = EBlendingFactor.One,
+                //        RgbEquation = EBlendEquationMode.FuncAdd,
+                //        AlphaEquation = EBlendEquationMode.FuncAdd,
+                //    }
+                //},
                 BlendModeAllDrawBuffers = new()
                 {
                     //Add the previous and current light colors together using FuncAdd with each mesh render

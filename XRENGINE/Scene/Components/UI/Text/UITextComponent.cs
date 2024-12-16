@@ -1,20 +1,27 @@
 ﻿using System.Numerics;
-using XREngine.Components;
+using XREngine.Core.Attributes;
 using XREngine.Data.Rendering;
+using XREngine.Rendering.Commands;
 using XREngine.Rendering.Info;
 using XREngine.Scene.Transforms;
 
 namespace XREngine.Rendering.UI
 {
-    public class TextComponent : XRComponent, IRenderable
+    [RequiresTransform(typeof(UIBoundableTransform))]
+    public class UITextComponent : UIComponent, IRenderable
     {
-        public TextComponent()
+        public UIBoundableTransform BoundableTransform => TransformAs<UIBoundableTransform>(true)!;
+
+        public UITextComponent()
         {
-            RenderedObjects[0] = RenderInfo3D.New(this, _rc);
+            RenderedObjects[0] = RenderInfo3D = RenderInfo3D.New(this, _rc3D);
+            RenderedObjects[1] = RenderInfo2D = RenderInfo2D.New(this, _rc2D);
         }
 
-        private readonly RenderCommandMesh3D _rc = new((int)EDefaultRenderPass.TransparentForward);
-        public RenderInfo[] RenderedObjects { get; } = new RenderInfo[1];
+        private readonly RenderCommandMesh3D _rc3D = new((int)EDefaultRenderPass.TransparentForward);
+        private readonly RenderCommandMesh2D _rc2D = new((int)EDefaultRenderPass.TransparentForward);
+
+        public RenderInfo[] RenderedObjects { get; } = new RenderInfo[2];
 
         private FontGlyphSet? _font;
         private string? _text;
@@ -24,8 +31,27 @@ namespace XREngine.Rendering.UI
         protected override void OnTransformWorldMatrixChanged(TransformBase transform)
         {
             base.OnTransformWorldMatrixChanged(transform);
-            _rc.WorldMatrix = transform.WorldMatrix;
+            _rc3D.WorldMatrix = transform.WorldMatrix;
+            _rc2D.WorldMatrix = transform.WorldMatrix;
+            RenderInfo3D.PreAddRenderCommandsCallback = ShouldRender3D;
+            RenderInfo2D.PreAddRenderCommandsCallback = ShouldRender2D;
         }
+
+        public RenderInfo3D RenderInfo3D { get; }
+        public RenderInfo2D RenderInfo2D { get; }
+
+        private bool ShouldRender3D(RenderInfo info, RenderCommandCollection passes, XRCamera? camera)
+        {
+            var canvas = BoundableTransform?.ParentCanvas;
+            return canvas is not null && canvas.DrawSpace != ECanvasDrawSpace.Screen;
+        }
+        private bool ShouldRender2D(RenderInfo info, RenderCommandCollection passes, XRCamera? camera)
+        {
+            var canvas = BoundableTransform?.ParentCanvas;
+            return canvas is not null && canvas.DrawSpace == ECanvasDrawSpace.Screen;
+        }
+
+        private XRDataBuffer? _uvsBuffer;
 
         public string? Text
         {
@@ -59,8 +85,6 @@ namespace XREngine.Rendering.UI
         }
 
         private XRDataBuffer? _transformsBuffer;
-        private XRDataBuffer? _uvsBuffer;
-
         public XRDataBuffer? TransformsBuffer => _transformsBuffer;
 
         private void UpdateText(bool fontChanged)
@@ -68,12 +92,12 @@ namespace XREngine.Rendering.UI
             if (Font?.Atlas is null)
                 return;
 
-            if (fontChanged || _rc.Mesh is null)
+            if (fontChanged || _rc3D.Mesh is null)
             {
-                if (_rc.Mesh is not null)
+                if (_rc3D.Mesh is not null)
                 {
-                    _rc.Mesh.SettingUniforms -= MeshRend_SettingUniforms;
-                    _rc.Mesh.Destroy();
+                    _rc3D.Mesh.SettingUniforms -= MeshRend_SettingUniforms;
+                    _rc3D.Mesh.Destroy();
                 }
 
                 var mesh = XRMesh.Create(VertexQuad.PosZ(1.0f, true, 0.0f, false));
@@ -100,11 +124,13 @@ namespace XREngine.Rendering.UI
                 var rend = new XRMeshRenderer(mesh, mat);
                 rend.SettingUniforms += MeshRend_SettingUniforms;
                 CreateSSBOs(rend);
-                _rc.Mesh = rend;
+                _rc3D.Mesh = rend;
+                _rc2D.Mesh = rend;
             }
             lock (_glyphLock)
                 Font.GetQuads(Text, out _glyphs);
-            _rc.Instances = (uint)_glyphs.Count;
+            _rc3D.Instances = (uint)_glyphs.Count;
+            _rc2D.Instances = (uint)_glyphs.Count;
             UpdateSSBOs();
         }
 
@@ -131,7 +157,7 @@ namespace XREngine.Rendering.UI
 
         private void UpdateSSBOs()
         {
-            if (_rc.Mesh is null)
+            if (_rc3D.Mesh is null)
                 return;
 
             if (_glyphs is null || _glyphs.Count == 0)

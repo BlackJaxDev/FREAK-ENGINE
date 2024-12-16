@@ -31,12 +31,11 @@ namespace XREngine.Scene
         private void RenderAABB(Vector3 extents, Vector3 center, Color color)
             => Engine.Rendering.Debug.RenderAABB(extents, center, false, color, true);
 
-        public void Raycast(
-            CameraComponent cameraComponent,
-            Vector2 normalizedScreenPoint,
-            out SortedDictionary<float, List<(RenderInfo3D item, object? data)>> items,
-            Func<RenderInfo3D, Segment, (float? distance, object? data)> directTest)
-            => RenderTree.Raycast(cameraComponent.Camera.GetWorldSegment(normalizedScreenPoint), out items, directTest);
+        public void Raycast<T>(
+            Segment worldSegment,
+            SortedDictionary<float, List<(T item, object? data)>> items,
+            Func<RenderInfo3D, Segment, (float? distance, object? data)> directTest) where T : class, IRenderable
+            => RenderTree.Raycast(worldSegment, items, directTest);
 
         public override void CollectRenderedItems(RenderCommandCollection meshRenderCommands, XRCamera? camera, bool cullWithFrustum, Func<XRCamera>? cullingCameraOverride, bool shadowPass)
         {

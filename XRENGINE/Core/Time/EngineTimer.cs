@@ -211,6 +211,8 @@ namespace XREngine.Timers
 
         private bool DispatchRender()
         {
+            //using var t = Engine.Profiler.Start();
+
             float timestamp = Time();
             float elapsed = (timestamp - Render.LastTimestamp).Clamp(0.0f, 1.0f);
             bool dispatch = elapsed > 0.0f && elapsed >= TargetRenderPeriod;
@@ -229,6 +231,8 @@ namespace XREngine.Timers
         }
         private void DispatchCollectVisible()
         {
+            //using var t = Engine.Profiler.Start();
+
             float timestamp = Time();
             float elapsed = (timestamp - Collect.LastTimestamp).Clamp(0.0f, 1.0f);
             Collect.Delta = elapsed;
@@ -239,6 +243,8 @@ namespace XREngine.Timers
         }
         private void DispatchSwapBuffers()
         {
+            //using var t = Engine.Profiler.Start();
+
             //Debug.Out("Swapping buffers.");
             SwapBuffers?.Invoke();
         }

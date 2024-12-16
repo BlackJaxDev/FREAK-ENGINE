@@ -10,10 +10,6 @@ namespace XREngine.Data.Trees
         void Remove(ITreeItem item);
         void AddRange(IEnumerable<ITreeItem> renderedObjects);
         void RemoveRange(IEnumerable<ITreeItem> renderedObjects);
-        void Raycast(
-            Segment segment,
-            out SortedDictionary<float, List<(ITreeItem item, object? data)>> items,
-            Func<ITreeItem, Segment, (float? distance, object? data)> directTest);
     }
     public interface IRenderTree<T> : IRenderTree where T : class, ITreeItem
     {
@@ -22,9 +18,5 @@ namespace XREngine.Data.Trees
         void Remove(T value);
         void RemoveRange(IEnumerable<T> value);
         void CollectAll(Action<T> action);
-        void Raycast(
-            Segment segment,
-            out SortedDictionary<float, List<(T item, object? data)>> items,
-            Func<T, Segment, (float? distance, object? data)> directTest);
     }
 }

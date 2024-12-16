@@ -36,22 +36,22 @@ namespace XREngine
             GameWatcher.IncludeSubdirectories = true;
             GameWatcher.EnableRaisingEvents = true;
             GameWatcher.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.DirectoryName;
-            GameWatcher.Created += FileCreated;
-            GameWatcher.Changed += FileChanged;
-            GameWatcher.Deleted += FileDeleted;
-            GameWatcher.Error += FileError;
-            GameWatcher.Renamed += FileRenamed;
+            GameWatcher.Created += OnGameFileCreated;
+            GameWatcher.Changed += OnGameFileChanged;
+            GameWatcher.Deleted += OnGameFileDeleted;
+            GameWatcher.Error += OnGameFileError;
+            GameWatcher.Renamed += OnGameFileRenamed;
 
             EngineWatcher.Path = EngineAssetsPath;
             EngineWatcher.Filter = "*.*";
             EngineWatcher.IncludeSubdirectories = true;
             EngineWatcher.EnableRaisingEvents = true;
             EngineWatcher.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.DirectoryName;
-            EngineWatcher.Created += FileCreated;
-            EngineWatcher.Changed += FileChanged;
-            EngineWatcher.Deleted += FileDeleted;
-            EngineWatcher.Error += FileError;
-            EngineWatcher.Renamed += FileRenamed;
+            EngineWatcher.Created += OnEngineFileCreated;
+            EngineWatcher.Changed += OnEngineFileChanged;
+            EngineWatcher.Deleted += OnEngineFileDeleted;
+            EngineWatcher.Error += OnEngineFileError;
+            EngineWatcher.Renamed += OnEngineFileRenamed;
         }
 
         public bool MonitorGameAssetsForChanges
@@ -92,21 +92,62 @@ namespace XREngine
                 Directory.CreateDirectory(directoryPath);
 
             return true;
-
         }
 
-        void FileCreated(object sender, FileSystemEventArgs args)
+        public event Action<FileSystemEventArgs>? EngineFileCreated;
+        public event Action<FileSystemEventArgs>? EngineFileChanged;
+        public event Action<FileSystemEventArgs>? EngineFileDeleted;
+        public event Action<RenamedEventArgs>? EngineFileRenamed;
+
+        public event Action<FileSystemEventArgs>? GameFileCreated;
+        public event Action<FileSystemEventArgs>? GameFileChanged;
+        public event Action<FileSystemEventArgs>? GameFileDeleted;
+        public event Action<RenamedEventArgs>? GameFileRenamed;
+
+        void OnEngineFileCreated(object sender, FileSystemEventArgs args)
+        {
+            OnFileCreated(args);
+            EngineFileCreated?.Invoke(args);
+        }
+        void OnGameFileCreated(object sender, FileSystemEventArgs args)
+        {
+            OnFileCreated(args);
+            GameFileCreated?.Invoke(args);
+        }
+        private static void OnFileCreated(FileSystemEventArgs args)
         {
             Debug.Out($"File '{args.FullPath}' was created.");
         }
-        async void FileChanged(object sender, FileSystemEventArgs args)
+
+        async void OnEngineFileChanged(object sender, FileSystemEventArgs args)
+        {
+            await OnFileChanged(args);
+            EngineFileChanged?.Invoke(args);
+        }
+        async void OnGameFileChanged(object sender, FileSystemEventArgs args)
+        {
+            await OnFileChanged(args);
+            GameFileChanged?.Invoke(args);
+        }
+        private async Task OnFileChanged(FileSystemEventArgs args)
         {
             Debug.Out($"File '{args.FullPath}' was changed.");
             var asset = GetAssetByPath(args.FullPath);
             if (asset is not null)
                 await asset.Reload3rdPartyAssetAsync();
         }
-        void FileDeleted(object sender, FileSystemEventArgs args)
+
+        void OnEngineFileDeleted(object sender, FileSystemEventArgs args)
+        {
+            OnFileDeleted(args);
+            EngineFileDeleted?.Invoke(args);
+        }
+        void OnGameFileDeleted(object sender, FileSystemEventArgs args)
+        {
+            OnFileDeleted(args);
+            GameFileDeleted?.Invoke(args);
+        }
+        private static void OnFileDeleted(FileSystemEventArgs args)
         {
             Debug.Out($"File '{args.FullPath}' was deleted.");
             //Leave files intact
@@ -117,11 +158,32 @@ namespace XREngine
             //    LoadedAssetsByPathInternal.Remove(args.FullPath);
             //}
         }
-        void FileError(object sender, ErrorEventArgs args)
+
+        void OnGameFileError(object sender, ErrorEventArgs args)
+        {
+            OnFileError(args);
+        }
+        void OnEngineFileError(object sender, ErrorEventArgs args)
+        {
+            OnFileError(args);
+        }
+        private static void OnFileError(ErrorEventArgs args)
         {
             Debug.LogWarning($"An error occurred in the file system watcher: {args.GetException().Message}");
         }
-        void FileRenamed(object sender, RenamedEventArgs args)
+
+        void OnGameFileRenamed(object sender, RenamedEventArgs args)
+        {
+            OnFileRenamed(args);
+            GameFileRenamed?.Invoke(args);
+        }
+        void OnEngineFileRenamed(object sender, RenamedEventArgs args)
+        {
+            OnFileRenamed(args);
+            EngineFileRenamed?.Invoke(args);
+        }
+
+        private void OnFileRenamed(RenamedEventArgs args)
         {
             Debug.Out($"File '{args.OldFullPath}' was renamed to '{args.FullPath}'.");
 
@@ -136,7 +198,7 @@ namespace XREngine
             {
                 LoadedAssetsByOriginalPathInternal.Remove(args.OldFullPath, out _);
                 LoadedAssetsByOriginalPathInternal.TryAdd(args.FullPath, asset);
-                
+
                 asset.OriginalPath = args.FullPath;
                 asset.Reload3rdPartyAsset();
             }

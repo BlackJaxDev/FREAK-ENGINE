@@ -23,7 +23,6 @@ namespace XREngine.Rendering.UI
             var canvas = UserInterfaceCanvas;
             foreach (var obj in rend.RenderedObjects)
                 obj.UserInterfaceCanvas = canvas;
-
         }
         internal override void VerifyInterfacesOnStop()
         {

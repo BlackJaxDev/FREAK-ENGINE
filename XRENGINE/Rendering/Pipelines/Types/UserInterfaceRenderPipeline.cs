@@ -10,6 +10,7 @@ public class UserInterfaceRenderPipeline : RenderPipeline
 {
     public const string SceneShaderPath = "Scene3D";
 
+    //TODO: Some UI components need to rendered after their parent specifically for render clipping. breadth-first
     private readonly NearToFarRenderCommandSorter _nearToFarSorter = new();
     private readonly FarToNearRenderCommandSorter _farToNearSorter = new();
 

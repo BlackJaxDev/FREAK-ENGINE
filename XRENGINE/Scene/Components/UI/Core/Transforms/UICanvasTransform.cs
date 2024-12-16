@@ -60,26 +60,37 @@ namespace XREngine.Rendering.UI
             IsLayoutInvalidated = true;
         }
 
+        /// <summary>
+        /// Root method to update the layout of the canvas.
+        /// </summary>
         public virtual void UpdateLayout()
         {
-            //If the layout is not invalidated, don't update it.
-            if (!IsLayoutInvalidated)
+            //If the layout is not invalidated, or a parent canvas will control its layouting, don't update it as root canvas.
+            if (!IsLayoutInvalidated || IsNestedCanvas)
                 return;
 
             IsUpdatingLayout = true;
             LayoutingStarted?.Invoke(this);
-
-            //Create the canvas region.
-            var canvasRegion = new BoundingRectangleF(Translation, Size);
-
-            HorizontalAlignment = EHorizontalAlign.Stretch;
-            VerticalAlignment = EVerticalAlign.Stretch;
-            FitLayout(canvasRegion);
-
+            FitLayout(GetRootCanvasBounds());
             IsLayoutInvalidated = false;
             IsUpdatingLayout = false;
             LayoutingFinished?.Invoke(this);
         }
+
+        /// <summary>
+        /// Returns true if this canvas exists within another canvas.
+        /// </summary>
+        public bool IsNestedCanvas
+            => ParentCanvas is not null && ParentCanvas != this;
+
+        /// <summary>
+        /// Returns the bounds of this canvas as root.
+        /// No translation is applied, and the size is the requested Width x Height size of the canvas.
+        /// Auto width and height are allowed.
+        /// </summary>
+        /// <returns></returns>
+        public BoundingRectangleF GetRootCanvasBounds()
+            => new(Vector2.Zero, new Vector2(GetWidth(), GetHeight()));
 
         protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
         {
@@ -92,8 +103,12 @@ namespace XREngine.Rendering.UI
                 case nameof(CameraDrawSpaceDistance):
                     MarkWorldModified();
                     break;
-                case nameof(Size):
-                    ActualSize = Size;
+                case nameof(Width):
+                case nameof(Height):
+                    ActualSize = new Vector2(GetWidth(), GetHeight());
+                    break;
+                case nameof(Translation):
+                    ActualTranslation = Translation;
                     break;
             }
         }
@@ -117,6 +132,16 @@ namespace XREngine.Rendering.UI
                 case ECanvasDrawSpace.World:
                     return base.CreateWorldMatrix();
             }
+        }
+
+        /// <summary>
+        /// Helper method to quickly set the size of the canvas.
+        /// </summary>
+        /// <param name="size"></param>
+        public void SetSize(Vector2 size)
+        {
+            Width = size.X;
+            Height = size.Y;
         }
     }
 }

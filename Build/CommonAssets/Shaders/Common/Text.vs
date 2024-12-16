@@ -29,6 +29,15 @@ out gl_PerVertex
 	float gl_ClipDistance[];
 };
 
+mat3 adjoint(mat4 m)
+{
+	return mat3(
+		cross(m[1].xyz, m[2].xyz),
+		cross(m[2].xyz, m[0].xyz),
+		cross(m[0].xyz, m[1].xyz)
+	);
+}
+
 void main()
 {
     vec4 tfm = GlyphTransforms[gl_InstanceID];
@@ -38,7 +47,7 @@ void main()
 	mat4 mvMatrix = ViewMatrix * ModelMatrix;
 	mat4 mvpMatrix = ProjMatrix * mvMatrix;
 	mat4 vpMatrix = ProjMatrix * ViewMatrix;
-	mat3 normalMatrix = transpose(inverse(mat3(mvMatrix)));
+	mat3 normalMatrix = adjoint(mvMatrix);
 	
 	vec4 position = vec4(tfm.xy + (Position.xy * tfm.zw), 0.0f, 1.0f);
 	vec3 normal = Normal;

@@ -9,16 +9,16 @@ namespace XREngine.Components;
 
 public class PhysicsChainCollider : PhysicsChainColliderBase, IRenderable
 {
-    public float m_Radius = 0.5f;
-    public float m_Height = 0;
-    public float m_Radius2 = 0;
+    public float _radius = 0.5f;
+    public float _height = 0;
+    public float _radius2 = 0;
 
-    float m_ScaledRadius;
-    float m_ScaledRadius2;
-    Vector3 m_C0;
-    Vector3 m_C1;
-    float m_C01Distance;
-    int m_CollideType;
+    private float _scaledRadius;
+    private float _scaledRadius2;
+    private Vector3 _center0;
+    private Vector3 _center1;
+    private float _centersDistance;
+    private int _collideType;
 
     public PhysicsChainCollider()
     {
@@ -38,25 +38,25 @@ public class PhysicsChainCollider : PhysicsChainColliderBase, IRenderable
 
     void OnValidate()
     {
-        m_Radius = MathF.Max(m_Radius, 0);
-        m_Height = MathF.Max(m_Height, 0);
-        m_Radius2 = MathF.Max(m_Radius2, 0);
+        _radius = MathF.Max(_radius, 0);
+        _height = MathF.Max(_height, 0);
+        _radius2 = MathF.Max(_radius2, 0);
     }
 
     public override void Prepare()
     {
         float scale = MathF.Abs(Transform.LossyWorldScale.X);
-        float halfHeight = m_Height * 0.5f;
+        float halfHeight = _height * 0.5f;
 
-        if (m_Radius2 <= 0 || MathF.Abs(m_Radius - m_Radius2) < 0.01f)
+        if (_radius2 <= 0 || MathF.Abs(_radius - _radius2) < 0.01f)
         {
-            m_ScaledRadius = m_Radius * scale;
+            _scaledRadius = _radius * scale;
 
-            float h = halfHeight - m_Radius;
+            float h = halfHeight - _radius;
             if (h <= 0)
             {
-                m_C0 = Transform.TransformPoint(m_Center);
-                m_CollideType = m_Bound switch
+                _center0 = Transform.TransformPoint(m_Center);
+                _collideType = m_Bound switch
                 {
                     EBound.Outside => 0,
                     _ => 1,
@@ -82,28 +82,28 @@ public class PhysicsChainCollider : PhysicsChainColliderBase, IRenderable
                         break;
                 }
 
-                m_C0 = Transform.TransformPoint(c0);
-                m_C1 = Transform.TransformPoint(c1);
-                m_C01Distance = (m_C1 - m_C0).Length();
-                m_CollideType = m_Bound == EBound.Outside ? 2 : 3;
+                _center0 = Transform.TransformPoint(c0);
+                _center1 = Transform.TransformPoint(c1);
+                _centersDistance = (_center1 - _center0).Length();
+                _collideType = m_Bound == EBound.Outside ? 2 : 3;
             }
         }
         else
         {
-            float r = MathF.Max(m_Radius, m_Radius2);
+            float r = MathF.Max(_radius, _radius2);
             if (halfHeight - r <= 0)
             {
-                m_ScaledRadius = r * scale;
-                m_C0 = Transform.TransformPoint(m_Center);
-                m_CollideType = m_Bound == EBound.Outside ? 0 : 1;
+                _scaledRadius = r * scale;
+                _center0 = Transform.TransformPoint(m_Center);
+                _collideType = m_Bound == EBound.Outside ? 0 : 1;
             }
             else
             {
-                m_ScaledRadius = m_Radius * scale;
-                m_ScaledRadius2 = m_Radius2 * scale;
+                _scaledRadius = _radius * scale;
+                _scaledRadius2 = _radius2 * scale;
 
-                float h0 = halfHeight - m_Radius;
-                float h1 = halfHeight - m_Radius2;
+                float h0 = halfHeight - _radius;
+                float h1 = halfHeight - _radius2;
                 Vector3 c0 = m_Center;
                 Vector3 c1 = m_Center;
 
@@ -123,23 +123,23 @@ public class PhysicsChainCollider : PhysicsChainColliderBase, IRenderable
                         break;
                 }
 
-                m_C0 = Transform.TransformPoint(c0);
-                m_C1 = Transform.TransformPoint(c1);
-                m_C01Distance = (m_C1 - m_C0).Length();
-                m_CollideType = m_Bound == EBound.Outside ? 4 : 5;
+                _center0 = Transform.TransformPoint(c0);
+                _center1 = Transform.TransformPoint(c1);
+                _centersDistance = (_center1 - _center0).Length();
+                _collideType = m_Bound == EBound.Outside ? 4 : 5;
             }
         }
     }
 
     public override bool Collide(ref Vector3 particlePosition, float particleRadius)
-        => m_CollideType switch
+        => _collideType switch
         {
-            0 => OutsideSphere(ref particlePosition, particleRadius, m_C0, m_ScaledRadius),
-            1 => InsideSphere(ref particlePosition, particleRadius, m_C0, m_ScaledRadius),
-            2 => OutsideCapsule(ref particlePosition, particleRadius, m_C0, m_C1, m_ScaledRadius, m_C01Distance),
-            3 => InsideCapsule(ref particlePosition, particleRadius, m_C0, m_C1, m_ScaledRadius, m_C01Distance),
-            4 => OutsideCapsule2(ref particlePosition, particleRadius, m_C0, m_C1, m_ScaledRadius, m_ScaledRadius2, m_C01Distance),
-            5 => InsideCapsule2(ref particlePosition, particleRadius, m_C0, m_C1, m_ScaledRadius, m_ScaledRadius2, m_C01Distance),
+            0 => OutsideSphere(ref particlePosition, particleRadius, _center0, _scaledRadius),
+            1 => InsideSphere(ref particlePosition, particleRadius, _center0, _scaledRadius),
+            2 => OutsideCapsule(ref particlePosition, particleRadius, _center0, _center1, _scaledRadius, _centersDistance),
+            3 => InsideCapsule(ref particlePosition, particleRadius, _center0, _center1, _scaledRadius, _centersDistance),
+            4 => OutsideCapsule2(ref particlePosition, particleRadius, _center0, _center1, _scaledRadius, _scaledRadius2, _centersDistance),
+            5 => InsideCapsule2(ref particlePosition, particleRadius, _center0, _center1, _scaledRadius, _scaledRadius2, _centersDistance),
             _ => false,
         };
 
@@ -401,19 +401,19 @@ public class PhysicsChainCollider : PhysicsChainColliderBase, IRenderable
         Prepare();
 
         ColorF4 color = m_Bound == EBound.Outside ? ColorF4.Yellow : ColorF4.Magenta;
-        switch (m_CollideType)
+        switch (_collideType)
         {
             case 0:
             case 1:
-                Engine.Rendering.Debug.RenderSphere(m_C0, m_ScaledRadius, false, color);
+                Engine.Rendering.Debug.RenderSphere(_center0, _scaledRadius, false, color);
                 break;
             case 2:
             case 3:
-                DrawCapsule(m_C0, m_C1, m_ScaledRadius, m_ScaledRadius, color);
+                DrawCapsule(_center0, _center1, _scaledRadius, _scaledRadius, color);
                 break;
             case 4:
             case 5:
-                DrawCapsule(m_C0, m_C1, m_ScaledRadius, m_ScaledRadius2, color);
+                DrawCapsule(_center0, _center1, _scaledRadius, _scaledRadius2, color);
                 break;
         }
     }

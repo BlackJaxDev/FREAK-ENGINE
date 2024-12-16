@@ -3,6 +3,7 @@ using ImageMagick.Drawing;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using XREngine.Data;
+using XREngine.Data.Colors;
 using XREngine.Data.Rendering;
 using XREngine.Data.Vectors;
 
@@ -90,6 +91,27 @@ namespace XREngine.Rendering
         }
 
         public override uint MaxDimension => Math.Max(Width, Height);
+
+        public XRTexture2D(uint width, uint height, ColorF4 color)
+        {
+            Mipmaps = [new Mipmap2D(width, height, EPixelInternalFormat.Rgba8, EPixelFormat.Rgba, EPixelType.UnsignedByte, true)
+            {
+                Data = new DataSource(ColorToBytes(width, height, color))
+            }];
+        }
+
+        private static byte[] ColorToBytes(uint width, uint height, ColorF4 color)
+        {
+            byte[] data = new byte[width * height * 4];
+            for (int i = 0; i < data.Length; i += 4)
+            {
+                data[i] = (byte)(color.R * 255);
+                data[i + 1] = (byte)(color.G * 255);
+                data[i + 2] = (byte)(color.B * 255);
+                data[i + 3] = (byte)(color.A * 255);
+            }
+            return data;
+        }
 
         public XRTexture2D() : this(1u, 1u, EPixelInternalFormat.Rgb8, EPixelFormat.Rgb, EPixelType.UnsignedByte, true) { }
         public XRTexture2D(uint width, uint height, EPixelInternalFormat internalFormat, EPixelFormat format, EPixelType type, int mipmapCount)

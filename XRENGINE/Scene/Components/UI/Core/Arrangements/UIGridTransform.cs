@@ -12,6 +12,7 @@ namespace XREngine.Rendering.UI
         private EventList<UISizingDefinition> _rows;
         private EventList<UISizingDefinition> _columns;
         private List<int>[,]? _indices = null;
+        private bool _invertY;
 
         public UIGridTransform()
         {
@@ -36,7 +37,15 @@ namespace XREngine.Rendering.UI
             set => _indices = value; 
         }
 
-        public bool InvertY { get; set; }
+        public bool InvertY
+        {
+            get => _invertY;
+            set
+            {
+                if (SetField(ref _invertY, value))
+                    InvalidateLayout();
+            }
+        }
 
         public EventList<UISizingDefinition> Rows
         {

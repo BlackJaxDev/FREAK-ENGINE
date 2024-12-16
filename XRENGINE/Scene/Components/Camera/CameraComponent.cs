@@ -146,7 +146,7 @@ namespace XREngine.Components
                 case nameof(UserInterface):
                     if (UserInterface is not null)
                     {
-                        UserInterface.CanvasTransform.Size = Camera.Parameters.GetFrustumSizeAtDistance(UserInterface.CanvasTransform.CameraDrawSpaceDistance);
+                        UserInterface.CanvasTransform.SetSize(Camera.Parameters.GetFrustumSizeAtDistance(UserInterface.CanvasTransform.CameraDrawSpaceDistance));
                         UserInterface.CanvasTransform.CameraSpaceCamera = Camera;
                     }
                     break;
@@ -213,7 +213,7 @@ namespace XREngine.Components
         private void ViewportResized(XRViewport viewport)
         {
             if (UserInterface is not null && UserInterface.CanvasTransform.DrawSpace == ECanvasDrawSpace.Screen)
-                UserInterface.CanvasTransform.Size = viewport.Region.Size;
+                UserInterface.CanvasTransform.SetSize(viewport.Region.Size);
         }
         private void CameraResized(XRCameraParameters parameters)
         {
@@ -221,7 +221,7 @@ namespace XREngine.Components
                 return;
 
             //Calculate world-space size of the camera frustum at draw distance
-            UserInterface.CanvasTransform.Size = parameters.GetFrustumSizeAtDistance(UserInterface.CanvasTransform.CameraDrawSpaceDistance);
+            UserInterface.CanvasTransform.SetSize(parameters.GetFrustumSizeAtDistance(UserInterface.CanvasTransform.CameraDrawSpaceDistance));
         }
 
         private void CameraPropertyChanged(object? sender, IXRPropertyChangedEventArgs e)

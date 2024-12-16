@@ -13,8 +13,10 @@ using XREngine.Data.Colors;
 using XREngine.Data.Components;
 using XREngine.Data.Components.Scene;
 using XREngine.Data.Core;
+using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
 using XREngine.Editor;
+using XREngine.Editor.UI.Components;
 using XREngine.Native;
 using XREngine.Rendering;
 using XREngine.Rendering.Commands;
@@ -31,7 +33,6 @@ using XREngine.VRClient;
 using static XREngine.Audio.AudioSource;
 using static XREngine.Scene.Transforms.RigidBodyTransform;
 using ActionType = OpenVR.NET.Manifest.ActionType;
-using BlendMode = XREngine.Rendering.Models.Materials.BlendMode;
 using Quaternion = System.Numerics.Quaternion;
 
 internal class Program
@@ -137,11 +138,11 @@ internal class Program
         CreateUserInterface(rootNode, camComp);
         CreateDesktopViewerPawn(cameraNode);
         //SceneNode cameraNode = CreateDesktopCharacterPawn(rootNode);
-        AddFPSText(Engine.Assets.LoadEngineAsset<FontGlyphSet>("Fonts", "Roboto", "Roboto-Regular.ttf"), cameraNode);
+        //AddFPSText(Engine.Assets.LoadEngineAsset<FontGlyphSet>("Fonts", "Roboto", "Roboto-Regular.ttf"), cameraNode);
         //CreateVRPawn(rootNode);
         //AddTestBox(rootNode);
-        //AddDirLight(rootNode);
-        AddSpotLight(rootNode);
+        AddDirLight(rootNode);
+        //AddSpotLight(rootNode);
         //AddDirLight2(rootNode, dirLightTransform, dirLightComp);
         //AddPointLight(rootNode);
         AddSoundNode(rootNode);
@@ -153,7 +154,7 @@ internal class Program
         AddPhysics(rootNode);
         AddPBRTestOrbs(rootNode, 15.0f);
         //AddSpline(rootNode);
-        //ImportModels(desktopDir, rootNode);
+        ImportModels(desktopDir, rootNode);
         return world;
     }
 
@@ -176,7 +177,8 @@ internal class Program
             (roughness * 2.0f - 1.0f) * (radius + padding) * roughnessCount);
 
         var orb1Model = orb1.AddComponent<ModelComponent>()!;
-        var mat = XRMaterial.CreateLitColorMaterial(ColorF4.Blue);
+        var mat = XRMaterial.CreateLitColorMaterial(ColorF4.Red);
+        mat.RenderPass = (int)EDefaultRenderPass.OpaqueDeferredLit;
         mat.Parameter<ShaderFloat>("Roughness")!.Value = roughness;
         mat.Parameter<ShaderFloat>("Metallic")!.Value = metallic;
         orb1Model.Model = new Model([new SubMesh(XRMesh.Shapes.SolidSphere(Vector3.Zero, radius, 16), mat)]);
@@ -187,46 +189,50 @@ internal class Program
         var uiNode = new SceneNode(parent) { Name = "TestUINode" };
         var ui = uiNode.AddComponent<UICanvasComponent>()!;
         var uiTransform = uiNode.GetTransformAs<UICanvasTransform>(true)!;
-        uiTransform.DrawSpace = ECanvasDrawSpace.World;
+        uiTransform.DrawSpace = ECanvasDrawSpace.Screen;
         uiTransform.Width = 1920.0f;
         uiTransform.Height = 1080.0f;
-        uiTransform.CameraDrawSpaceDistance = 500.0f;
+        uiTransform.CameraDrawSpaceDistance = 1.0f;
 
         if (camComp is not null)
             camComp.UserInterface = ui;
 
-        var uiPanel = new SceneNode(uiNode) { Name = "TestUIPanel" };
-        var uiPanelComp = uiPanel.AddComponent<UIMaterialComponent>()!;
-        var uiPanelTransform = uiPanel.GetTransformAs<UIBoundableTransform>(true)!;
-        uiPanelTransform.HorizontalAlignment = EHorizontalAlign.Stretch;
-        uiPanelTransform.VerticalAlignment = EVerticalAlign.Stretch;
-        var mat = XRMaterial.CreateUnlitColorMaterialForward(new ColorF4(1.0f, 0.0f, 0.0f, 0.5f));
-        mat.RenderPass = (int)EDefaultRenderPass.TransparentForward;
-        mat.RenderOptions = new RenderingParameters()
-        {
-            CullMode = ECullMode.Back,
-            DepthTest = new DepthTest()
-            {
-                UpdateDepth = false,
-                Enabled = ERenderParamUsage.Disabled,
-                Function = EComparison.Always,
-            },
-            BlendModeAllDrawBuffers = new BlendMode()
-            {
-                Enabled = ERenderParamUsage.Enabled,
-                RgbSrcFactor = EBlendingFactor.SrcAlpha,
-                AlphaSrcFactor = EBlendingFactor.SrcAlpha,
-                RgbDstFactor = EBlendingFactor.OneMinusSrcAlpha,
-                AlphaDstFactor = EBlendingFactor.OneMinusSrcAlpha,
-                RgbEquation = EBlendEquationMode.FuncAdd,
-                AlphaEquation = EBlendEquationMode.FuncAdd,
-            },
-        };
-        uiPanelComp.Material = mat;
+        AddFPSText(Engine.Assets.LoadEngineAsset<FontGlyphSet>("Fonts", "Roboto", "Roboto-Regular.ttf"), uiNode);
 
+        //var uiPanel = new SceneNode(uiNode) { Name = "TestUIPanel" };
+        //var uiPanelComp = uiPanel.AddComponent<UIMaterialComponent>()!;
+        //var uiPanelTransform = uiPanel.GetTransformAs<UIBoundableTransform>(true)!;
+        //uiPanelTransform.HorizontalAlignment = EHorizontalAlign.Stretch;
+        //uiPanelTransform.VerticalAlignment = EVerticalAlign.Stretch;
+        //var mat = XRMaterial.CreateUnlitColorMaterialForward(new ColorF4(1.0f, 0.0f, 0.0f, 0.5f));
+        //mat.RenderPass = (int)EDefaultRenderPass.TransparentForward;
+        //mat.RenderOptions = new RenderingParameters()
+        //{
+        //    CullMode = ECullMode.Back,
+        //    DepthTest = new DepthTest()
+        //    {
+        //        UpdateDepth = false,
+        //        Enabled = ERenderParamUsage.Disabled,
+        //        Function = EComparison.Always,
+        //    },
+        //    BlendModeAllDrawBuffers = new BlendMode()
+        //    {
+        //        Enabled = ERenderParamUsage.Enabled,
+        //        RgbSrcFactor = EBlendingFactor.SrcAlpha,
+        //        AlphaSrcFactor = EBlendingFactor.SrcAlpha,
+        //        RgbDstFactor = EBlendingFactor.OneMinusSrcAlpha,
+        //        AlphaDstFactor = EBlendingFactor.OneMinusSrcAlpha,
+        //        RgbEquation = EBlendEquationMode.FuncAdd,
+        //        AlphaEquation = EBlendEquationMode.FuncAdd,
+        //    },
+        //};
+        //uiPanelComp.Material = mat;
 
-        //var uiInteract = uiNode.AddComponent<UIInputComponent>();
-        //camComp.UserInterface = ui;
+        //Add input handler
+        uiNode.AddComponent<UIInputComponent>();
+
+        //This will take care of editor UI arrangement operations for us
+        uiNode.AddComponent<UIEditorComponent>();
     }
 
     private static void CreateVRPawn(SceneNode rootNode)
@@ -337,16 +343,23 @@ internal class Program
         return cameraNode;
     }
 
-    private static void AddFPSText(FontGlyphSet font, SceneNode cameraNode)
+    private static UITextComponent AddFPSText(FontGlyphSet font, SceneNode parentNode)
     {
-        SceneNode textNode = new(cameraNode) { Name = "TestTextNode" };
-        TextComponent text = textNode.AddComponent<TextComponent>()!;
+        SceneNode textNode = new(parentNode) { Name = "TestTextNode" };
+        UITextComponent text = textNode.AddComponent<UITextComponent>()!;
         text.Font = font;
         //text.Text = "Hello, World!";
-        text.RegisterAnimationTick<TextComponent>(TickFPS);
-        var textTransform = textNode.GetTransformAs<Transform>()!;
-        textTransform.Translation = new Vector3(0.95f, 0.55f, -1.0f);
-        textTransform.Scale = new Vector3(0.0002f);
+        text.RegisterAnimationTick<UITextComponent>(TickFPS);
+        //var textTransform = textNode.GetTransformAs<Transform>()!;
+        //textTransform.Translation = new Vector3(0.95f, 0.55f, -1.0f);
+        //textTransform.Scale = new Vector3(0.0002f);
+        var textTransform = textNode.GetTransformAs<UIBoundableTransform>(true)!;
+        textTransform.MinAnchor = new Vector2(0.0f, 0.0f);
+        textTransform.MaxAnchor = new Vector2(0.0f, 0.0f);
+        textTransform.Padding = new Vector4(0.0f, 0.0f, 0.00f, 0.00f);
+        textTransform.Width = 100.0f;
+        textTransform.Height = 25.0f;
+        return text;
     }
 
     private static void CreateDesktopViewerPawn(SceneNode cameraNode)
@@ -416,9 +429,9 @@ internal class Program
             return;
         
         dirLightComp!.Name = "TestDirectionalLight";
-        dirLightComp.Color = new Vector3(0.8f, 0.8f, 0.8f);
-        dirLightComp.Intensity = 0.1f;
-        dirLightComp.Scale = new Vector3(1000.0f, 1000.0f, 1000.0f);
+        dirLightComp.Color = new Vector3(1, 1, 1);
+        dirLightComp.Intensity = 1.0f;
+        dirLightComp.Scale = new Vector3(100.0f, 100.0f, 100.0f);
         dirLightComp.CastsShadows = true;
         dirLightComp.SetShadowMapResolution(2048, 2048);
     }
@@ -539,7 +552,7 @@ internal class Program
             PostProcessSteps.JoinIdenticalVertices |
             PostProcessSteps.CalculateTangentSpace;
 
-        ModelImporter.ImportAsync(fbxPathDesktop, flags, null, MaterialFactory, importedModelsNode, 1, true).ContinueWith(OnFinishedAvatar);
+        //ModelImporter.ImportAsync(fbxPathDesktop, flags, null, MaterialFactory, importedModelsNode, 1, true).ContinueWith(OnFinishedAvatar);
 
         ModelImporter.ImportAsync(Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj"), flags, null, MaterialFactory, importedModelsNode, 1, false).ContinueWith(OnFinishedWorld);
     }
@@ -698,7 +711,7 @@ internal class Program
     }
 
     private static readonly Queue<float> _fpsAvg = new();
-    private static void TickFPS(TextComponent t)
+    private static void TickFPS(UITextComponent t)
     {
         _fpsAvg.Enqueue(1.0f / Engine.Time.Timer.Render.SmoothedDelta);
         if (_fpsAvg.Count > 60)

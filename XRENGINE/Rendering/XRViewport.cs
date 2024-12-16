@@ -336,7 +336,9 @@ namespace XREngine.Rendering
             if (overlay is null)
                 return;
 
-            overlay.CanvasTransform.Size = (Vector2)_region.Size;
+            var tfm = overlay.CanvasTransform;
+            tfm.Width = _region.Size.X;
+            tfm.Height = _region.Size.Y;
         }
 
         /// <summary>
@@ -486,7 +488,9 @@ namespace XREngine.Rendering
             return _camera.GetWorldSegment(normalizedViewportPoint);
         }
 
-        private readonly RayTraceClosest _closestPick = new(Vector3.Zero, Vector3.Zero, 0, 0xFFFF);
+        //TODO: provide PickScene with a List<(XRComponent item, object? data)> pool to take from and release to. As few allocations as possible for constant picking every frame.
+
+        //private readonly RayTraceClosest _closestPick = new(Vector3.Zero, Vector3.Zero, 0, 0xFFFF);
         /// <summary>
         /// Tests against the HUD and the world for a collision hit at the provided viewport point ray.
         /// </summary>
@@ -499,55 +503,48 @@ namespace XREngine.Rendering
         /// <param name="hitDistance"></param>
         /// <param name="ignored"></param>
         /// <returns></returns>
-        public XRComponent? PickScene(
+        public bool PickScene(
             Vector2 normalizedViewportPosition,
             bool testHud,
-            bool interactableHudOnly,
             bool testSceneOctree,
             bool testScenePhysics,
-            out Vector3 hitNormalWorld,
-            out Vector3 hitPositionWorld,
-            out float hitDistance,
-            out SortedDictionary<float, List<(ITreeItem item, object? data)>>? orderedResults,
-            params XRCollisionObject[] ignored)
+            SortedDictionary<float, List<(XRComponent item, object? data)>> orderedResults,
+            params XRComponent[] ignored)
         {
-            orderedResults = null;
-            hitNormalWorld = Vector3.Zero;
-            hitPositionWorld = Vector3.Zero;
-            hitDistance = 0.0f;
+            bool hasMatches = false;
             if (CameraComponent is null)
-                return null;
+                return hasMatches;
 
             if (testHud)
             {
-                UIComponent? hudComp = CameraComponent.GetUserInterfaceOverlay()?.FindDeepestComponent(normalizedViewportPosition);
-                bool hasHit = hudComp?.IsActive ?? false;
-                bool hitValidated = !interactableHudOnly || hudComp is UIInteractableComponent;
-                if (hasHit && hitValidated)
+                var cameraCanvas = CameraComponent.GetUserInterfaceOverlay();
+                if (cameraCanvas is not null && cameraCanvas.CanvasTransform.DrawSpace != ECanvasDrawSpace.World)
                 {
-                    hitNormalWorld = Globals.Backward;
-                    hitPositionWorld = new Vector3(normalizedViewportPosition, 0.0f);
-                    hitDistance = 0.0f;
-                    return hudComp;
+                    UIComponent?[] hudComps = cameraCanvas.FindDeepestComponents(normalizedViewportPosition);
+                    foreach (var hudComp in hudComps)
+                    {
+                        if (hudComp is UIInteractableComponent inter && inter.IsActive)
+                        {
+                            hasMatches = true;
+                            float dist = 0.0f;
+                            dist = CameraComponent.Camera.DistanceFrom(hudComp.Transform.WorldTranslation, false);
+                            orderedResults.Add(dist, [(inter, null)]);
+                        }
+                    }
                 }
-                //Continue on to test the world is nothing of importance in the HUD was hit
             }
 
             if (testSceneOctree || testScenePhysics)
             {
-                orderedResults = World?.Raycast(
+                hasMatches |= World?.Raycast(
                     CameraComponent, 
                     normalizedViewportPosition, 
                     testSceneOctree,
                     testScenePhysics,
-                    out hitNormalWorld,
-                    out hitPositionWorld,
-                    out hitDistance);
-
-                return orderedResults?.Count > 0 ? orderedResults[orderedResults.Keys.First()].First().item as XRComponent : null;
+                    orderedResults) ?? false;
             }
 
-            return null;
+            return hasMatches;
         }
         #endregion
 

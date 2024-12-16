@@ -830,9 +830,11 @@ namespace XREngine.Rendering.OpenGL
                         }
                     }
                 }
-                else if (r.BlendModesPerDrawBuffer.Any(r => r.Value.Enabled == ERenderParamUsage.Disabled))
+                else if (r.BlendModesPerDrawBuffer.Count == 0 || r.BlendModesPerDrawBuffer.Any(r => r.Value.Enabled == ERenderParamUsage.Disabled))
                     Api.Disable(EnableCap.Blend);
             }
+            else
+                Api.Disable(EnableCap.Blend);
         }
 
         private void ApplyCulling(RenderingParameters r)

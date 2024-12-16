@@ -62,7 +62,7 @@ namespace XREngine.Input
             Input.InputRegistration += c.RegisterInput;
 
             //If the controlled pawn has a user interface input, register input for that as well
-            if (c.UserInterfaceInput != null && c != c.UserInterfaceInput)
+            if (c.UserInterfaceInput != null)
                 Input.InputRegistration += c.UserInterfaceInput.RegisterInput;
 
             //Run registration for the input interface
@@ -86,7 +86,7 @@ namespace XREngine.Input
             Input.InputRegistration -= c.RegisterInput;
 
             //If the controlled pawn has a user interface input, unregister input for that as well
-            if (c.UserInterfaceInput != null && c != c.UserInterfaceInput)
+            if (c.UserInterfaceInput != null)
                 Input.InputRegistration -= c.UserInterfaceInput.RegisterInput;
 
             if (PlayerInfo.LocalIndex is not null)

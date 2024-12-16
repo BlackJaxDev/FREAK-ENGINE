@@ -3,5 +3,6 @@
     public interface ITreeItem
     {
         bool ShouldRender { get; }
+        IRenderableBase Owner { get; }
     }
 }

@@ -104,6 +104,7 @@ public class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent, IRende
     public bool RenderFrustum { get; set; } = false;
     public bool RenderRaycast { get; set; } = false;
 
+    private readonly SortedDictionary<float, List<(XRComponent item, object? data)>> _lastPickResults = [];
     private void PostRender(bool shadowPass)
     {
         var rend = AbstractRenderer.Current;
@@ -145,8 +146,8 @@ public class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent, IRende
 
         _lastRaycastSegment = vp.GetWorldSegment(p);
 
-        vp.PickScene(p, true, true, true, true, out Vector3 hitNormal, out Vector3 hitPointWorld, out float distance, out var orderedResults);
-        Task.Run(() => SetRaycastResult(orderedResults));
+        vp.PickScene(p, true, true, true, _lastPickResults);
+        //Task.Run(() => SetRaycastResult(orderedResults));
 
         //if (RenderRaycast)
         //{

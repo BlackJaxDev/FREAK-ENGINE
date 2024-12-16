@@ -1,72 +1,11 @@
 ﻿using Extensions;
 using System.Numerics;
+using XREngine.Data.Core;
 using XREngine.Data.Geometry;
 using XREngine.Scene.Transforms;
 
 namespace XREngine.Rendering.UI
 {
-    /// <summary>
-    /// Aligns a bounded UI component within its parent using special alignment settings.
-    /// </summary>
-    public class UIFittedTransform : UIBoundableTransform
-    {
-        public enum EFitType
-        {
-            None,
-            Stretch,
-            Center,
-            Fill,
-        }
-        private EFitType _fitType = EFitType.None;
-        /// <summary>
-        /// How to fit the component within its parent.
-        /// </summary>
-        public EFitType FitType
-        {
-            get => _fitType;
-            set => SetField(ref _fitType, value);
-        }
-        protected override void OnResizeActual(BoundingRectangleF parentBounds)
-        {
-            base.OnResizeActual(parentBounds);
-            switch (FitType)
-            {
-                case EFitType.None:
-                    break;
-                case EFitType.Stretch:
-                    _actualSize = parentBounds.Extents;
-                    break;
-                case EFitType.Center:
-                    float aspect = Size.X / Size.Y;
-                    float parentAspect = parentBounds.Width / parentBounds.Height;
-                    if (aspect > parentAspect)
-                    {
-                        _actualSize.X = parentBounds.Width;
-                        _actualSize.Y = parentBounds.Width / aspect;
-                    }
-                    else
-                    {
-                        _actualSize.Y = parentBounds.Height;
-                        _actualSize.X = parentBounds.Height * aspect;
-                    }
-                    break;
-                case EFitType.Fill:
-                    aspect = Size.X / Size.Y;
-                    parentAspect = parentBounds.Width / parentBounds.Height;
-                    if (aspect > parentAspect)
-                    {
-                        _actualSize.Y = parentBounds.Height;
-                        _actualSize.X = parentBounds.Height * aspect;
-                    }
-                    else
-                    {
-                        _actualSize.X = parentBounds.Width;
-                        _actualSize.Y = parentBounds.Width / aspect;
-                    }
-                    break;
-            }
-        }
-    }
     /// <summary>
     /// Represents a UI component with area that can be aligned within its parent.
     /// </summary>
@@ -74,14 +13,15 @@ namespace XREngine.Rendering.UI
     {
         public UIBoundableTransform() : base(null)
         {
-            _originPercent = Vector2.Zero;
-            _size = Vector2.Zero;
-            _minSize = Vector2.Zero;
-            _maxSize = Vector2.Zero;
+            _normalizedPivot = Vector2.Zero;
+            _width = 0.0f;
+            _height = 0.0f;
+            _minHeight = null;
+            _minWidth = null;
+            _maxHeight = null;
+            _maxWidth = null;
             _margins = Vector4.Zero;
             _padding = Vector4.Zero;
-            _verticalAlign = EVerticalAlign.None;
-            _horizontalAlign = EHorizontalAlign.None;
         }
         
         protected Vector2 _actualSize = new();
@@ -102,104 +42,80 @@ namespace XREngine.Rendering.UI
         /// </summary>
         public float ActualHeight => ActualSize.Y;
 
-        private EVerticalAlign _verticalAlign = EVerticalAlign.None;
-        /// <summary>
-        /// How to vertically align this component within its parent.
-        /// </summary>
-        public EVerticalAlign VerticalAlignment
-        {
-            get => _verticalAlign;
-            set
-            {
-                SetField(ref _verticalAlign, value);
-            }
-        }
-        private EHorizontalAlign _horizontalAlign = EHorizontalAlign.None;
-        /// <summary>
-        /// How to horizontally align this component within its parent.
-        /// </summary>
-        public EHorizontalAlign HorizontalAlignment
-        {
-            get => _horizontalAlign;
-            set => SetField(ref _horizontalAlign, value);
-        }
-        private Vector2 _size;
-        /// <summary>
-        /// The requested width and height of this component before layouting.
-        /// </summary>
-        public Vector2 Size
-        {
-            get => _size;
-            set => SetField(ref _size, value);
-        }
+        private float? _width;
         /// <summary>
         /// The requested width of this component before layouting.
         /// </summary>
-        public float Width
+        public float? Width
         {
-            get => Size.X;
-            set => Size = new Vector2(value, Size.Y);
+            get => _width;
+            set => SetField(ref _width, value);
         }
+
+        private float? _height;
         /// <summary>
         /// The requested height of this component before layouting.
         /// </summary>
-        public float Height
+        public float? Height
         {
-            get => Size.Y;
-            set => Size = new Vector2(Size.X, value);
+            get => _height;
+            set => SetField(ref _height, value);
         }
 
-        private Vector2 _minSize;
-        /// <summary>
-        /// The minimum width and height of this component.
-        /// </summary>
-        public Vector2 MinSize
+        private float? _minHeight, _minWidth, _maxHeight, _maxWidth;
+
+        public float? MaxHeight
         {
-            get => _minSize;
-            set => SetField(ref _minSize, value);
+            get => _maxHeight;
+            set => SetField(ref _maxHeight, value);
+        }
+        public float? MaxWidth
+        {
+            get => _maxWidth;
+            set => SetField(ref _maxWidth, value);
+        }
+        public float? MinHeight
+        {
+            get => _minHeight;
+            set => SetField(ref _minHeight, value);
+        }
+        public float? MinWidth
+        {
+            get => _minWidth;
+            set => SetField(ref _minWidth, value);
         }
 
-        private Vector2 _maxSize;
-        /// <summary>
-        /// The maximum width and height of this component.
-        /// </summary>
-        public Vector2 MaxSize
-        {
-            get => _maxSize;
-            set => SetField(ref _maxSize, value);
-        }
-
-        private Vector2 _originPercent = Vector2.Zero;
+        private Vector2 _normalizedPivot = Vector2.Zero;
         /// <summary>
         /// The origin of this component as a percentage of its size.
         /// </summary>
-        public Vector2 OriginPercent
+        public Vector2 NormalizedPivot
         {
-            get => _originPercent;
-            set => SetField(ref _originPercent, value);
+            get => _normalizedPivot;
+            set => SetField(ref _normalizedPivot, value);
         }
         /// <summary>
         /// This is the origin of the component after layouting.
         /// </summary>
-        public Vector2 OriginTranslation
+        public Vector2 LocalPivotTranslation
         {
-            get => OriginPercent * ActualSize;
+            get => NormalizedPivot * ActualSize;
             set
             {
                 float x = ActualSize.X.IsZero() ? 0.0f : value.X / ActualSize.X;
                 float y = ActualSize.Y.IsZero() ? 0.0f : value.Y / ActualSize.Y;
-                OriginPercent = new(x, y);
+                NormalizedPivot = new(x, y);
             }
         }
-        public float OriginTranslationX
+        public float PivotTranslationX
         {
-            get => OriginPercent.X * ActualWidth;
-            set => OriginPercent = new Vector2(ActualWidth.IsZero() ? 0.0f : value / ActualWidth, OriginPercent.Y);
+            get => NormalizedPivot.X * ActualWidth;
+            set => NormalizedPivot = new Vector2(ActualWidth.IsZero() ? 0.0f : value / ActualWidth, NormalizedPivot.Y);
         }
-        public float OriginTranslationY
+        public float PivotTranslationY
         {
-            get => OriginPercent.Y * ActualHeight;
-            set => OriginPercent = new Vector2(OriginPercent.X, ActualHeight.IsZero() ? 0.0f : value / ActualHeight);
+            get => NormalizedPivot.Y * ActualHeight;
+            set => NormalizedPivot = new Vector2(NormalizedPivot.X, ActualHeight.IsZero() ? 0.0f : value / ActualHeight);
         }
 
         private Vector4 _margins;
@@ -222,15 +138,6 @@ namespace XREngine.Rendering.UI
             set => SetField(ref _padding, value);
         }
 
-        private Vector2 _parentPaddingOffset = Vector2.Zero;
-        private Vector2 ParentPaddingOffset
-        {
-            get => _parentPaddingOffset;
-            set => SetField(ref _parentPaddingOffset, value);
-        }
-
-        public BoundingRectangleF Bounds => new(Translation, ActualSize);
-
         protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
         {
             base.OnPropertyChanged(propName, prev, field);
@@ -238,13 +145,13 @@ namespace XREngine.Rendering.UI
             {
                 case nameof(Margins):
                 case nameof(Padding):
-                case nameof(Size):
-                case nameof(MinSize):
-                case nameof(MaxSize):
-                case nameof(OriginPercent):
-                case nameof(ParentPaddingOffset):
-                case nameof(HorizontalAlignment):
-                case nameof(VerticalAlignment):
+                case nameof(Width):
+                case nameof(Height):
+                case nameof(MinHeight):
+                case nameof(MinWidth):
+                case nameof(MaxHeight):
+                case nameof(MaxWidth):
+                case nameof(NormalizedPivot):
                     InvalidateLayout();
                     break;
             }
@@ -252,117 +159,190 @@ namespace XREngine.Rendering.UI
 
         /// <summary>
         /// Creates the local transformation of the origin relative to the parent UI transform.
+        /// Translates to the parent's translation, applies the origin translation, and then applies this component's translation and scale.
         /// </summary>
         /// <returns></returns>
         protected override Matrix4x4 CreateLocalMatrix()
-            => base.CreateLocalMatrix() * Matrix4x4.CreateTranslation(ParentPaddingOffset.X - OriginTranslationX, ParentPaddingOffset.Y - OriginTranslationY, 0.0f);
-        
-        protected override void OnResizeActual(BoundingRectangleF parentBounds)
+            => base.CreateLocalMatrix() * Matrix4x4.CreateTranslation(-PivotTranslationX, -PivotTranslationY, 0.0f);
+
+        private Vector2 _normMinAnchor = Vector2.Zero;
+        public Vector2 MinAnchor
         {
-            switch (HorizontalAlignment)
-            {
-                case EHorizontalAlign.Stretch:
-                    _actualSize.X = parentBounds.Width;
-                    _translation.X = 0.0f;
-                    break;
-                case EHorizontalAlign.Left:
-                    _actualSize.X = Size.X;
-                    _translation.X = 0.0f;
-                    break;
-                case EHorizontalAlign.Right:
-                    _actualSize.X = Size.X;
-                    _translation.X = parentBounds.Width - Size.X;
-                    break;
-                case EHorizontalAlign.Center:
-                    _actualSize.X = Size.X;
-                    float extra = parentBounds.Width - Size.X;
-                    _translation.X = extra * 0.5f;
-                    break;
-                case EHorizontalAlign.None:
-                    _actualSize.X = Size.X;
-                    break;
-            }
-
-            switch (VerticalAlignment)
-            {
-                case EVerticalAlign.Stretch:
-                    _actualSize.Y = parentBounds.Height;
-                    _translation.Y = 0.0f;
-                    break;
-                case EVerticalAlign.Bottom:
-                    _actualSize.Y = Size.Y;
-                    _translation.Y = 0.0f;
-                    break;
-                case EVerticalAlign.Top:
-                    _actualSize.Y = Size.Y;
-                    _translation.Y = parentBounds.Height - Size.Y;
-                    break;
-                case EVerticalAlign.Center:
-                    _actualSize.Y = Size.Y;
-                    float extra = parentBounds.Height - Size.Y;
-                    _translation.Y = extra * 0.5f;
-                    break;
-                case EVerticalAlign.None:
-                    _actualSize.Y = Size.Y;
-                    break;
-            }
-
-            //X = left, Y = bottom, Z = right, W = top
-            //if (Margins != null)
-            //{
-            //    _actualTranslation.X += Margins.X;
-            //    _actualTranslation.Y += Margins.Y;
-            //    _actualSize.X -= Margins.X + Margins.Z;
-            //    _actualSize.Y -= Margins.Y + Margins.W;
-            //}
+            get => _normMinAnchor;
+            set => SetField(ref _normMinAnchor, value);
         }
 
-        private BoundingRectangleF _bounds = new();
+        private Vector2 _normMaxAnchor = Vector2.One;
+        public Vector2 MaxAnchor
+        {
+            get => _normMaxAnchor;
+            set => SetField(ref _normMaxAnchor, value);
+        }
 
+        internal void ChildSizeChanged()
+        {
+            //Invalidate this component's layout if the size of a child changes and width or height uses auto sizing.
+            if (!Width.HasValue || !Height.HasValue)
+                InvalidateLayout();
+        }
+
+        /// <summary>
+        /// This method sets ActualSize and ActualTranslation based on a variety of factors when fitting the component into the parent bounds.
+        /// </summary>
+        /// <param name="parentBounds"></param>
+        protected override void OnResizeActual(BoundingRectangleF parentBounds)
+        {
+            GetActualBounds(parentBounds, out Vector2 trans, out Vector2 size);
+            ActualSize = size;
+            ActualTranslation = trans;
+        }
+
+        /// <summary>
+        /// This method calculates the actual size and translation of the component.
+        /// </summary>
+        /// <param name="parentBounds"></param>
+        /// <param name="trans"></param>
+        /// <param name="size"></param>
+        protected virtual void GetActualBounds(BoundingRectangleF parentBounds, out Vector2 trans, out Vector2 size)
+        {
+            GetAnchors(parentBounds, out float minX, out float minY, out float maxX, out float maxY);
+
+            //Translate the component to the min anchor position and then add the translation.
+            trans = new(minX + Translation.X, minY + Translation.Y);
+
+            //Calculate the size of the component based on the anchors.
+            size = CalcSize(maxX, maxY, trans);
+
+            //Clamp the size to the min and max size.
+            ClampSize(ref size);
+        }
+
+        /// <summary>
+        /// Returns Width / Height
+        /// </summary>
+        /// <returns></returns>
+        public float GetAspect()
+            => GetWidth() / GetHeight();
+        /// <summary>
+        /// Returns the width of the component.
+        /// If Width is null, this will calculate the width based on the size of child components.
+        /// </summary>
+        /// <returns></returns>
+        public float GetWidth()
+            => Width ?? CalcAutoWidth();
+        /// <summary>
+        /// Returns the height of the component.
+        /// If Height is null, this will calculate the height based on the size of child components.
+        /// </summary>
+        /// <returns></returns>
+        public float GetHeight()
+            => Height ?? CalcAutoHeight();
+
+        private Vector2 CalcSize(float maxX, float maxY, Vector2 trans)
+        {
+            Vector2 size;
+            if (XRMath.Approx(MaxAnchor.X, MinAnchor.X))
+                size.X = GetWidth();
+            else
+            {
+                //If the min anchor is less than the max anchor, then we should set size too
+                //Size.X becomes the offset from the anchor position.
+                size.X = maxX + (Width ?? 0.0f) - trans.X;
+            }
+            if (XRMath.Approx(MaxAnchor.Y, MinAnchor.Y))
+                size.Y = GetHeight();
+            else
+            {
+                //If the min anchor is less than the max anchor, then we should set size too
+                //Size.Y becomes the offset from the anchor position.
+                size.Y = maxY + (Height ?? 0.0f) - trans.Y;
+            }
+            return size;
+        }
+
+        private void ClampSize(ref Vector2 size)
+        {
+            if (MinWidth.HasValue)
+                size.X = Math.Max(size.X, MinWidth.Value);
+            if (MinHeight.HasValue)
+                size.Y = Math.Max(size.Y, MinHeight.Value);
+            if (MaxWidth.HasValue)
+                size.X = Math.Min(size.X, MaxWidth.Value);
+            if (MaxHeight.HasValue)
+                size.Y = Math.Min(size.Y, MaxHeight.Value);
+        }
+
+        private void GetAnchors(BoundingRectangleF parentBounds, out float minX, out float minY, out float maxX, out float maxY)
+        {
+            minX = parentBounds.Width * MinAnchor.X;
+            maxX = parentBounds.Width * MaxAnchor.X;
+
+            minY = parentBounds.Height * MinAnchor.Y;
+            maxY = parentBounds.Height * MaxAnchor.Y;
+        }
+
+        public BoundingRectangleF GetActualBounds()
+            => new(_actualTranslation, _actualSize);
+
+        /// <summary>
+        /// This method is called to fit the contents of this transform into the provided bounds.
+        /// </summary>
+        /// <param name="parentBounds"></param>
         public override void FitLayout(BoundingRectangleF parentBounds)
         {
-            //Set the bounds to the parent bounds.
-            //This will be adjusted by the padding after the local matrix is recalculated.
-            _bounds = parentBounds;
-
-            ParentPaddingOffset = parentBounds.Translation;
-            OnResizeActual(parentBounds);
+            OnResizeActual(ApplyMargins(parentBounds));
             MarkLocalModified();
         }
 
         protected override void OnLocalMatrixChanged()
         {
             base.OnLocalMatrixChanged();
-
-            //Update the bounds to account for the padding.
-            ApplyPadding(ref _bounds);
-            OnResizeChildComponents(_bounds);
+            OnResizeChildComponents(ApplyPadding(GetActualBounds()));
             RemakeAxisAlignedRegion();
         }
 
-        private void ApplyPadding(ref BoundingRectangleF bounds)
+        private BoundingRectangleF ApplyPadding(BoundingRectangleF bounds)
         {
-            var pad = Padding;
-            float left = pad.X;
-            float bottom = pad.Y;
-            float right = pad.Z;
-            float top = pad.W;
+            var padding = Padding;
+            float left = padding.X;
+            float bottom = padding.Y;
+            float right = padding.Z;
+            float top = padding.W;
 
-            Vector2 size = ActualSize;
-            Vector2 pos = Translation;
+            Vector2 size = bounds.Extents;
+            Vector2 pos = bounds.Translation;
 
             pos += new Vector2(left, bottom);
             size -= new Vector2(left + right, bottom + top);
             bounds = new BoundingRectangleF(pos, size);
+            return bounds;
+        }
+
+        private BoundingRectangleF ApplyMargins(BoundingRectangleF bounds)
+        {
+            var margins = Margins;
+            float left = margins.X;
+            float bottom = margins.Y;
+            float right = margins.Z;
+            float top = margins.W;
+
+            Vector2 size = bounds.Extents;
+            Vector2 pos = bounds.Translation;
+
+            pos += new Vector2(left, bottom);
+            size -= new Vector2(left + right, bottom + top);
+            bounds = new BoundingRectangleF(pos, size);
+            return bounds;
         }
 
         protected virtual void RemakeAxisAlignedRegion()
         {
-            Matrix4x4 mtx = WorldMatrix * Matrix4x4.CreateScale(ActualSize.X, ActualSize.Y, 1.0f);
+            Matrix4x4 mtx = Matrix4x4.CreateScale(ActualSize.X, ActualSize.Y, 1.0f) * WorldMatrix;
 
             Vector3 minPos = Vector3.Transform(Vector3.Zero, mtx);
-            Vector3 maxPos = Vector3.Transform(Vector3.One, mtx); //This is Vector2.One on purpose, we only want Z to be 0
+            Vector3 maxPos = Vector3.Transform(new Vector3(Vector2.One, 0.0f), mtx);
 
+            // Make sure min is the smallest and max is the largest in case of rotation.
             Vector2 min = new(Math.Min(minPos.X, maxPos.X), Math.Min(minPos.Y, maxPos.Y));
             Vector2 max = new(Math.Max(minPos.X, maxPos.X), Math.Max(minPos.Y, maxPos.Y));
 
@@ -386,9 +366,9 @@ namespace XREngine.Rendering.UI
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-
+                Debug.LogException(ex);
             }
             finally
             {
@@ -438,13 +418,22 @@ namespace XREngine.Rendering.UI
             //    c.RenderedObjects.LayerIndex = RenderInfo2D.LayerIndex;
         }
 
+        /// <summary>
+        /// Calculates the width of the component based the widths of its children.
+        /// </summary>
+        /// <returns></returns>
         public override float CalcAutoWidth()
-            => Size.X.Clamp(MinSize.X, MaxSize.X);
+            => 0.0f;
+
+        /// <summary>
+        /// Calculates the height of the component based the heights of its children.
+        /// </summary>
+        /// <returns></returns>
         public override float CalcAutoHeight()
-            => Size.Y.Clamp(MinSize.Y, MaxSize.Y);
+            => 0.0f;
 
         public override Vector2 ClosestPoint(Vector2 worldPoint)
-            => ScreenToLocal(worldPoint).Clamp(-OriginTranslation, ActualSize - OriginTranslation);
+            => ScreenToLocal(worldPoint).Clamp(-LocalPivotTranslation, ActualSize - LocalPivotTranslation);
 
         public override bool Contains(Vector2 worldPoint)
             => ActualSize.Contains(ScreenToLocal(worldPoint));
@@ -457,8 +446,33 @@ namespace XREngine.Rendering.UI
         /// <returns></returns>
         public bool Contains(Vector3 worldPoint, float zMargin = 0.5f)
         {
-            Vector3 localPoint = Vector3.Transform(worldPoint, InverseWorldMatrix);
+            Vector3 localPoint = WorldToLocal(worldPoint);
             return Math.Abs(localPoint.Z) < zMargin && ActualSize.Contains(localPoint.XY());
+        }
+
+        public Vector2 WorldToLocal(Vector2 worldPoint)
+        {
+            return Vector2.Transform(worldPoint, InverseWorldMatrix);
+        }
+        public Vector2 LocalToWorld(Vector2 localPoint)
+        {
+            return Vector2.Transform(localPoint, WorldMatrix);
+        }
+        public Vector3 WorldToLocal(Vector2 worldPoint, float worldZ)
+        {
+            return Vector3.Transform(new Vector3(worldPoint, worldZ), InverseWorldMatrix);
+        }
+        public Vector3 LocalToWorld(Vector2 localPoint, float worldZ)
+        {
+            return Vector3.Transform(new Vector3(localPoint, worldZ), WorldMatrix);
+        }
+        public Vector3 WorldToLocal(Vector3 worldPoint)
+        {
+            return Vector3.Transform(worldPoint, InverseWorldMatrix);
+        }
+        public Vector3 LocalToWorld(Vector3 localPoint)
+        {
+            return Vector3.Transform(localPoint, WorldMatrix);
         }
     }
 }

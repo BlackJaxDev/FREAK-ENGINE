@@ -2,11 +2,6 @@
 {
     public class UIButtonComponent : UIInteractableComponent
     {
-        public UIButtonComponent()
-        {
-
-        }
-
         protected override void OnMouseOverlapEnter() => Highlight();
         protected override void OnMouseOverlapLeave() => Unhighlight();
         protected override void OnGamepadNavigateEnter() => Highlight();

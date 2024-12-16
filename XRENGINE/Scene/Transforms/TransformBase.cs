@@ -127,7 +127,14 @@ namespace XREngine.Scene.Transforms
 
         public virtual void SetParent(TransformBase? newParent, bool retainWorldTransform)
         {
-            Parent = newParent;
+            if (retainWorldTransform)
+            {
+                Matrix4x4 world = WorldMatrix;
+                Parent = newParent;
+                DeriveWorldMatrix(world);
+            }
+            else
+                Parent = newParent;
         }
 
         protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)

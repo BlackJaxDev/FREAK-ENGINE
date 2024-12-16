@@ -18,6 +18,17 @@ namespace XREngine.Rendering.Shaders.Generator
         public const string FragColorName = "FragColor{0}";
         public const string FragUVName = "FragUV{0}";
 
+        private void WriteAdjointMethod()
+        {
+            Line("mat3 adjoint(mat4 m)");
+            Line("{");
+            Line("    return mat3(");
+            Line("        cross(m[1].xyz, m[2].xyz),");
+            Line("        cross(m[2].xyz, m[0].xyz),");
+            Line("        cross(m[0].xyz, m[1].xyz));");
+            Line("}");
+        }
+
         /// <summary>
         /// Creates the vertex shader to render a typical model.
         /// </summary>
@@ -31,6 +42,7 @@ namespace XREngine.Rendering.Shaders.Generator
             WriteVersion();
             Line();
             WriteInputs();
+            WriteAdjointMethod();
             using (StartMain())
             {
                 //Create MVP matrix right away
@@ -39,7 +51,7 @@ namespace XREngine.Rendering.Shaders.Generator
                 Line($"mat4 mvpMatrix = {EEngineUniform.ProjMatrix} * mvMatrix;");
                 Line($"mat4 vpMatrix = {EEngineUniform.ProjMatrix} * ViewMatrix;");
                 if (Mesh.NormalsBuffer is not null)
-                    Line("mat3 normalMatrix = mat3(transpose(inverse(mvMatrix)));");
+                    Line("mat3 normalMatrix = adjoint(ModelMatrix);");
                 Line();
 
                 //Transform position, normals and tangents
@@ -288,7 +300,7 @@ namespace XREngine.Rendering.Shaders.Generator
                     Line($"float weight = {ECommonBufferType.BoneMatrixCount}[i];");
                     Line($"mat4 boneMatrix = {ECommonBufferType.BoneInvBindMatrices}[boneIndex] * {ECommonBufferType.BoneMatrices}[boneIndex] * {EEngineUniform.RootInvModelMatrix};");
                     Line("finalPosition += (boneMatrix * basePosition) * weight;");
-                    Line("mat3 boneMatrix3 = mat3(transpose(inverse(boneMatrix)));");
+                    Line("mat3 boneMatrix3 = adjoint(boneMatrix);");
                     Line("finalNormal += (boneMatrix3 * baseNormal) * weight;");
                     Line("finalTangent += (boneMatrix3 * baseTangent) * weight;");
                 }
@@ -304,7 +316,7 @@ namespace XREngine.Rendering.Shaders.Generator
                     Line($"float weight = {ECommonBufferType.BoneMatrixWeights}[index];");
                     Line($"mat4 boneMatrix = {ECommonBufferType.BoneInvBindMatrices}[boneIndex] * {ECommonBufferType.BoneMatrices}[boneIndex] * {EEngineUniform.RootInvModelMatrix};");
                     Line("finalPosition += (boneMatrix * basePosition) * weight;");
-                    Line("mat3 boneMatrix3 = mat3(transpose(inverse(boneMatrix)));");
+                    Line("mat3 boneMatrix3 = adjoint(boneMatrix);");
                     Line("finalNormal += (boneMatrix3 * baseNormal) * weight;");
                     Line("finalTangent += (boneMatrix3 * baseTangent) * weight;");
                 }

@@ -17,10 +17,10 @@ namespace XREngine.Rendering.UI
 
         public UIMaterialComponent() 
             : this(XRMaterial.CreateUnlitColorMaterialForward(Color.Magenta)) { }
-        public UIMaterialComponent(XRMaterial material, bool flipVerticalUVCoord = false)
+        public UIMaterialComponent(XRMaterial quadMaterial, bool flipVerticalUVCoord = false)
         {
             XRMesh quadData = XRMesh.Create(VertexQuad.PosZ(1.0f, 1.0f, 0.0f, true, flipVerticalUVCoord));
-            RenderCommand.Mesh = new XRMeshRenderer(quadData, material);
+            RenderCommand.Mesh = new XRMeshRenderer(quadData, quadMaterial);
             //RenderCommand.ZIndex = 0;
 
             RenderInfo3D = RenderInfo3D.New(this, RenderCommand);

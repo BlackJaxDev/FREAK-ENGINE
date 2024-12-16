@@ -625,29 +625,27 @@ namespace XREngine.Data.Trees
             }
         }
 
-        public void Raycast(Segment segment, SortedDictionary<float, List<(T item, object? data)>> items, Func<T, Segment, (float? distance, object? data)> directTest)
+        public void Raycast<T2>(Vector2 point, SortedDictionary<float, List<(T2 item, object? data)>> items) where T2 : class, IRenderableBase
         {
-            //if (!_bounds.Intersects(segment))
-            //    return;
+            if (!_bounds.Contains(point))
+                return;
 
-            ////IsLoopingItems = true;
-            //foreach (T item in _items)
-            //{
-            //    float dist = item.DistanceToSegment(segment);
-            //    if (dist >= 0.0f)
-            //        items.Add(dist, item);
-            //}
-            ////IsLoopingItems = false;
+            //IsLoopingItems = true;
+            foreach (T item in _items)
+                if (item.Owner is T2 t2 && item.Contains(point))
+                {
+                    float depth = item.Owner.TransformDepth;
+                    if (!items.TryGetValue(depth, out List<(T2 item, object? data)>? value))
+                        items.Add(depth, [(t2, null)]);
+                    else
+                        value.Add((t2, null));
+                }
+            //IsLoopingItems = false;
 
-            ////IsLoopingSubNodes = true;
-            //for (int i = 0; i < QuadtreeBase.MaxChildNodeCount; ++i)
-            //    _subNodes[i]?.Raycast(segment, items);
-            ////IsLoopingSubNodes = false;
-        }
-
-        public void Raycast(Segment segment, SortedDictionary<float, List<(ITreeItem item, object? data)>> items, Func<ITreeItem, Segment, (float? distance, object? data)> directTest)
-        {
-
+            //IsLoopingSubNodes = true;
+            for (int i = 0; i < QuadtreeBase.MaxChildNodeCount; ++i)
+                _subNodes[i]?.Raycast(point, items);
+            //IsLoopingSubNodes = false;
         }
 
         public void Collect(Func<QuadtreeNode<T>, bool> nodeTest, Func<T, bool> itemTest, SortedDictionary<int, List<T>> list, int depth)

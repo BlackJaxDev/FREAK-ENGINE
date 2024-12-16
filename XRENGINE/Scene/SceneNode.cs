@@ -11,7 +11,7 @@ using XREngine.Scene.Transforms;
 namespace XREngine.Scene
 {
     [Serializable]
-    public sealed class SceneNode : XRWorldObjectBase, IEventListReadOnly<XRComponent>
+    public sealed class SceneNode : XRWorldObjectBase
     {
         //private static SceneNode? _dummy;
         //internal static SceneNode Dummy => _dummy ??= new SceneNode() { IsDummy = true };
@@ -26,7 +26,7 @@ namespace XREngine.Scene
         public SceneNode(SceneNode parent, string name, TransformBase? transform = null)
         {
             if (transform != null)
-                SetTransform(transform, false);
+                SetTransform(transform, ETransformSetFlags.None);
 
             Transform.Parent = parent?.Transform;
             Name = name;
@@ -37,7 +37,7 @@ namespace XREngine.Scene
         public SceneNode(string name, TransformBase? transform = null)
         {
             if (transform != null)
-                SetTransform(transform, false);
+                SetTransform(transform, ETransformSetFlags.None);
 
             Transform.Parent = null;
             Name = name;
@@ -47,7 +47,7 @@ namespace XREngine.Scene
         public SceneNode(XRScene scene, string name, TransformBase? transform = null)
         {
             if (transform != null)
-                SetTransform(transform, false);
+                SetTransform(transform, ETransformSetFlags.None);
 
             scene.RootNodes.Add(this);
             Name = name;
@@ -57,7 +57,7 @@ namespace XREngine.Scene
         public SceneNode(XRWorldInstance? world, string? name = null, TransformBase? transform = null)
         {
             if (transform != null)
-                SetTransform(transform, false);
+                SetTransform(transform, ETransformSetFlags.None);
 
             World = world;
             Name = name ?? DefaultName;
@@ -234,46 +234,93 @@ namespace XREngine.Scene
                     SetTransform<Transform>();
                 return _transform!;
             }
-            private set
-            {
-                //if (_settingTransform)
-                //    return;
-                //try
-                //{
-                //    _settingTransform = true;
-                    SetField(ref _transform, value);
-                //}
-                //finally
-                //{
-                //    _settingTransform = false;
-                //}
-            }
+            private set => SetField(ref _transform, value);
         }
 
+        /// <summary>
+        /// Retrieves the transform of this scene node as type T.
+        /// If forceConvert is true, the transform will be converted to type T if it is not already.
+        /// If the transform is a derived type of T, it will be returned as type T but will not be converted.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="forceConvert"></param>
+        /// <returns></returns>
         public T? GetTransformAs<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(bool forceConvert = false) where T : TransformBase, new()
-            => !forceConvert 
-                ? Transform as T : 
-                Transform is T value 
-                    ? value 
+            => !forceConvert
+                ? Transform as T :
+                Transform is T value
+                    ? value
                     : SetTransform<T>();
 
+        /// <summary>
+        /// Attempts to retrieve the transform of this scene node as type T.
+        /// If the transform is not of type T, transform will be null and the method will return false.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="transform"></param>
+        /// <returns></returns>
         public bool TryGetTransformAs<T>([MaybeNullWhen(false)] out T? transform) where T : TransformBase
         {
             transform = Transform as T;
             return transform != null;
         }
 
-        private bool _settingTransform = false;
+        public enum ETransformSetFlags
+        {
+            /// <summary>
+            /// Transform is set as-is.
+            /// </summary>
+            None = 0,
+            /// <summary>
+            /// The parent of the new transform will be set to the parent of the current transform.
+            /// </summary>
+            RetainCurrentParent = 1,
+            /// <summary>
+            /// The world transform of the new transform will be set to the world transform of the current transform, if possible.
+            /// For a transform's world matrix to be preserved, 
+            /// </summary>
+            RetainWorldTransform = 2,
+            /// <summary>
+            /// The children of the new transform will be cleared before it is set.
+            /// </summary>
+            ClearNewChildren = 4,
+            /// <summary>
+            /// The children of the current transform will be retained when setting the new transform.
+            /// </summary>
+            RetainCurrentChildren = 8,
+
+            /// <summary>
+            /// Retain the current parent, clear the new children, and retain the current children.
+            /// World transform will not be retained.
+            /// </summary>
+            Default = RetainCurrentParent | ClearNewChildren | RetainCurrentChildren
+        }
+
         /// <summary>
         /// Sets the transform of this scene node.
         /// If retainParent is true, the parent of the new transform will be set to the parent of the current transform.
         /// </summary>
         /// <param name="transform"></param>
         /// <param name="retainParent"></param>
-        public void SetTransform(TransformBase transform, bool retainParent = true, bool retainWorldTransform = false)
+        public void SetTransform(TransformBase transform, ETransformSetFlags flags = ETransformSetFlags.Default)
         {
-            if (retainParent)
-                transform.SetParent(_transform?.Parent, retainWorldTransform);
+            if (flags.HasFlag(ETransformSetFlags.ClearNewChildren))
+                transform.Clear();
+
+            if (flags.HasFlag(ETransformSetFlags.RetainCurrentParent))
+                transform.SetParent(_transform?.Parent, flags.HasFlag(ETransformSetFlags.RetainWorldTransform));
+
+            if (flags.HasFlag(ETransformSetFlags.RetainCurrentChildren))
+            {
+                if (_transform is not null)
+                {
+                    lock (_transform.Children)
+                    {
+                        foreach (var child in _transform)
+                            transform.Add(child);
+                    }
+                }
+            }
 
             Transform = transform;
         }
@@ -284,10 +331,10 @@ namespace XREngine.Scene
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="retainParent"></param>
-        public T SetTransform<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>() where T : TransformBase, new()
+        public T SetTransform<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(ETransformSetFlags flags = ETransformSetFlags.Default) where T : TransformBase, new()
         {
             T value = new();
-            SetTransform(value, true);
+            SetTransform(value, flags);
             return value;
         }
 
@@ -311,7 +358,7 @@ namespace XREngine.Scene
 
             lock (Components)
             {
-                foreach (var component in this)
+                foreach (var component in Components)
                     component.World = value;
             }
 
@@ -357,6 +404,51 @@ namespace XREngine.Scene
 
             AddComponent(comp);
             return comp;
+        }
+
+        public (T1? comp1, T2? comp2) AddComponents<T1, T2>() where T1 : XRComponent where T2 : XRComponent
+        {
+            var comp1 = AddComponent<T1>();
+            var comp2 = AddComponent<T2>();
+            return (comp1, comp2);
+        }
+
+        public (T1? comp1, T2? comp2, T3? comp3) AddComponents<T1, T2, T3>() where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent
+        {
+            var comp1 = AddComponent<T1>();
+            var comp2 = AddComponent<T2>();
+            var comp3 = AddComponent<T3>();
+            return (comp1, comp2, comp3);
+        }
+
+        public (T1? comp1, T2? comp2, T3? comp3, T4? comp4) AddComponents<T1, T2, T3, T4>() where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent where T4 : XRComponent
+        {
+            var comp1 = AddComponent<T1>();
+            var comp2 = AddComponent<T2>();
+            var comp3 = AddComponent<T3>();
+            var comp4 = AddComponent<T4>();
+            return (comp1, comp2, comp3, comp4);
+        }
+
+        public (T1? comp1, T2? comp2, T3? comp3, T4? comp4, T5? comp5) AddComponents<T1, T2, T3, T4, T5>() where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent where T4 : XRComponent where T5 : XRComponent
+        {
+            var comp1 = AddComponent<T1>();
+            var comp2 = AddComponent<T2>();
+            var comp3 = AddComponent<T3>();
+            var comp4 = AddComponent<T4>();
+            var comp5 = AddComponent<T5>();
+            return (comp1, comp2, comp3, comp4, comp5);
+        }
+
+        public (T1? comp1, T2? comp2, T3? comp3, T4? comp4, T5? comp5, T6? comp6) AddComponents<T1, T2, T3, T4, T5, T6>() where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent where T4 : XRComponent where T5 : XRComponent where T6 : XRComponent
+        {
+            var comp1 = AddComponent<T1>();
+            var comp2 = AddComponent<T2>();
+            var comp3 = AddComponent<T3>();
+            var comp4 = AddComponent<T4>();
+            var comp5 = AddComponent<T5>();
+            var comp6 = AddComponent<T6>();
+            return (comp1, comp2, comp3, comp4, comp5, comp6);
         }
 
         /// <summary>
@@ -593,7 +685,7 @@ namespace XREngine.Scene
         {
             Transform.OnSceneNodeActivated();
 
-            foreach (XRComponent component in this)
+            foreach (XRComponent component in Components)
                 if (component.IsActive)
                 {
                     component.VerifyInterfacesOnStart();
@@ -620,7 +712,7 @@ namespace XREngine.Scene
         {
             Transform.OnSceneNodeDeactivated();
 
-            foreach (XRComponent component in this)
+            foreach (XRComponent component in Components)
                 if (component.IsActive)
                 {
                     component.OnComponentDeactivated();
@@ -642,11 +734,6 @@ namespace XREngine.Scene
                 }
             }
         }
-
-        public IEnumerator<XRComponent> GetEnumerator()
-            => ComponentsInternal.GetEnumerator();
-        IEnumerator IEnumerable.GetEnumerator()
-            => ((IEnumerable)ComponentsInternal).GetEnumerator();
 
         public void IterateComponents(Action<XRComponent> componentAction, bool iterateChildHierarchy)
         {
@@ -722,368 +809,6 @@ namespace XREngine.Scene
             return comps.Length > 0;
         }
 
-        #region EventList Implementation
-
-        public int Count => ((IEventListReadOnly<XRComponent>)ComponentsInternal).Count;
-
-        public bool IsReadOnly => ((ICollection<XRComponent>)ComponentsInternal).IsReadOnly;
-
-        public bool IsFixedSize => ((IList)ComponentsInternal).IsFixedSize;
-
-        public bool IsSynchronized => ((ICollection)ComponentsInternal).IsSynchronized;
-
-        public object SyncRoot => ((ICollection)ComponentsInternal).SyncRoot;
-
-        /// <summary>
-        /// Use this before updating transform callbacks in case your code tries to set the transform while simultaneously linking or unlinking it.
-        /// </summary>
-        public bool IsTransformNull => _transform is null;
-
-        public event EventList<XRComponent>.SingleCancelableHandler PreAnythingAdded
-        {
-            add
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PreAnythingAdded += value;
-            }
-
-            remove
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PreAnythingAdded -= value;
-            }
-        }
-
-        public event EventList<XRComponent>.SingleHandler PostAnythingAdded
-        {
-            add
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PostAnythingAdded += value;
-            }
-
-            remove
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PostAnythingAdded -= value;
-            }
-        }
-
-        public event EventList<XRComponent>.SingleCancelableHandler PreAnythingRemoved
-        {
-            add
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PreAnythingRemoved += value;
-            }
-
-            remove
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PreAnythingRemoved -= value;
-            }
-        }
-
-        public event EventList<XRComponent>.SingleHandler PostAnythingRemoved
-        {
-            add
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PostAnythingRemoved += value;
-            }
-
-            remove
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PostAnythingRemoved -= value;
-            }
-        }
-
-        public event EventList<XRComponent>.SingleCancelableHandler PreAdded
-        {
-            add
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PreAdded += value;
-            }
-
-            remove
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PreAdded -= value;
-            }
-        }
-
-        public event EventList<XRComponent>.SingleHandler PostAdded
-        {
-            add
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PostAdded += value;
-            }
-
-            remove
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PostAdded -= value;
-            }
-        }
-
-        public event EventList<XRComponent>.MultiCancelableHandler PreAddedRange
-        {
-            add
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PreAddedRange += value;
-            }
-
-            remove
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PreAddedRange -= value;
-            }
-        }
-
-        public event EventList<XRComponent>.MultiHandler PostAddedRange
-        {
-            add
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PostAddedRange += value;
-            }
-
-            remove
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PostAddedRange -= value;
-            }
-        }
-
-        public event EventList<XRComponent>.SingleCancelableHandler PreRemoved
-        {
-            add
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PreRemoved += value;
-            }
-
-            remove
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PreRemoved -= value;
-            }
-        }
-
-        public event EventList<XRComponent>.SingleHandler PostRemoved
-        {
-            add
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PostRemoved += value;
-            }
-
-            remove
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PostRemoved -= value;
-            }
-        }
-
-        public event EventList<XRComponent>.MultiCancelableHandler PreRemovedRange
-        {
-            add
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PreRemovedRange += value;
-            }
-
-            remove
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PreRemovedRange -= value;
-            }
-        }
-
-        public event EventList<XRComponent>.MultiHandler PostRemovedRange
-        {
-            add
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PostRemovedRange += value;
-            }
-
-            remove
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PostRemovedRange -= value;
-            }
-        }
-
-        public event EventList<XRComponent>.SingleCancelableInsertHandler PreInserted
-        {
-            add
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PreInserted += value;
-            }
-
-            remove
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PreInserted -= value;
-            }
-        }
-
-        public event EventList<XRComponent>.SingleInsertHandler PostInserted
-        {
-            add
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PostInserted += value;
-            }
-
-            remove
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PostInserted -= value;
-            }
-        }
-
-        public event EventList<XRComponent>.MultiCancelableInsertHandler PreInsertedRange
-        {
-            add
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PreInsertedRange += value;
-            }
-
-            remove
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PreInsertedRange -= value;
-            }
-        }
-
-        public event EventList<XRComponent>.MultiInsertHandler PostInsertedRange
-        {
-            add
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PostInsertedRange += value;
-            }
-
-            remove
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PostInsertedRange -= value;
-            }
-        }
-
-        public event Func<bool> PreModified
-        {
-            add
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PreModified += value;
-            }
-
-            remove
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PreModified -= value;
-            }
-        }
-
-        public event Action PostModified
-        {
-            add
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PostModified += value;
-            }
-
-            remove
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PostModified -= value;
-            }
-        }
-
-        public event EventList<XRComponent>.PreIndexSetHandler PreIndexSet
-        {
-            add
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PreIndexSet += value;
-            }
-
-            remove
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PreIndexSet -= value;
-            }
-        }
-
-        public event EventList<XRComponent>.PostIndexSetHandler PostIndexSet
-        {
-            add
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PostIndexSet += value;
-            }
-
-            remove
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).PostIndexSet -= value;
-            }
-        }
-
-        public event TCollectionChangedEventHandler<XRComponent> CollectionChanged
-        {
-            add
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).CollectionChanged += value;
-            }
-
-            remove
-            {
-                ((IEventListReadOnly<XRComponent>)ComponentsInternal).CollectionChanged -= value;
-            }
-        }
-
-        public int IndexOf(XRComponent item)
-        {
-            return ((IList<XRComponent>)ComponentsInternal).IndexOf(item);
-        }
-
-        public void Insert(int index, XRComponent item)
-        {
-            ((IList<XRComponent>)ComponentsInternal).Insert(index, item);
-        }
-
-        public void RemoveAt(int index)
-        {
-            ((IList<XRComponent>)ComponentsInternal).RemoveAt(index);
-        }
-
-        public void Add(XRComponent item)
-        {
-            ((ICollection<XRComponent>)ComponentsInternal).Add(item);
-        }
-
-        public void Clear()
-        {
-            ((ICollection<XRComponent>)ComponentsInternal).Clear();
-        }
-
-        public bool Contains(XRComponent item)
-        {
-            return ((ICollection<XRComponent>)ComponentsInternal).Contains(item);
-        }
-
-        public void CopyTo(XRComponent[] array, int arrayIndex)
-        {
-            ((ICollection<XRComponent>)ComponentsInternal).CopyTo(array, arrayIndex);
-        }
-
-        public bool Remove(XRComponent item)
-        {
-            return ((ICollection<XRComponent>)ComponentsInternal).Remove(item);
-        }
-
-        public int Add(object? value)
-        {
-            return ((IList)ComponentsInternal).Add(value);
-        }
-
-        public bool Contains(object? value)
-        {
-            return ((IList)ComponentsInternal).Contains(value);
-        }
-
-        public int IndexOf(object? value)
-        {
-            return ((IList)ComponentsInternal).IndexOf(value);
-        }
-
-        public void Insert(int index, object? value)
-        {
-            ((IList)ComponentsInternal).Insert(index, value);
-        }
-
-        public void Remove(object? value)
-        {
-            ((IList)ComponentsInternal).Remove(value);
-        }
-
-        public void CopyTo(Array array, int index)
-        {
-            ((ICollection)ComponentsInternal).CopyTo(array, index);
-        }
-
-        #endregion
-
         public string PrintTree()
         {
             string name = Name ?? "<no name>";
@@ -1120,5 +845,90 @@ namespace XREngine.Scene
             }
             return null;
         }
+
+        public void AddChild(SceneNode node)
+        {
+            Transform.Add(node.Transform);
+        }
+        public void InsertChild(SceneNode node, int index)
+        {
+            Transform.Insert(index, node.Transform);
+        }
+        public void RemoveChild(SceneNode node)
+        {
+            Transform.Remove(node.Transform);
+        }
+        public void RemoveChildAt(int index)
+        {
+            Transform.RemoveAt(index);
+        }
+
+        public static SceneNode New<T1>(SceneNode? parentNode, out T1 comp1) where T1 : XRComponent
+        {
+            var node = parentNode is null ? new SceneNode() : new SceneNode(parentNode);
+            comp1 = node.AddComponent<T1>()!;
+            return node;
+        }
+        public static SceneNode New<T1, T2>(SceneNode? parentNode, out T1 comp1, out T2 comp2) where T1 : XRComponent where T2 : XRComponent
+        {
+            var node = parentNode is null ? new SceneNode() : new SceneNode(parentNode);
+            comp1 = node.AddComponent<T1>()!;
+            comp2 = node.AddComponent<T2>()!;
+            return node;
+        }
+        public static SceneNode New<T1, T2, T3>(SceneNode? parentNode, out T1 comp1, out T2 comp2, out T3 comp3) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent
+        {
+            var node = parentNode is null ? new SceneNode() : new SceneNode(parentNode);
+            comp1 = node.AddComponent<T1>()!;
+            comp2 = node.AddComponent<T2>()!;
+            comp3 = node.AddComponent<T3>()!;
+            return node;
+        }
+        public static SceneNode New<T1, T2, T3, T4>(SceneNode? parentNode, out T1 comp1, out T2 comp2, out T3 comp3, out T4 comp4) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent where T4 : XRComponent
+        {
+            var node = parentNode is null ? new SceneNode() : new SceneNode(parentNode);
+            comp1 = node.AddComponent<T1>()!;
+            comp2 = node.AddComponent<T2>()!;
+            comp3 = node.AddComponent<T3>()!;
+            comp4 = node.AddComponent<T4>()!;
+            return node;
+        }
+        public static SceneNode New<T1, T2, T3, T4, T5>(SceneNode? parentNode, out T1 comp1, out T2 comp2, out T3 comp3, out T4 comp4, out T5 comp5) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent where T4 : XRComponent where T5 : XRComponent
+        {
+            var node = parentNode is null ? new SceneNode() : new SceneNode(parentNode);
+            comp1 = node.AddComponent<T1>()!;
+            comp2 = node.AddComponent<T2>()!;
+            comp3 = node.AddComponent<T3>()!;
+            comp4 = node.AddComponent<T4>()!;
+            comp5 = node.AddComponent<T5>()!;
+            return node;
+        }
+        public static SceneNode New<T1, T2, T3, T4, T5, T6>(SceneNode? parentNode, out T1 comp1, out T2 comp2, out T3 comp3, out T4 comp4, out T5 comp5, out T6 comp6) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent where T4 : XRComponent where T5 : XRComponent where T6 : XRComponent
+        {
+            var node = parentNode is null ? new SceneNode() : new SceneNode(parentNode);
+            comp1 = node.AddComponent<T1>()!;
+            comp2 = node.AddComponent<T2>()!;
+            comp3 = node.AddComponent<T3>()!;
+            comp4 = node.AddComponent<T4>()!;
+            comp5 = node.AddComponent<T5>()!;
+            comp6 = node.AddComponent<T6>()!;
+            return node;
+        }
+
+        /// <summary>
+        /// Returns the first child of this scene node, if any.
+        /// </summary>
+        /// <returns></returns>
+        public SceneNode? FirstChild
+            => Transform.FirstChild()?.SceneNode;
+
+        /// <summary>
+        /// Returns the last child of this scene node, if any.
+        /// </summary>
+        /// <returns></returns>
+        public SceneNode? LastChild
+            => Transform.LastChild()?.SceneNode;
+
+        public bool IsTransformNull => _transform is null;
     }
 }

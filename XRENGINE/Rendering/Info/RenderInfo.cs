@@ -100,6 +100,7 @@ namespace XREngine.Rendering.Info
         /// Return false to skip adding render commands.
         /// </summary>
         public DelAddRenderCommandsCallback? PreAddRenderCommandsCallback { get; set; }
+        IRenderableBase ITreeItem.Owner => Owner;
 
         public void AddRenderCommands(RenderCommandCollection passes, XRCamera? camera, bool shadowPass)
         {

@@ -178,7 +178,7 @@ in vec3 F0)
 		fragPosWS, N, NoL,
 		inverse(LightData.WorldToLightInvViewMatrix) * LightData.WorldToLightProjMatrix);
 
-	return color;// * shadow;
+	return color * shadow;
 }
 vec3 CalcTotalLight(
 in vec3 fragPosWS,

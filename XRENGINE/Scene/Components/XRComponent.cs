@@ -1,10 +1,7 @@
-﻿using Silk.NET.OpenXR;
-using System.ComponentModel;
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.Serialization;
 using XREngine.Data.Core;
-using XREngine.Rendering.UI;
 using XREngine.Scene;
 using XREngine.Scene.Transforms;
 
@@ -70,15 +67,7 @@ namespace XREngine.Components
         /// <param name="component"></param>
         /// <returns></returns>
         public bool TryGetSiblingComponent<T>(out T? component) where T : XRComponent
-        {
-            var comp = SceneNode.GetComponent<T>();
-            if (comp == this)
-            {
-                component = null;
-                return false;
-            }
-            return (component = comp) != null;
-        }
+            => SceneNode.TryGetComponent<T>(out component) && component != this;
         /// <summary>
         /// Retrieves a component also located on the same parent scene node.
         /// </summary>
@@ -86,10 +75,11 @@ namespace XREngine.Components
         /// <returns></returns>
         public T? GetSiblingComponent<T>(bool createIfNotExist = false) where T : XRComponent
         {
-            var comp = SceneNode.GetComponent<T>();
-            if (comp is null && createIfNotExist)
-                comp = New<T>(SceneNode);
-            return comp == this ? null : comp;
+            if (TryGetSiblingComponent(out T? comp))
+                return comp;
+            if (createIfNotExist)
+                return SceneNode.AddComponent<T>();
+            return null;
         }
         
 #pragma warning disable IDE0051 // Remove unused private members

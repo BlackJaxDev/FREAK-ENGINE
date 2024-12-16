@@ -161,17 +161,13 @@ namespace XREngine.Data.Trees
             return list;
         }
 
-        public void Raycast(Segment segment, out SortedDictionary<float, List<(T item, object? data)>> items, Func<T, Segment, (float? distance, object? data)> directTest)
-        {
-            items = [];
-            _head.Raycast(segment, items, directTest);
-        }
+        public void Raycast<T2>(Segment segment, SortedDictionary<float, List<(T2 item, object? data)>> items, Func<T, Segment, (float? distance, object? data)> directTest) where T2 : class, IRenderableBase
+            => _head.Raycast(segment, items, directTest);
+        void I3DRenderTree.Raycast<T2>(Segment segment, SortedDictionary<float, List<(T2 item, object? data)>> items, Func<ITreeItem, Segment, (float? distance, object? data)> directTest)
+            => Raycast(segment, items, directTest);
 
-        public void Raycast(Segment segment, out SortedDictionary<float, List<(ITreeItem item, object? data)>> items, Func<ITreeItem, Segment, (float? distance, object? data)> directTest)
-        {
-            items = [];
-            _head.Raycast(segment, items, directTest);
-        }
+        //public void Raycast(Segment segment, SortedDictionary<float, List<(ITreeItem item, object? data)>> items, Func<ITreeItem, Segment, (float? distance, object? data)> directTest)
+        //    => _head.Raycast(segment, items, directTest);
 
         public void DebugRender(IVolume? cullingVolume, DelRenderAABB render, bool onlyContainingItems = false)
             => _head.DebugRender(true, onlyContainingItems, cullingVolume, render);

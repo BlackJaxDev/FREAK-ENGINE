@@ -51,9 +51,9 @@ namespace XREngine.Components
         {
             switch (e.PropertyName)
             {
-                case nameof(UICanvasTransform.Translation):
+                case nameof(UICanvasTransform.ActualTranslation):
                 case nameof(UICanvasTransform.ActualSize):
-                    ResizeScreenSpace(CanvasTransform.Bounds);
+                    ResizeScreenSpace(CanvasTransform.GetActualBounds());
                     break;
             }
         }

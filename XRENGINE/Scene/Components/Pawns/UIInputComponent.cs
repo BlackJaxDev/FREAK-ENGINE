@@ -6,6 +6,7 @@ using XREngine.Core.Attributes;
 using XREngine.Data.Core;
 using XREngine.Data.Geometry;
 using XREngine.Input.Devices;
+using XREngine.Rendering;
 using XREngine.Rendering.Info;
 using XREngine.Rendering.UI;
 
@@ -15,12 +16,23 @@ namespace XREngine.Components
     /// Dictates input for a UI canvas component.
     /// </summary>
     [RequireComponents(typeof(UICanvasComponent))]
-    public class UIInputComponent : PawnComponent
+    public class UIInputComponent : XRComponent
     {
         /// <summary>
         /// Returns the canvas component this input component is controlling.
         /// </summary>
-        public UICanvasComponent Canvas => GetSiblingComponent<UICanvasComponent>(true)!;
+        public UICanvasComponent? GetCameraCanvas() => Canvas ?? GetSiblingComponent<UICanvasComponent>(true);
+
+        /// <summary>
+        /// The canvas component this input component is controlling.
+        /// If null, the component will attempt to find a sibling canvas component.
+        /// </summary>
+        private UICanvasComponent? _canvas;
+        public UICanvasComponent? Canvas
+        {
+            get => _canvas;
+            set => SetField(ref _canvas, value);
+        }
 
         private UIInteractableComponent? _focusedComponent;
         /// <summary>
@@ -43,7 +55,8 @@ namespace XREngine.Components
 
         private PawnComponent? _owningPawn;
         /// <summary>
-        /// The pawn that has this HUD linked for screen space use.
+        /// The pawn that has this HUD linked for screen or camera space use.
+        /// World space HUDs do not require a pawn - call SetCursorPosition to set the cursor position.
         /// </summary>
         public PawnComponent? OwningPawn
         {
@@ -76,12 +89,42 @@ namespace XREngine.Components
             }
         }
 
-        private void LinkOwningPawn()
+        private void UnlinkOwningPawn()
         {
-            if (_owningPawn is null || _owningPawn == this || _owningPawn.LocalPlayerController == null)
+            if (_owningPawn is null || _owningPawn.LocalPlayerController == null)
                 return;
 
+            _owningPawn.PropertyChanging -= OwningPawn_PropertyChanging;
+            _owningPawn.PropertyChanged -= OnOwningPawnPropertyChanged;
+
+            UnlinkInput();
+        }
+
+        private void LinkOwningPawn()
+        {
+            if (_owningPawn is null)
+                return;
+
+            _owningPawn.PropertyChanging += OwningPawn_PropertyChanging;
+            _owningPawn.PropertyChanged += OnOwningPawnPropertyChanged;
+
             LinkInput();
+        }
+
+        private void OwningPawn_PropertyChanging(object? sender, IXRPropertyChangingEventArgs e)
+        {
+            if (e.PropertyName == nameof(PawnComponent.LocalPlayerController))
+            {
+                UnlinkInput();
+            }
+        }
+
+        private void OnOwningPawnPropertyChanged(object? sender, IXRPropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(PawnComponent.LocalPlayerController))
+            {
+                LinkInput();
+            }
         }
 
         private void LinkInput()
@@ -93,14 +136,6 @@ namespace XREngine.Components
             input.TryRegisterInput();
         }
 
-        private void UnlinkOwningPawn()
-        {
-            if (_owningPawn is null || _owningPawn == this || _owningPawn.LocalPlayerController == null)
-                return;
-
-            UnlinkInput();
-        }
-
         private void UnlinkInput()
         {
             //Unlink input commands from the owning controller to this hud
@@ -110,7 +145,7 @@ namespace XREngine.Components
             input.TryRegisterInput();
         }
 
-        public override void RegisterInput(InputInterface input)
+        public void RegisterInput(InputInterface input)
         {
             input.RegisterMouseMove(MouseMove, EMouseMoveType.Absolute);
             input.RegisterMouseButtonEvent(EMouseButton.LeftClick, EButtonInputType.Pressed, OnLeftClickSelect);
@@ -138,18 +173,48 @@ namespace XREngine.Components
         /// <param name="y"></param>
         private void MouseMove(float x, float y)
         {
-            var vp = Viewport;
+            var vp = OwningPawn?.Viewport;
             if (vp is null)
+                return;
+
+            var canvas = GetCameraCanvas();
+            if (canvas is null)
                 return;
 
             var vpCoord = vp.ScreenToViewportCoordinate(new Vector2(x, y));
             var normCoord = vp.NormalizeViewportCoordinate(vpCoord);
 
-            var canvasTransform = Canvas.CanvasTransform;
+            var canvasTransform = canvas.CanvasTransform;
             var space = canvasTransform.DrawSpace;
 
-            Vector2 uiCoord;
+            Vector2? uiCoord = GetUICoordinate(vp, normCoord, canvasTransform, space);
 
+            if (uiCoord is not null)
+                SetCursorPosition(canvas, uiCoord.Value);
+        }
+
+        public void SetCursorPosition(Vector2 cursorPosition)
+        {
+            var canvas = GetCameraCanvas();
+            if (canvas is null)
+                return;
+
+            SetCursorPosition(canvas, cursorPosition);
+        }
+        private void SetCursorPosition(UICanvasComponent canvas, Vector2 cursorPosition)
+        {
+            LastCursorPositionWorld2D = CursorPositionWorld2D;
+            CursorPositionWorld2D = cursorPosition;
+            var scene = canvas.VisualScene2D;
+            var tree = scene?.RenderTree;
+            tree?.FindAllIntersectingSorted(cursorPosition, InteractableIntersections, InteractablePredicate);
+            TopMostInteractable = InteractableIntersections.Min?.Owner as UIInteractableComponent;
+            ValidateAndSwapIntersections();
+        }
+
+        private static Vector2? GetUICoordinate(XRViewport vp, Vector2 normCoord, UICanvasTransform canvasTransform, ECanvasDrawSpace space)
+        {
+            Vector2? uiCoord;
             //Convert to ui coord depending on the draw space
             switch (space)
             {
@@ -161,12 +226,12 @@ namespace XREngine.Components
                     }
                 case ECanvasDrawSpace.Camera:
                     {
-                        float drawDistance = canvasTransform.CameraDrawSpaceDistance;
                         var cam = vp.Camera;
                         if (cam is null)
-                            return;
+                            return null;
+
                         //Convert the normalized coord to world space using the draw distance
-                        Vector3 worldCoord = vp.NormalizedViewportToWorldCoordinate(normCoord, XRMath.DistanceToDepth(drawDistance, cam.NearZ, cam.FarZ));
+                        Vector3 worldCoord = vp.NormalizedViewportToWorldCoordinate(normCoord, XRMath.DistanceToDepth(canvasTransform.CameraDrawSpaceDistance, cam.NearZ, cam.FarZ));
                         //Transform the world coord to the canvas' local space
                         Matrix4x4 worldToLocal = canvasTransform.InverseWorldMatrix;
                         uiCoord = Vector3.Transform(worldCoord, worldToLocal).XY();
@@ -174,34 +239,32 @@ namespace XREngine.Components
                     }
                 case ECanvasDrawSpace.World:
                     {
+                        // Get the world segment from the normalized coord
                         Segment worldSegment = vp.GetWorldSegment(normCoord);
-                        //Intersect the world segment with the canvas bounds in world space
-                        Matrix4x4 worldToLocal = canvasTransform.InverseWorldMatrix;
-                        Segment localSegment = worldSegment.TransformedBy(worldToLocal);
-                        var bounds = canvasTransform.Bounds;
-                        float d = XRMath.GetPlaneDistance(Vector3.Zero, Globals.Backward);
-                        if (GeoUtil.SegmentIntersectsPlane(localSegment.Start, localSegment.End, d, Globals.Backward, out Vector3 localIntersectionPoint))
+
+                        // Transform the world segment to the canvas' local space
+                        Segment localSegment = worldSegment.TransformedBy(canvasTransform.InverseWorldMatrix);
+
+                        // Check if the segment intersects the canvas' plane
+                        if (GeoUtil.SegmentIntersectsPlane(localSegment.Start, localSegment.End, XRMath.GetPlaneDistance(Vector3.Zero, Globals.Backward), Globals.Backward, out Vector3 localIntersectionPoint))
                         {
+                            // Check if the point is within the canvas' bounds
+                            var bounds = canvasTransform.GetActualBounds();
                             Vector2 point = localIntersectionPoint.XY();
                             if (bounds.Contains(point))
                                 uiCoord = point;
                             else
-                                return;
+                                uiCoord = null;
                         }
                         else
-                            return;
+                            uiCoord = null;
                     }
                     break;
                 default:
-                    return;
+                    uiCoord = null;
+                    break;
             }
-            LastCursorPositionWorld2D = CursorPositionWorld2D;
-            CursorPositionWorld2D = uiCoord;
-            var scene = Canvas.VisualScene2D;
-            var tree = scene?.RenderTree;
-            tree?.FindAllIntersectingSorted(uiCoord, InteractableIntersections, InteractablePredicate);
-            TopMostInteractable = InteractableIntersections.Min?.Owner as UIInteractableComponent;
-            ValidateAndSwapIntersections();
+            return uiCoord;
         }
 
         /// <summary>
@@ -246,7 +309,7 @@ namespace XREngine.Components
         protected internal override void OnComponentActivated()
         {
             base.OnComponentActivated();
-            Canvas.CanvasTransform.InvalidateLayout();
+            GetCameraCanvas()?.CanvasTransform.InvalidateLayout();
         }
 
         protected void OnChildAdded(UIComponent child)

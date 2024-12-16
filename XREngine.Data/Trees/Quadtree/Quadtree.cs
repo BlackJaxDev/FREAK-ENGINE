@@ -169,21 +169,10 @@ namespace XREngine.Data.Trees
         }
 
         public void CollectAll(Action<IQuadtreeItem> action)
-        {
-            _head.CollectAll(action);
-        }
+            => _head.CollectAll(action);
 
-        public void Raycast(Segment segment, out SortedDictionary<float, List<(T item, object? data)>> items, Func<T, Segment, (float? distance, object? data)> directTest)
-        {
-            items = [];
-            _head.Raycast(segment, items, directTest);
-        }
-
-        public void Raycast(Segment segment, out SortedDictionary<float, List<(ITreeItem item, object? data)>> items, Func<ITreeItem, Segment, (float? distance, object? data)> directTest)
-        {
-            items = [];
-            _head.Raycast(segment, items, directTest);
-        }
+        public void Raycast<T2>(Vector2 point, SortedDictionary<float, List<(T2 item, object? data)>> items) where T2 : class, IRenderableBase
+            => _head.Raycast(point, items);
 
         public void DebugRender(BoundingRectangleF? volume, bool onlyContainingItems, DelRenderBounds render)
             => _head.DebugRender(true, onlyContainingItems, volume, render);

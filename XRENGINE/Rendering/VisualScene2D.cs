@@ -31,11 +31,9 @@ namespace XREngine.Scene
         public override IRenderTree GenericRenderTree => RenderTree;
 
         public void Raycast(
-            CameraComponent cameraComponent,
-            Vector2 normalizedScreenPoint,
-            out SortedDictionary<float, List<(RenderInfo2D item, object? data)>> items,
-            Func<RenderInfo2D, Segment, (float? distance, object? data)> directTest)
-            => RenderTree.Raycast(cameraComponent.Camera.GetWorldSegment(normalizedScreenPoint), out items, directTest);
+            Vector2 screenPoint,
+            SortedDictionary<float, List<(IRenderable item, object? data)>> items)
+            => RenderTree.Raycast(screenPoint, items);
 
         public override void CollectRenderedItems(RenderCommandCollection meshRenderCommands, XRCamera? activeCamera, bool cullWithFrustum, Func<XRCamera>? cullingCameraOverride, bool shadowPass)
         {

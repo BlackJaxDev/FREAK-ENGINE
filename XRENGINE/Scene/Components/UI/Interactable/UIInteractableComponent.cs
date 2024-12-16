@@ -6,13 +6,8 @@ namespace XREngine.Rendering.UI
     /// <summary>
     /// UI component that can be interacted with by the player.
     /// </summary>
-    public abstract class UIInteractableComponent : UIMaterialComponent
+    public abstract class UIInteractableComponent : UIComponent
     {
-        public UIInteractableComponent()
-            : base() { }
-        public UIInteractableComponent(XRMaterial material, bool flipVerticalUVCoord = false)
-            : base(material, flipVerticalUVCoord) { }
-
         public event Action<UIInteractableComponent>? GotFocus;
         public event Action<UIInteractableComponent>? LostFocus;
         public event DelMouseMove? MouseMove;
@@ -82,15 +77,15 @@ namespace XREngine.Rendering.UI
         /// </summary>
         protected virtual void OnGotFocus()
         {
-            if (RegisterInputsOnFocus)
-            {
-                var input = OwningUserInterface?.LocalPlayerController?.Input;
-                if (input != null)
-                {
-                    input.Unregister = false;
-                    RegisterInputs(input);
-                }
-            }
+            //if (RegisterInputsOnFocus)
+            //{
+            //    var input = OwningUserInterface?.LocalPlayerController?.Input;
+            //    if (input != null)
+            //    {
+            //        input.Unregister = false;
+            //        RegisterInputs(input);
+            //    }
+            //}
 
             GotFocus?.Invoke(this);
         }
@@ -115,19 +110,25 @@ namespace XREngine.Rendering.UI
             LostFocus?.Invoke(this);
         }
 
+        public event Action<UIInteractableComponent>? BackAction;
+
         /// <summary>
         /// Typically mapped to the "B" button on a gamepad to go back or cancel an action, etc.
         /// </summary>
         public void OnBack()
         {
+            BackAction?.Invoke(this);
             IsFocused = false;
         }
 
+        public event Action<UIInteractableComponent>? InteractAction;
+        
         /// <summary>
         /// Typically mapped to the "A" button on a gamepad to click buttons, etc.
         /// </summary>
         public void OnInteract()
         {
+            InteractAction?.Invoke(this);
             IsFocused = true;
         }
 

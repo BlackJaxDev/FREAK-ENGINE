@@ -4,127 +4,83 @@
 
 namespace XREngine.TriangleConverter
 {
-    public class Triangle
+    public class Triangle(uint a, uint b, uint c)
     {
-        public Triangle() { }
-        public Triangle(uint A, uint B, uint C)
-        {
-            _a = A;
-            _b = B;
-            _c = C;
-            _stripID = 0;
-        }
+        public Triangle() : this(0, 0, 0) { }
 
-        public void ResetStripID() { _stripID = 0; }
-        public void SetStripID(uint StripID) { _stripID = StripID; }
-        public uint StripID { get { return _stripID; } }
+        public void ResetStripID()
+            => _stripID = 0;
 
-        public uint A { get { return _a; } }
-        public uint B { get { return _b; } }
-        public uint C { get { return _c; } }
-        
-        private uint _a;
-        private uint _b;
-        private uint _c;
+        public void SetStripID(uint stripID)
+            => _stripID = stripID;
 
-        private uint _stripID;
+        public uint StripID
+            => _stripID;
+
+        public uint A => a;
+        public uint B => b;
+        public uint C => c;
+
+        private uint _stripID = 0;
         public uint _index;
     }
 
-    public class TriangleEdge
+    public class TriangleEdge(uint a, uint b)
     {
-        public TriangleEdge(uint A, uint B) { _A = A; _B = B; }
-
-        public uint A { get { return _A; } }
-        public uint B { get { return _B; } }
+        public uint A => a;
+        public uint B => b;
 
         public static bool operator ==(TriangleEdge left, TriangleEdge right)
-        {
-            return ((left.A == right.A) && (left.B == right.B));
-        }
+            => ((left.A == right.A) && (left.B == right.B));
         public static bool operator !=(TriangleEdge left, TriangleEdge right)
-        {
-            return ((left.A != right.A) || (left.B != right.B));
-        }
+            => ((left.A != right.A) || (left.B != right.B));
 
-        public override bool Equals(object obj)
-        {
-            if (obj is null || !(obj is TriangleEdge))
-                return false;
-
-            return this == obj as TriangleEdge;
-        }
+        public override bool Equals(object? obj)
+            => obj is not null && obj is TriangleEdge tri && this == tri;
 
         public override int GetHashCode()
-        {
-            return _A.GetHashCode() ^ _B.GetHashCode();
-        }
-
-        public uint _A;
-        public uint _B;
+            => A.GetHashCode() ^ B.GetHashCode();
 
         public override string ToString()
-        {
-            return String.Format("{0} {1}", _A, _B);
-        }
+            => string.Format("{0} {1}", A, B);
     }
 
-    public class TriEdge : TriangleEdge
+    public class TriEdge(uint A, uint B, uint triPos) : TriangleEdge(A, B)
     {
-        public TriEdge(uint A, uint B, uint TriPos) : base(A, B) { _TriPos = TriPos; }
-        public uint TriPos { get { return _TriPos; } }
-        private uint _TriPos;
+        public uint TriPos { get; } = triPos;
 
         public static bool operator ==(TriEdge left, TriEdge right)
-        {
-            return ((left.A == right.A) && (left.B == right.B));
-        }
+            => ((left.A == right.A) && (left.B == right.B));
         public static bool operator !=(TriEdge left, TriEdge right)
-        {
-            return ((left.A != right.A) || (left.B != right.B));
-        }
-        public override bool Equals(object obj)
-        {
-            if (obj is null || !(obj is TriEdge))
-                return false;
+            => ((left.A != right.A) || (left.B != right.B));
 
-            return this == obj as TriEdge;
-        }
+        public override bool Equals(object? obj)
+            => obj is not null && obj is TriEdge tri && this == tri;
 
         public override int GetHashCode()
-        {
-            return _A.GetHashCode() ^ _B.GetHashCode();
-        }
+            => A.GetHashCode() ^ B.GetHashCode();
 
         public override string ToString()
-        {
-            return String.Format("{0} {1} {2}", _A, _B, _TriPos);
-        }
+            => string.Format("{0} {1} {2}", A, B, TriPos);
     }
 
-    public enum TriOrder { ABC, BCA, CAB };
-    public class Strip
+    public enum TriOrder
     {
-        public Strip()
-        {
-            _start = uint.MaxValue;
-            _order = TriOrder.ABC;
-            _size = 0;
-        }
+        ABC,
+        BCA,
+        CAB
+    };
 
-        public Strip(uint Start, TriOrder Order, uint Size)
-        {
-            _start = Start;
-            _order = Order;
-            _size = Size;
-        }
+    public class Strip(uint start, TriOrder order, uint size)
+    {
+        public Strip() : this(uint.MaxValue, TriOrder.ABC, 0u) { }
 
-        public uint Start { get { return _start; } }
-        public TriOrder Order { get { return _order; } }
-        public uint Size { get { return _size; } }
+        public uint Start => _start;
+        public TriOrder Order => _order;
+        public uint Size => _size;
 
-        private uint _start;
-        private TriOrder _order;
-        private uint _size;
+        private readonly uint _start = start;
+        private readonly TriOrder _order = order;
+        private readonly uint _size = size;
     }
 }

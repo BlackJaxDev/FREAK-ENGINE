@@ -1,10 +1,8 @@
-﻿using XREngine.Data.Rendering;
-using System;
+﻿using FFmpeg.AutoGen;
 using System.Runtime.InteropServices;
-using FFmpeg.AutoGen;
 using XREngine.Components.Scene;
-using System.Data;
 using XREngine.Data;
+using XREngine.Data.Rendering;
 
 namespace XREngine.Rendering.UI
 {
@@ -136,9 +134,11 @@ namespace XREngine.Rendering.UI
             // Initialize Video Codec Context
             if (_videoStreamIndex >= 0)
             {
-                AVCodec* videoCodec = ffmpeg.avcodec_find_decoder(_formatContext->streams[_videoStreamIndex]->codecpar->codec_id);
+                var stream = _formatContext->streams[_videoStreamIndex];
+                var codecPar = stream->codecpar;
+                AVCodec* videoCodec = ffmpeg.avcodec_find_decoder(codecPar->codec_id);
                 _videoCodecContext = ffmpeg.avcodec_alloc_context3(videoCodec);
-                ffmpeg.avcodec_parameters_to_context(_videoCodecContext, _formatContext->streams[_videoStreamIndex]->codecpar);
+                ffmpeg.avcodec_parameters_to_context(_videoCodecContext, codecPar);
                 if (ffmpeg.avcodec_open2(_videoCodecContext, videoCodec, null) < 0)
                 {
                     Debug.LogWarning("Failed to open video codec");
@@ -149,9 +149,11 @@ namespace XREngine.Rendering.UI
             // Initialize Audio Codec Context
             if (_audioStreamIndex >= 0)
             {
-                AVCodec* audioCodec = ffmpeg.avcodec_find_decoder(_formatContext->streams[_audioStreamIndex]->codecpar->codec_id);
+                var stream = _formatContext->streams[_audioStreamIndex];
+                var codecPar = stream->codecpar;
+                AVCodec* audioCodec = ffmpeg.avcodec_find_decoder(codecPar->codec_id);
                 _audioCodecContext = ffmpeg.avcodec_alloc_context3(audioCodec);
-                ffmpeg.avcodec_parameters_to_context(_audioCodecContext, _formatContext->streams[_audioStreamIndex]->codecpar);
+                ffmpeg.avcodec_parameters_to_context(_audioCodecContext, codecPar);
                 if (ffmpeg.avcodec_open2(_audioCodecContext, audioCodec, null) < 0)
                 {
                     Debug.LogWarning("Failed to open audio codec");
@@ -271,6 +273,35 @@ namespace XREngine.Rendering.UI
 
             // Free the SwsContext.
             ffmpeg.sws_freeContext(swsContext);
+        }
+
+        private int _currentPboIndex = 0;
+        private XRDataBuffer[] _pboBuffers =
+        [
+            new("", EBufferTarget.PixelUnpackBuffer, 1, EComponentType.Byte, 3, false, false) { Usage = EBufferUsage.StreamDraw },
+            new("", EBufferTarget.PixelUnpackBuffer, 1, EComponentType.Byte, 3, false, false) { Usage = EBufferUsage.StreamDraw }
+        ];
+
+        private void UploadFrameWithPBO(byte[] frameData)
+        {
+            // Bind the PBO
+            XRDataBuffer pbo = _pboBuffers[_currentPboIndex];
+
+            //TODO: move double PBO uploading into XRTexture2D for easy PBO usage anywhere
+
+            //pbo.Bind();
+            pbo.MapBufferData();
+            Marshal.Copy(frameData, 0, pbo.Address, frameData.Length);
+            pbo.UnmapBufferData();
+
+            VideoTexture?.Bind();
+            // Now use TexSubImage2D with the PBO bound
+            //GL.TexSubImage2D(TextureTarget.Texture2D, 0, 0, 0, _width, _height, PixelFormat.Rgb, PixelType.UnsignedByte, IntPtr.Zero);
+            // Unbind PBO
+            //pbo.Unbind();
+
+            // Swap PBO index for next frame
+            _currentPboIndex = (_currentPboIndex + 1) % 2;
         }
 
         private void ProcessAudioFrame(AVFrame* frame, AVCodecContext* codecContext)

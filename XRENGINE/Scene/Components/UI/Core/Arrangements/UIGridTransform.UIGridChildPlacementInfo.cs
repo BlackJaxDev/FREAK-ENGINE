@@ -11,25 +11,21 @@ namespace XREngine.Rendering.UI
             private int _rowSpan = 1;
             private int _columnSpan = 1;
 
-            [Category("Grid")]
             public int Row
             {
                 get => _row;
                 set => SetField(ref _row, value);
             }
-            [Category("Grid")]
             public int Column
             {
                 get => _column;
                 set => SetField(ref _column, value);
             }
-            [Category("Grid")]
             public int RowSpan
             {
                 get => _rowSpan;
                 set => SetField(ref _rowSpan, value);
             }
-            [Category("Grid")]
             public int ColumnSpan
             {
                 get => _columnSpan;

@@ -127,15 +127,10 @@ namespace XREngine
         public void UnregisterTick(ETickGroup group, ETickOrder order, Engine.TickList.DelTick tick)
             => UnregisterTick(group, (int)order, tick);
 
-        public void RegisterAnimationTick(Action<XRWorldObjectBase> tick, int order = (int)ETickOrder.Animation, ETickGroup group = ETickGroup.Normal)
-            => RegisterTick(group, order, () => tick(this));
-        public void RegisterAnimationTick(Action<XRWorldObjectBase> tick, ETickOrder order = ETickOrder.Animation, ETickGroup group = ETickGroup.Normal)
-            => RegisterAnimationTick(tick, (int)order, group);
-
-        public void RegisterAnimationTick<T>(Action<T> tick, int order, ETickGroup group = ETickGroup.Normal) where T : XRWorldObjectBase
-            => RegisterTick(group, order, () => tick((T)this));
+        public void RegisterAnimationTick(Action<XRWorldObjectBase> tick, ETickGroup group = ETickGroup.Normal)
+            => RegisterTick(group, ETickOrder.Animation, () => tick(this));
         public void RegisterAnimationTick<T>(Action<T> tick, ETickGroup group = ETickGroup.Normal) where T : XRWorldObjectBase
-            => RegisterAnimationTick(tick, (int)ETickOrder.Animation, group);
+            => RegisterTick(group, ETickOrder.Animation, () => tick((T)this));
 
         public void BroadcastSelf(bool udp)
             => Engine.Networking.Broadcast(this, udp);

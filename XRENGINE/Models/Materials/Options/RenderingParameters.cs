@@ -11,7 +11,7 @@ namespace XREngine.Rendering.Models.Materials
     {
         private DepthTest _depthTest = new();
         private StencilTest _stencilTest = new();
-        private Dictionary<uint, BlendMode> _blendModesPerDrawBuffer = [];
+        private Dictionary<uint, BlendMode>? _blendModesPerDrawBuffer;
         private float _lineWidth = AbstractRenderer.DefaultLineSize;
         private float _pointSize = AbstractRenderer.DefaultPointSize;
         private ECullMode _cullMode = ECullMode.Back;
@@ -24,7 +24,7 @@ namespace XREngine.Rendering.Models.Materials
         private BlendMode? _blendModeAllDrawBuffers;
 
         [Browsable(false)]
-        public bool HasTransparency => BlendModesPerDrawBuffer.Values.Any(x => x.Enabled == ERenderParamUsage.Enabled) || BlendModeAllDrawBuffers?.Enabled == ERenderParamUsage.Enabled;
+        public bool HasBlending => (BlendModesPerDrawBuffer?.Values.Any(x => x.Enabled == ERenderParamUsage.Enabled) ?? false) || BlendModeAllDrawBuffers?.Enabled == ERenderParamUsage.Enabled;
 
         public RenderingParameters() { }
         public RenderingParameters(bool defaultBlendEnabled)
@@ -99,7 +99,7 @@ namespace XREngine.Rendering.Models.Materials
             get => _stencilTest;
             set => SetField(ref _stencilTest, value);
         }
-        public Dictionary<uint, BlendMode> BlendModesPerDrawBuffer
+        public Dictionary<uint, BlendMode>? BlendModesPerDrawBuffer
         {
             get => _blendModesPerDrawBuffer;
             set => SetField(ref _blendModesPerDrawBuffer, value);

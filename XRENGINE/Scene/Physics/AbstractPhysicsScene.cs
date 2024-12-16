@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using XREngine.Components;
 using XREngine.Data.Core;
 using XREngine.Data.Geometry;
 using XREngine.Data.Trees;
@@ -22,7 +23,7 @@ namespace XREngine.Scene
         public abstract void Destroy();
         public abstract void StepSimulation();
 
-        public abstract void Raycast(Segment worldSegment, SortedDictionary<float, List<(ITreeItem item, object? data)>> items, out Vector3 hitNormalWorld, out Vector3 hitPositionWorld, out float hitDistance);
+        public abstract void Raycast(Segment worldSegment, SortedDictionary<float, List<(XRComponent item, object? data)>> items);
         public bool Trace(ShapeTraceClosest closestTrace)
         {
             return false;

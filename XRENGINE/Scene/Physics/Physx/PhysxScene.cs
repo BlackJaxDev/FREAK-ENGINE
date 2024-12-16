@@ -1,10 +1,11 @@
-﻿using MagicPhysX;
+﻿using Extensions;
+using MagicPhysX;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using XREngine.Components;
 using XREngine.Data;
 using XREngine.Data.Colors;
 using XREngine.Data.Geometry;
-using XREngine.Data.Trees;
 using XREngine.Rendering.Physics.Physx.Joints;
 using XREngine.Scene;
 using static MagicPhysX.NativeMethods;
@@ -1135,13 +1136,6 @@ namespace XREngine.Rendering.Physics.Physx
             return new PhysxBatchQuery(ptr);
         }
 
-        public override void Raycast(Segment worldSegment, SortedDictionary<float, List<(ITreeItem item, object? data)>> items, out Vector3 hitNormalWorld, out Vector3 hitPositionWorld, out float hitDistance)
-        {
-            hitNormalWorld = Vector3.Zero;
-            hitPositionWorld = Vector3.Zero;
-            hitDistance = float.MaxValue;
-        }
-
         public override void AddActor(IAbstractPhysicsActor actor)
         {
             if (actor is not PhysxActor physxActor)
@@ -1162,6 +1156,38 @@ namespace XREngine.Rendering.Physics.Physx
         {
             //RemoveActor(actor);
             //AddActor(actor);
+        }
+
+        public override void Raycast(Segment worldSegment, SortedDictionary<float, List<(XRComponent item, object? data)>> items)
+        {
+            //TODO: RaycastSingle needs the last 3 params to be set
+
+            //var start = worldSegment.Start;
+            //var end = worldSegment.End;
+            //var distance = worldSegment.Length;
+            //var unitDir = (end - start).Normalized();
+
+            //if (!RaycastSingle(start, unitDir, distance, PxHitFlags.Position | PxHitFlags.Normal, out PxRaycastHit hit, null, null, null))
+            //    return;
+
+            //PhysxRigidActor? actor = PhysxRigidActor.Get(hit.actor);
+            //if (actor is null)
+            //    return;
+
+            //XRComponent? component = actor.OwningComponent;
+            //if (component is null)
+            //    return;
+
+            //Vector3 hitPoint = start + unitDir * hit.distance;
+            //Vector3 hitNormal = hit.normal;
+            //var d = (hitPoint - start).Length();
+            //if (d > distance)
+            //    return;
+            
+            //if (!items.TryGetValue(d, out var list))
+            //    list = [];
+
+            //list.Add((component, (hitPoint, hitNormal, hit.distance)));
         }
 
         public bool VisualizeEnabled

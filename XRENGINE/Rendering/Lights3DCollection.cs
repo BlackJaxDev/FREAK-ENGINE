@@ -232,6 +232,7 @@ namespace XREngine.Scene
             public bool ShouldRender { get; } = true;
             AABB? IOctreeItem.LocalCullingVolume { get; }
             public Matrix4x4 CullingMatrix { get; }
+            public IRenderableBase Owner { get; }
 
             public bool Intersects(IVolume cullingVolume, bool containsOnly)
             {
