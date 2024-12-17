@@ -103,12 +103,8 @@ namespace XREngine.Rendering.UI
                 case nameof(CameraDrawSpaceDistance):
                     MarkWorldModified();
                     break;
-                case nameof(Width):
-                case nameof(Height):
-                    ActualSize = new Vector2(GetWidth(), GetHeight());
-                    break;
                 case nameof(Translation):
-                    ActualTranslation = Translation;
+                    ActualBottomLeftTranslation = Translation;
                     break;
             }
         }
@@ -142,6 +138,9 @@ namespace XREngine.Rendering.UI
         {
             Width = size.X;
             Height = size.Y;
+            MinAnchor = Vector2.Zero;
+            MaxAnchor = Vector2.Zero;
+            NormalizedPivot = Vector2.Zero;
         }
     }
 }

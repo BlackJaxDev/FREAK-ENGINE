@@ -78,6 +78,7 @@ namespace XREngine.Rendering
             _orthoBottom = _orthoBottomPercentage * Height;
             _orthoTop = _orthoTopPercentage * Height;
             _origin = new Vector2(_orthoLeft, _orthoBottom) + _originPercentages * new Vector2(Width, Height);
+            ForceInvalidateProjection();
         }
 
         protected override void OnPropertyChanged<T>(string? propName, T prev, T field)

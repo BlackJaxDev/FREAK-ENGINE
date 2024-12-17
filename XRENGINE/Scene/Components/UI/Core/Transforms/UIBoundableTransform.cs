@@ -163,20 +163,26 @@ namespace XREngine.Rendering.UI
         /// </summary>
         /// <returns></returns>
         protected override Matrix4x4 CreateLocalMatrix()
-            => base.CreateLocalMatrix() * Matrix4x4.CreateTranslation(-PivotTranslationX, -PivotTranslationY, 0.0f);
-
-        private Vector2 _normMinAnchor = Vector2.Zero;
-        public Vector2 MinAnchor
         {
-            get => _normMinAnchor;
-            set => SetField(ref _normMinAnchor, value);
+            return
+                Matrix4x4.CreateTranslation(new Vector3(LocalPivotTranslation, 0.0f)) *
+                Matrix4x4.CreateScale(Scale) *
+                Matrix4x4.CreateFromAxisAngle(Globals.Backward, RotationRadians) *
+                Matrix4x4.CreateTranslation(new Vector3(ActualBottomLeftTranslation - LocalPivotTranslation, DepthTranslation));
         }
 
-        private Vector2 _normMaxAnchor = Vector2.One;
+        private Vector2 _minAnchor = Vector2.Zero;
+        public Vector2 MinAnchor
+        {
+            get => _minAnchor;
+            set => SetField(ref _minAnchor, value);
+        }
+
+        private Vector2 _maxAnchor = Vector2.One;
         public Vector2 MaxAnchor
         {
-            get => _normMaxAnchor;
-            set => SetField(ref _normMaxAnchor, value);
+            get => _maxAnchor;
+            set => SetField(ref _maxAnchor, value);
         }
 
         internal void ChildSizeChanged()
@@ -192,29 +198,67 @@ namespace XREngine.Rendering.UI
         /// <param name="parentBounds"></param>
         protected override void OnResizeActual(BoundingRectangleF parentBounds)
         {
-            GetActualBounds(parentBounds, out Vector2 trans, out Vector2 size);
+            GetActualBounds(parentBounds, out Vector2 bottomLeftTranslation, out Vector2 size);
             ActualSize = size;
-            ActualTranslation = trans;
+            ActualBottomLeftTranslation = bottomLeftTranslation;
         }
 
         /// <summary>
-        /// This method calculates the actual size and translation of the component.
+        /// This method calculates the actual size and bottom left translation of the component.
         /// </summary>
         /// <param name="parentBounds"></param>
-        /// <param name="trans"></param>
+        /// <param name="bottomLeftTranslation"></param>
         /// <param name="size"></param>
-        protected virtual void GetActualBounds(BoundingRectangleF parentBounds, out Vector2 trans, out Vector2 size)
+        protected virtual void GetActualBounds(BoundingRectangleF parentBounds, out Vector2 bottomLeftTranslation, out Vector2 size)
         {
-            GetAnchors(parentBounds, out float minX, out float minY, out float maxX, out float maxY);
+            GetAnchors(
+                parentBounds,
+                out float minX,
+                out float minY,
+                out float maxX,
+                out float maxY);
 
-            //Translate the component to the min anchor position and then add the translation.
-            trans = new(minX + Translation.X, minY + Translation.Y);
+            bool sameX = XRMath.Approx(maxX, minX);
+            bool sameY = XRMath.Approx(maxY, minY);
 
-            //Calculate the size of the component based on the anchors.
-            size = CalcSize(maxX, maxY, trans);
+            size = Vector2.Zero;
+            if (sameX)
+            {
+                //If the min and max anchors are the same, use the width of the component.
+                size.X = GetWidth();
+            }
+            else
+            {
+                //Otherwise, calculate the size based on the anchors.
+                //Translation is used as the translation from the min anchor, and width is used as the translation from the max anchor.
+                size.X = (maxX + (Width ?? 0)) - (minX + Translation.X);
+            }
+            if (sameY)
+            {
+                //If the min and max anchors are the same, use the height of the component.
+                size.Y = GetHeight();
+            }
+            else
+            {
+                //Otherwise, calculate the size based on the anchors.
+                //Translation is used as the translation from the min anchor, and height is used as the translation from the max anchor.
+                size.Y = (maxY + (Height ?? 0)) - (minY + Translation.Y);
+            }
 
             //Clamp the size to the min and max size.
             ClampSize(ref size);
+
+            //Adjust the translation based on the pivot.
+            minX -= NormalizedPivot.X * size.X;
+            minY -= NormalizedPivot.Y * size.Y;
+
+            //If the min and max anchors are the same, add the translation to the min anchor position.
+            if (sameX)
+                minX += Translation.X;
+            if (sameY)
+                minY += Translation.Y;
+
+            bottomLeftTranslation = new(minX, minY);
         }
 
         /// <summary>
@@ -223,41 +267,69 @@ namespace XREngine.Rendering.UI
         /// <returns></returns>
         public float GetAspect()
             => GetWidth() / GetHeight();
+
+        private Func<UIBoundableTransform, float>? _calcAutoHeightCallback = null;
+        /// <summary>
+        /// Assign this callback for components that can determine their own height.
+        /// </summary>
+        public Func<UIBoundableTransform, float>? CalcAutoHeightCallback
+        {
+            get => _calcAutoHeightCallback;
+            set => SetField(ref _calcAutoHeightCallback, value);
+        }
+
+        private Func<UIBoundableTransform, float>? _calcAutoWidthCallback = null;
+        /// <summary>
+        /// Assign this callback for components that can determine their own width.
+        /// </summary>
+        public Func<UIBoundableTransform, float>? CalcAutoWidthCallback
+        {
+            get => _calcAutoWidthCallback;
+            set => SetField(ref _calcAutoWidthCallback, value);
+        }
+
+        public bool UsesAutoSizing => 
+            (!Width.HasValue && CalcAutoWidthCallback is not null) || 
+            (!Height.HasValue && CalcAutoHeightCallback is not null);
+
+        //TODO: cache the max child width and height?
+        //private float _maxChildWidthCache = 0.0f;
+        //private float _maxChildHeightCache = 0.0f;
+
         /// <summary>
         /// Returns the width of the component.
         /// If Width is null, this will calculate the width based on the size of child components.
         /// </summary>
         /// <returns></returns>
         public float GetWidth()
-            => Width ?? CalcAutoWidth();
+            => Width ?? CalcAutoWidthCallback?.Invoke(this) ?? GetMaxChildWidth();
+
         /// <summary>
         /// Returns the height of the component.
         /// If Height is null, this will calculate the height based on the size of child components.
         /// </summary>
         /// <returns></returns>
         public float GetHeight()
-            => Height ?? CalcAutoHeight();
+            => Height ?? CalcAutoHeightCallback?.Invoke(this) ?? GetMaxChildHeight();
 
-        private Vector2 CalcSize(float maxX, float maxY, Vector2 trans)
+        /// <summary>
+        /// Calculates the width of the component based the widths of its children.
+        /// </summary>
+        /// <returns></returns>
+        public override float GetMaxChildWidth()
         {
-            Vector2 size;
-            if (XRMath.Approx(MaxAnchor.X, MinAnchor.X))
-                size.X = GetWidth();
-            else
-            {
-                //If the min anchor is less than the max anchor, then we should set size too
-                //Size.X becomes the offset from the anchor position.
-                size.X = maxX + (Width ?? 0.0f) - trans.X;
-            }
-            if (XRMath.Approx(MaxAnchor.Y, MinAnchor.Y))
-                size.Y = GetHeight();
-            else
-            {
-                //If the min anchor is less than the max anchor, then we should set size too
-                //Size.Y becomes the offset from the anchor position.
-                size.Y = maxY + (Height ?? 0.0f) - trans.Y;
-            }
-            return size;
+            lock (Children)
+                return Children.Where(x => x is UIBoundableTransform).Cast<UIBoundableTransform>().Max(x => x.GetWidth());
+        }
+
+        /// <summary>
+        /// Calculates the height of the component based the heights of its children.
+        /// </summary>
+        /// <returns></returns>
+        public override float GetMaxChildHeight()
+        {
+            lock (Children)
+                return Children.Where(x => x is UIBoundableTransform).Cast<UIBoundableTransform>().Max(x => x.GetHeight());
         }
 
         private void ClampSize(ref Vector2 size)
@@ -276,7 +348,6 @@ namespace XREngine.Rendering.UI
         {
             minX = parentBounds.Width * MinAnchor.X;
             maxX = parentBounds.Width * MaxAnchor.X;
-
             minY = parentBounds.Height * MinAnchor.Y;
             maxY = parentBounds.Height * MaxAnchor.Y;
         }
@@ -418,20 +489,6 @@ namespace XREngine.Rendering.UI
             //    c.RenderedObjects.LayerIndex = RenderInfo2D.LayerIndex;
         }
 
-        /// <summary>
-        /// Calculates the width of the component based the widths of its children.
-        /// </summary>
-        /// <returns></returns>
-        public override float CalcAutoWidth()
-            => 0.0f;
-
-        /// <summary>
-        /// Calculates the height of the component based the heights of its children.
-        /// </summary>
-        /// <returns></returns>
-        public override float CalcAutoHeight()
-            => 0.0f;
-
         public override Vector2 ClosestPoint(Vector2 worldPoint)
             => ScreenToLocal(worldPoint).Clamp(-LocalPivotTranslation, ActualSize - LocalPivotTranslation);
 
@@ -473,6 +530,20 @@ namespace XREngine.Rendering.UI
         public Vector3 LocalToWorld(Vector3 localPoint)
         {
             return Vector3.Transform(localPoint, WorldMatrix);
+        }
+
+        /// <summary>
+        /// Sets parameters to stretch this component to the parent bounds.
+        /// </summary>
+        public void StretchToParent()
+        {
+            MinAnchor = new Vector2(0.0f, 0.0f);
+            MaxAnchor = new Vector2(1.0f, 1.0f);
+            Translation = Vector2.Zero;
+            MinWidth = null;
+            MinHeight = null;
+            MaxWidth = null;
+            MaxHeight = null;
         }
     }
 }

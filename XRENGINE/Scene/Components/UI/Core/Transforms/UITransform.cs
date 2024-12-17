@@ -1,6 +1,7 @@
 ﻿using System.Drawing;
 using System.Numerics;
 using XREngine.Data.Colors;
+using XREngine.Data.Core;
 using XREngine.Data.Geometry;
 using XREngine.Input.Devices;
 using XREngine.Rendering.Commands;
@@ -21,6 +22,26 @@ namespace XREngine.Rendering.UI
             set => SetField(ref _parentCanvas, value);
         }
 
+        private string _stylingClass = string.Empty;
+        /// <summary>
+        /// The CSS class that this UI component uses for styling.
+        /// </summary>
+        public string StylingClass
+        {
+            get => _stylingClass;
+            set => SetField(ref _stylingClass, value);
+        }
+
+        private string _stylingID = string.Empty;
+        /// <summary>
+        /// The CSS ID that this UI component uses for styling.
+        /// </summary>
+        public string StylingID
+        {
+            get => _stylingID;
+            set => SetField(ref _stylingID, value);
+        }
+
         protected Vector2 _translation = Vector2.Zero;
         public virtual Vector2 Translation
         {
@@ -32,7 +53,7 @@ namespace XREngine.Rendering.UI
         /// <summary>
         /// This is the translation after being potentially modified by the parent's placement info.
         /// </summary>
-        public Vector2 ActualTranslation
+        public Vector2 ActualBottomLeftTranslation
         {
             get => _actualTranslation;
             set => SetField(ref _actualTranslation, value);
@@ -50,6 +71,18 @@ namespace XREngine.Rendering.UI
         {
             get => _scale;
             set => SetField(ref _scale, value);
+        }
+
+        protected float _rotationRadians = 0.0f;
+        public float RotationRadians
+        {
+            get => _rotationRadians;
+            set => SetField(ref _rotationRadians, value);
+        }
+        public float RotationDegrees
+        {
+            get => XRMath.RadToDeg(RotationRadians);
+            set => RotationRadians = XRMath.DegToRad(value);
         }
 
         public RenderCommandMethod2D _debugRC;
@@ -73,7 +106,7 @@ namespace XREngine.Rendering.UI
             => [DebugRenderInfo2D = RenderInfo2D.New(this, _debugRC = new RenderCommandMethod2D(0, RenderVisualGuides))];
 
         protected override Matrix4x4 CreateLocalMatrix()
-            => Matrix4x4.CreateScale(Scale) * Matrix4x4.CreateTranslation(new Vector3(Translation, DepthTranslation));
+            => Matrix4x4.CreateScale(Scale) * Matrix4x4.CreateFromAxisAngle(Globals.Backward, RotationRadians) * Matrix4x4.CreateTranslation(new Vector3(Translation, DepthTranslation));
 
         /// <summary>
         /// Scale and translate in/out to/from a specific point.
@@ -248,8 +281,8 @@ namespace XREngine.Rendering.UI
         public Vector2 LocalToScreen(Vector2 coordinate)
             => Vector2.Transform(coordinate, ParentCanvas?.WorldMatrix ?? Matrix4x4.Identity);
 
-        public virtual float CalcAutoWidth() => 0.0f;
-        public virtual float CalcAutoHeight() => 0.0f;
+        public virtual float GetMaxChildWidth() => 0.0f;
+        public virtual float GetMaxChildHeight() => 0.0f;
 
         public virtual bool Contains(Vector2 worldPoint)
         {
@@ -280,7 +313,7 @@ namespace XREngine.Rendering.UI
 
         protected virtual void OnResizeActual(BoundingRectangleF parentBounds)
         {
-            ActualTranslation = Translation;
+            ActualBottomLeftTranslation = Translation;
         }
 
         public override byte[] EncodeToBytes(bool delta)

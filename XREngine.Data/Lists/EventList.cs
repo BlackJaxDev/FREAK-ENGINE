@@ -146,15 +146,15 @@ namespace System.Collections.Generic
         public bool _allowDuplicates = true;
         public bool _allowNull = true;
 
-        internal bool AllowDuplicates
+        public bool AllowDuplicates
         {
             get => _allowDuplicates;
-            set => _allowDuplicates = value;
+            set => SetField(ref _allowDuplicates, value);
         }
-        internal bool AllowNull
+        public bool AllowNull
         {
             get => _allowNull;
-            set => _allowNull = value;
+            set => SetField(ref _allowNull, value);
         }
 
         public EventList()

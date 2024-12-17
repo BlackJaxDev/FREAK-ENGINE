@@ -47,9 +47,9 @@ void main()
 	mat4 mvMatrix = ViewMatrix * ModelMatrix;
 	mat4 mvpMatrix = ProjMatrix * mvMatrix;
 	mat4 vpMatrix = ProjMatrix * ViewMatrix;
-	mat3 normalMatrix = adjoint(mvMatrix);
+	mat3 normalMatrix = adjoint(ModelMatrix);
 	
-	vec4 position = vec4(tfm.xy + (Position.xy * tfm.zw), 0.0f, 1.0f);
+	vec4 position = vec4(tfm.xy + (TexCoord0.xy * tfm.zw), 0.0f, 1.0f);
 	vec3 normal = Normal;
 	
 	FragPosLocal = position.xyz;

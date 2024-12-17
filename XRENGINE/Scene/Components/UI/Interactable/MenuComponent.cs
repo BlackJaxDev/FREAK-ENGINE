@@ -69,15 +69,29 @@ namespace XREngine.Rendering.UI
         public static MenuDivider Instance { get; } = new MenuDivider();
         private MenuDivider() : base() { }
     }
-    public class MenuOption(string text, Action action, Keys[] hotKeys) : MenuComponent, IMenuOption
+    public class MenuOption(string? text = null, Action? action = null, params Keys[] hotKeys) : MenuComponent, IMenuOption
     {
-        public string Text { get; set; } = text;
-        public Keys[] HotKeys { get; set; } = hotKeys;
-        public Action Action { get; set; } = action;
+        private string _text = text ?? string.Empty;
+        private Keys[] _hotKeys = hotKeys;
+        private Action? _action = action;
+
+        public string Text
+        {
+            get => _text;
+            set => SetField(ref _text, value);
+        }
+        public Keys[] HotKeys
+        {
+            get => _hotKeys;
+            set => SetField(ref _hotKeys, value);
+        }
+        public Action? Action
+        {
+            get => _action;
+            set => SetField(ref _action, value);
+        }
 
         public void ExecuteAction()
-        {
-            Action?.Invoke();
-        }
+            => Action?.Invoke();
     }
 }

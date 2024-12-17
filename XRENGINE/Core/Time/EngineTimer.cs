@@ -160,7 +160,7 @@ namespace XREngine.Timers
                 {
                     FixedUpdateManager.Delta = elapsed;
                     FixedUpdateManager.LastTimestamp = timestamp;
-                    FixedUpdate?.Invoke();
+                    DispatchFixedUpdate();
                     timestamp = Time();
                     FixedUpdateManager.ElapsedTime = timestamp - FixedUpdateManager.LastTimestamp;
                 }
@@ -229,6 +229,7 @@ namespace XREngine.Timers
             }
             return dispatch;
         }
+
         private void DispatchCollectVisible()
         {
             //using var t = Engine.Profiler.Start();
@@ -241,6 +242,7 @@ namespace XREngine.Timers
             timestamp = Time();
             Collect.ElapsedTime = timestamp - Collect.LastTimestamp;
         }
+
         private void DispatchSwapBuffers()
         {
             //using var t = Engine.Profiler.Start();
@@ -248,7 +250,10 @@ namespace XREngine.Timers
             //Debug.Out("Swapping buffers.");
             SwapBuffers?.Invoke();
         }
-        private void DispatchFixedUpdate() => FixedUpdate?.Invoke();
+
+        private void DispatchFixedUpdate()
+            => FixedUpdate?.Invoke();
+
         private void DispatchUpdate()
         {
             int runningSlowlyRetries = 4;
@@ -413,6 +418,13 @@ namespace XREngine.Timers
                     Debug.Out("Target update frequency clamped to 1Hz.");
                 }
             }
+        }
+
+        private EVSyncMode _vSync;
+        public EVSyncMode VSync
+        {
+            get => _vSync;
+            set => _vSync = value;
         }
     }
 }

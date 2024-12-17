@@ -915,6 +915,21 @@ namespace XREngine.Scene
             return node;
         }
 
+        public SceneNode NewChild()
+            => new(this);
+        public SceneNode NewChild<T1>(out T1 comp1) where T1 : XRComponent
+            => New(this, out comp1);
+        public SceneNode NewChild<T1, T2>(out T1 comp1, out T2 comp2) where T1 : XRComponent where T2 : XRComponent
+            => New(this, out comp1, out comp2);
+        public SceneNode NewChild<T1, T2, T3>(out T1 comp1, out T2 comp2, out T3 comp3) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent
+            => New(this, out comp1, out comp2, out comp3);
+        public SceneNode NewChild<T1, T2, T3, T4>(out T1 comp1, out T2 comp2, out T3 comp3, out T4 comp4) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent where T4 : XRComponent
+            => New(this, out comp1, out comp2, out comp3, out comp4);
+        public SceneNode NewChild<T1, T2, T3, T4, T5>(out T1 comp1, out T2 comp2, out T3 comp3, out T4 comp4, out T5 comp5) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent where T4 : XRComponent where T5 : XRComponent
+            => New(this, out comp1, out comp2, out comp3, out comp4, out comp5);
+        public SceneNode NewChild<T1, T2, T3, T4, T5, T6>(out T1 comp1, out T2 comp2, out T3 comp3, out T4 comp4, out T5 comp5, out T6 comp6) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent where T4 : XRComponent where T5 : XRComponent where T6 : XRComponent
+            => New(this, out comp1, out comp2, out comp3, out comp4, out comp5, out comp6);
+
         /// <summary>
         /// Returns the first child of this scene node, if any.
         /// </summary>

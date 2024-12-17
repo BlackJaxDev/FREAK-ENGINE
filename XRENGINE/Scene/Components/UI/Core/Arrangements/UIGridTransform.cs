@@ -118,7 +118,7 @@ namespace XREngine.Rendering.UI
             float height = 0.0f;
             foreach (var comp in comps)
                 if (comp is UIBoundableTransform bc)
-                    height = Math.Max(bc.CalcAutoHeight(), height);
+                    height = Math.Max(bc.GetMaxChildHeight(), height);
             return height;
         }
 
@@ -127,7 +127,7 @@ namespace XREngine.Rendering.UI
             float width = 0.0f;
             foreach (var comp in comps)
                 if (comp is UIBoundableTransform bc)
-                    width = Math.Max(bc.CalcAutoWidth(), width);
+                    width = Math.Max(bc.GetMaxChildWidth(), width);
             return width;
         }
 
@@ -217,7 +217,7 @@ namespace XREngine.Rendering.UI
                             if (!hasCalcAutoHeight)
                             {
                                 hasCalcAutoHeight = true;
-                                autoHeight = tfm?.CalcAutoHeight() ?? 0.0f;
+                                autoHeight = tfm?.GetMaxChildHeight() ?? 0.0f;
                             }
                             row.CalculatedValue = Math.Max(row.CalculatedValue, autoHeight);
                             break;
@@ -234,7 +234,7 @@ namespace XREngine.Rendering.UI
                             if (!hasCalcAutoWidth)
                             {
                                 hasCalcAutoWidth = true;
-                                autoWidth = tfm?.CalcAutoWidth() ?? 0.0f;
+                                autoWidth = tfm?.GetMaxChildWidth() ?? 0.0f;
                             }
                             col.CalculatedValue = Math.Max(col.CalculatedValue, autoWidth);
                             break;

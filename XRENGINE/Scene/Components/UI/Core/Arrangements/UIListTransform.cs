@@ -6,7 +6,6 @@ namespace XREngine.Rendering.UI
     {
         private float? _childSize = null;
         private bool _horizontal = false;
-        private float scrollbarSize = 10.0f;
         private float _spacing = 0.0f;
         private EListAlignment _alignment = EListAlignment.TopOrLeft;
 
@@ -26,14 +25,6 @@ namespace XREngine.Rendering.UI
         {
             get => _horizontal;
             set => SetField(ref _horizontal, value);
-        }
-        /// <summary>
-        /// The width or height of the scrollbar.
-        /// </summary>
-        public float ScrollbarSize
-        {
-            get => scrollbarSize;
-            set => SetField(ref scrollbarSize, value);
         }
         /// <summary>
         /// The distance between each child component.
@@ -81,7 +72,7 @@ namespace XREngine.Rendering.UI
                     continue;
                 if (DisplayHorizontal)
                 {
-                    float parentHeight = parentRegion.Height - scrollbarSize;
+                    float parentHeight = parentRegion.Height;
                     float size = ItemSize ?? bc.GetWidth();
                     bc.FitLayout(new BoundingRectangleF(x - size, y, size, parentHeight));
                     x -= size;
@@ -90,7 +81,7 @@ namespace XREngine.Rendering.UI
                 }
                 else
                 {
-                    float parentWidth = parentRegion.Width - scrollbarSize;
+                    float parentWidth = parentRegion.Width;
                     float size = ItemSize ?? bc.GetHeight();
                     bc.FitLayout(new BoundingRectangleF(x, y - size, parentWidth, size));
                     y -= size;
@@ -136,7 +127,7 @@ namespace XREngine.Rendering.UI
                     continue;
                 if (DisplayHorizontal)
                 {
-                    float parentHeight = parentRegion.Height - scrollbarSize;
+                    float parentHeight = parentRegion.Height;
                     float size = ItemSize ?? bc.GetWidth();
                     bc.FitLayout(new BoundingRectangleF(x + offset, y, size, parentHeight));
                     offset += size;
@@ -145,7 +136,7 @@ namespace XREngine.Rendering.UI
                 }
                 else
                 {
-                    float parentWidth = parentRegion.Width - scrollbarSize;
+                    float parentWidth = parentRegion.Width;
                     float size = ItemSize ?? bc.GetHeight();
                     bc.FitLayout(new BoundingRectangleF(x, y + offset, parentWidth, size));
                     offset += size;
@@ -165,7 +156,7 @@ namespace XREngine.Rendering.UI
 
                 if (DisplayHorizontal)
                 {
-                    float parentHeight = parentRegion.Height - scrollbarSize;
+                    float parentHeight = parentRegion.Height;
                     float size = ItemSize ?? bc.GetWidth();
                     bc.FitLayout(new BoundingRectangleF(x, y, size, parentHeight));
 
@@ -175,7 +166,7 @@ namespace XREngine.Rendering.UI
                 }
                 else
                 {
-                    float parentWidth = parentRegion.Width - scrollbarSize;
+                    float parentWidth = parentRegion.Width;
                     float size = ItemSize ?? bc.GetHeight();
                     bc.FitLayout(new BoundingRectangleF(x, y, parentWidth, size));
 

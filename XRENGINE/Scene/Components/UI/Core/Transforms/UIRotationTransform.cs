@@ -4,19 +4,18 @@ using XREngine.Scene.Transforms;
 
 namespace XREngine.Rendering.UI
 {
-    public class UIRotationComponent : UITransform
+    public class UIRotationTransform(TransformBase? parent) : UITransform(parent)
     {
-        public UIRotationComponent() : this(null) { }
-        public UIRotationComponent(TransformBase? parent) : base(parent) { }
+        public UIRotationTransform() : this(null) { }
 
-        private float _rotationAngle = 0.0f;
+        private float _degreeRotation = 0.0f;
         /// <summary>
         /// The rotation angle of the component in degrees.
         /// </summary>
-        public float RotationAngle
+        public float DegreeRotation
         {
-            get => _rotationAngle;
-            set => SetField(ref _rotationAngle, value);
+            get => _degreeRotation;
+            set => SetField(ref _degreeRotation, value);
         }
 
         protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
@@ -24,13 +23,13 @@ namespace XREngine.Rendering.UI
             base.OnPropertyChanged(propName, prev, field);
             switch (propName)
             {
-                case nameof(RotationAngle):
+                case nameof(DegreeRotation):
                     MarkLocalModified();
                     break;
             }
         }
 
         protected override Matrix4x4 CreateLocalMatrix()
-            => base.CreateLocalMatrix() * Matrix4x4.CreateRotationZ(XRMath.DegToRad(RotationAngle));
+            => Matrix4x4.CreateRotationZ(XRMath.DegToRad(DegreeRotation)) * base.CreateLocalMatrix();
     }
 }

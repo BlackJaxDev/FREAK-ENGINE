@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using XREngine.Core.Attributes;
 
 namespace XREngine.Rendering.UI
 {
@@ -6,8 +7,11 @@ namespace XREngine.Rendering.UI
     /// <summary>
     /// UI component that can be interacted with by the player.
     /// </summary>
+    [RequiresTransform(typeof(UIBoundableTransform))]
     public abstract class UIInteractableComponent : UIComponent
     {
+        public UIBoundableTransform BoundableTransform => TransformAs<UIBoundableTransform>(true)!;
+
         public event Action<UIInteractableComponent>? GotFocus;
         public event Action<UIInteractableComponent>? LostFocus;
         public event DelMouseMove? MouseMove;

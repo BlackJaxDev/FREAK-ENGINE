@@ -200,9 +200,9 @@ namespace XREngine.Rendering
                 bitmap.Dispose();
         }
 
-        public void GetQuads(string? str, out List<(Vector4 transform, Vector4 uvs)> quads)
-            => GetQuads(str, out quads, Vector2.Zero);
-        public void GetQuads(string? str, out List<(Vector4 transform, Vector4 uvs)> quads, Vector2 offset)
+        public void GetQuads(string? str, List<(Vector4 transform, Vector4 uvs)> quads)
+            => GetQuads(str, quads, Vector2.Zero);
+        public void GetQuads(string? str, List<(Vector4 transform, Vector4 uvs)> quads, Vector2 offset)
         {
             if (Glyphs is null)
                 throw new InvalidOperationException("Glyphs are not initialized.");
@@ -210,17 +210,17 @@ namespace XREngine.Rendering
             if (Atlas is null)
                 throw new InvalidOperationException("Atlas is not initialized.");
 
-            GetQuads(str, Glyphs, new IVector2((int)Atlas.Width, (int)Atlas.Height), out quads, offset);
+            GetQuads(str, Glyphs, new IVector2((int)Atlas.Width, (int)Atlas.Height), quads, offset);
         }
 
         private static void GetQuads(
             string? str,
             Dictionary<string, Glyph> glyphs,
             IVector2 atlasSize,
-            out List<(Vector4 transform, Vector4 uvs)> quads,
+            List<(Vector4 transform, Vector4 uvs)> quads,
             Vector2 offset)
         {
-            quads = [];
+            quads.Clear();
             if (str is null)
                 return;
 

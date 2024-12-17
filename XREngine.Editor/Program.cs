@@ -10,10 +10,8 @@ using XREngine.Components.Scene;
 using XREngine.Components.Scene.Mesh;
 using XREngine.Data;
 using XREngine.Data.Colors;
-using XREngine.Data.Components;
 using XREngine.Data.Components.Scene;
 using XREngine.Data.Core;
-using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
 using XREngine.Editor;
 using XREngine.Editor.UI.Components;
@@ -132,7 +130,7 @@ internal class Program
         var rootNode = new SceneNode(scene) { Name = "TestRootNode" };
 
         //Visualize the octree
-        rootNode.AddComponent<DebugVisualizeOctreeComponent>();
+        //rootNode.AddComponent<DebugVisualizeOctreeComponent>();
 
         SceneNode cameraNode = CreateCamera(rootNode, out var camComp);
         CreateUserInterface(rootNode, camComp);
@@ -186,18 +184,19 @@ internal class Program
 
     private static void CreateUserInterface(SceneNode parent, CameraComponent? camComp)
     {
-        var uiNode = new SceneNode(parent) { Name = "TestUINode" };
-        var ui = uiNode.AddComponent<UICanvasComponent>()!;
-        var uiTransform = uiNode.GetTransformAs<UICanvasTransform>(true)!;
-        uiTransform.DrawSpace = ECanvasDrawSpace.Screen;
-        uiTransform.Width = 1920.0f;
-        uiTransform.Height = 1080.0f;
-        uiTransform.CameraDrawSpaceDistance = 1.0f;
+        var rootCanvasNode = new SceneNode(parent) { Name = "TestUINode" };
+        var canvas = rootCanvasNode.AddComponent<UICanvasComponent>()!;
+        var canvasTfm = rootCanvasNode.GetTransformAs<UICanvasTransform>(true)!;
+        canvasTfm.DrawSpace = ECanvasDrawSpace.Screen;
+        canvasTfm.Width = 1920.0f;
+        canvasTfm.Height = 1080.0f;
+        canvasTfm.CameraDrawSpaceDistance = 1.0f;
+        canvasTfm.Padding = new Vector4(10.0f);
 
         if (camComp is not null)
-            camComp.UserInterface = ui;
+            camComp.UserInterface = canvas;
 
-        AddFPSText(Engine.Assets.LoadEngineAsset<FontGlyphSet>("Fonts", "Roboto", "Roboto-Regular.ttf"), uiNode);
+        AddFPSText(Engine.Assets.LoadEngineAsset<FontGlyphSet>("Fonts", "Roboto", "Roboto-Regular.ttf"), rootCanvasNode);
 
         //var uiPanel = new SceneNode(uiNode) { Name = "TestUIPanel" };
         //var uiPanelComp = uiPanel.AddComponent<UIMaterialComponent>()!;
@@ -229,10 +228,25 @@ internal class Program
         //uiPanelComp.Material = mat;
 
         //Add input handler
-        uiNode.AddComponent<UIInputComponent>();
+        rootCanvasNode.AddComponent<UIInputComponent>();
 
         //This will take care of editor UI arrangement operations for us
-        uiNode.AddComponent<UIEditorComponent>();
+        var mainUINode = rootCanvasNode.NewChild<UIEditorComponent>(out var editorComp);
+        editorComp.RootMenuOptions = GenerateRootMenu();
+        var tfm = editorComp.BoundableTransform;
+        tfm.MinAnchor = new Vector2(0.0f, 0.0f);
+        tfm.MaxAnchor = new Vector2(1.0f, 1.0f);
+    }
+
+    private static List<UIEditorComponent.MenuOption> GenerateRootMenu()
+    {
+        return [
+            new("File"),
+            new("Edit"),
+            new("View"),
+            new("Window"),
+            new("Help"),
+        ];
     }
 
     private static void CreateVRPawn(SceneNode rootNode)
@@ -348,17 +362,14 @@ internal class Program
         SceneNode textNode = new(parentNode) { Name = "TestTextNode" };
         UITextComponent text = textNode.AddComponent<UITextComponent>()!;
         text.Font = font;
-        //text.Text = "Hello, World!";
         text.RegisterAnimationTick<UITextComponent>(TickFPS);
-        //var textTransform = textNode.GetTransformAs<Transform>()!;
-        //textTransform.Translation = new Vector3(0.95f, 0.55f, -1.0f);
-        //textTransform.Scale = new Vector3(0.0002f);
         var textTransform = textNode.GetTransformAs<UIBoundableTransform>(true)!;
-        textTransform.MinAnchor = new Vector2(0.0f, 0.0f);
-        textTransform.MaxAnchor = new Vector2(0.0f, 0.0f);
-        textTransform.Padding = new Vector4(0.0f, 0.0f, 0.00f, 0.00f);
-        textTransform.Width = 100.0f;
-        textTransform.Height = 25.0f;
+        textTransform.MinAnchor = new Vector2(1.0f, 1.0f);
+        textTransform.MaxAnchor = new Vector2(1.0f, 1.0f);
+        textTransform.NormalizedPivot = new Vector2(1.0f, 1.0f);
+        //textTransform.Scale = new Vector3(0.5f, 0.5f, 0.5f);
+        textTransform.Width = null;
+        textTransform.Height = null;
         return text;
     }
 

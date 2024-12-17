@@ -71,7 +71,8 @@ namespace XREngine
                 => UpdateTimer(
                     userSet.TargetFramesPerSecond ?? 0.0f,
                     gameSet.TargetUpdatesPerSecond ?? 0.0f,
-                    gameSet.FixedFramesPerSecond);
+                    gameSet.FixedFramesPerSecond,
+                    userSet.VSync);
 
             /// <summary>
             /// Updates the core game engine timer settings.
@@ -82,11 +83,13 @@ namespace XREngine
             public static void UpdateTimer(
                 float targetRenderFrequency,
                 float targetUpdateFrequency,
-                float fixedUpdateFrequency)
+                float fixedUpdateFrequency,
+                EVSyncMode vSync)
             {
                 Timer.TargetRenderFrequency = targetRenderFrequency;
                 Timer.TargetUpdateFrequency = targetUpdateFrequency;
                 Timer.FixedUpdateFrequency = fixedUpdateFrequency;
+                Timer.VSync = vSync;
             }
         }
     }

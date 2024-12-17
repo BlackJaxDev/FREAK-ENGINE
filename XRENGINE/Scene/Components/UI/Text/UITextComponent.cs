@@ -26,7 +26,7 @@ namespace XREngine.Rendering.UI
         private FontGlyphSet? _font;
         private string? _text;
         private bool _animatableTransforms = false;
-        private List<(Vector4 transform, Vector4 uvs)>? _glyphs;
+        private readonly List<(Vector4 transform, Vector4 uvs)> _glyphs = [];
 
         protected override void OnTransformWorldMatrixChanged(TransformBase transform)
         {
@@ -49,6 +49,71 @@ namespace XREngine.Rendering.UI
         {
             var canvas = BoundableTransform?.ParentCanvas;
             return canvas is not null && canvas.DrawSpace == ECanvasDrawSpace.Screen;
+        }
+
+        override protected void OnTransformChanging()
+        {
+            base.OnTransformChanging();
+            if (SceneNode.TryGetTransformAs<UIBoundableTransform>(out var tfm) && tfm is not null)
+            {
+                tfm.CalcAutoHeightCallback = null;
+                tfm.CalcAutoWidthCallback = null;
+            }
+        }
+        protected override void OnTransformChanged()
+        {
+            base.OnTransformChanged();
+            if (SceneNode.TryGetTransformAs<UIBoundableTransform>(out var tfm) && tfm is not null)
+            {
+                tfm.CalcAutoHeightCallback = CalcAutoHeight;
+                tfm.CalcAutoWidthCallback = CalcAutoWidth;
+            }
+        }
+
+        private bool _multiLine = false;
+        public bool MultiLine
+        {
+            get => _multiLine;
+            set => SetField(ref _multiLine, value);
+        }
+
+        private bool _wordWrap = false;
+        public bool WordWrap
+        {
+            get => _wordWrap;
+            set => SetField(ref _wordWrap, value);
+        }
+
+        //TODO: return and cache max width and height when calculating glyphs instead
+        private float CalcAutoWidth(UIBoundableTransform transform)
+        {
+            //x = pos x, z = scale x
+            lock (_glyphLock)
+            {
+                if (_glyphs is null || _glyphs.Count == 0)
+                    return 0.0f;
+
+                if (MultiLine)
+                    return _glyphs.Max(g => g.transform.X + g.transform.Z);
+                else
+                {
+                    var last = _glyphs[^1];
+                    return last.transform.X + last.transform.Z;
+                }
+            }
+        }
+        private float CalcAutoHeight(UIBoundableTransform transform)
+        {
+            //y = pos y, w = scale y
+            lock (_glyphLock)
+            {
+                if (_glyphs is null || _glyphs.Count == 0)
+                    return 0.0f;
+
+                float max = _glyphs.Max(g => g.transform.Y);
+                float min = _glyphs.Min(g => g.transform.Y + g.transform.W);
+                return max - min;
+            }
         }
 
         private XRDataBuffer? _uvsBuffer;
@@ -89,64 +154,70 @@ namespace XREngine.Rendering.UI
 
         private void UpdateText(bool fontChanged)
         {
-            if (Font?.Atlas is null)
+            if (Font is null)
                 return;
-
-            if (fontChanged || _rc3D.Mesh is null)
-            {
-                if (_rc3D.Mesh is not null)
-                {
-                    _rc3D.Mesh.SettingUniforms -= MeshRend_SettingUniforms;
-                    _rc3D.Mesh.Destroy();
-                }
-
-                var mesh = XRMesh.Create(VertexQuad.PosZ(1.0f, true, 0.0f, false));
-                var mat =
-                //XRMaterial.CreateUnlitColorMaterialForward(ColorF4.Red);
-                new XRMaterial(
-                    [Font.Atlas],
-                    XRShader.EngineShader(Path.Combine("Common", "Text.vs"), EShaderType.Vertex),
-                    XRShader.EngineShader(Path.Combine("Common", "Text.fs"), EShaderType.Fragment))
-                {
-                    RenderPass = (int)EDefaultRenderPass.TransparentForward,
-                    RenderOptions = new()
-                    {
-                        CullMode = ECullMode.None,
-                        DepthTest = new()
-                        {
-                            Enabled = Models.Materials.ERenderParamUsage.Disabled,
-                            Function = Models.Materials.EComparison.Always
-                        },
-                        //RequiredEngineUniforms = Models.Materials.EUniformRequirements.Camera
-                    }
-                };
-
-                var rend = new XRMeshRenderer(mesh, mat);
-                rend.SettingUniforms += MeshRend_SettingUniforms;
-                CreateSSBOs(rend);
-                _rc3D.Mesh = rend;
-                _rc2D.Mesh = rend;
-            }
+            VerifyCreated(fontChanged, Font.Atlas);
+            uint count;
             lock (_glyphLock)
-                Font.GetQuads(Text, out _glyphs);
-            _rc3D.Instances = (uint)_glyphs.Count;
-            _rc2D.Instances = (uint)_glyphs.Count;
-            UpdateSSBOs();
+            {
+                Font.GetQuads(Text, _glyphs);
+                count = (uint)(_glyphs?.Count ?? 0);
+            }
+            ResizeGlyphCount(count);
         }
 
-        public bool PushFull = false;
-        public bool DataChanged = false;
+        private void VerifyCreated(bool fontChanged, XRTexture2D? atlas)
+        {
+            if (!fontChanged && _rc3D.Mesh is not null || atlas is null)
+                return;
+            
+            if (_rc3D.Mesh is not null)
+            {
+                _rc3D.Mesh.SettingUniforms -= MeshRend_SettingUniforms;
+                _rc3D.Mesh.Destroy();
+            }
+
+            var mesh = XRMesh.Create(VertexQuad.PosZ(1.0f, true, 0.0f, false));
+            var mat =
+            //XRMaterial.CreateUnlitColorMaterialForward(ColorF4.Red);
+            new XRMaterial(
+                [atlas],
+                XRShader.EngineShader(Path.Combine("Common", "Text.vs"), EShaderType.Vertex),
+                XRShader.EngineShader(Path.Combine("Common", "Text.fs"), EShaderType.Fragment))
+            {
+                RenderPass = (int)EDefaultRenderPass.TransparentForward,
+                RenderOptions = new()
+                {
+                    CullMode = ECullMode.None,
+                    DepthTest = new()
+                    {
+                        Enabled = Models.Materials.ERenderParamUsage.Disabled,
+                        Function = Models.Materials.EComparison.Always
+                    },
+                    //RequiredEngineUniforms = Models.Materials.EUniformRequirements.Camera
+                }
+            };
+
+            var rend = new XRMeshRenderer(mesh, mat);
+            rend.SettingUniforms += MeshRend_SettingUniforms;
+            CreateSSBOs(rend);
+            _rc3D.Mesh = rend;
+            _rc2D.Mesh = rend;
+        }
+
+        public bool _pushFull = false;
+        public bool _dataChanged = false;
 
         private void MeshRend_SettingUniforms(XRRenderProgram vertexProgram, XRRenderProgram materialProgram)
         {
-            if (!DataChanged)
+            if (!_dataChanged)
                 return;
 
-            DataChanged = false;
+            _dataChanged = false;
 
-            if (PushFull)
+            if (_pushFull)
             {
-                PushFull = false;
+                _pushFull = false;
                 PushBuffers();
             }
             else
@@ -154,32 +225,27 @@ namespace XREngine.Rendering.UI
         }
 
         private uint _allocatedGlyphCount = 20;
-
-        private void UpdateSSBOs()
+        private void ResizeGlyphCount(uint count)
         {
-            if (_rc3D.Mesh is null)
-                return;
-
-            if (_glyphs is null || _glyphs.Count == 0)
-                return;
-
-            uint length = GetAllocationLength();
-
-            if (_allocatedGlyphCount < length)
+            _rc3D.Instances = count;
+            _rc2D.Instances = count;
+            if (_allocatedGlyphCount < count)
             {
-                _allocatedGlyphCount = length;
+                _allocatedGlyphCount = count;
                 _transformsBuffer?.Resize(_allocatedGlyphCount);
                 _uvsBuffer?.Resize(_allocatedGlyphCount);
-                PushFull = true;
+                _pushFull = true;
             }
+            _dataChanged = true;
 
-            DataChanged = true;
+            var tfm = BoundableTransform;
+            if (tfm.UsesAutoSizing)
+                tfm.InvalidateLayout();
         }
 
-        private uint GetAllocationLength()
+        private static uint GetAllocationLength(uint numGlyphs)
         {
             //Get nearest power of 2 for the number of glyphs
-            uint numGlyphs = (uint)(_glyphs?.Count ?? 0);
             uint powerOf2 = 1u;
             while (powerOf2 < numGlyphs)
                 powerOf2 *= 2u;
@@ -214,11 +280,11 @@ namespace XREngine.Rendering.UI
             meshRend.Buffers.Add(transformsBindingName, _transformsBuffer);
             meshRend.Buffers.Add(uvsBindingName, _uvsBuffer);
 
-            DataChanged = true;
-            PushFull = true;
+            _dataChanged = true;
+            _pushFull = true;
         }
 
-        private object _glyphLock = new();
+        private readonly object _glyphLock = new();
         private unsafe void WriteData()
         {
             if (_transformsBuffer is null || _uvsBuffer is null)

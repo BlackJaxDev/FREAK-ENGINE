@@ -163,6 +163,7 @@ namespace XREngine.Components
         /// </summary>
         protected virtual void OnTransformChanging()
         {
+            //If the transform is null, we don't need to do anything. This check avoids a potential stack overflow.
             if (SceneNode.IsTransformNull)
                 return;
 
@@ -175,6 +176,7 @@ namespace XREngine.Components
         /// </summary>
         protected virtual void OnTransformChanged()
         {
+            //If the transform is null, we don't need to do anything. This check avoids a potential stack overflow.
             if (SceneNode.IsTransformNull)
                 return;
 
@@ -199,7 +201,8 @@ namespace XREngine.Components
                     case nameof(SceneNode):
                         _sceneNode.PropertyChanging -= SceneNodePropertyChanging;
                         _sceneNode.PropertyChanged -= SceneNodePropertyChanged;
-                        OnTransformChanging();
+                        if (!_sceneNode.IsTransformNull)
+                            OnTransformChanging();
                         break;
                 }
             }
@@ -229,7 +232,8 @@ namespace XREngine.Components
                     World = _sceneNode.World;
                     _sceneNode.PropertyChanging += SceneNodePropertyChanging;
                     _sceneNode.PropertyChanged += SceneNodePropertyChanged;
-                    OnTransformChanged();
+                    if (!_sceneNode.IsTransformNull)
+                        OnTransformChanged();
                     break;
             }
         }

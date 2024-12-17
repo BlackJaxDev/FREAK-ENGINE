@@ -1,7 +1,7 @@
 ﻿using System.Numerics;
-using XREngine.Components;
 using XREngine.Core.Attributes;
-using XREngine.Data.Core;
+using XREngine.Data.Colors;
+using XREngine.Rendering;
 using XREngine.Rendering.UI;
 using XREngine.Scene;
 
@@ -11,13 +11,8 @@ namespace XREngine.Editor.UI.Components;
 /// The root component for the desktop editor.
 /// </summary>
 [RequiresTransform(typeof(UISplitTransform))]
-[RequireComponents(typeof(UICanvasComponent))]
-[RequireComponents(typeof(UIInputComponent))]
 public partial class UIEditorComponent : UIInteractableComponent
 {
-    public UICanvasComponent Canvas => GetSiblingComponent<UICanvasComponent>(true)!;
-    public UIInputComponent Input => GetSiblingComponent<UIInputComponent>(true)!;
-
     private List<MenuOption> _rootMenuOptions = [];
     public List<MenuOption> RootMenuOptions
     {
@@ -43,108 +38,6 @@ public partial class UIEditorComponent : UIInteractableComponent
         }
     }
 
-    public class MenuOption : XRBase
-    {
-        private string _text = string.Empty;
-        private Action<UIInteractableComponent>? _action;
-        private List<MenuOption> _childOptions = [];
-        private bool _childOptionsVisible = false;
-        private UIButtonComponent? _interactable = null;
-
-        public string Text
-        {
-            get => _text;
-            set => SetField(ref _text, value);
-        }
-        public Action<UIInteractableComponent>? Action
-        {
-            get => _action;
-            set => SetField(ref _action, value);
-        }
-        public List<MenuOption> ChildOptions
-        {
-            get => _childOptions;
-            set => SetField(ref _childOptions, value);
-        }
-        public bool ChildOptionsVisible
-        {
-            get => _childOptionsVisible;
-            set => SetField(ref _childOptionsVisible, value);
-        }
-        public UIButtonComponent? Interactable
-        {
-            get => _interactable;
-            set => SetField(ref _interactable, value);
-        }
-
-        public void OnInteracted(UIInteractableComponent component)
-        {
-            Action?.Invoke(component);
-            ChildOptionsVisible = !ChildOptionsVisible;
-        }
-
-        public void OnCancelInteraction(UIInteractableComponent component)
-        {
-            ChildOptionsVisible = false;
-        }
-
-        protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
-        {
-            bool change = base.OnPropertyChanging(propName, field, @new);
-            if (change)
-            {
-                switch (propName)
-                {
-                    case nameof(Interactable):
-                        if (Interactable is not null)
-                        {
-                            Interactable.InteractAction -= OnInteracted;
-                            Interactable.BackAction -= OnCancelInteraction;
-                        }
-                        break;
-                }
-            }
-            return change;
-        }
-        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
-        {
-            base.OnPropertyChanged(propName, prev, field);
-            switch (propName)
-            {
-                case nameof(Interactable):
-                    if (Interactable is not null)
-                    {
-                        Interactable.InteractAction += OnInteracted;
-                        Interactable.BackAction += OnCancelInteraction;
-                    }
-                    break;
-            }
-        }
-    }
-
-    public class MenuDropdown : MenuOption
-    {
-        private bool _isOpen = false;
-        private string[] _options = [];
-
-        public bool IsOpen
-        {
-            get => _isOpen;
-            set => SetField(ref _isOpen, value);
-        }
-        public string[] Options
-        {
-            get => _options;
-            set => SetField(ref _options, value);
-        }
-
-        public void SetOptionWithEnum<T>(T value) where T : Enum
-        {
-            Text = value.ToString();
-            Options = Enum.GetNames(typeof(T));
-        }
-    }
-
     protected override void OnComponentActivated()
     {
         base.OnComponentActivated();
@@ -156,10 +49,8 @@ public partial class UIEditorComponent : UIInteractableComponent
         SceneNode.Transform.Clear();
 
         //There are two children, one for the menu and one for the dockable windows.
-        var menuNode = new SceneNode();
-        SceneNode.AddChild(menuNode);
-        var dockableNode = new SceneNode();
-        SceneNode.AddChild(dockableNode);
+        var menuNode = SceneNode.NewChild();
+        var dockableNode = SceneNode.NewChild();
 
         //Create the menu transform - this is a horizontal list of buttons.
         var list = menuNode.SetTransform<UIListTransform>();
@@ -169,14 +60,24 @@ public partial class UIEditorComponent : UIInteractableComponent
         list.ItemAlignment = EListAlignment.TopOrLeft;
         list.ItemSize = null;
         list.Height = MenuHeight;
+        list.MaxAnchor = new Vector2(1.0f, 1.0f);
+        list.MinAnchor = new Vector2(0.0f, 1.0f);
 
         //Create the buttons for each menu option.
         foreach (var menuItem in RootMenuOptions)
         {
-            var buttonNode = SceneNode.New<UIButtonComponent, UIMaterialComponent>(menuNode, out var button, out var background);
-            menuItem.Interactable = button;
-            var buttonTextNode = SceneNode.New<UITextComponent>(buttonNode, out var text);
+            var buttonNode = menuNode.NewChild<UIButtonComponent, UIMaterialComponent>(out var button, out var background);
+            menuItem.InteractableComponent = button;
+            background.Material = XRMaterial.CreateUnlitColorMaterialForward(ColorF4.Black);
+
+            var buttonTextNode = buttonNode.NewChild<UITextComponent>(out var text);
             text.Text = menuItem.Text;
+
+            var textTfm = text.BoundableTransform;
+            textTfm.Width = null;
+
+            var buttonTfm = button.BoundableTransform;
+            buttonTfm.Width = null;
         }
 
         //Create the dockable windows transform for panels

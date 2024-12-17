@@ -42,36 +42,36 @@ namespace XREngine.Rendering.UI
         {
             base.OnTransformChanging();
 
-            if (this is not IRenderable rend || SceneNode.IsTransformNull)
+            if (this is not IRenderable rend || SceneNode.IsTransformNull || Transform is not UITransform uiTfm)
                 return;
 
-            if (Transform is UITransform uiTfm)
-            {
-                uiTfm.PropertyChanging -= UITransformPropertyChanging;
-                uiTfm.PropertyChanged -= UITransformPropertyChanged;
+            uiTfm.PropertyChanging -= UITransformPropertyChanging;
+            uiTfm.PropertyChanged -= UITransformPropertyChanged;
 
-                foreach (var obj in rend.RenderedObjects)
-                    obj.UserInterfaceCanvas = null;
-            }
+            foreach (var obj in rend.RenderedObjects)
+                obj.UserInterfaceCanvas = null;
         }
         protected override void OnTransformChanged()
         {
             base.OnTransformChanged();
 
-            if (this is not IRenderable rend || SceneNode.IsTransformNull)
+            if (this is not IRenderable rend || SceneNode.IsTransformNull || Transform is not UITransform uiTfm)
                 return;
 
-            if (Transform is UITransform uiTfm)
-            {
-                uiTfm.PropertyChanging += UITransformPropertyChanging;
-                uiTfm.PropertyChanged += UITransformPropertyChanged;
-                
-                var canvas = uiTfm.ParentCanvas?.SceneNode?.GetComponent<UICanvasComponent>();
-                foreach (var obj in rend.RenderedObjects)
-                    obj.UserInterfaceCanvas = canvas;
-            }
+            uiTfm.PropertyChanging += UITransformPropertyChanging;
+            uiTfm.PropertyChanged += UITransformPropertyChanged;
+
+            var canvas = uiTfm.ParentCanvas?.SceneNode?.GetComponent<UICanvasComponent>();
+            foreach (var obj in rend.RenderedObjects)
+                obj.UserInterfaceCanvas = canvas;
         }
-        private void UITransformPropertyChanging(object? sender, IXRPropertyChangingEventArgs e)
+        /// <summary>
+        /// Called when one of the transform's properties about to change.
+        /// Linking this callback to the current UITransform is handled automatically for you.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        protected virtual void UITransformPropertyChanging(object? sender, IXRPropertyChangingEventArgs e)
         {
             if (e.PropertyName != nameof(UITransform.ParentCanvas) || this is not IRenderable rend)
                 return;
@@ -79,7 +79,13 @@ namespace XREngine.Rendering.UI
             foreach (var obj in rend.RenderedObjects)
                 obj.UserInterfaceCanvas = null;
         }
-        private void UITransformPropertyChanged(object? sender, IXRPropertyChangedEventArgs e)
+        /// <summary>
+        /// Called when one of the transform's properties has changed.
+        /// Linking this callback to the current UITransform is handled automatically for you.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        protected virtual void UITransformPropertyChanged(object? sender, IXRPropertyChangedEventArgs e)
         {
             if (e.PropertyName != nameof(UITransform.ParentCanvas) || this is not IRenderable rend)
                 return;
