@@ -1,6 +1,8 @@
 ﻿using Extensions;
 using MagicPhysX;
+using Silk.NET.Vulkan;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using XREngine.Components;
 using XREngine.Data;
@@ -844,20 +846,22 @@ namespace XREngine.Rendering.Physics.Physx
             Vector3 unitDir,
             float distance,
             out uint hitFaceIndex,
-            PxQueryFilterData* filterData,
-            PxQueryFilterCallback* filterCall,
-            PxQueryCache* cache)
+            PxQueryFlags queryFlags,
+            PxFilterData* filterMask = null,
+            PxQueryFilterCallback* filterCallback = null,
+            PxQueryCache* cache = null)
         {
+            var filterData = filterMask != null ? PxQueryFilterData_new_1(filterMask, queryFlags) : PxQueryFilterData_new_2(queryFlags);
             PxVec3 o = origin;
             PxVec3 d = unitDir;
             PxQueryHit hit_;
             bool hasHit = _scene->QueryExtRaycastAny(
-                &o,
-                &d,
+                (PxVec3*)Unsafe.AsPointer(ref o),
+                (PxVec3*)Unsafe.AsPointer(ref d),
                 distance,
                 &hit_,
-                filterData,
-                filterCall,
+                &filterData,
+                filterCallback,
                 cache);
             hitFaceIndex = hit_.faceIndex;
             return hasHit;
@@ -875,7 +879,7 @@ namespace XREngine.Rendering.Physics.Physx
         /// <param name="outputFlags">Specifies which properties should be written to the hit information.</param>
         /// <param name="hit">Raycast hit information.</param>
         /// <param name="filterData">Filtering data and simple logic.</param>
-        /// <param name="filterCall">Custom filtering logic (optional). 
+        /// <param name="filterCallback">Custom filtering logic (optional). 
         /// Only used if the corresponding PxHitFlag flags are set. If NULL, all hits are assumed to be blocking.</param>
         /// <param name="cache">Cached hit shape (optional).
         /// Ray is tested against cached shape first then against the scene.
@@ -888,10 +892,12 @@ namespace XREngine.Rendering.Physics.Physx
             float distance,
             PxHitFlags outputFlags,
             out PxRaycastHit hit,
-            PxQueryFilterData* filterData,
-            PxQueryFilterCallback* filterCall,
-            PxQueryCache* cache)
+            PxQueryFlags queryFlags,
+            PxFilterData* filterMask = null,
+            PxQueryFilterCallback* filterCallback = null,
+            PxQueryCache* cache = null)
         {
+            var filterData = filterMask != null ? PxQueryFilterData_new_1(filterMask, queryFlags) : PxQueryFilterData_new_2(queryFlags);
             PxVec3 o = origin;
             PxVec3 d = unitDir;
             PxRaycastHit hit_;
@@ -901,8 +907,8 @@ namespace XREngine.Rendering.Physics.Physx
                 distance,
                 outputFlags,
                 &hit_,
-                filterData,
-                filterCall,
+                &filterData,
+                filterCallback,
                 cache);
             hit = hit_;
             return hasHit;
@@ -914,11 +920,13 @@ namespace XREngine.Rendering.Physics.Physx
             float distance,
             PxHitFlags outputFlags,
             out bool blockingHit,
-            PxQueryFilterData* filterData,
-            PxQueryFilterCallback* filterCall,
-            PxQueryCache* cache,
+            PxQueryFlags queryFlags,
+            PxFilterData* filterMask = null,
+            PxQueryFilterCallback* filterCallback = null,
+            PxQueryCache* cache = null,
             int maxHitCapacity = 32)
         {
+            var filterData = filterMask != null ? PxQueryFilterData_new_1(filterMask, queryFlags) : PxQueryFilterData_new_2(queryFlags);
             PxVec3 o = origin;
             PxVec3 d = unitDir;
             PxRaycastHit* hitBuffer = stackalloc PxRaycastHit[maxHitCapacity];
@@ -931,8 +939,8 @@ namespace XREngine.Rendering.Physics.Physx
                 hitBuffer,
                 (uint)maxHitCapacity,
                 &blockingHit_,
-                filterData,
-                filterCall,
+                &filterData,
+                filterCallback,
                 cache);
             blockingHit = blockingHit_;
             PxRaycastHit[] hits = new PxRaycastHit[hitCount];
@@ -946,13 +954,15 @@ namespace XREngine.Rendering.Physics.Physx
             (Vector3 position, Quaternion rotation) pose,
             Vector3 unitDir,
             float distance,
-            PxHitFlags queryFlags,
+            PxHitFlags hitFlags,
             out PxQueryHit hit,
-            PxQueryFilterData* filterData,
-            PxQueryFilterCallback* filterCall,
-            PxQueryCache* cache,
-            float inflation)
+            PxQueryFlags queryFlags,
+            PxFilterData* filterMask = null,
+            float inflation = 0.0f,
+            PxQueryFilterCallback* filterCallback = null,
+            PxQueryCache* cache = null)
         {
+            var filterData = filterMask != null ? PxQueryFilterData_new_1(filterMask, queryFlags) : PxQueryFilterData_new_2(queryFlags);
             PxVec3 d = unitDir;
             var t = MakeTransform(pose.position, pose.rotation);
             PxQueryHit hit_;
@@ -962,10 +972,10 @@ namespace XREngine.Rendering.Physics.Physx
                 &t,
                 &d,
                 distance,
-                queryFlags,
+                hitFlags,
                 &hit_,
-                filterData,
-                filterCall,
+                &filterData,
+                filterCallback,
                 cache,
                 inflation);
             hit = hit_;
@@ -979,11 +989,13 @@ namespace XREngine.Rendering.Physics.Physx
             float distance,
             PxHitFlags outputFlags,
             out PxSweepHit hit,
-            PxQueryFilterData* filterData,
-            PxQueryFilterCallback* filterCall,
-            PxQueryCache* cache,
-            float inflation)
+            PxQueryFlags queryFlags,
+            PxFilterData* filterMask = null,
+            float inflation = 0.0f,
+            PxQueryFilterCallback* filterCallback = null,
+            PxQueryCache* cache = null)
         {
+            var filterData = filterMask != null ? PxQueryFilterData_new_1(filterMask, queryFlags) : PxQueryFilterData_new_2(queryFlags);
             PxVec3 d = unitDir;
             var t = MakeTransform(pose.position, pose.rotation);
             PxSweepHit hit_;
@@ -995,8 +1007,8 @@ namespace XREngine.Rendering.Physics.Physx
                 distance,
                 outputFlags,
                 &hit_,
-                filterData,
-                filterCall,
+                &filterData,
+                filterCallback,
                 cache,
                 inflation);
             hit = hit_;
@@ -1010,12 +1022,14 @@ namespace XREngine.Rendering.Physics.Physx
             float distance,
             PxHitFlags outputFlags,
             out bool blockingHit,
-            PxQueryFilterData* filterData,
-            PxQueryFilterCallback* filterCall,
-            PxQueryCache* cache,
-            float inflation,
+            PxQueryFlags queryFlags,
+            PxFilterData* filterMask = null,
+            float inflation = 0.0f,
+            PxQueryFilterCallback* filterCallback = null,
+            PxQueryCache* cache = null,
             int maxHitCapacity = 32)
         {
+            var filterData = filterMask != null ? PxQueryFilterData_new_1(filterMask, queryFlags) : PxQueryFilterData_new_2(queryFlags);
             PxVec3 d = unitDir;
             var t = MakeTransform(pose.position, pose.rotation);
             bool blockingHit_;
@@ -1030,8 +1044,8 @@ namespace XREngine.Rendering.Physics.Physx
                 hitBuffer_,
                 (uint)maxHitCapacity,
                 &blockingHit_,
-                filterData,
-                filterCall,
+                &filterData,
+                filterCallback,
                 cache,
                 inflation);
             blockingHit = blockingHit_;
@@ -1044,10 +1058,12 @@ namespace XREngine.Rendering.Physics.Physx
         public PxOverlapHit[] OverlapMultiple(
             IAbstractPhysicsGeometry geometry,
             (Vector3 position, Quaternion rotation) pose,
-            PxQueryFilterData* filterData,
-            PxQueryFilterCallback* filterCall,
+            PxQueryFlags queryFlags,
+            PxFilterData* filterMask = null,
+            PxQueryFilterCallback* filterCallback = null,
             int maxHitCapacity = 32)
         {
+            var filterData = filterMask != null ? PxQueryFilterData_new_1(filterMask, queryFlags) : PxQueryFilterData_new_2(queryFlags);
             var t = MakeTransform(pose.position, pose.rotation);
             PxOverlapHit* hitBuffer = stackalloc PxOverlapHit[maxHitCapacity];
             using var structObj = geometry.GetStruct();
@@ -1056,8 +1072,8 @@ namespace XREngine.Rendering.Physics.Physx
                 &t,
                 hitBuffer,
                 (uint)maxHitCapacity,
-                filterData,
-                filterCall);
+                &filterData,
+                filterCallback);
             PxOverlapHit[] hits = new PxOverlapHit[hitCount];
             for (int i = 0; i < hitCount; i++)
                 hits[i] = hitBuffer[i];
@@ -1068,9 +1084,11 @@ namespace XREngine.Rendering.Physics.Physx
             IAbstractPhysicsGeometry geometry,
             (Vector3 position, Quaternion rotation) pose,
             out PxOverlapHit hit,
-            PxQueryFilterData* filterData,
-            PxQueryFilterCallback* filterCall)
+            PxQueryFlags queryFlags,
+            PxFilterData* filterMask = null,
+            PxQueryFilterCallback* filterCallback = null)
         {
+            var filterData = filterMask != null ? PxQueryFilterData_new_1(filterMask, queryFlags) : PxQueryFilterData_new_2(queryFlags);
             var t = MakeTransform(pose.position, pose.rotation);
             PxOverlapHit hit_;
             using var structObj = geometry.GetStruct();
@@ -1078,8 +1096,8 @@ namespace XREngine.Rendering.Physics.Physx
                 structObj.Address.As<PxGeometry>(),
                 &t,
                 &hit_,
-                filterData,
-                filterCall);
+                &filterData,
+                filterCallback);
             hit = hit_;
             return hasHit;
         }
