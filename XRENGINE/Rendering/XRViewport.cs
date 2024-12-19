@@ -112,13 +112,26 @@ namespace XREngine.Rendering
             Resize(width, height);
         }
 
-        public bool AutomaticallyCollectVisible { get; set; } = true;
-        public bool AutomaticallySwapBuffers { get; set; } = true;
-        public bool AllowUIRender { get; set; } = true;
+        public bool AutomaticallyCollectVisible
+        {
+            get => _automaticallyCollectVisible;
+            set => SetField(ref _automaticallyCollectVisible, value);
+        }
+        public bool AutomaticallySwapBuffers
+        {
+            get => _automaticallySwapBuffers;
+            set => SetField(ref _automaticallySwapBuffers, value);
+        }
+        public bool AllowUIRender
+        {
+            get => _allowUIRender;
+            set => SetField(ref _allowUIRender, value);
+        }
 
         private void CollectVisibleInternal()
         {
-            CollectVisible(null, null, false);
+            if (AutomaticallyCollectVisible)
+                CollectVisible(null, null, false);
         }
         public void CollectVisible(XRWorldInstance? worldOverride, XRCamera? cameraOverride, bool shadowPass)
         {
@@ -151,6 +164,9 @@ namespace XREngine.Rendering
 
         private void SwapBuffersInternal()
         {
+            if (!AutomaticallySwapBuffers)
+                return;
+
             XRCamera? camera = ActiveCamera;
             if (camera is null)
                 return;
@@ -275,6 +291,10 @@ namespace XREngine.Rendering
         }
 
         private bool _setRenderPipelineFromCamera = true;
+        private bool _automaticallyCollectVisible = true;
+        private bool _automaticallySwapBuffers = true;
+        private bool _allowUIRender = true;
+
         public bool SetRenderPipelineFromCamera
         {
             get => _setRenderPipelineFromCamera;

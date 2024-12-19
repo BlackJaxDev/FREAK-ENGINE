@@ -50,5 +50,10 @@ namespace XREngine.Data.Trees
 
             return box;
         }
+
+        public virtual void QueueItemMoved(IOctreeItem item)
+        {
+
+        }
     }
 }

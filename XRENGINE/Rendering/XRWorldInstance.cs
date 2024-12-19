@@ -161,7 +161,7 @@ namespace XREngine.Rendering
         {
             //using var d = Profiler.Start();
             VisualScene.GlobalPostRender();
-            Lights.CaptureLightProbes();
+            //Lights.CaptureLightProbes();
         }
 
         private void SwapTransformQueues()

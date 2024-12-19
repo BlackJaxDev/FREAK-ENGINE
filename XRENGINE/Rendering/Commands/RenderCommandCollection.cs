@@ -77,9 +77,9 @@ namespace XREngine.Rendering.Commands
             void Swap(ICollection<RenderCommand> x)
                 => x.ForEach(y => y.SwapBuffers(shadowPass));
             
-            _renderingPasses.Values.ForEach(Clear);
             (_updatingPasses, _renderingPasses) = (_renderingPasses, _updatingPasses);
             _renderingPasses.Values.ForEach(Swap);
+            _updatingPasses.Values.ForEach(Clear);
 
             _numCommandsRecentlyAddedToUpdate = 0;
         }

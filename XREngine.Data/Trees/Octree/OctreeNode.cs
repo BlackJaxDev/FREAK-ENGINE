@@ -29,7 +29,12 @@ namespace XREngine.Data.Trees
         public List<T> Items => _items;
 
         #region Child movement
-        public void ItemMoved(T item)
+        public override void QueueItemMoved(IOctreeItem item)
+        {
+            if (item is T t)
+                QueueItemMoved(t);
+        }
+        public void QueueItemMoved(T item)
         {
             //TODO: if the item is the only item within its volume, no need to subdivide more!!!
             //However, if the item is inserted into a volume with at least one other item in it, 

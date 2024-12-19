@@ -10,7 +10,19 @@ namespace XREngine.Components
     [RequiresTransform(typeof(Transform))]
     public class FlyingCameraPawnComponent : FlyingCameraPawnBaseComponent
     {
-        public float ScrollSpeedModifier { get; set; } = 1.0f;
+        private float _scrollSpeedModifier = 1.0f;
+        public float ScrollSpeedModifier
+        {
+            get => _scrollSpeedModifier;
+            set => SetField(ref _scrollSpeedModifier, value);
+        }
+
+        private float _shiftSpeedModifier = 3.0f;
+        public float ShiftSpeedModifier
+        {
+            get => _shiftSpeedModifier;
+            set => SetField(ref _shiftSpeedModifier, value);
+        }
 
         protected override void OnScrolled(float diff)
         {
@@ -35,13 +47,6 @@ namespace XREngine.Components
 
             if (Translating)
                 MouseTranslate(x, y);
-        }
-
-        private float _shiftSpeedModifier = 3.0f;
-        public float ShiftSpeedModifier 
-        {
-            get => _shiftSpeedModifier; 
-            set => SetField(ref _shiftSpeedModifier, value);
         }
 
         protected virtual void MouseTranslate(float x, float y)

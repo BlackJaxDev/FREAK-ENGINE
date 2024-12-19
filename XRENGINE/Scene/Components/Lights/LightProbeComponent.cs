@@ -4,10 +4,10 @@ using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
 using XREngine.Data.Vectors;
 using XREngine.Rendering;
-using XREngine.Rendering.Commands;
 using XREngine.Rendering.Info;
 using XREngine.Rendering.Models.Materials;
 using XREngine.Scene.Transforms;
+using XREngine.Timers;
 
 namespace XREngine.Components.Lights
 {
@@ -20,6 +20,7 @@ namespace XREngine.Components.Lights
 
         public LightProbeComponent() : base()
         {
+            _realTimeTimer = new GameTimer(this);
             RenderedObjects = 
             [
                 VisualRenderInfo = RenderInfo3D.New(this, _visualRC = new RenderCommandMesh3D((int)EDefaultRenderPass.OpaqueForward)),
@@ -40,6 +41,8 @@ namespace XREngine.Components.Lights
         private bool _generateIrradiance = false;
         private bool _generatePrefilter = false;
 
+        private GameTimer _realTimeTimer;
+
         private bool _realTime = false;
         /// <summary>
         /// If true, the light probe will update in real time.
@@ -59,7 +62,6 @@ namespace XREngine.Components.Lights
 
         private XRCubeFrameBuffer? _irradianceFBO;
         private XRCubeFrameBuffer? _prefilterFBO;
-        private bool _hasCaptured = false;
         private DateTime _lastUpdateTime = DateTime.Now;
         private XRTextureCube? _irradianceTexture;
         private XRTextureCube? _prefilterTexture;
@@ -120,15 +122,12 @@ namespace XREngine.Components.Lights
 
         public void FullCapture(uint colorResolution, bool captureDepth, uint depthResolution)
         {
-            if (_hasCaptured)
-                return;
-
-            _hasCaptured = true;
             SetCaptureResolution(colorResolution, captureDepth, depthResolution);
-            CollectVisible();
-            SwapBuffers();
-            Render();
+            QueueCapture();
         }
+
+        private void QueueCapture()
+            => World?.Lights?.QueueForCapture(this);
 
         protected override void InitializeForCapture()
         {
@@ -251,6 +250,15 @@ namespace XREngine.Components.Lights
                 case nameof(PreviewDisplay):
                     CachePreviewSphere();
                     break;
+                case nameof(RealTimeCapture):
+                    if (RealTimeCapture)
+                        _realTimeTimer.StartMultiFire(QueueCapture, RealTimeCaptureUpdateInterval ?? TimeSpan.Zero);
+                    else
+                        _realTimeTimer.Cancel();
+                    break;
+                case nameof(RealTimeCaptureUpdateInterval):
+                    _realTimeTimer.TimeBetweenFires = RealTimeCaptureUpdateInterval ?? TimeSpan.Zero;
+                    break;
             }
         }
 
@@ -350,25 +358,26 @@ namespace XREngine.Components.Lights
             World?.Lights.LightProbes.Remove(this);
         }
 
-        private bool _capturing = false;
-        public override void CollectVisible()
-        {
-            if (!RealTimeCapture || RealTimeCaptureUpdateInterval is not null && !(DateTime.Now - _lastUpdateTime >= RealTimeCaptureUpdateInterval))
-                return;
+        //private bool _capturing = false;
+        //public override void CollectVisible()
+        //{
+        //    if (RealTimeCapture && RealTimeCaptureUpdateInterval is not null && (DateTime.Now - _lastUpdateTime < RealTimeCaptureUpdateInterval))
+        //        return;
             
-            _lastUpdateTime = DateTime.Now;
-            _capturing = true;
-            base.CollectVisible();
-        }
-        public override void SwapBuffers()
-        {
-            if (_capturing)
-                base.SwapBuffers();
-        }
+        //    _lastUpdateTime = DateTime.Now;
+        //    _capturing = true;
+        //    base.CollectVisible();
+        //}
+        //public override void SwapBuffers()
+        //{
+        //    if (_capturing)
+        //        base.SwapBuffers();
+        //}
         public override void Render()
         {
-            if (!_capturing)
-                return;
+            //if (!_capturing)
+            //    return;
+            //_capturing = false;
 
             base.Render();
             GenerateIrradianceInternal();

@@ -850,10 +850,7 @@ namespace XREngine.Rendering
 
                 triVertices.Add(v);
 
-                if (bounds is null)
-                    bounds = new AABB(v.Position, v.Position);
-                else
-                    bounds.Value.ExpandToInclude(v.Position);
+                bounds = bounds is null ? new AABB(v.Position, v.Position) : bounds.Value.ExpandedToInclude(v.Position);
 
                 if (v.Normal is not null && !vertexActions.ContainsKey(1))
                     vertexActions.TryAdd(1, (i, x, vtx) => NormalsBuffer!.SetDataRawAtIndex((uint)i, vtx?.Normal ?? Vector3.Zero));
@@ -962,10 +959,7 @@ namespace XREngine.Rendering
 
                 vertices.Add(v);
 
-                if (bounds is null)
-                    bounds = new AABB(v.Position, v.Position);
-                else
-                    bounds.Value.ExpandToInclude(v.Position);
+                bounds = bounds is null ? new AABB(v.Position, v.Position) : bounds.Value.ExpandedToInclude(v.Position);
 
                 if (v.Normal is not null && !vertexActions.ContainsKey(1))
                     vertexActions.TryAdd(1, (i, x, vtx) => NormalsBuffer!.SetDataRawAtIndex((uint)i, vtx?.Normal ?? Vector3.Zero));
@@ -1154,10 +1148,7 @@ namespace XREngine.Rendering
                     vertexActions.TryAdd(0, (i, x, vtx) =>
                     {
                         Vector3 worldPos = vtx.GetWorldPosition();
-                        if (bounds is null)
-                            bounds = new AABB(worldPos, worldPos);
-                        else
-                            bounds.Value.ExpandToInclude(worldPos);
+                        bounds = bounds is null ? new AABB(worldPos, worldPos) : bounds.Value.ExpandedToInclude(worldPos);
                     });
 
                 if (v.Normal is not null && !vertexActions.ContainsKey(1))

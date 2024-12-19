@@ -126,6 +126,17 @@ namespace XREngine.Components.Lights
                 cam.PostProcessing.ColorGrading.Exposure = 1.0f;
             }
         }
+        public virtual void CollectVisible()
+        {
+            for (int i = 0; i < 6; ++i)
+                Viewports[i]?.CollectVisible(null, null, _shadowPass);
+        }
+        public virtual void SwapBuffers()
+        {
+            for (int i = 0; i < 6; ++i)
+                Viewports[i]?.SwapBuffers(_shadowPass);
+        }
+        private const bool _shadowPass = true;
         //protected override void OnWorldTransformChanged()
         //{
         //    base.OnWorldTransformChanged();
@@ -136,11 +147,8 @@ namespace XREngine.Components.Lights
         /// </summary>
         public virtual void Render()
         {
-            if (World is null)
+            if (World is null || RenderFBO is null)
                 return;
-
-            if (RenderFBO is null)
-                SetCaptureResolution(1024);
 
             IFrameBufferAttachement depthAttachment;
             int[] depthLayers;
@@ -157,11 +165,11 @@ namespace XREngine.Components.Lights
 
             for (int i = 0; i < 6; ++i)
             {
-                RenderFBO!.SetRenderTargets(
+                RenderFBO.SetRenderTargets(
                     (_environmentTextureCubemap!, EFrameBufferAttachment.ColorAttachment0, 0, i),
                     (depthAttachment, EFrameBufferAttachment.DepthStencilAttachment, 0, depthLayers[i]));
 
-                Viewports[i]!.Render(RenderFBO, null, null, false, null);
+                Viewports[i]!.Render(RenderFBO, null, null, _shadowPass, null);
             }
 
             if (_environmentTextureCubemap is not null)
@@ -169,24 +177,6 @@ namespace XREngine.Components.Lights
                 _environmentTextureCubemap.Bind();
                 _environmentTextureCubemap.GenerateMipmapsGPU();
             }
-        }
-
-        public virtual void CollectVisible()
-        {
-            if (_renderFBO is null)
-                SetCaptureResolution(1024);
-
-            for (int i = 0; i < 6; ++i)
-                Viewports[i]!.CollectVisible(null, null, false);
-        }
-
-        public virtual void SwapBuffers()
-        {
-            if (_renderFBO is null)
-                SetCaptureResolution(1024);
-
-            for (int i = 0; i < 6; ++i)
-                Viewports[i]!.SwapBuffers(false);
         }
     }
 }

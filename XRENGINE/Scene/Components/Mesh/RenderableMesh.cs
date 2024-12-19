@@ -1,5 +1,7 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
+using System.Runtime.CompilerServices;
+using XREngine.Data;
 using XREngine.Data.Colors;
 using XREngine.Data.Core;
 using XREngine.Data.Geometry;
@@ -18,21 +20,21 @@ namespace XREngine.Components.Scene.Mesh
 
         private readonly RenderCommandMesh3D _rc;
 
-        private TransformBase? _rootBone;
-        private bool _renderBounds = false;
-
         public XRMeshRenderer? CurrentLODRenderer => CurrentLOD?.Value?.Renderer;
         public XRMesh? CurrentLODMesh => CurrentLOD?.Value?.Renderer?.Mesh;
 
         public LinkedListNode<RenderableLOD>? CurrentLOD { get; private set; } = null;
         public XRWorldInstance? World => Component.SceneNode.World;
         public LinkedList<RenderableLOD> LODs { get; private set; } = new();
+
+        private bool _renderBounds = false;
         public bool RenderBounds
         {
             get => _renderBounds;
             set => SetField(ref _renderBounds, value);
         }
 
+        private TransformBase? _rootBone;
         public TransformBase? RootBone
         {
             get => _rootBone;
@@ -46,9 +48,23 @@ namespace XREngine.Components.Scene.Mesh
 
         private readonly RenderCommandMethod3D _renderBoundsCommand;
 
+        void ComponentPropertyChanged(object? s, IXRPropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(RenderableComponent.Transform) && !Component.SceneNode.IsTransformNull)
+                Component.Transform.WorldMatrixChanged += Component_WorldMatrixChanged;
+        }
+        void ComponentPropertyChanging(object? s, IXRPropertyChangingEventArgs e)
+        {
+            if (e.PropertyName == nameof(RenderableComponent.Transform) && !Component.SceneNode.IsTransformNull)
+                Component.Transform.WorldMatrixChanged -= Component_WorldMatrixChanged;
+        }
+
         public RenderableMesh(SubMesh mesh, RenderableComponent component)
         {
             Component = component;
+            Component.Transform.WorldMatrixChanged += Component_WorldMatrixChanged;
+            Component.PropertyChanged += ComponentPropertyChanged;
+            Component.PropertyChanging += ComponentPropertyChanging;
             RootBone = mesh.RootBone;
 
             foreach (var lod in mesh.LODs)
@@ -72,6 +88,14 @@ namespace XREngine.Components.Scene.Mesh
                 RenderInfo.RenderCommands.Add(_renderBoundsCommand);
             RenderInfo.LocalCullingVolume = mesh.CullingBounds ?? mesh.Bounds;
             RenderInfo.PreAddRenderCommandsCallback = BeforeAdd;
+
+            if (LODs.Count > 0)
+            {
+                CurrentLOD = LODs.First;
+                var rend = CurrentLODRenderer;
+                bool skinned = (rend?.Mesh?.HasSkinning ?? false);
+                RenderInfo.CullingOffsetMatrix = _rc.WorldMatrix = skinned ? Matrix4x4.Identity : Component.Transform.WorldMatrix;
+            }
         }
 
         private void DoRenderBounds(bool shadowPass)
@@ -79,9 +103,9 @@ namespace XREngine.Components.Scene.Mesh
             if (shadowPass)
                 return;
 
-            var box = RenderInfo.LocalCullingVolume;
+            var box = (RenderInfo as IOctreeItem)?.WorldCullingVolume;
             if (box is not null)
-                Engine.Rendering.Debug.RenderBox(box.Value.HalfExtents, box.Value.Center, Matrix4x4.Identity, false, ColorF4.White, true);
+                Engine.Rendering.Debug.RenderBox(box.Value.LocalHalfExtents, box.Value.LocalCenter, box.Value.Transform, false, ColorF4.White, true);
 
             if (RootBone is not null)
                 Engine.Rendering.Debug.RenderPoint(RootBone.WorldTranslation, ColorF4.Red, false);
@@ -103,7 +127,7 @@ namespace XREngine.Components.Scene.Mesh
                 UpdateLOD(distance);
 
             _rc.Mesh = rend;
-            _rc.WorldMatrix = skinned ? Matrix4x4.Identity : Component.Transform.WorldMatrix;
+            //RenderInfo.CullingOffsetMatrix = _rc.WorldMatrix = skinned ? Matrix4x4.Identity : Component.Transform.WorldMatrix;
             _rc.RenderDistance = distance;
 
             var mat = rend?.Material;
@@ -217,14 +241,20 @@ namespace XREngine.Components.Scene.Mesh
         private void RootBone_WorldMatrixChanged(TransformBase rootBone)
         {
             bool hasSkinning = CurrentLOD?.Value?.Renderer?.Mesh?.HasSkinning ?? false;
-            if (hasSkinning)
-                RenderInfo.CullingMatrix = rootBone.WorldMatrix;
+            if (!hasSkinning)
+                return;
+            
+            RenderInfo.CullingOffsetMatrix = _rc.WorldMatrix = rootBone.WorldMatrix;
+            RenderInfo.OctreeNode?.QueueItemMoved(RenderInfo);
         }
         private void Component_WorldMatrixChanged(TransformBase component)
         {
             bool hasSkinning = CurrentLOD?.Value?.Renderer?.Mesh?.HasSkinning ?? false;
-            if (!hasSkinning)
-                RenderInfo.CullingMatrix = component.WorldMatrix;
+            if (hasSkinning)
+                return;
+            
+            RenderInfo.CullingOffsetMatrix = _rc.WorldMatrix = component.WorldMatrix;
+            RenderInfo.OctreeNode?.QueueItemMoved(RenderInfo);
         }
     }
 }

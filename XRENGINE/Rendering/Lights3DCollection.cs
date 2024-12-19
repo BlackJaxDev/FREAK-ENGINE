@@ -1,4 +1,5 @@
 ﻿using MIConvexHull;
+using System.Collections.Concurrent;
 using System.Numerics;
 using XREngine.Components.Lights;
 using XREngine.Data;
@@ -29,6 +30,18 @@ namespace XREngine.Scene
         public EventList<DirectionalLightComponent> DirectionalLights { get; } = [];
         public EventList<LightProbeComponent> LightProbes { get; } = [];
 
+        public ConcurrentQueue<SceneCaptureComponent> CaptureQueue = new();
+        private ConcurrentBag<SceneCaptureComponent> _captureBagUpdating = [];
+        private ConcurrentBag<SceneCaptureComponent> _captureBagRendering = [];
+
+        public void QueueForCapture(SceneCaptureComponent component)
+        {
+            if (CaptureQueue.Contains(component))
+                return;
+
+            CaptureQueue.Enqueue(component);
+        }
+
         public bool RenderingShadowMaps { get; private set; } = false;
 
         internal void SetForwardLightingUniforms(XRRenderProgram program)
@@ -39,10 +52,8 @@ namespace XREngine.Scene
 
             for (int i = 0; i < DirectionalLights.Count; ++i)
                 DirectionalLights[i].SetUniforms(program, $"DirLightData[{i}]");
-
             for (int i = 0; i < SpotLights.Count; ++i)
                 SpotLights[i].SetUniforms(program, $"SpotLightData[{i}]");
-
             for (int i = 0; i < PointLights.Count; ++i)
                 PointLights[i].SetUniforms(program, $"PointLightData[{i}]");
         }
@@ -51,30 +62,33 @@ namespace XREngine.Scene
         {
             foreach (DirectionalLightComponent l in DirectionalLights)
                 l.CollectVisibleItems(World);
-
             foreach (SpotLightComponent l in SpotLights)
                 l.CollectVisibleItems(World);
-
             foreach (PointLightComponent l in PointLights)
                 l.CollectVisibleItems(World);
 
-            foreach (LightProbeComponent l in LightProbes)
-                l.CollectVisible();
+            while (CaptureQueue.TryDequeue(out SceneCaptureComponent? capture))
+            {
+                if (_captureBagUpdating.Contains(capture))
+                    continue;
+                _captureBagUpdating.Add(capture);
+                capture.CollectVisible();
+            }
         }
 
         public void SwapBuffers()
         {
             foreach (DirectionalLightComponent l in DirectionalLights)
                 l.SwapBuffers();
-
             foreach (SpotLightComponent l in SpotLights)
                 l.SwapBuffers();
-
             foreach (PointLightComponent l in PointLights)
                 l.SwapBuffers();
 
-            foreach (LightProbeComponent l in LightProbes)
-                l.SwapBuffers();
+            _captureBagRendering.Clear();
+            (_captureBagUpdating, _captureBagRendering) = (_captureBagRendering, _captureBagUpdating);
+            foreach (SceneCaptureComponent capture in _captureBagRendering)
+                capture.SwapBuffers();
         }
 
         public void RenderShadowMaps(bool collectVisibleNow)
@@ -83,17 +97,15 @@ namespace XREngine.Scene
 
             foreach (DirectionalLightComponent l in DirectionalLights)
                 l.RenderShadowMap(World, collectVisibleNow);
-
             foreach (SpotLightComponent l in SpotLights)
                 l.RenderShadowMap(World, collectVisibleNow);
-
             foreach (PointLightComponent l in PointLights)
                 l.RenderShadowMap(World, collectVisibleNow);
 
             RenderingShadowMaps = false;
 
-            foreach (LightProbeComponent l in LightProbes)
-                l.Render();
+            foreach (SceneCaptureComponent capture in _captureBagRendering)
+                capture.Render();
         }
 
         public void Clear()
@@ -231,7 +243,7 @@ namespace XREngine.Scene
             public OctreeNodeBase? OctreeNode { get; set; }
             public bool ShouldRender { get; } = true;
             AABB? IOctreeItem.LocalCullingVolume { get; }
-            public Matrix4x4 CullingMatrix { get; }
+            public Matrix4x4 CullingOffsetMatrix { get; }
             public IRenderableBase Owner { get; }
 
             public bool Intersects(IVolume cullingVolume, bool containsOnly)

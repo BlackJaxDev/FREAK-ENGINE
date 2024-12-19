@@ -154,9 +154,6 @@ public class DefaultRenderPipeline : RenderPipeline
             //Render forward pass - GBuffer results + forward lit meshes + debug data
             using (c.AddUsing<VPRC_BindFBOByName>(x => x.FrameBufferName = ForwardPassFBOName))
             {
-                //c.Add<VPRC_StencilMask>().Set(~0u);
-                //c.Add<VPRC_ClearByBoundFBO>();
-
                 //Render the deferred pass lighting result, no depth testing
                 c.Add<VPRC_DepthTest>().Enable = false;
                 c.Add<VPRC_RenderQuadToFBO>().SourceQuadFBOName = LightCombineFBOName;
@@ -164,11 +161,13 @@ public class DefaultRenderPipeline : RenderPipeline
                 //No depth writing for backgrounds (skybox)
                 c.Add<VPRC_DepthTest>().Enable = false;
                 c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.Background;
-                
+
                 c.Add<VPRC_DepthTest>().Enable = true;
                 c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.OpaqueForward;
                 //c.Add<VPRC_RenderDebugShapes>();
-                c.Add<VPRC_RenderDebugPhysics>();
+                //c.Add<VPRC_RenderDebugPhysics>();
+
+                //c.Add<VPRC_DepthTest>().Enable = true;
                 c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.TransparentForward;
                 c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.OnTopForward;
             }

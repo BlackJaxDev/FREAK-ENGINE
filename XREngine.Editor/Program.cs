@@ -10,6 +10,7 @@ using XREngine.Components.Scene;
 using XREngine.Components.Scene.Mesh;
 using XREngine.Data;
 using XREngine.Data.Colors;
+using XREngine.Data.Components;
 using XREngine.Data.Components.Scene;
 using XREngine.Data.Core;
 using XREngine.Data.Rendering;
@@ -69,7 +70,7 @@ internal class Program
     {
         int w = 1920;
         int h = 1080;
-        float updateHz = 60.0f;
+        float updateHz = 90.0f;
         float renderHz = 0.0f;
         float fixedHz = 30.0f;
 
@@ -130,7 +131,7 @@ internal class Program
         var rootNode = new SceneNode(scene) { Name = "TestRootNode" };
 
         //Visualize the octree
-        //rootNode.AddComponent<DebugVisualizeOctreeComponent>();
+        rootNode.AddComponent<DebugVisualizeOctreeComponent>();
 
         SceneNode cameraNode = CreateCamera(rootNode, out var camComp);
         CreateUserInterface(rootNode, camComp);
@@ -152,7 +153,7 @@ internal class Program
         AddPhysics(rootNode);
         AddPBRTestOrbs(rootNode, 15.0f);
         //AddSpline(rootNode);
-        ImportModels(desktopDir, rootNode);
+        //ImportModels(desktopDir, rootNode);
         return world;
     }
 
@@ -236,6 +237,7 @@ internal class Program
         var tfm = editorComp.BoundableTransform;
         tfm.MinAnchor = new Vector2(0.0f, 0.0f);
         tfm.MaxAnchor = new Vector2(1.0f, 1.0f);
+        tfm.NormalizedPivot = new Vector2(0.0f, 0.0f);
     }
 
     private static List<UIEditorComponent.MenuOption> GenerateRootMenu()
@@ -300,9 +302,11 @@ internal class Program
 
     private static void AddBall(SceneNode rootNode, PhysxMaterial ballMat, float ballRadius, Random random)
     {
-        var ballBody = new PhysxDynamicRigidBody(ballMat, new PhysxGeometry.Sphere(ballRadius), 10.0f);
-        ballBody.Transform = (new Vector3(random.NextSingle() * 10.0f, random.NextSingle() * 10.0f, random.NextSingle() * 10.0f), Quaternion.Identity);
-        ballBody.AngularDamping = 0.5f;
+        var ballBody = new PhysxDynamicRigidBody(ballMat, new PhysxGeometry.Sphere(ballRadius), 10.0f)
+        {
+            Transform = (new Vector3(random.NextSingle() * 100.0f, random.NextSingle() * 100.0f, random.NextSingle() * 100.0f), Quaternion.Identity),
+            AngularDamping = 0.5f
+        };
         ballBody.SetAngularVelocity(new Vector3(random.NextSingle() * 100.0f, random.NextSingle() * 100.0f, random.NextSingle() * 100.0f));
         ballBody.SetLinearVelocity(new Vector3(random.NextSingle() * 10.0f, random.NextSingle() * 10.0f, random.NextSingle() * 10.0f));
         var ball = new SceneNode(rootNode) { Name = "Ball" };
@@ -370,6 +374,7 @@ internal class Program
         //textTransform.Scale = new Vector3(0.5f, 0.5f, 0.5f);
         textTransform.Width = null;
         textTransform.Height = null;
+        //textTransform.Scale = new Vector3(0.5f, 0.5f, 1.0f);
         return text;
     }
 
@@ -535,8 +540,8 @@ internal class Program
         //Engine.EnqueueMainThreadTask(probeComp.GenerateIrradianceMap);
         //Engine.EnqueueMainThreadTask(probeComp.GeneratePrefilterMap);
 
-        probeComp.SetCaptureResolution(512, false, 512);
-        probeComp.RealTimeCapture = false;
+        probeComp.SetCaptureResolution(2048, false, 2048);
+        probeComp.RealTimeCapture = true;
         probeComp.RealTimeCaptureUpdateInterval = TimeSpan.FromSeconds(1);
 
         //Task.Run(async () =>
@@ -563,9 +568,9 @@ internal class Program
             PostProcessSteps.JoinIdenticalVertices |
             PostProcessSteps.CalculateTangentSpace;
 
-        //ModelImporter.ImportAsync(fbxPathDesktop, flags, null, MaterialFactory, importedModelsNode, 1, true).ContinueWith(OnFinishedAvatar);
+        ModelImporter.ImportAsync(fbxPathDesktop, flags, null, MaterialFactory, importedModelsNode, 1, true).ContinueWith(OnFinishedAvatar);
 
-        ModelImporter.ImportAsync(Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj"), flags, null, MaterialFactory, importedModelsNode, 1, false).ContinueWith(OnFinishedWorld);
+        //ModelImporter.ImportAsync(Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj"), flags, null, MaterialFactory, importedModelsNode, 1, false).ContinueWith(OnFinishedWorld);
     }
 
     private static void AddSkybox(SceneNode rootNode, XRTexture2D skyEquirect)

@@ -27,7 +27,7 @@ namespace XREngine.Data.Components
             {
                 base.RenderInfo = value;
                 RenderInfo.LocalCullingVolume = _shape.GetAABB(false);
-                RenderInfo.CullingMatrix = Transform.WorldMatrix;
+                RenderInfo.CullingOffsetMatrix = Transform.WorldMatrix;
                 RenderInfo.CastsShadows = false;
                 RenderInfo.ReceivesShadows = false;
             }
@@ -53,7 +53,7 @@ namespace XREngine.Data.Components
         private void ShapeChanged()
         {
             RenderInfo.LocalCullingVolume = _shape.GetAABB(false);
-            RenderInfo.CullingMatrix = Transform.WorldMatrix;
+            RenderInfo.CullingOffsetMatrix = Transform.WorldMatrix;
 
             if (CollisionObject == null)
                 return;

@@ -48,7 +48,7 @@ namespace XREngine.Rendering.Info
         private bool _hiddenFromOwner = false;
         private bool _visibleToOwnerOnly = false;
 
-        public Matrix4x4 CullingMatrix
+        public Matrix4x4 CullingOffsetMatrix
         {
             get => _cullingMatrix;
             set => SetField(ref _cullingMatrix, value);
@@ -120,7 +120,7 @@ namespace XREngine.Rendering.Info
         {
             //using var s = Engine.Profiler.Start();
 
-            var worldCullingVolume = LocalCullingVolume?.ToBox(CullingMatrix);
+            var worldCullingVolume = ((IOctreeItem)this).WorldCullingVolume;
             if (worldCullingVolume is null)
                 return true;
 

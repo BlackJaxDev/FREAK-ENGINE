@@ -37,12 +37,12 @@ namespace XREngine.Rendering
 
             Rotator[] rotations =
             [
-                new(  0.0f,  90.0f,   0.0f), //+X
-                new(  0.0f, -90.0f,   0.0f), //-X
-                new(-90.0f,   0.0f, 180.0f), //+Y
-                new( 90.0f,   0.0f, 180.0f), //-Y
-                new(  0.0f, 180.0f,   0.0f), //+Z
-                new(  0.0f,   0.0f,   0.0f), //-Z
+                new(0.0f, -90.0f, 0.0f), //+X
+                new(0.0f, 90.0f, 0.0f), //-X
+                new(90.0f, 0.0f, 0.0f), //+Y
+                new(-90.0f, 0.0f, 0.0f), //-Y
+                new(0.0f, 180.0f, 0.0f), //+Z
+                new(0.0f, 0.0f, 0.0f), //-Z
             ];
 
             XRCameraParameters p;

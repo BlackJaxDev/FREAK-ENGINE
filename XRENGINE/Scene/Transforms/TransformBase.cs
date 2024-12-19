@@ -81,7 +81,7 @@ namespace XREngine.Scene.Transforms
         {
             MakeCapsule();
             RenderInfo.LocalCullingVolume = Capsule.GetAABB(false);
-            RenderInfo.CullingMatrix = WorldMatrix;
+            RenderInfo.CullingOffsetMatrix = WorldMatrix;
             return [RenderInfo];
         }
 
@@ -440,7 +440,7 @@ namespace XREngine.Scene.Transforms
         {
             MakeCapsule();
             RenderInfo.LocalCullingVolume = Capsule.GetAABB(false);
-            RenderInfo.CullingMatrix = WorldMatrix;
+            RenderInfo.CullingOffsetMatrix = WorldMatrix;
             WorldMatrixChanged?.Invoke(this);
         }
 

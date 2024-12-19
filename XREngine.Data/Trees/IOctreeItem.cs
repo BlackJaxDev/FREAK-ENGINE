@@ -7,8 +7,8 @@ namespace XREngine.Data
     public interface IOctreeItem : ITreeItem
     {
         AABB? LocalCullingVolume { get; }
-        Matrix4x4 CullingMatrix { get; }
-        Box? WorldCullingVolume => LocalCullingVolume?.ToBox(CullingMatrix);
+        Matrix4x4 CullingOffsetMatrix { get; }
+        Box? WorldCullingVolume => LocalCullingVolume?.ToBox(CullingOffsetMatrix);
         OctreeNodeBase? OctreeNode { get; set; }
     }
 }

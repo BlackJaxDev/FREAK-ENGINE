@@ -47,7 +47,7 @@ namespace XREngine.Scene
         public void CollectRenderedItems(RenderCommandCollection commands, IVolume? collectionVolume, XRCamera? camera, bool shadowPass)
         {
             bool IntersectionTest(RenderInfo3D item, IVolume? cullingVolume, bool containsOnly)
-                => item.AllowRender(cullingVolume, commands, camera, shadowPass);
+                => item.AllowRender(cullingVolume, commands, camera, containsOnly);
 
             void AddRenderCommands(ITreeItem item)
             {

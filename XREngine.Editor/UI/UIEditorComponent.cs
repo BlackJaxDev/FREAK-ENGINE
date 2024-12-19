@@ -35,6 +35,9 @@ public partial class UIEditorComponent : UIInteractableComponent
             case nameof(MenuHeight):
                 MenuNode.GetTransformAs<UIBoundableTransform>(true)!.Height = MenuHeight;
                 break;
+            case nameof(RootMenuOptions):
+                RemakeChildren();
+                break;
         }
     }
 
@@ -42,6 +45,11 @@ public partial class UIEditorComponent : UIInteractableComponent
     {
         base.OnComponentActivated();
         RemakeChildren();
+    }
+    protected override void OnComponentDeactivated()
+    {
+        base.OnComponentDeactivated();
+        SceneNode.Transform.Clear();
     }
 
     public void RemakeChildren()
@@ -62,6 +70,7 @@ public partial class UIEditorComponent : UIInteractableComponent
         list.Height = MenuHeight;
         list.MaxAnchor = new Vector2(1.0f, 1.0f);
         list.MinAnchor = new Vector2(0.0f, 1.0f);
+        list.NormalizedPivot = new Vector2(0.0f, 1.0f);
 
         //Create the buttons for each menu option.
         foreach (var menuItem in RootMenuOptions)
@@ -75,9 +84,17 @@ public partial class UIEditorComponent : UIInteractableComponent
 
             var textTfm = text.BoundableTransform;
             textTfm.Width = null;
+            textTfm.MaxAnchor = new Vector2(0.0f, 1.0f);
+            textTfm.MinAnchor = new Vector2(0.0f, 0.0f);
+            textTfm.NormalizedPivot = new Vector2(0.0f, 0.5f);
 
             var buttonTfm = button.BoundableTransform;
             buttonTfm.Width = null;
+            buttonTfm.Height = 0.0f;
+            buttonTfm.Translation = new Vector2(0.0f, 0.0f);
+            buttonTfm.MaxAnchor = new Vector2(0.0f, 1.0f);
+            buttonTfm.MinAnchor = new Vector2(0.0f, 0.0f);
+            buttonTfm.NormalizedPivot = new Vector2(0.0f, 0.0f);
         }
 
         //Create the dockable windows transform for panels

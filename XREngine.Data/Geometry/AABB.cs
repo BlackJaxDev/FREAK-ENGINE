@@ -344,8 +344,9 @@ namespace XREngine.Data.Geometry
             };
 
         public readonly bool ContainsPoint(Vector3 point, float tolerance = float.Epsilon) =>
-            Vector3.Min(Min - new Vector3(tolerance), point) == Min &&
-            Vector3.Max(Max + new Vector3(tolerance), point) == Max;
+            point.X > Min.X - tolerance && point.X < Max.X + tolerance &&
+            point.Y > Min.Y - tolerance && point.Y < Max.Y + tolerance &&
+            point.Z > Min.Z - tolerance && point.Z < Max.Z + tolerance;
 
         public readonly EContainment ContainsAABB(AABB box, float tolerance = float.Epsilon) =>
             box.Min.X < Min.X + tolerance ||
@@ -495,6 +496,13 @@ namespace XREngine.Data.Geometry
             return new AABB(min, max);
         }
 
+        public readonly AABB ExpandedToInclude(Vector3 point)
+        {
+            Vector3 min = Vector3.Min(Min, point);
+            Vector3 max = Vector3.Max(Max, point);
+            return new AABB(min, max);
+        }
+
         public readonly EContainment ContainsBox(Box box)
         {
             var corners = box.WorldCornersEnumerable;
@@ -504,8 +512,8 @@ namespace XREngine.Data.Geometry
             foreach (Vector3 corner in corners)
             {
                 bool inside = ContainsPoint(corner);
-                allIn &= inside;
-                allOut &= !inside;
+                allIn = allIn && inside;
+                allOut = allOut && !inside;
                 if (!allIn && !allOut)
                     break; //Early return
                 if (inside)

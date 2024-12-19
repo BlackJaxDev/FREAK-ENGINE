@@ -16,7 +16,7 @@ namespace XREngine.Components
     {
         private CharacterMovement3DComponent Movement => GetSiblingComponent<CharacterMovement3DComponent>(true)!;
         
-        private readonly GameTimerComponent _respawnTimer = new();
+        //private readonly GameTimer _respawnTimer = new();
         private Rotator _viewRotation = Rotator.GetZero(ERotationOrder.YPR);
         private float _gamePadMovementInputMultiplier = 51.0f;
         private float _keyboardMovementInputMultiplier = 200.0f;
@@ -27,8 +27,20 @@ namespace XREngine.Components
 
         //5'8" in m = 1.72f
         //characterHeight = new FeetInches(5, 8.0f).ToMeters();
-        public float CharacterHeightMeters { get; set; } = 1.72f;
-        public float CharacterWidthMeters { get; set; } = 0.344f;
+
+        private float _characterHeightMeters = 1.72f;
+        public float CharacterHeightMeters
+        {
+            get => _characterHeightMeters;
+            set => SetField(ref _characterHeightMeters, value);
+        }
+
+        private float _characterWidthMeters = 0.344f;
+        public float CharacterWidthMeters
+        {
+            get => _characterWidthMeters;
+            set => SetField(ref _characterWidthMeters, value);
+        }
 
         protected Vector2 _keyboardMovementInput = Vector2.Zero;
         protected Vector2 _gamepadMovementInput = Vector2.Zero;
@@ -64,15 +76,15 @@ namespace XREngine.Components
             set => SetField(ref _gamePadYLookInputMultiplier, value);
         }
 
-        public virtual void Kill(PawnComponent instigator, PawnComponent killer)
-        {
+        //public virtual void Kill(PawnComponent instigator, PawnComponent killer)
+        //{
 
-        }
+        //}
 
-        public void QueueRespawn(float respawnTimeInSeconds = 0)
-            => _respawnTimer.StartSingleFire(WantsRespawn, respawnTimeInSeconds);
-        protected virtual void WantsRespawn()
-            => _respawnTimer.StartMultiFire(AttemptSpawn, 0.1f);
+        //public void QueueRespawn(float respawnTimeInSeconds = 0)
+        //    => _respawnTimer.StartSingleFire(WantsRespawn, respawnTimeInSeconds);
+        //protected virtual void WantsRespawn()
+        //    => _respawnTimer.StartMultiFire(AttemptSpawn, 0.1f);
         private void AttemptSpawn(float totalElapsed, int fireNumber)
         {
             //ICharacterGameMode mode = World?.GameMode as ICharacterGameMode;

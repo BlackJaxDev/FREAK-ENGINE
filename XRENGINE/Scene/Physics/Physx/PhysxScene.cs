@@ -124,7 +124,7 @@ namespace XREngine.Rendering.Physics.Physx
             _scene = _physicsPtr->CreateSceneMut(&sceneDesc);
             Scenes.Add((nint)_scene, this);
 
-            VisualizeEnabled = true;
+            VisualizeEnabled = false;
             VisualizeWorldAxes = true;
             VisualizeBodyAxes = true;
             VisualizeBodyMassAxes = true;
