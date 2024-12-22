@@ -88,7 +88,7 @@ namespace XREngine.Rendering.Physics.Physx
         public CollisionCallback OnContactDelegateInstance = OnContact;
         static void OnContact(IntPtr userData, PxContactPairHeader pairHeader, PxContactPair contacts, uint flags)
         {
-            Debug.Out($"Contact: {pairHeader.nbPairs}");
+            //Debug.Out($"Contact: {pairHeader.nbPairs}");
         }
 
         public override void Initialize()

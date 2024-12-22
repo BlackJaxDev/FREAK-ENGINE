@@ -5,20 +5,21 @@ namespace XREngine.Components.Lights
 {
     public class SceneCaptureComponent : XRComponent
     {
-        private uint _colorResolution;
-        private uint _depthResolution;
-        private bool _captureDepthCubeMap = false;
-
+        private uint _colorResolution = Engine.Rendering.Settings.LightProbeColorResolution;
         public uint ColorResolution
         {
             get => _colorResolution;
             set => SetField(ref _colorResolution, value);
         }
+
+        private uint _depthResolution = Engine.Rendering.Settings.LightProbeDepthResolution;
         public uint DepthResolution
         {
             get => _depthResolution;
             set => SetField(ref _depthResolution, value);
         }
+
+        private bool _captureDepthCubeMap = Engine.Rendering.Settings.LightProbesCaptureDepth;
         public bool CaptureDepthCubeMap
         {
             get => _captureDepthCubeMap;

@@ -176,6 +176,11 @@ namespace XREngine.Data
             _channelCount = reader.WaveFormat.Channels;
         }
 
+        /// <summary>
+        /// Converts stereo audio data to mono by averaging the left and right channels.
+        /// If the audio data is already mono or null, this method does nothing.
+        /// Stereo audio data must be mono in order to be used as spatial audio.
+        /// </summary>
         public void ConvertToMono()
         {
             if (_data is null || _channelCount != 2)

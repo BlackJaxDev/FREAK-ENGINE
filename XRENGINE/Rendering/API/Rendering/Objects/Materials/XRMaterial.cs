@@ -2,6 +2,7 @@
 using System.Numerics;
 using XREngine.Core.Files;
 using XREngine.Data.Colors;
+using XREngine.Data.Rendering;
 using XREngine.Rendering.Models.Materials;
 using Color = System.Drawing.Color;
 
@@ -365,6 +366,18 @@ result.a = fb.a * (1.0f - luminance(transparent.rgb) * transparency) + mat.a * (
             //}
 
             return new(parameters, new XRShader(EShaderType.Fragment, source));
+        }
+
+        /// <summary>
+        /// Helper method to set the material to be transparent.
+        /// Sets the render pass to transparent and enables default transparent blending.
+        /// The material's shader must output a color with an alpha channel value less than 1.0f for this to do anything.
+        /// </summary>
+        /// <param name="transparentRenderPass"></param>
+        public void EnableTransparency(int transparentRenderPass = (int)EDefaultRenderPass.TransparentForward)
+        {
+            RenderPass = transparentRenderPass;
+            RenderOptions.BlendModeAllDrawBuffers = BlendMode.EnabledTransparent();
         }
     }
 }

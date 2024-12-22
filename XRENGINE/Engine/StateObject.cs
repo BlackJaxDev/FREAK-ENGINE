@@ -6,20 +6,9 @@ namespace XREngine
     {
         public Action? OnStateEnded { get; set; } = onStateEnded;
 
-        public void OnPoolableDestroyed()
-        {
-            OnStateEnded = null;
-        }
-
-        public void OnPoolableReleased()
-        {
-            OnStateEnded = null;
-        }
-
-        public void OnPoolableReset()
-        {
-            OnStateEnded = null;
-        }
+        public void OnPoolableDestroyed() => OnStateEnded = null;
+        public void OnPoolableReleased() => OnStateEnded = null;
+        public void OnPoolableReset() => OnStateEnded = null;
 
         void IDisposable.Dispose()
         {

@@ -34,10 +34,13 @@ namespace XREngine
                 /// Depending on how many items are in a singular tick order, this could be faster or slower.
                 /// </summary>
                 public static bool TickGroupedItemsInParallel { get; set; } = false;
-                public static uint LightProbeDefaultColorResolution { get; set; } = 512u;
-                public static bool ShouldLightProbesCaptureDepth { get; set; } = false;
-                public static uint LightProbeDefaultDepthResolution { get; set; } = 256u;
+                public static uint LightProbeColorResolution { get; set; } = 512u;
+                public static bool LightProbesCaptureDepth { get; set; } = false;
+                public static uint LightProbeDepthResolution { get; set; } = 256u;
                 public static bool AllowBinaryProgramCaching { get; set; } = true;
+                public static bool RenderMeshBounds { get; set; } = false;
+                public static bool CalculateBlendshapesInComputeShader { get; set; } = false;
+                public static bool CalculateSkinningInComputeShader { get; set; } = false;
             }
         }
     }

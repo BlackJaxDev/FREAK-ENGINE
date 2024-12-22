@@ -53,6 +53,35 @@ namespace XREngine.Rendering.Models.Materials
             set => SetField(ref _alphaDstFactor, value);
         }
 
+        public static BlendMode EnabledTransparent() => new()
+        {
+            Enabled = ERenderParamUsage.Enabled,
+            RgbSrcFactor = EBlendingFactor.SrcAlpha,
+            AlphaSrcFactor = EBlendingFactor.SrcAlpha,
+            RgbDstFactor = EBlendingFactor.OneMinusSrcAlpha,
+            AlphaDstFactor = EBlendingFactor.OneMinusSrcAlpha,
+            RgbEquation = EBlendEquationMode.FuncAdd,
+            AlphaEquation = EBlendEquationMode.FuncAdd
+        };
+        public static BlendMode EnabledOpaque() => new()
+        {
+            Enabled = ERenderParamUsage.Enabled,
+            RgbSrcFactor = EBlendingFactor.One,
+            AlphaSrcFactor = EBlendingFactor.One,
+            RgbDstFactor = EBlendingFactor.Zero,
+            AlphaDstFactor = EBlendingFactor.Zero,
+            RgbEquation = EBlendEquationMode.FuncAdd,
+            AlphaEquation = EBlendEquationMode.FuncAdd
+        };
+        public static BlendMode Unchanged() => new()
+        {
+            Enabled = ERenderParamUsage.Unchanged
+        };
+        public static BlendMode Disabled() => new()
+        {
+            Enabled = ERenderParamUsage.Disabled
+        };
+
         public override string ToString()
             => Enabled == ERenderParamUsage.Unchanged 
                 ? "Unchanged" 

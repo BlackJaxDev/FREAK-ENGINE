@@ -31,17 +31,8 @@ namespace XREngine.Rendering.Models.Materials
         {
             if (!defaultBlendEnabled)
                 return;
-            
-            BlendModeAllDrawBuffers = new BlendMode()
-            {
-                Enabled = ERenderParamUsage.Enabled,
-                RgbSrcFactor = EBlendingFactor.SrcAlpha,
-                AlphaSrcFactor = EBlendingFactor.SrcAlpha,
-                RgbDstFactor = EBlendingFactor.OneMinusSrcAlpha,
-                AlphaDstFactor = EBlendingFactor.OneMinusSrcAlpha,
-                RgbEquation = EBlendEquationMode.FuncAdd,
-                AlphaEquation = EBlendEquationMode.FuncAdd
-            };
+
+            BlendModeAllDrawBuffers = BlendMode.EnabledTransparent();
         }
 
         public EUniformRequirements RequiredEngineUniforms

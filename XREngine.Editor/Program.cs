@@ -131,7 +131,7 @@ internal class Program
         var rootNode = new SceneNode(scene) { Name = "TestRootNode" };
 
         //Visualize the octree
-        rootNode.AddComponent<DebugVisualizeOctreeComponent>();
+        //rootNode.AddComponent<DebugVisualizeOctreeComponent>();
 
         SceneNode cameraNode = CreateCamera(rootNode, out var camComp);
         CreateUserInterface(rootNode, camComp);
@@ -151,7 +151,7 @@ internal class Program
         AddLightProbe(rootNode, skyEquirect);
         AddSkybox(rootNode, skyEquirect);
         AddPhysics(rootNode);
-        AddPBRTestOrbs(rootNode, 15.0f);
+        //AddPBRTestOrbs(rootNode, 15.0f);
         //AddSpline(rootNode);
         //ImportModels(desktopDir, rootNode);
         return world;
@@ -180,7 +180,7 @@ internal class Program
         mat.RenderPass = (int)EDefaultRenderPass.OpaqueDeferredLit;
         mat.Parameter<ShaderFloat>("Roughness")!.Value = roughness;
         mat.Parameter<ShaderFloat>("Metallic")!.Value = metallic;
-        orb1Model.Model = new Model([new SubMesh(XRMesh.Shapes.SolidSphere(Vector3.Zero, radius, 16), mat)]);
+        orb1Model.Model = new Model([new SubMesh(XRMesh.Shapes.SolidSphere(Vector3.Zero, radius, 32), mat)]);
     }
 
     private static void CreateUserInterface(SceneNode parent, CameraComponent? camComp)
@@ -278,44 +278,116 @@ internal class Program
 
     private static void AddPhysics(SceneNode rootNode)
     {
-        float ballRadius = 2.0f;
+        float ballRadius = 1.0f;
 
         var floor = new SceneNode(rootNode) { Name = "Floor" };
         var floorTfm = floor.SetTransform<RigidBodyTransform>();
         var floorComp = floor.AddComponent<StaticRigidBodyComponent>()!;
 
-        PhysxMaterial floorMat = new(0.5f, 0.5f, 0.1f);
-        PhysxMaterial ballMat = new(0.5f, 0.5f, 0.9f);
+        PhysxMaterial floorPhysMat = new(0.5f, 0.5f, 0.7f);
+        PhysxMaterial ballPhysMat = new(0.2f, 0.2f, 1.0f);
 
-        var floorBody = PhysxStaticRigidBody.CreatePlane(Globals.Up, 0.0f, floorMat);
+        var floorBody = PhysxStaticRigidBody.CreatePlane(Globals.Up, 0.0f, floorPhysMat);
             //new PhysxStaticRigidBody(floorMat, new PhysxGeometry.Box(new Vector3(100.0f, 2.0f, 100.0f)));
         floorBody.SetTransform(new Vector3(0.0f, -10.0f, 0.0f), Quaternion.CreateFromAxisAngle(Globals.Backward, XRMath.DegToRad(90.0f)), true);
         floorComp.RigidBody = floorBody;
+
+        var floorShader = new XRShader(EShaderType.Fragment, @"
+#version 450
+layout (location = 0) out vec4 OutColor;
+
+uniform sampler2D Texture0;
+uniform float ScreenWidth;
+uniform float ScreenHeight;
+
+const float kernel[5] = float[]
+(
+    0.227027f, // Weight for the center
+    0.194594f,
+    0.121621f,
+    0.054054f,
+    0.016216f
+);
+
+uniform vec4 MatColor;
+
+void main()
+{
+    float xOffset = 1.0f / ScreenWidth;
+    float yOffset = 1.0f / ScreenHeight;
+    vec2 vTexCoord = vec2(gl_FragCoord.x / ScreenWidth, gl_FragCoord.y / ScreenHeight);
+    vec3 col = texture(Texture0, vTexCoord).rgb;// * kernel[0];
+    
+    // Horizontal and vertical offsets for sampling
+    //for (int i = 1; i < 5; i++)
+    //{
+    //    // Sample pixels in the positive direction
+    //    col += texture(Texture0, vTexCoord + vec2(xOffset * i, 0.0)).rgb * kernel[i];
+    //    col += texture(Texture0, vTexCoord - vec2(xOffset * i, 0.0)).rgb * kernel[i];
+    //    col += texture(Texture0, vTexCoord + vec2(0.0, yOffset * i)).rgb * kernel[i];
+    //    col += texture(Texture0, vTexCoord - vec2(0.0, yOffset * i)).rgb * kernel[i];
+    //}
+
+    OutColor = vec4(col, 1.0f);
+}");
+        XRMaterial floorMat = new([new ShaderVector4(new ColorF4(0.0f, 0.7f), "MatColor")], floorShader);
+        floorMat.RenderOptions.CullMode = ECullMode.None;
+        floorMat.RenderOptions.RequiredEngineUniforms = EUniformRequirements.Camera;
+        floorMat.EnableTransparency(); 
+        static void FloorMat_SettingUniforms(XRMaterialBase mat, XRRenderProgram program)
+        {
+            if ((Engine.Rendering.State.CurrentRenderingPipeline?.TryGetTexture(DefaultRenderPipeline.HDRSceneTextureName, out var tex) ?? false) && tex is not null)
+                program.Sampler("Texture0", tex, 0);
+        }
+        floorMat.SettingUniforms += FloorMat_SettingUniforms;
+
         var floorModel = floor.AddComponent<ModelComponent>()!;
-        floorModel.Model = new Model([new SubMesh(XRMesh.Create(VertexQuad.PosY(100.0f)), XRMaterial.CreateUnlitColorMaterialForward(ColorF4.Green))]);
-            //new Model([new SubMesh(XRMesh.Shapes.SolidBox(new Vector3(-100.0f, -2.0f, -100.0f), new Vector3(100.0f, 2.0f, 100.0f)), XRMaterial.CreateUnlitColorMaterialForward(ColorF4.Green))]);
+        floorModel.Model = new Model([new SubMesh(XRMesh.Create(VertexQuad.PosY(1000.0f)), floorMat)]);
 
         Random random = new();
-        for (int i = 0; i < 1; i++)
-            AddBall(rootNode, ballMat, ballRadius, random);
+        for (int i = 0; i < 100; i++)
+            AddBall(rootNode, ballPhysMat, ballRadius, random);
     }
 
-    private static void AddBall(SceneNode rootNode, PhysxMaterial ballMat, float ballRadius, Random random)
+    private static void AddBall(SceneNode rootNode, PhysxMaterial ballPhysMat, float ballRadius, Random random)
     {
-        var ballBody = new PhysxDynamicRigidBody(ballMat, new PhysxGeometry.Sphere(ballRadius), 10.0f)
+        var ballBody = new PhysxDynamicRigidBody(ballPhysMat, new PhysxGeometry.Sphere(ballRadius), 1.0f)
         {
-            Transform = (new Vector3(random.NextSingle() * 100.0f, random.NextSingle() * 100.0f, random.NextSingle() * 100.0f), Quaternion.Identity),
-            AngularDamping = 0.5f
+            Transform = (new Vector3(
+                random.NextSingle() * 100.0f,
+                random.NextSingle() * 100.0f,
+                random.NextSingle() * 100.0f), Quaternion.Identity),
+            AngularDamping = 0.2f,
+            LinearDamping = 0.2f,
         };
-        ballBody.SetAngularVelocity(new Vector3(random.NextSingle() * 100.0f, random.NextSingle() * 100.0f, random.NextSingle() * 100.0f));
-        ballBody.SetLinearVelocity(new Vector3(random.NextSingle() * 10.0f, random.NextSingle() * 10.0f, random.NextSingle() * 10.0f));
+
+        ballBody.SetAngularVelocity(new Vector3(
+            random.NextSingle() * 100.0f,
+            random.NextSingle() * 100.0f,
+            random.NextSingle() * 100.0f));
+
+        ballBody.SetLinearVelocity(new Vector3(
+            random.NextSingle() * 10.0f,
+            random.NextSingle() * 10.0f,
+            random.NextSingle() * 10.0f));
+
         var ball = new SceneNode(rootNode) { Name = "Ball" };
         var ballTfm = ball.SetTransform<RigidBodyTransform>();
-        ballTfm.InterpolationMode = EInterpolationMode.Extrapolate;
+        ballTfm.InterpolationMode = EInterpolationMode.Interpolate;
         var ballComp = ball.AddComponent<DynamicRigidBodyComponent>()!;
         ballComp.RigidBody = ballBody;
         var ballModel = ball.AddComponent<ModelComponent>()!;
-        ballModel.Model = new Model([new SubMesh(XRMesh.Shapes.SolidSphere(Vector3.Zero, ballRadius, 16), XRMaterial.CreateUnlitColorMaterialForward(ColorF4.Red))]);
+
+        ColorF4 color = new(
+            random.NextSingle(),
+            random.NextSingle(),
+            random.NextSingle());
+
+        var ballMat = XRMaterial.CreateLitColorMaterial(color);
+        ballMat.RenderPass = (int)EDefaultRenderPass.OpaqueDeferredLit;
+        ballMat.Parameter<ShaderFloat>("Roughness")!.Value = random.NextSingle();
+        ballMat.Parameter<ShaderFloat>("Metallic")!.Value = random.NextSingle();
+        ballModel.Model = new Model([new SubMesh(XRMesh.Shapes.SolidSphere(Vector3.Zero, ballRadius, 32), ballMat)]);
     }
 
     private static void AddSpline(SceneNode rootNode)
@@ -407,32 +479,6 @@ internal class Program
         return cameraNode;
     }
 
-    private static void AddTestBox(SceneNode rootNode)
-    {
-        //Create a test cube
-        var modelNode = new SceneNode(rootNode) { Name = "TestModelNode" };
-        if (!modelNode.TryAddComponent<ModelComponent>(out var modelComp))
-            return;
-        
-        modelComp!.Name = "TestModel";
-        var mat = XRMaterial.CreateUnlitColorMaterialForward(new ColorF4(1.0f, 0.0f, 0.0f, 1.0f));
-        mat.RenderPass = (int)EDefaultRenderPass.OpaqueForward;
-        mat.RenderOptions = new RenderingParameters()
-        {
-            CullMode = ECullMode.None,
-            DepthTest = new DepthTest()
-            {
-                UpdateDepth = true,
-                Enabled = ERenderParamUsage.Enabled,
-                Function = EComparison.Less,
-            },
-            LineWidth = 5.0f,
-        };
-        var mesh = XRMesh.Shapes.WireframeBox(-Vector3.One, Vector3.One);
-        //Engine.Assets.SaveTo(mesh, desktopDir);
-        modelComp!.Model = new Model([new SubMesh(mesh, mat)]);
-    }
-
     private static void AddDirLight(SceneNode rootNode)
     {
         var dirLightNode = new SceneNode(rootNode) { Name = "TestDirectionalLightNode" };
@@ -447,8 +493,8 @@ internal class Program
         dirLightComp!.Name = "TestDirectionalLight";
         dirLightComp.Color = new Vector3(1, 1, 1);
         dirLightComp.Intensity = 1.0f;
-        dirLightComp.Scale = new Vector3(100.0f, 100.0f, 100.0f);
-        dirLightComp.CastsShadows = true;
+        dirLightComp.Scale = new Vector3(1000.0f, 1000.0f, 1000.0f);
+        dirLightComp.CastsShadows = false;
         dirLightComp.SetShadowMapResolution(2048, 2048);
     }
 
@@ -540,8 +586,8 @@ internal class Program
         //Engine.EnqueueMainThreadTask(probeComp.GenerateIrradianceMap);
         //Engine.EnqueueMainThreadTask(probeComp.GeneratePrefilterMap);
 
-        probeComp.SetCaptureResolution(2048, false, 2048);
-        probeComp.RealTimeCapture = true;
+        probeComp.SetCaptureResolution(256, false, 256);
+        probeComp.RealTimeCapture = false;
         probeComp.RealTimeCaptureUpdateInterval = TimeSpan.FromSeconds(1);
 
         //Task.Run(async () =>

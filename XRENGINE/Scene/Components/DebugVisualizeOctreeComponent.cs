@@ -7,6 +7,10 @@ using XREngine.Scene;
 
 namespace XREngine.Data.Components
 {
+    /// <summary>
+    /// Renders a debug visualization of the scene's octree.
+    /// Not intended for production use.
+    /// </summary>
     public class DebugVisualizeOctreeComponent : DebugVisualize3DComponent
     {
         private static List<(OctreeNodeBase node, bool intersects)> _octreeNodesUpdating = [];
@@ -19,7 +23,6 @@ namespace XREngine.Data.Components
 
             base.RenderInfo_SwapBuffersCallback(info, command, shadowPass);
 
-            //Debug.LogWarning("DebugVisualizeOctreeComponent.RenderInfo_SwapBuffersCallback");
             _octreeNodesRendering.Clear();
             (_octreeNodesUpdating, _octreeNodesRendering) = (_octreeNodesRendering, _octreeNodesUpdating);
         }
@@ -33,7 +36,6 @@ namespace XREngine.Data.Components
             static void AddNodes((OctreeNodeBase node, bool intersects) d)
                 => _octreeNodesUpdating.Add(d);
 
-            //Debug.LogWarning("DebugVisualizeOctreeComponent.RenderInfo_PreRenderCallback");
             World?.VisualScene?.RenderTree?.CollectVisibleNodes(camera?.WorldFrustum(), false, AddNodes);
         }
 
@@ -44,9 +46,8 @@ namespace XREngine.Data.Components
 
             base.Render(shadowPass);
 
-            //Debug.LogWarning("DebugVisualizeOctreeComponent.Render");
             foreach ((OctreeNodeBase node, bool intersects) in _octreeNodesRendering)
-                Engine.Rendering.Debug.RenderAABB(node.Bounds.HalfExtents, node.Center, false, intersects ? ColorF4.Red : ColorF4.White, false);
+                Engine.Rendering.Debug.RenderAABB(node.Bounds.HalfExtents, node.Center, false, intersects ? ColorF4.Red : ColorF4.Yellow, false);
         }
     }
 }

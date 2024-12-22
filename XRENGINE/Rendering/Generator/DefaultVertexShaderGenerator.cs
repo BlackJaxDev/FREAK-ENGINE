@@ -283,43 +283,55 @@ namespace XREngine.Rendering.Shaders.Generator
 
             Line();
 
-            if (Mesh.BlendshapeCount > 0)
+            if (!Engine.Rendering.Settings.CalculateBlendshapesInComputeShader)
             {
-                //Calculate blendshapes on unskinned mesh
-            }
-
-            bool optimizeTo4Weights = Engine.Rendering.Settings.OptimizeTo4Weights || (Engine.Rendering.Settings.OptimizeWeightsIfPossible && Mesh.MaxWeightCount <= 4);
-            if (optimizeTo4Weights)
-            {
-                //Loop over the bone count supplied to this vertex
-                //Perform a min with 100 so the compiler can optimize the loop
-                Line($"for (int i = 0; i < 4; i++)");
-                using (OpenBracketState())
+                if (Mesh.BlendshapeCount > 0)
                 {
-                    Line($"int boneIndex = {ECommonBufferType.BoneMatrixOffset}[i];");
-                    Line($"float weight = {ECommonBufferType.BoneMatrixCount}[i];");
-                    Line($"mat4 boneMatrix = {ECommonBufferType.BoneInvBindMatrices}[boneIndex] * {ECommonBufferType.BoneMatrices}[boneIndex] * {EEngineUniform.RootInvModelMatrix};");
-                    Line("finalPosition += (boneMatrix * basePosition) * weight;");
-                    Line("mat3 boneMatrix3 = adjoint(boneMatrix);");
-                    Line("finalNormal += (boneMatrix3 * baseNormal) * weight;");
-                    Line("finalTangent += (boneMatrix3 * baseTangent) * weight;");
+                    //Calculate blendshapes on unskinned mesh
+                }
+            }
+            if (!Engine.Rendering.Settings.CalculateSkinningInComputeShader)
+            {
+                bool optimizeTo4Weights = Engine.Rendering.Settings.OptimizeTo4Weights || (Engine.Rendering.Settings.OptimizeWeightsIfPossible && Mesh.MaxWeightCount <= 4);
+                if (optimizeTo4Weights)
+                {
+                    Line($"for (int i = 0; i < 4; i++)");
+                    using (OpenBracketState())
+                    {
+                        Line($"int boneIndex = {ECommonBufferType.BoneMatrixOffset}[i];");
+                        Line($"float weight = {ECommonBufferType.BoneMatrixCount}[i];");
+                        Line($"mat4 boneMatrix = {ECommonBufferType.BoneInvBindMatrices}[boneIndex] * {ECommonBufferType.BoneMatrices}[boneIndex] * {EEngineUniform.RootInvModelMatrix};");
+                        Line("finalPosition += (boneMatrix * basePosition) * weight;");
+                        Line("mat3 boneMatrix3 = adjoint(boneMatrix);");
+                        Line("finalNormal += (boneMatrix3 * baseNormal) * weight;");
+                        Line("finalTangent += (boneMatrix3 * baseTangent) * weight;");
+                    }
+                }
+                else
+                {
+                    //Loop over the bone count supplied to this vertex
+                    Line($"for (int i = 0; i < {ECommonBufferType.BoneMatrixCount}; i++)");
+                    using (OpenBracketState())
+                    {
+                        Line($"int index = {ECommonBufferType.BoneMatrixOffset} + i;");
+                        Line($"int boneIndex = {ECommonBufferType.BoneMatrixIndices}[index];");
+                        Line($"float weight = {ECommonBufferType.BoneMatrixWeights}[index];");
+                        Line($"mat4 boneMatrix = {ECommonBufferType.BoneInvBindMatrices}[boneIndex] * {ECommonBufferType.BoneMatrices}[boneIndex] * {EEngineUniform.RootInvModelMatrix};");
+                        Line("finalPosition += (boneMatrix * basePosition) * weight;");
+                        Line("mat3 boneMatrix3 = adjoint(boneMatrix);");
+                        Line("finalNormal += (boneMatrix3 * baseNormal) * weight;");
+                        Line("finalTangent += (boneMatrix3 * baseTangent) * weight;");
+                    }
                 }
             }
             else
             {
-                //Loop over the bone count supplied to this vertex
-                Line($"for (int i = 0; i < {ECommonBufferType.BoneMatrixCount}; i++)");
-                using (OpenBracketState())
-                {
-                    Line($"int index = {ECommonBufferType.BoneMatrixOffset} + i;");
-                    Line($"int boneIndex = {ECommonBufferType.BoneMatrixIndices}[index];");
-                    Line($"float weight = {ECommonBufferType.BoneMatrixWeights}[index];");
-                    Line($"mat4 boneMatrix = {ECommonBufferType.BoneInvBindMatrices}[boneIndex] * {ECommonBufferType.BoneMatrices}[boneIndex] * {EEngineUniform.RootInvModelMatrix};");
-                    Line("finalPosition += (boneMatrix * basePosition) * weight;");
-                    Line("mat3 boneMatrix3 = adjoint(boneMatrix);");
-                    Line("finalNormal += (boneMatrix3 * baseNormal) * weight;");
-                    Line("finalTangent += (boneMatrix3 * baseTangent) * weight;");
-                }
+                //Skinning is calculated in compute shader, just copy the values
+                Line("finalPosition = basePosition;");
+                if (hasNormals)
+                    Line("finalNormal = baseNormal;");
+                if (hasTangents)
+                    Line("finalTangent = baseTangent;");
             }
 
             Line();
@@ -334,7 +346,7 @@ namespace XREngine.Rendering.Shaders.Generator
                 }
             }
 
-            ResolvePosition("finalPosition", true);
+            ResolvePosition("finalPosition");
         }
         /// <summary>
         /// Calculates positions, and optionally normals, tangents, and binormals for a static mesh.
@@ -389,7 +401,7 @@ namespace XREngine.Rendering.Shaders.Generator
                 //Line();
             }
 
-            ResolvePosition("position", true);
+            ResolvePosition("position");
 
             if (Mesh.NormalsBuffer is not null)
             {
@@ -402,7 +414,7 @@ namespace XREngine.Rendering.Shaders.Generator
                 }
             }
         }
-        private void ResolvePosition(string posName, bool includeModelMatrix)
+        private void ResolvePosition(string posName)
         {
             //Line("mat4 ViewMatrix = WorldToCameraSpaceMatrix;");
             //if (mesh.BillboardingFlags == ECameraTransformFlags.None)
@@ -483,16 +495,9 @@ namespace XREngine.Rendering.Shaders.Generator
             //    Line("BillboardMatrix[3][2] = 0.0f;");
             //}
             Line($"{FragPosLocalName} = {posName}.xyz;");
-            if (includeModelMatrix)
-            {
-                Line($"{FragPosName} = (mvpMatrix * {posName}).xyz;");
-                Line($"gl_Position = mvpMatrix * {posName};");
-            }
-            else
-            {
-                Line($"{FragPosName} = (vpMatrix * {posName}).xyz;");
-                Line($"gl_Position = vpMatrix * {posName};");
-            }
+            Line($"vec4 glPos = mvpMatrix * {posName};");
+            Line($"{FragPosName} = glPos.xyz / glPos.w;");
+            Line($"gl_Position = glPos;");
         }
     }
 }
