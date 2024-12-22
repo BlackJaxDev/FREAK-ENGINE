@@ -1,4 +1,5 @@
 ﻿using Extensions;
+using System.Text;
 using XREngine.Data.Rendering;
 using XREngine.Rendering.Models.Materials;
 
@@ -21,12 +22,18 @@ namespace XREngine.Rendering.Shaders.Generator
         private void WriteAdjointMethod()
         {
             Line("mat3 adjoint(mat4 m)");
-            Line("{");
-            Line("    return mat3(");
-            Line("        cross(m[1].xyz, m[2].xyz),");
-            Line("        cross(m[2].xyz, m[0].xyz),");
-            Line("        cross(m[0].xyz, m[1].xyz));");
-            Line("}");
+            using (OpenBracketState())
+            {
+                Line("return mat3(");
+                Line("    m[1].yzw * m[2].w - m[1].wzw * m[2].y,");
+                Line("    m[0].wzw * m[2].y - m[0].yzw * m[2].w,");
+                Line("    m[0].yzw * m[1].w - m[0].wzw * m[1].y);");
+                
+                //Line("    return mat3(");
+                //Line("        cross(m[1].xyz, m[2].xyz),");
+                //Line("        cross(m[2].xyz, m[0].xyz),");
+                //Line("        cross(m[0].xyz, m[1].xyz));");
+            }
         }
 
         /// <summary>
@@ -164,11 +171,15 @@ namespace XREngine.Rendering.Shaders.Generator
                 }
             }
 
-            //if (blendshapeCount > 0)
-            //{
-            //    WriteInVar(location++, intVarType, ECommonBufferType.BlendshapeOffset.ToString());
-            //    WriteInVar(location++, intVarType, ECommonBufferType.BlendshapeCount.ToString());
-            //}
+            if (Mesh.BlendshapeCount > 0)
+            {
+                EShaderVarType intVarType = Engine.Rendering.Settings.UseIntegerUniformsInShaders
+                    ? EShaderVarType._int
+                    : EShaderVarType._float;
+
+                WriteInVar(location++, intVarType, ECommonBufferType.BlendshapeOffset.ToString());
+                WriteInVar(location++, intVarType, ECommonBufferType.BlendshapeCount.ToString());
+            }
         }
 
         private void WriteUniforms()
@@ -265,7 +276,6 @@ namespace XREngine.Rendering.Shaders.Generator
         {
             bool hasNormals = Mesh.NormalsBuffer is not null;
             bool hasTangents = Mesh.TangentsBuffer is not null;
-            //bool hasNBT = hasNormals || hasTangents;
 
             Line("vec4 finalPosition = vec4(0.0f);");
             Line($"vec4 basePosition = vec4({ECommonBufferType.Position}, 1.0f);");
@@ -283,50 +293,8 @@ namespace XREngine.Rendering.Shaders.Generator
 
             Line();
 
-            if (!Engine.Rendering.Settings.CalculateBlendshapesInComputeShader)
+            if (!WriteBlendshapeCalc() && !WriteSkinningCalc())
             {
-                if (Mesh.BlendshapeCount > 0)
-                {
-                    //Calculate blendshapes on unskinned mesh
-                }
-            }
-            if (!Engine.Rendering.Settings.CalculateSkinningInComputeShader)
-            {
-                bool optimizeTo4Weights = Engine.Rendering.Settings.OptimizeTo4Weights || (Engine.Rendering.Settings.OptimizeWeightsIfPossible && Mesh.MaxWeightCount <= 4);
-                if (optimizeTo4Weights)
-                {
-                    Line($"for (int i = 0; i < 4; i++)");
-                    using (OpenBracketState())
-                    {
-                        Line($"int boneIndex = {ECommonBufferType.BoneMatrixOffset}[i];");
-                        Line($"float weight = {ECommonBufferType.BoneMatrixCount}[i];");
-                        Line($"mat4 boneMatrix = {ECommonBufferType.BoneInvBindMatrices}[boneIndex] * {ECommonBufferType.BoneMatrices}[boneIndex] * {EEngineUniform.RootInvModelMatrix};");
-                        Line("finalPosition += (boneMatrix * basePosition) * weight;");
-                        Line("mat3 boneMatrix3 = adjoint(boneMatrix);");
-                        Line("finalNormal += (boneMatrix3 * baseNormal) * weight;");
-                        Line("finalTangent += (boneMatrix3 * baseTangent) * weight;");
-                    }
-                }
-                else
-                {
-                    //Loop over the bone count supplied to this vertex
-                    Line($"for (int i = 0; i < {ECommonBufferType.BoneMatrixCount}; i++)");
-                    using (OpenBracketState())
-                    {
-                        Line($"int index = {ECommonBufferType.BoneMatrixOffset} + i;");
-                        Line($"int boneIndex = {ECommonBufferType.BoneMatrixIndices}[index];");
-                        Line($"float weight = {ECommonBufferType.BoneMatrixWeights}[index];");
-                        Line($"mat4 boneMatrix = {ECommonBufferType.BoneInvBindMatrices}[boneIndex] * {ECommonBufferType.BoneMatrices}[boneIndex] * {EEngineUniform.RootInvModelMatrix};");
-                        Line("finalPosition += (boneMatrix * basePosition) * weight;");
-                        Line("mat3 boneMatrix3 = adjoint(boneMatrix);");
-                        Line("finalNormal += (boneMatrix3 * baseNormal) * weight;");
-                        Line("finalTangent += (boneMatrix3 * baseTangent) * weight;");
-                    }
-                }
-            }
-            else
-            {
-                //Skinning is calculated in compute shader, just copy the values
                 Line("finalPosition = basePosition;");
                 if (hasNormals)
                     Line("finalNormal = baseNormal;");
@@ -348,6 +316,105 @@ namespace XREngine.Rendering.Shaders.Generator
 
             ResolvePosition("finalPosition");
         }
+
+        private bool NeedsSkinningCalc()
+            => Mesh.HasSkinning && !Engine.Rendering.Settings.CalculateSkinningInComputeShader;
+
+        private bool NeedsBlendshapeCalc()
+            => Mesh.BlendshapeCount > 0 && !Engine.Rendering.Settings.CalculateBlendshapesInComputeShader;
+
+        private bool WriteSkinningCalc()
+        {
+            if (Engine.Rendering.Settings.CalculateSkinningInComputeShader)
+                return false;
+            
+            bool optimizeTo4Weights = Engine.Rendering.Settings.OptimizeTo4Weights || (Engine.Rendering.Settings.OptimizeWeightsIfPossible && Mesh.MaxWeightCount <= 4);
+            if (optimizeTo4Weights)
+            {
+                Line($"for (int i = 0; i < 4; i++)");
+                using (OpenBracketState())
+                {
+                    Line($"int boneIndex = {ECommonBufferType.BoneMatrixOffset}[i];");
+                    Line($"float weight = {ECommonBufferType.BoneMatrixCount}[i];");
+                    Line($"mat4 boneMatrix = {ECommonBufferType.BoneInvBindMatrices}[boneIndex] * {ECommonBufferType.BoneMatrices}[boneIndex] * {EEngineUniform.RootInvModelMatrix};");
+                    Line("finalPosition += (boneMatrix * basePosition) * weight;");
+                    Line("mat3 boneMatrix3 = adjoint(boneMatrix);");
+                    Line("finalNormal += (boneMatrix3 * baseNormal) * weight;");
+                    Line("finalTangent += (boneMatrix3 * baseTangent) * weight;");
+                }
+            }
+            else
+            {
+                Line($"for (int i = 0; i < {ECommonBufferType.BoneMatrixCount}; i++)");
+                using (OpenBracketState())
+                {
+                    Line($"int index = {ECommonBufferType.BoneMatrixOffset} + i;");
+                    Line($"int boneIndex = {ECommonBufferType.BoneMatrixIndices}[index];");
+                    Line($"float weight = {ECommonBufferType.BoneMatrixWeights}[index];");
+                    Line($"mat4 boneMatrix = {ECommonBufferType.BoneInvBindMatrices}[boneIndex] * {ECommonBufferType.BoneMatrices}[boneIndex] * {EEngineUniform.RootInvModelMatrix};");
+                    Line("finalPosition += (boneMatrix * basePosition) * weight;");
+                    Line("mat3 boneMatrix3 = adjoint(boneMatrix);");
+                    Line("finalNormal += (boneMatrix3 * baseNormal) * weight;");
+                    Line("finalTangent += (boneMatrix3 * baseTangent) * weight;");
+                }
+            }
+
+            return true;
+        }
+        
+        private bool WriteBlendshapeCalc()
+        {
+            if (Engine.Rendering.Settings.CalculateBlendshapesInComputeShader || Mesh.BlendshapeCount == 0)
+                return false;
+            
+            if (Mesh.MaxBlendshapeAccumulation)
+            {
+                // MAX blendshape accumulation
+                Line("vec3 maxPositionDelta = vec3(0.0f);");
+                Line("vec3 maxNormalDelta = vec3(0.0f);");
+                Line("vec3 maxTangentDelta = vec3(0.0f);");
+
+                Line($"for (int i = 0; i < {ECommonBufferType.BlendshapeCount}; i++)");
+                using (OpenBracketState())
+                {
+                    Line($"int index = {ECommonBufferType.BlendshapeOffset} + i;");
+                    Line($"int blendshapeIndex = {ECommonBufferType.BlendshapeIndices}[index];");
+                    Line($"float weight = {ECommonBufferType.BlendshapeWeights}[index];");
+                    Line($"maxPositionDelta = max(maxPositionDelta, {ECommonBufferType.BlendshapePositionDeltas}[blendshapeIndex] * weight);");
+                    Line($"maxNormalDelta = max(maxNormalDelta, {ECommonBufferType.BlendshapeNormalDeltas}[blendshapeIndex] * weight);");
+                    Line($"maxTangentDelta = max(maxTangentDelta, {ECommonBufferType.BlendshapeTangentDeltas}[blendshapeIndex] * weight);");
+                }
+
+                Line("finalPosition += vec4(maxPositionDelta, 0.0f);");
+                Line("finalNormal += maxNormalDelta;");
+                Line("finalTangent += maxTangentDelta;");
+            }
+            else
+            {
+                // Use a single loop to accumulate blendshape deltas
+                Line("vec3 positionDeltaSum = vec3(0.0f);");
+                Line("vec3 normalDeltaSum = vec3(0.0f);");
+                Line("vec3 tangentDeltaSum = vec3(0.0f);");
+
+                Line($"for (int i = 0; i < {ECommonBufferType.BlendshapeCount}; i++)");
+                using (OpenBracketState())
+                {
+                    Line($"int index = {ECommonBufferType.BlendshapeOffset} + i;");
+                    Line($"int blendshapeIndex = {ECommonBufferType.BlendshapeIndices}[index];");
+                    Line($"float weight = {ECommonBufferType.BlendshapeWeights}[index];");
+                    Line($"positionDeltaSum += {ECommonBufferType.BlendshapePositionDeltas}[blendshapeIndex] * weight;");
+                    Line($"normalDeltaSum += {ECommonBufferType.BlendshapeNormalDeltas}[blendshapeIndex] * weight;");
+                    Line($"tangentDeltaSum += {ECommonBufferType.BlendshapeTangentDeltas}[blendshapeIndex] * weight;");
+                }
+
+                Line("finalPosition += vec4(positionDeltaSum, 0.0f);");
+                Line("finalNormal += normalDeltaSum;");
+                Line("finalTangent += tangentDeltaSum;");
+            }
+
+            return true;
+        }
+
         /// <summary>
         /// Calculates positions, and optionally normals, tangents, and binormals for a static mesh.
         /// </summary>
@@ -360,45 +427,9 @@ namespace XREngine.Rendering.Shaders.Generator
                 Line($"vec3 tangent = {ECommonBufferType.Tangent};");
             Line();
 
-            if (Mesh.BlendshapeCount > 0)
+            if (!Engine.Rendering.Settings.CalculateBlendshapesInComputeShader && Mesh.BlendshapeCount > 0)
             {
-                //Line("float totalWeight = 0.0f;");
-                //OpenLoop(mesh.BlendshapeCount);
-                //Line($"totalWeight += {Uniform.MorphWeightsName}[i];");
-                //CloseBracket();
-
-                //Line("float baseWeight = 1.0f - totalWeight;");
-                //Line("float invTotal = 1.0f / (totalWeight + baseWeight);");
-                //Line();
-
-                //Line("position *= baseWeight;");
-                //if (mesh.HasNormals)
-                //    Line("normal *= baseWeight;");
-                ////if (_info.HasBinormals)
-                ////    Line("binormal *= baseWeight;");
-                //if (mesh.HasTangents)
-                //    Line("tangent *= baseWeight;");
-                //Line();
-
-                //for (int i = 0; i < mesh.BlendshapeCount; ++i)
-                //{
-                //    Line($"position += Vector4(Position{i + 1}, 1.0f) * MorphWeights[{i}];");
-                //    if (mesh.HasNormals)
-                //        Line($"normal += Normal{i + 1} * MorphWeights[{i}];");
-                //    //if (_info.HasBinormals)
-                //    //    Line($"binormal += Binormal{i + 1} * MorphWeights[{i}];");
-                //    if (mesh.HasTangents)
-                //        Line($"tangent += Tangent{i + 1} * MorphWeights[{i}];");
-                //}
-                //Line();
-                //Line("position *= invTotal;");
-                //if (mesh.HasNormals)
-                //    Line("normal *= invTotal;");
-                ////if (_info.HasBinormals)
-                ////    Line("binormal *= invTotal;");
-                //if (mesh.HasTangents)
-                //    Line("tangent *= invTotal;");
-                //Line();
+                
             }
 
             ResolvePosition("position");

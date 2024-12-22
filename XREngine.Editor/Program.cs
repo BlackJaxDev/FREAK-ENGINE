@@ -313,8 +313,8 @@ uniform vec4 MatColor;
 
 void main()
 {
-    float xOffset = 1.0f / ScreenWidth;
-    float yOffset = 1.0f / ScreenHeight;
+    //float xOffset = 1.0f / ScreenWidth;
+    //float yOffset = 1.0f / ScreenHeight;
     vec2 vTexCoord = vec2(gl_FragCoord.x / ScreenWidth, gl_FragCoord.y / ScreenHeight);
     vec3 col = texture(Texture0, vTexCoord).rgb;// * kernel[0];
     

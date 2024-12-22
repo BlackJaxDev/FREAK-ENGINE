@@ -1,4 +1,5 @@
-﻿using XREngine.Rendering.Models.Materials;
+﻿using System.Text;
+using XREngine.Rendering.Models.Materials;
 
 namespace XREngine.Rendering.Shaders.Generator
 {
@@ -310,6 +311,49 @@ namespace XREngine.Rendering.Shaders.Generator
                 Line($"}} {name}{(includeSemicolon ? ";" : string.Empty)}");
             else
                 Line(includeSemicolon ? "};" : "}");
+        }
+
+        public enum ShaderVarType
+        {
+            Vec2,
+            Vec3,
+            Vec4,
+            Mat3,
+            Mat4,
+            Float,
+            Int
+        }
+
+        public StateObject WriteLoopStart(string varName, int start, int end)
+        {
+            Line($"for (int {varName} = {start}; {varName} < {end}; {varName}++)");
+            return OpenBracketState();
+        }
+
+        public StateObject WriteLoopStart(string varName, int end)
+            => WriteLoopStart(varName, 0, end);
+
+        public void AssignVariable(string varName, string value)
+            => Line($"{varName} = {value};");
+        public void AddToVariable(string varName, string value)
+            => Line($"{varName} += {value};");
+        public void DeclareVariable(ShaderVarType type, string varName, string initialValue = "")
+        {
+            string typeString = type switch
+            {
+                ShaderVarType.Vec2 => "vec2",
+                ShaderVarType.Vec3 => "vec3",
+                ShaderVarType.Vec4 => "vec4",
+                ShaderVarType.Mat3 => "mat3",
+                ShaderVarType.Mat4 => "mat4",
+                ShaderVarType.Float => "float",
+                ShaderVarType.Int => "int",
+                _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
+            };
+
+            Line(string.IsNullOrEmpty(initialValue) 
+                ? $"{typeString} {varName};" 
+                : $"{typeString} {varName} = {initialValue};");
         }
         #endregion
 

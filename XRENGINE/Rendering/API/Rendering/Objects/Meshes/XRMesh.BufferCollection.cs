@@ -8,6 +8,13 @@ namespace XREngine.Rendering
 {
     public partial class XRMesh
     {
+        private bool _maxBlendshapeAccumulation = false;
+        public bool MaxBlendshapeAccumulation
+        {
+            get => _maxBlendshapeAccumulation;
+            set => SetField(ref _maxBlendshapeAccumulation, value);
+        }
+
         public class BufferCollection : XRBase, IEventDictionary<string, XRDataBuffer>
         {
             private EventDictionary<string, XRDataBuffer> _buffers = [];
