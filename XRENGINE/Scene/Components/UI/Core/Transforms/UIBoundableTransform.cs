@@ -164,11 +164,14 @@ namespace XREngine.Rendering.UI
         /// <returns></returns>
         protected override Matrix4x4 CreateLocalMatrix()
         {
+            var p = PlacementInfo;
+            Matrix4x4 relativeMatrix = p?.GetRelativeItemMatrix() ?? Matrix4x4.Identity;
             return
                 Matrix4x4.CreateTranslation(new Vector3(LocalPivotTranslation, 0.0f)) *
                 Matrix4x4.CreateScale(Scale) *
                 Matrix4x4.CreateFromAxisAngle(Globals.Backward, RotationRadians) *
-                Matrix4x4.CreateTranslation(new Vector3(ActualBottomLeftTranslation - LocalPivotTranslation, DepthTranslation));
+                Matrix4x4.CreateTranslation(new Vector3(ActualBottomLeftTranslation - LocalPivotTranslation, DepthTranslation)) *
+                relativeMatrix;
         }
 
         private Vector2 _minAnchor = Vector2.Zero;

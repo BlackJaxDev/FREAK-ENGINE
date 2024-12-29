@@ -1,4 +1,5 @@
 ﻿using XREngine.Data.Geometry;
+using XREngine.Scene.Transforms;
 
 namespace XREngine.Rendering.UI
 {
@@ -8,6 +9,7 @@ namespace XREngine.Rendering.UI
         private bool _horizontal = false;
         private float _spacing = 0.0f;
         private EListAlignment _alignment = EListAlignment.TopOrLeft;
+        private bool _virtual = false;
 
         /// <summary>
         /// The width or height of each child component.
@@ -34,10 +36,21 @@ namespace XREngine.Rendering.UI
             get => _spacing;
             set => SetField(ref _spacing, value);
         }
+        /// <summary>
+        /// The alignment of the child components.
+        /// </summary>
         public EListAlignment ItemAlignment
         {
             get => _alignment;
             set => SetField(ref _alignment, value);
+        }
+        /// <summary>
+        /// If true, items will be pooled and culled if they are outside of the parent region.
+        /// </summary>
+        public bool Virtual
+        {
+            get => _virtual;
+            set => SetField(ref _virtual, value);
         }
 
         protected override void OnResizeChildComponents(BoundingRectangleF parentRegion)
@@ -67,13 +80,15 @@ namespace XREngine.Rendering.UI
             //TODO: verify this was implemented correctly
             for (int i = Children.Count - 1; i >= 0; i--)
             {
-                Scene.Transforms.TransformBase? child = Children[i];
-                if (child is not UIBoundableTransform bc)
+                TransformBase? child = Children[i];
+                if (child is not UIBoundableTransform bc || bc.PlacementInfo is not UIListChildPlacementInfo placementInfo)
                     continue;
+
                 if (DisplayHorizontal)
                 {
                     float parentHeight = parentRegion.Height;
                     float size = ItemSize ?? bc.GetWidth();
+                    placementInfo.Offset = x - size;
                     bc.FitLayout(new BoundingRectangleF(x - size, y, size, parentHeight));
                     x -= size;
                     if (i > 0)
@@ -83,6 +98,7 @@ namespace XREngine.Rendering.UI
                 {
                     float parentWidth = parentRegion.Width;
                     float size = ItemSize ?? bc.GetHeight();
+                    placementInfo.Offset = y - size;
                     bc.FitLayout(new BoundingRectangleF(x, y - size, parentWidth, size));
                     y -= size;
                     if (i > 0)
@@ -97,9 +113,10 @@ namespace XREngine.Rendering.UI
             float totalSize = 0;
             for (int i = 0; i < Children.Count; i++)
             {
-                Scene.Transforms.TransformBase? child = Children[i];
+                TransformBase? child = Children[i];
                 if (child is not UIBoundableTransform bc)
                     continue;
+
                 if (DisplayHorizontal)
                 {
                     float size = ItemSize ?? bc.GetWidth();
@@ -122,13 +139,15 @@ namespace XREngine.Rendering.UI
 
             for (int i = 0; i < Children.Count; i++)
             {
-                Scene.Transforms.TransformBase? child = Children[i];
-                if (child is not UIBoundableTransform bc)
+                TransformBase? child = Children[i];
+                if (child is not UIBoundableTransform bc || bc.PlacementInfo is not UIListChildPlacementInfo placementInfo)
                     continue;
+
                 if (DisplayHorizontal)
                 {
                     float parentHeight = parentRegion.Height;
                     float size = ItemSize ?? bc.GetWidth();
+                    placementInfo.Offset = x + offset;
                     bc.FitLayout(new BoundingRectangleF(x + offset, y, size, parentHeight));
                     offset += size;
                     if (i < Children.Count - 1)
@@ -138,6 +157,7 @@ namespace XREngine.Rendering.UI
                 {
                     float parentWidth = parentRegion.Width;
                     float size = ItemSize ?? bc.GetHeight();
+                    placementInfo.Offset = y + offset;
                     bc.FitLayout(new BoundingRectangleF(x, y + offset, parentWidth, size));
                     offset += size;
                     if (i < Children.Count - 1)
@@ -150,14 +170,15 @@ namespace XREngine.Rendering.UI
         {
             for (int i = 0; i < Children.Count; i++)
             {
-                Scene.Transforms.TransformBase? child = Children[i];
-                if (child is not UIBoundableTransform bc)
+                TransformBase? child = Children[i];
+                if (child is not UIBoundableTransform bc || bc.PlacementInfo is not UIListChildPlacementInfo placementInfo)
                     continue;
 
                 if (DisplayHorizontal)
                 {
                     float parentHeight = parentRegion.Height;
                     float size = ItemSize ?? bc.GetWidth();
+                    placementInfo.Offset = x;
                     bc.FitLayout(new BoundingRectangleF(x, y, size, parentHeight));
 
                     x += size;
@@ -168,6 +189,7 @@ namespace XREngine.Rendering.UI
                 {
                     float parentWidth = parentRegion.Width;
                     float size = ItemSize ?? bc.GetHeight();
+                    placementInfo.Offset = y;
                     bc.FitLayout(new BoundingRectangleF(x, y, parentWidth, size));
 
                     y += size;
@@ -177,10 +199,10 @@ namespace XREngine.Rendering.UI
             }
         }
 
-        public override void VerifyPlacementInfo(UITransform childTransform)
+        public override void VerifyPlacementInfo(UITransform childTransform, ref UIChildPlacementInfo? placementInfo)
         {
-            if (childTransform.PlacementInfo is not UIListChildPlacementInfo)
-                childTransform.PlacementInfo = new UIListChildPlacementInfo(childTransform);
+            if (placementInfo is not UIListChildPlacementInfo)
+                placementInfo = new UIListChildPlacementInfo(childTransform);
         }
     }
 }

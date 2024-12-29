@@ -1500,7 +1500,7 @@ namespace XREngine.Rendering
 
             uint vertCount = (uint)VertexCount;
 
-            bool optimizeTo4Weights = Engine.Rendering.Settings.OptimizeTo4Weights || (Engine.Rendering.Settings.OptimizeWeightsIfPossible && MaxWeightCount <= 4);
+            bool optimizeTo4Weights = Engine.Rendering.Settings.OptimizeSkinningTo4Weights || (Engine.Rendering.Settings.OptimizeSkinningWeightsIfPossible && MaxWeightCount <= 4);
             if (optimizeTo4Weights)
             {
                 //4 bone indices

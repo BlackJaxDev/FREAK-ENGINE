@@ -464,25 +464,25 @@ namespace XREngine.Rendering
         #region Picking
         public float GetDepth(Vector2 viewportPoint)
         {
-            State.BindFrameBuffer(EFramebufferTarget.ReadFramebuffer, null);
+            State.UnbindFrameBuffers(EFramebufferTarget.ReadFramebuffer);
             State.SetReadBuffer(EReadBufferMode.None);
             return State.GetDepth(viewportPoint.X, viewportPoint.Y);
         }
         public byte GetStencil(Vector2 viewportPoint)
         {
-            State.BindFrameBuffer(EFramebufferTarget.ReadFramebuffer, null);
+            State.UnbindFrameBuffers(EFramebufferTarget.ReadFramebuffer);
             State.SetReadBuffer(EReadBufferMode.None);
             return State.GetStencilIndex(viewportPoint.X, viewportPoint.Y);
         }
         public float GetDepth(XRFrameBuffer fbo, Vector2 viewportPoint)
         {
-            State.BindFrameBuffer(EFramebufferTarget.ReadFramebuffer, fbo);
+            using var t = fbo.BindForReading();
             State.SetReadBuffer(EReadBufferMode.None);
             return State.GetDepth(viewportPoint.X, viewportPoint.Y);
         }
         public byte GetStencil(XRFrameBuffer fbo, Vector2 viewportPoint)
         {
-            State.BindFrameBuffer(EFramebufferTarget.ReadFramebuffer, fbo);
+            using var t = fbo.BindForReading();
             State.SetReadBuffer(EReadBufferMode.None);
             return State.GetStencilIndex(viewportPoint.X, viewportPoint.Y);
         }

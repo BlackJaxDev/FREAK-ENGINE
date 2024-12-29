@@ -158,4 +158,8 @@
     <PackageReference Update="StirlingLabs.assimp.native.win-x64" Version="5.2.5.4" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="runtimes\win-x64\native\" />
+  </ItemGroup>
+
 </Project>

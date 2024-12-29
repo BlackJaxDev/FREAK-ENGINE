@@ -82,8 +82,10 @@ namespace XREngine
                     else
                         Clear(true, true, true);
                 }
-                
-                public static void BindFrameBuffer(EFramebufferTarget fboTarget, XRFrameBuffer? fbo)
+
+                public static void UnbindFrameBuffers(EFramebufferTarget target)
+                    => BindFrameBuffer(target, null);
+                private static void BindFrameBuffer(EFramebufferTarget fboTarget, XRFrameBuffer? fbo)
                     => AbstractRenderer.Current?.BindFrameBuffer(fboTarget, fbo);
                 public static void SetReadBuffer(EReadBufferMode mode)
                     => AbstractRenderer.Current?.SetReadBuffer(mode);

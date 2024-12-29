@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using System.Numerics;
 
 namespace XREngine.Rendering.UI
 {
@@ -34,6 +35,11 @@ namespace XREngine.Rendering.UI
 
             public HashSet<int> AssociatedRowIndices { get; } = [];
             public HashSet<int> AssociatedColumnIndices { get; } = [];
+
+            public override Matrix4x4 GetRelativeItemMatrix()
+            {
+                throw new NotImplementedException();
+            }
         }
     }
 }

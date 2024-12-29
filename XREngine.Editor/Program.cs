@@ -197,7 +197,7 @@ internal class Program
         if (camComp is not null)
             camComp.UserInterface = canvas;
 
-        AddFPSText(Engine.Assets.LoadEngineAsset<FontGlyphSet>("Fonts", "Roboto", "Roboto-Regular.ttf"), rootCanvasNode);
+        AddFPSText(null, rootCanvasNode);
 
         //var uiPanel = new SceneNode(uiNode) { Name = "TestUIPanel" };
         //var uiPanelComp = uiPanel.AddComponent<UIMaterialComponent>()!;
@@ -238,8 +238,12 @@ internal class Program
         tfm.MinAnchor = new Vector2(0.0f, 0.0f);
         tfm.MaxAnchor = new Vector2(1.0f, 1.0f);
         tfm.NormalizedPivot = new Vector2(0.0f, 0.0f);
+        tfm.Translation = new Vector2(0.0f, 0.0f);
+        tfm.Width = null;
+        tfm.Height = null;
     }
 
+    //TODO: allow scripts to add menu options with attributes
     private static List<UIEditorComponent.MenuOption> GenerateRootMenu()
     {
         return [
@@ -433,11 +437,12 @@ void main()
         return cameraNode;
     }
 
-    private static UITextComponent AddFPSText(FontGlyphSet font, SceneNode parentNode)
+    private static UITextComponent AddFPSText(FontGlyphSet? font, SceneNode parentNode)
     {
         SceneNode textNode = new(parentNode) { Name = "TestTextNode" };
         UITextComponent text = textNode.AddComponent<UITextComponent>()!;
         text.Font = font;
+        text.FontSize = 30;
         text.RegisterAnimationTick<UITextComponent>(TickFPS);
         var textTransform = textNode.GetTransformAs<UIBoundableTransform>(true)!;
         textTransform.MinAnchor = new Vector2(1.0f, 1.0f);

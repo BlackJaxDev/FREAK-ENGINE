@@ -15,6 +15,8 @@
                 //public const string BoneNrmMtxName = "BoneNrmMtx";
                 public const string MorphWeightsName = "MorphWeights";
                 public const string LightsStructName = "LightData";
+
+                public const string EngineFontsCommonFolderName = "Fonts";
             }
         }
     }

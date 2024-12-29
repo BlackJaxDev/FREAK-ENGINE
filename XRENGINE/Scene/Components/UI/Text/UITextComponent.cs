@@ -1,8 +1,10 @@
 ﻿using System.Numerics;
 using XREngine.Core.Attributes;
+using XREngine.Data.Core;
 using XREngine.Data.Rendering;
 using XREngine.Rendering.Commands;
 using XREngine.Rendering.Info;
+using XREngine.Rendering.Models.Materials;
 using XREngine.Scene.Transforms;
 
 namespace XREngine.Rendering.UI
@@ -22,11 +24,89 @@ namespace XREngine.Rendering.UI
         private readonly RenderCommandMesh2D _rc2D = new((int)EDefaultRenderPass.TransparentForward);
 
         public RenderInfo[] RenderedObjects { get; } = new RenderInfo[2];
+        public RenderInfo3D RenderInfo3D { get; }
+        public RenderInfo2D RenderInfo2D { get; }
+
+        private readonly List<(Vector4 transform, Vector4 uvs)> _glyphs = [];
+        private XRDataBuffer? _uvsBuffer;
+        private XRDataBuffer? _transformsBuffer;
+        private XRDataBuffer? _rotationsBuffer;
+        private readonly object _glyphLock = new();
+        public bool _pushFull = false;
+        public bool _dataChanged = false;
+        private uint _allocatedGlyphCount = 20;
+
+        private Dictionary<int, (Vector2 translation, Vector2 scale, float rotation)> _glyphRelativeTransforms = [];
+        /// <summary>
+        /// If AnimatableTransforms is true, this dictionary can be used to update the position, scale, and rotation of individual glyphs.
+        /// </summary>
+        public Dictionary<int, (Vector2 translation, Vector2 scale, float rotation)> GlyphRelativeTransforms
+        {
+            get => _glyphRelativeTransforms;
+            set => SetField(ref _glyphRelativeTransforms, value);
+        }
+
+        private string? _text;
+        /// <summary>
+        /// The text to display.
+        /// </summary>
+        public string? Text
+        {
+            get => _text;
+            set => SetField(ref _text, value);
+        }
 
         private FontGlyphSet? _font;
-        private string? _text;
+        /// <summary>
+        /// The font to use for the text.
+        /// </summary>
+        public FontGlyphSet? Font
+        {
+            get => _font;
+            set => SetField(ref _font, value);
+        }
+
         private bool _animatableTransforms = false;
-        private readonly List<(Vector4 transform, Vector4 uvs)> _glyphs = [];
+        /// <summary>
+        /// If true, individual text character positions can be updated.
+        /// </summary>
+        public bool AnimatableTransforms
+        {
+            get => _animatableTransforms;
+            set => SetField(ref _animatableTransforms, value);
+        }
+
+        private bool _wordWrap = false;
+        /// <summary>
+        /// If true, the text will wrap to the next line when it reaches the width of the text box.
+        /// </summary>
+        public bool WordWrap
+        {
+            get => _wordWrap;
+            set => SetField(ref _wordWrap, value);
+        }
+
+        private float? _fontSize = 30.0f;
+        /// <summary>
+        /// The size of the font in points (pt).
+        /// If null, the font size will be automatically calculated to fill the transform bounds.
+        /// </summary>
+        public float? FontSize
+        {
+            get => _fontSize;
+            set => SetField(ref _fontSize, value);
+        }
+
+        private bool _hideOverflow = true;
+        /// <summary>
+        /// If true, text that overflows the bounds of the text box will be hidden.
+        /// WordWrap can cause vertical overflow, but otherwise overflow is horizontal.
+        /// </summary>
+        public bool HideOverflow
+        {
+            get => _hideOverflow;
+            set => SetField(ref _hideOverflow, value);
+        }
 
         protected override void OnTransformWorldMatrixChanged(TransformBase transform)
         {
@@ -36,9 +116,6 @@ namespace XREngine.Rendering.UI
             RenderInfo3D.PreAddRenderCommandsCallback = ShouldRender3D;
             RenderInfo2D.PreAddRenderCommandsCallback = ShouldRender2D;
         }
-
-        public RenderInfo3D RenderInfo3D { get; }
-        public RenderInfo2D RenderInfo2D { get; }
 
         private bool ShouldRender3D(RenderInfo info, RenderCommandCollection passes, XRCamera? camera)
         {
@@ -54,34 +131,34 @@ namespace XREngine.Rendering.UI
         override protected void OnTransformChanging()
         {
             base.OnTransformChanging();
-            if (SceneNode.TryGetTransformAs<UIBoundableTransform>(out var tfm) && tfm is not null)
-            {
-                tfm.CalcAutoHeightCallback = null;
-                tfm.CalcAutoWidthCallback = null;
-            }
+
+            if (!SceneNode.TryGetTransformAs<UIBoundableTransform>(out var tfm) || tfm is null)
+                return;
+            
+            tfm.CalcAutoHeightCallback = null;
+            tfm.CalcAutoWidthCallback = null;
         }
         protected override void OnTransformChanged()
         {
             base.OnTransformChanged();
-            if (SceneNode.TryGetTransformAs<UIBoundableTransform>(out var tfm) && tfm is not null)
+
+            if (!SceneNode.TryGetTransformAs<UIBoundableTransform>(out var tfm) || tfm is null)
+                return;
+            
+            tfm.CalcAutoHeightCallback = CalcAutoHeight;
+            tfm.CalcAutoWidthCallback = CalcAutoWidth;
+        }
+
+        protected override void UITransformPropertyChanged(object? sender, IXRPropertyChangedEventArgs e)
+        {
+            base.UITransformPropertyChanged(sender, e);
+            switch (e.PropertyName)
             {
-                tfm.CalcAutoHeightCallback = CalcAutoHeight;
-                tfm.CalcAutoWidthCallback = CalcAutoWidth;
+                case nameof(UIBoundableTransform.ActualBottomLeftTranslation):
+                case nameof(UIBoundableTransform.ActualSize):
+                    UpdateText(false);
+                    break;
             }
-        }
-
-        private bool _multiLine = false;
-        public bool MultiLine
-        {
-            get => _multiLine;
-            set => SetField(ref _multiLine, value);
-        }
-
-        private bool _wordWrap = false;
-        public bool WordWrap
-        {
-            get => _wordWrap;
-            set => SetField(ref _wordWrap, value);
         }
 
         //TODO: return and cache max width and height when calculating glyphs instead
@@ -93,7 +170,7 @@ namespace XREngine.Rendering.UI
                 if (_glyphs is null || _glyphs.Count == 0)
                     return 0.0f;
 
-                if (MultiLine)
+                if (WordWrap)
                     return _glyphs.Max(g => g.transform.X + g.transform.Z);
                 else
                 {
@@ -102,6 +179,7 @@ namespace XREngine.Rendering.UI
                 }
             }
         }
+
         private float CalcAutoHeight(UIBoundableTransform transform)
         {
             //y = pos y, w = scale y
@@ -116,61 +194,72 @@ namespace XREngine.Rendering.UI
             }
         }
 
-        private XRDataBuffer? _uvsBuffer;
-
-        public string? Text
-        {
-            get => _text;
-            set => SetField(ref _text, value);
-        }
-        public FontGlyphSet? Font
-        {
-            get => _font;
-            set => SetField(ref _font, value);
-        }
-        public bool AnimatableTransforms 
-        {
-            get => _animatableTransforms;
-            set => SetField(ref _animatableTransforms, value);
-        }
-
         protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
         {
             base.OnPropertyChanged(propName, prev, field);
             switch (propName)
             {
                 case nameof(Font):
+                case nameof(AnimatableTransforms):
+                case nameof(NonVertexShadersOverride):
                     UpdateText(true);
                     break;
                 case nameof(Text):
-                case nameof(AnimatableTransforms):
                     UpdateText(false);
+                    break;
+                case nameof(GlyphRelativeTransforms):
+                    MarkGlyphTransformsChanged();
+                    break;
+                case nameof(RenderPass):
+                    {
+                        var mat = _rc3D.Mesh?.Material;
+                        if (mat is not null)
+                            mat.RenderPass = RenderPass;
+                        else
+                            UpdateText(true);
+                    }
+                    break;
+                case nameof(RenderParameters):
+                    {
+                        var mat = _rc3D.Mesh?.Material;
+                        if (mat is not null)
+                            mat.RenderOptions = RenderParameters;
+                        else
+                            UpdateText(true);
+                    }
                     break;
             }
         }
 
-        private XRDataBuffer? _transformsBuffer;
-        public XRDataBuffer? TransformsBuffer => _transformsBuffer;
-
-        private void UpdateText(bool fontChanged)
+        /// <summary>
+        /// Retrieves glyph data from the font and resizes SSBOs if necessary.
+        /// Verifies that the mesh is created and the font atlas is loaded.
+        /// </summary>
+        /// <param name="forceRemake"></param>
+        private void UpdateText(bool forceRemake)
         {
-            if (Font is null)
-                return;
-            VerifyCreated(fontChanged, Font.Atlas);
+            Font ??= FontGlyphSet.LoadDefaultFont();
+            VerifyCreated(forceRemake, Font.Atlas);
             uint count;
             lock (_glyphLock)
             {
-                Font.GetQuads(Text, _glyphs);
+                var tfm = BoundableTransform;
+                Font.GetQuads(Text, _glyphs, FontSize, null, null, WordWrap, 5.0f);
                 count = (uint)(_glyphs?.Count ?? 0);
             }
             ResizeGlyphCount(count);
         }
 
-        private void VerifyCreated(bool fontChanged, XRTexture2D? atlas)
+        /// <summary>
+        /// Ensures that the mesh is created and the font atlas is loaded, and creates the material and SSBOs.
+        /// </summary>
+        /// <param name="forceRemake"></param>
+        /// <param name="atlas"></param>
+        private void VerifyCreated(bool forceRemake, XRTexture2D? atlas)
         {
-            if (!fontChanged && _rc3D.Mesh is not null || atlas is null)
+            if (!forceRemake && _rc3D.Mesh is not null || atlas is null)
                 return;
-            
+
             if (_rc3D.Mesh is not null)
             {
                 _rc3D.Mesh.SettingUniforms -= MeshRend_SettingUniforms;
@@ -178,25 +267,7 @@ namespace XREngine.Rendering.UI
             }
 
             var mesh = XRMesh.Create(VertexQuad.PosZ(1.0f, true, 0.0f, false));
-            var mat =
-            //XRMaterial.CreateUnlitColorMaterialForward(ColorF4.Red);
-            new XRMaterial(
-                [atlas],
-                XRShader.EngineShader(Path.Combine("Common", "Text.vs"), EShaderType.Vertex),
-                XRShader.EngineShader(Path.Combine("Common", "Text.fs"), EShaderType.Fragment))
-            {
-                RenderPass = (int)EDefaultRenderPass.TransparentForward,
-                RenderOptions = new()
-                {
-                    CullMode = ECullMode.None,
-                    DepthTest = new()
-                    {
-                        Enabled = Models.Materials.ERenderParamUsage.Disabled,
-                        Function = Models.Materials.EComparison.Always
-                    },
-                    //RequiredEngineUniforms = Models.Materials.EUniformRequirements.Camera
-                }
-            };
+            XRMaterial mat = CreateMaterial(atlas);
 
             var rend = new XRMeshRenderer(mesh, mat);
             rend.SettingUniforms += MeshRend_SettingUniforms;
@@ -205,9 +276,60 @@ namespace XREngine.Rendering.UI
             _rc2D.Mesh = rend;
         }
 
-        public bool _pushFull = false;
-        public bool _dataChanged = false;
+        private int _renderPass = (int)EDefaultRenderPass.TransparentForward;
+        public int RenderPass
+        {
+            get => _renderPass;
+            set => SetField(ref _renderPass, value);
+        }
 
+        private RenderingParameters _renderParameters = new()
+        {
+            CullMode = ECullMode.None,
+            DepthTest = new()
+            {
+                Enabled = ERenderParamUsage.Disabled,
+                Function = EComparison.Always
+            },
+        };
+        public RenderingParameters RenderParameters
+        {
+            get => _renderParameters;
+            set => SetField(ref _renderParameters, value);
+        }
+
+        private XRShader[]? _nonVertexShadersOverride;
+        /// <summary>
+        /// Override property for all non-vertex shaders for the text material.
+        /// When null, the default fragment shader for text is used.
+        /// </summary>
+        public XRShader[]? NonVertexShadersOverride
+        {
+            get => _nonVertexShadersOverride;
+            set => SetField(ref _nonVertexShadersOverride, value);
+        }
+
+        /// <summary>
+        /// Override this method to create a fully custom material for the text using the font's atlas.
+        /// </summary>
+        /// <param name="atlas"></param>
+        /// <returns></returns>
+        protected virtual XRMaterial CreateMaterial(XRTexture2D atlas)
+        {
+            XRShader vertexShader = XRShader.EngineShader(Path.Combine("Common", "Text.vs"), EShaderType.Vertex);
+            XRShader[] nonVertexShaders = NonVertexShadersOverride ?? [XRShader.EngineShader(Path.Combine("Common", "Text.fs"), EShaderType.Fragment)];
+            return new([atlas], new XRShader[] { vertexShader }.Concat(nonVertexShaders))
+            {
+                RenderPass = RenderPass,
+                RenderOptions = RenderParameters
+            };
+        }
+
+        /// <summary>
+        /// If data has changed, this method will update the SSBOs with the new glyph data and push it to the GPU.
+        /// </summary>
+        /// <param name="vertexProgram"></param>
+        /// <param name="materialProgram"></param>
         private void MeshRend_SettingUniforms(XRRenderProgram vertexProgram, XRRenderProgram materialProgram)
         {
             if (!_dataChanged)
@@ -224,7 +346,10 @@ namespace XREngine.Rendering.UI
                 PushSubBuffers();
         }
 
-        private uint _allocatedGlyphCount = 20;
+        /// <summary>
+        /// Resizes all SSBOs, sets glyph instance count, and invalidates layout if auto-sizing is enabled.
+        /// </summary>
+        /// <param name="count"></param>
         private void ResizeGlyphCount(uint count)
         {
             _rc3D.Instances = count;
@@ -234,6 +359,7 @@ namespace XREngine.Rendering.UI
                 _allocatedGlyphCount = count;
                 _transformsBuffer?.Resize(_allocatedGlyphCount);
                 _uvsBuffer?.Resize(_allocatedGlyphCount);
+                _rotationsBuffer?.Resize(_allocatedGlyphCount);
                 _pushFull = true;
             }
             _dataChanged = true;
@@ -243,6 +369,12 @@ namespace XREngine.Rendering.UI
                 tfm.InvalidateLayout();
         }
 
+        /// <summary>
+        /// Returns a power of 2 allocation length for the number of glyphs.
+        /// This is similar to how a list object would allocate memory with an internal array.
+        /// </summary>
+        /// <param name="numGlyphs"></param>
+        /// <returns></returns>
         private static uint GetAllocationLength(uint numGlyphs)
         {
             //Get nearest power of 2 for the number of glyphs
@@ -252,13 +384,21 @@ namespace XREngine.Rendering.UI
             return powerOf2;
         }
 
+        /// <summary>
+        /// Recreates SSBOs for the text glyph data and assigns them to the mesh renderer.
+        /// </summary>
+        /// <param name="meshRend"></param>
         private void CreateSSBOs(XRMeshRenderer meshRend)
         {
             string transformsBindingName = "GlyphTransformsBuffer";
             string uvsBindingName = $"GlyphTexCoordsBuffer";
+            string rotationsBindingName = "GlyphRotationsBuffer";
+
+            //TODO: use memory mapping instead of pushing
 
             //_allocatedGlyphCount = GetAllocationLength();
 
+            meshRend.Buffers.Remove(transformsBindingName);
             _transformsBuffer?.Destroy();
             _transformsBuffer = new(transformsBindingName, EBufferTarget.ShaderStorageBuffer, _allocatedGlyphCount, EComponentType.Float, 4, false, false)
             {
@@ -267,7 +407,9 @@ namespace XREngine.Rendering.UI
                 Usage = AnimatableTransforms ? EBufferUsage.StreamDraw : EBufferUsage.StaticCopy,
                 BindingIndexOverride = 0,
             };
+            meshRend.Buffers.Add(transformsBindingName, _transformsBuffer);
 
+            meshRend.Buffers.Remove(uvsBindingName);
             _uvsBuffer?.Destroy();
             _uvsBuffer = new(uvsBindingName, EBufferTarget.ShaderStorageBuffer, _allocatedGlyphCount, EComponentType.Float, 4, false, false)
             {
@@ -276,15 +418,37 @@ namespace XREngine.Rendering.UI
                 Usage = EBufferUsage.StaticCopy,
                 BindingIndexOverride = 1,
             };
-
-            meshRend.Buffers.Add(transformsBindingName, _transformsBuffer);
             meshRend.Buffers.Add(uvsBindingName, _uvsBuffer);
+
+            meshRend.Buffers.Remove(rotationsBindingName);
+            _rotationsBuffer?.Destroy();
+
+            if (AnimatableTransforms)
+            {
+                _rotationsBuffer = new(rotationsBindingName, EBufferTarget.ShaderStorageBuffer, _allocatedGlyphCount, EComponentType.Float, 1, false, false)
+                {
+                    //RangeFlags = EBufferMapRangeFlags.Write | EBufferMapRangeFlags.Persistent | EBufferMapRangeFlags.Coherent;
+                    //StorageFlags = EBufferMapStorageFlags.Write | EBufferMapStorageFlags.Persistent | EBufferMapStorageFlags.Coherent | EBufferMapStorageFlags.ClientStorage;
+                    Usage = EBufferUsage.StaticCopy,
+                    BindingIndexOverride = 2,
+                };
+                meshRend.Buffers.Add(rotationsBindingName, _rotationsBuffer);
+            }
 
             _dataChanged = true;
             _pushFull = true;
         }
 
-        private readonly object _glyphLock = new();
+        /// <summary>
+        /// MarkGlyphTransformsChanged should be called after updating GlyphRelativeTransforms.
+        /// This will update the transforms buffer with the new values.
+        /// </summary>
+        public void MarkGlyphTransformsChanged()
+            => _dataChanged = true;
+
+        /// <summary>
+        /// Writes the glyph data to the SSBOs.
+        /// </summary>
         private unsafe void WriteData()
         {
             if (_transformsBuffer is null || _uvsBuffer is null)
@@ -299,7 +463,18 @@ namespace XREngine.Rendering.UI
 
             for (int i = 0; i < glyphsCopy.Length; i++)
             {
-                var (transform, uvs) = glyphsCopy[i];
+                (Vector4 transform, Vector4 uvs) = glyphsCopy[i];
+
+                if (AnimatableTransforms && GlyphRelativeTransforms.TryGetValue(i, out var relative))
+                {
+                    transform.X += relative.translation.X;
+                    transform.Y += relative.translation.Y;
+                    transform.Z *= relative.scale.X;
+                    transform.W *= relative.scale.Y;
+
+                    if (_rotationsBuffer is not null)
+                        ((float*)_rotationsBuffer.Source!.Address.Pointer)[i] = relative.rotation;
+                }
 
                 *tfmPtr++ = transform.X;
                 *tfmPtr++ = transform.Y;
@@ -315,17 +490,26 @@ namespace XREngine.Rendering.UI
             }
         }
 
+        /// <summary>
+        /// Pushes the sub-data of the SSBOs to the GPU.
+        /// </summary>
         private void PushSubBuffers()
         {
             WriteData();
             _transformsBuffer?.PushSubData();
             _uvsBuffer?.PushSubData();
+            _rotationsBuffer?.PushSubData();
         }
+
+        /// <summary>
+        /// Pushes the full data of the SSBOs to the GPU.
+        /// </summary>
         private void PushBuffers()
         {
             WriteData();
             _transformsBuffer?.PushData();
             _uvsBuffer?.PushData();
+            _rotationsBuffer?.PushData();
         }
     }
 }

@@ -1,4 +1,6 @@
-﻿namespace XREngine.Rendering.UI
+﻿using System.Numerics;
+
+namespace XREngine.Rendering.UI
 {
     public partial class UIListTransform
     {
@@ -10,6 +12,21 @@
                 get => _index;
                 set => SetField(ref _index, value);
             }
+
+            private float _offset;
+            public float Offset
+            {
+                get => _offset;
+                set => SetField(ref _offset, value);
+            }
+
+            public bool Horizontal => (Owner?.Parent as UIListTransform)?.DisplayHorizontal ?? false;
+
+            public override Matrix4x4 GetRelativeItemMatrix()
+                => Matrix4x4.CreateTranslation(
+                    Horizontal ? Offset : 0,
+                    Horizontal ? 0 : Offset,
+                    0);
         }
     }
 }

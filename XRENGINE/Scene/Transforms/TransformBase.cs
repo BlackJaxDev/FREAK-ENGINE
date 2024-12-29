@@ -647,7 +647,7 @@ namespace XREngine.Scene.Transforms
         /// Used to verify if the placement info for a child is the right type before being returned to the requester.
         /// </summary>
         /// <param name="childTransform"></param>
-        public virtual void VerifyPlacementInfo(UITransform childTransform) { }
+        public virtual void VerifyPlacementInfo(UITransform childTransform, ref UIChildPlacementInfo? placementInfo) { }
         /// <summary>
         /// Used by the physics system to derive a world matrix from a physics body into the components used by this transform.
         /// </summary>

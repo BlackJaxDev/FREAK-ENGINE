@@ -199,7 +199,7 @@ namespace XREngine.Rendering.UI
         {
             get
             {
-                Parent?.VerifyPlacementInfo(this);
+                Parent?.VerifyPlacementInfo(this, ref _placementInfo);
                 return _placementInfo;
             }
             set => _placementInfo = value;

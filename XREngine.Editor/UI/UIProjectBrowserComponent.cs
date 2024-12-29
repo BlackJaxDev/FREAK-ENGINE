@@ -1,10 +1,11 @@
-﻿using XREngine;
-using XREngine.Core.Attributes;
+﻿using XREngine.Core.Attributes;
 using XREngine.Rendering.UI;
 using XREngine.Scene;
 
+namespace XREngine.Editor.UI.Components;
+
 [RequireComponents(typeof(UIScrollingTransform))]
-public class UIProjectBrowserComponent : UIComponent
+public partial class UIProjectBrowserComponent : UIComponent
 {
     private Dictionary<string, FileInfo> _fileCache = [];
     private EArrangement _arrangement = EArrangement.Grid;

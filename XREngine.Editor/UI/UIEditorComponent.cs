@@ -20,7 +20,7 @@ public partial class UIEditorComponent : UIInteractableComponent
         set => SetField(ref _rootMenuOptions, value);
     }
 
-    private float _menuHeight = 50.0f;
+    private float _menuHeight = 20.0f;
     public float MenuHeight
     {
         get => _menuHeight;
@@ -61,40 +61,43 @@ public partial class UIEditorComponent : UIInteractableComponent
         var dockableNode = SceneNode.NewChild();
 
         //Create the menu transform - this is a horizontal list of buttons.
-        var list = menuNode.SetTransform<UIListTransform>();
-        list.DisplayHorizontal = true;
-        list.ItemSpacing = 4.0f;
-        list.Padding = new Vector4(4.0f, 4.0f, 4.0f, 4.0f);
-        list.ItemAlignment = EListAlignment.TopOrLeft;
-        list.ItemSize = null;
-        list.Height = MenuHeight;
-        list.MaxAnchor = new Vector2(1.0f, 1.0f);
-        list.MinAnchor = new Vector2(0.0f, 1.0f);
-        list.NormalizedPivot = new Vector2(0.0f, 1.0f);
+        var listTfm = menuNode.SetTransform<UIListTransform>();
+        listTfm.DisplayHorizontal = true;
+        listTfm.ItemSpacing = 5.0f;
+        listTfm.Padding = new Vector4(0.0f, 0.0f, 0.0f, 0.0f);
+        listTfm.ItemAlignment = EListAlignment.TopOrLeft;
+        listTfm.ItemSize = null;
+        listTfm.Height = MenuHeight;
+        listTfm.MaxAnchor = new Vector2(1.0f, 1.0f);
+        listTfm.MinAnchor = new Vector2(0.0f, 1.0f);
+        listTfm.NormalizedPivot = new Vector2(0.0f, 0.0f);
 
         //Create the buttons for each menu option.
         foreach (var menuItem in RootMenuOptions)
         {
             var buttonNode = menuNode.NewChild<UIButtonComponent, UIMaterialComponent>(out var button, out var background);
             menuItem.InteractableComponent = button;
-            background.Material = XRMaterial.CreateUnlitColorMaterialForward(ColorF4.Black);
+            background.Material = XRMaterial.CreateUnlitColorMaterialForward(ColorF4.Red);
 
-            var buttonTextNode = buttonNode.NewChild<UITextComponent>(out var text);
-            text.Text = menuItem.Text;
-
-            var textTfm = text.BoundableTransform;
-            textTfm.Width = null;
-            textTfm.MaxAnchor = new Vector2(0.0f, 1.0f);
-            textTfm.MinAnchor = new Vector2(0.0f, 0.0f);
-            textTfm.NormalizedPivot = new Vector2(0.0f, 0.5f);
-
-            var buttonTfm = button.BoundableTransform;
+            var buttonTfm = buttonNode.GetTransformAs<UIBoundableTransform>(true)!;
             buttonTfm.Width = null;
-            buttonTfm.Height = 0.0f;
+            buttonTfm.Height = null;
             buttonTfm.Translation = new Vector2(0.0f, 0.0f);
             buttonTfm.MaxAnchor = new Vector2(0.0f, 1.0f);
             buttonTfm.MinAnchor = new Vector2(0.0f, 0.0f);
             buttonTfm.NormalizedPivot = new Vector2(0.0f, 0.0f);
+
+            var buttonTextNode = buttonNode.NewChild<UITextComponent>(out var text);
+
+            var textTfm = text.BoundableTransform;
+            textTfm.Width = null;
+            textTfm.Height = null;
+            textTfm.MaxAnchor = new Vector2(1.0f, 1.0f);
+            textTfm.MinAnchor = new Vector2(0.0f, 0.0f);
+            textTfm.NormalizedPivot = new Vector2(0.0f, 0.0f);
+
+            text.FontSize = 20;
+            text.Text = menuItem.Text;
         }
 
         //Create the dockable windows transform for panels

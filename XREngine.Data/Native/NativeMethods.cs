@@ -7,6 +7,9 @@ namespace XREngine.Native
         [DllImport("shell32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         public static extern void SHChangeNotify(uint wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);
 
+        [DllImport("gdi32.dll")]
+        public static extern int GetDeviceCaps(IntPtr hdc, int nIndex);
+
         [DllImport("user32.dll")]
         public static extern IntPtr GetWindow(IntPtr hWnd, int uCmd);
         [DllImport("user32.dll")]
@@ -121,6 +124,9 @@ namespace XREngine.Native
 
         [DllImport("user32.dll")]
         public static extern Int32 GetWindowLong(IntPtr hWnd, Int32 Offset);
+
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        static extern uint RegisterWindowMessage(string lpString);
 
         [DllImport("user32.dll")]
         public static extern int GetSystemMetrics(int smIndex);

@@ -150,7 +150,7 @@ namespace XREngine.Rendering.Shaders.Generator
 
             if (Mesh.HasSkinning)
             {
-                bool optimizeTo4Weights = Engine.Rendering.Settings.OptimizeTo4Weights || (Engine.Rendering.Settings.OptimizeWeightsIfPossible && Mesh.MaxWeightCount <= 4);
+                bool optimizeTo4Weights = Engine.Rendering.Settings.OptimizeSkinningTo4Weights || (Engine.Rendering.Settings.OptimizeSkinningWeightsIfPossible && Mesh.MaxWeightCount <= 4);
                 if (optimizeTo4Weights)
                 {
                     EShaderVarType intVecVarType = Engine.Rendering.Settings.UseIntegerUniformsInShaders
@@ -211,7 +211,7 @@ namespace XREngine.Rendering.Shaders.Generator
                 using (StartShaderStorageBufferBlock($"{ECommonBufferType.BoneInvBindMatrices}Buffer", 1))
                     WriteUniform(EShaderVarType._mat4, ECommonBufferType.BoneInvBindMatrices.ToString(), true);
 
-                bool optimizeTo4Weights = Engine.Rendering.Settings.OptimizeTo4Weights || (Engine.Rendering.Settings.OptimizeWeightsIfPossible && Mesh.MaxWeightCount <= 4);
+                bool optimizeTo4Weights = Engine.Rendering.Settings.OptimizeSkinningTo4Weights || (Engine.Rendering.Settings.OptimizeSkinningWeightsIfPossible && Mesh.MaxWeightCount <= 4);
                 if (optimizeTo4Weights)
                     return;
                 
@@ -328,7 +328,7 @@ namespace XREngine.Rendering.Shaders.Generator
             if (Engine.Rendering.Settings.CalculateSkinningInComputeShader)
                 return false;
             
-            bool optimizeTo4Weights = Engine.Rendering.Settings.OptimizeTo4Weights || (Engine.Rendering.Settings.OptimizeWeightsIfPossible && Mesh.MaxWeightCount <= 4);
+            bool optimizeTo4Weights = Engine.Rendering.Settings.OptimizeSkinningTo4Weights || (Engine.Rendering.Settings.OptimizeSkinningWeightsIfPossible && Mesh.MaxWeightCount <= 4);
             if (optimizeTo4Weights)
             {
                 Line($"for (int i = 0; i < 4; i++)");

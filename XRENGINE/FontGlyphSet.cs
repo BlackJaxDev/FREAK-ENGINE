@@ -31,9 +31,7 @@ namespace XREngine.Rendering
         }
 
         protected override void Reload3rdParty(string path)
-        {
-            Load3rdParty(path);
-        }
+            => Load3rdParty(path);
         public override bool Load3rdParty(string filePath)
         {
             string folder = Path.GetDirectoryName(filePath)!;
@@ -60,6 +58,11 @@ namespace XREngine.Rendering
             return true;
         }
 
+        /// <summary>
+        /// Retrieves the set of supported characters in a font face.
+        /// </summary>
+        /// <param name="face"></param>
+        /// <returns></returns>
         public static HashSet<uint> GetSupportedCharacters(Face face)
         {
             HashSet<uint> characterSet = [];
@@ -77,12 +80,21 @@ namespace XREngine.Rendering
             return characterSet;
         }
 
+        /// <summary>
+        /// Generates a font atlas texture from a list of characters.
+        /// Will save the atlas to a PNG file at the specified path and store glyph coordinates in this set.
+        /// </summary>
+        /// <param name="typeface"></param>
+        /// <param name="characters"></param>
+        /// <param name="outputAtlasPath"></param>
+        /// <param name="textSize"></param>
+        /// <param name="style"></param>
+        /// <param name="strokeWidth"></param>
         public void GenerateFontAtlas(
             SKTypeface typeface,
             List<string> characters,
             string outputAtlasPath,
             float textSize,
-            float pad = 5.0f,
             SKPaintStyle style = SKPaintStyle.Fill,
             float strokeWidth = 0.0f)
         {
@@ -93,19 +105,18 @@ namespace XREngine.Rendering
             // Create a paint object
             using SKPaint paint = new()
             {
-                Typeface = typeface,
-                TextSize = textSize,
                 IsAntialias = true,
                 Color = SKColors.White,
                 Style = style,
                 StrokeWidth = strokeWidth,
             };
+            using SKFont font = new(typeface, textSize);
 
             // Process each character
             foreach (string character in characters)
             {
                 // Get glyph indices
-                ushort[] glyphs = paint.GetGlyphs(character);
+                ushort[] glyphs = font.GetGlyphs(character);
                 if (glyphs.Length == 0 || glyphs[0] == 0)
                 {
                     // Skip characters without glyphs
@@ -113,12 +124,13 @@ namespace XREngine.Rendering
                 }
 
                 float[] widths = new float[glyphs.Length];
-                paint.GetGlyphWidths(character, out SKRect[] bounds);
+                font.GetGlyphWidths(character, out SKRect[] bounds, paint);
                 if (bounds.Length > 1)
                     Debug.LogWarning($"Multiple glyphs for character '{character}'");
 
                 SKRect glyphBounds = bounds[0];
-
+                float x = -glyphBounds.Left;
+                float y = -glyphBounds.Top;
                 int width = (int)Math.Ceiling(glyphBounds.Width);
                 int height = (int)Math.Ceiling(glyphBounds.Height);
 
@@ -134,16 +146,13 @@ namespace XREngine.Rendering
                 using (SKCanvas canvas = new(bitmap))
                 {
                     canvas.Clear(SKColors.Transparent);
-                    float x = -glyphBounds.Left;
-                    float y = -glyphBounds.Top;
-                    canvas.DrawText(character, x, y, paint);
+                    canvas.DrawText(character, x, y, SKTextAlign.Left, font, paint);
                 }
 
                 glyphBitmaps.Add(bitmap);
                 glyphInfos.Add((character, new(
                     new IVector2(width, height),
-                    new Vector2(-glyphBounds.Left, -glyphBounds.Top),
-                    widths[0] + pad)));
+                    new Vector2(-glyphBounds.Left, -glyphBounds.Top))));
             }
 
             // Pack glyphs into an atlas
@@ -178,9 +187,7 @@ namespace XREngine.Rendering
                     int x = col * maxGlyphWidth;
                     int y = row * maxGlyphHeight;
 
-                    SKBitmap glyphBitmap = glyphBitmaps[i];
-                    atlasCanvas.DrawBitmap(glyphBitmap, x, y);
-
+                    atlasCanvas.DrawBitmap(glyphBitmaps[i], x, y);
                     glyphInfos[i].info.Position = new Vector2(x, y);
                 }
             }
@@ -200,9 +207,35 @@ namespace XREngine.Rendering
                 bitmap.Dispose();
         }
 
-        public void GetQuads(string? str, List<(Vector4 transform, Vector4 uvs)> quads)
-            => GetQuads(str, quads, Vector2.Zero);
-        public void GetQuads(string? str, List<(Vector4 transform, Vector4 uvs)> quads, Vector2 offset)
+        /// <summary>
+        /// Retrieves quads for rendering a string of text.
+        /// </summary>
+        /// <param name="str"></param>
+        /// <param name="quads"></param>
+        /// <param name="fontSize"></param>
+        /// <param name="spacing"></param>
+        public void GetQuads(
+            string? str,
+            List<(Vector4 transform, Vector4 uvs)> quads,
+            float fontSize,
+            float spacing = 0.0f)
+            => GetQuads(str, quads, Vector2.Zero, fontSize, spacing);
+
+        /// <summary>
+        /// Retrieves quads for rendering a string of text.
+        /// </summary>
+        /// <param name="str"></param>
+        /// <param name="quads"></param>
+        /// <param name="offset"></param>
+        /// <param name="fontSize"></param>
+        /// <param name="spacing"></param>
+        /// <exception cref="InvalidOperationException"></exception>
+        public void GetQuads(
+            string? str,
+            List<(Vector4 transform, Vector4 uvs)> quads,
+            Vector2 offset,
+            float fontSize,
+            float spacing = 0.0f)
         {
             if (Glyphs is null)
                 throw new InvalidOperationException("Glyphs are not initialized.");
@@ -210,23 +243,37 @@ namespace XREngine.Rendering
             if (Atlas is null)
                 throw new InvalidOperationException("Atlas is not initialized.");
 
-            GetQuads(str, Glyphs, new IVector2((int)Atlas.Width, (int)Atlas.Height), quads, offset);
+            GetQuads(str, Glyphs, new IVector2((int)Atlas.Width, (int)Atlas.Height), quads, offset, fontSize, spacing);
         }
 
+        /// <summary>
+        /// Retrieves quads for rendering a string of text.
+        /// </summary>
+        /// <param name="str"></param>
+        /// <param name="glyphs"></param>
+        /// <param name="atlasSize"></param>
+        /// <param name="quads"></param>
+        /// <param name="offset"></param>
+        /// <param name="fontSize"></param>
+        /// <param name="spacing"></param>
         private static void GetQuads(
             string? str,
             Dictionary<string, Glyph> glyphs,
             IVector2 atlasSize,
             List<(Vector4 transform, Vector4 uvs)> quads,
-            Vector2 offset)
+            Vector2 offset,
+            float fontSize,
+            float spacing = 0.0f)
         {
             quads.Clear();
             if (str is null)
                 return;
 
             float xOffset = offset.X;
-            foreach (char ch in str)
+            for (int i = 0; i < str.Length; i++)
             {
+                bool last = i == str.Length - 1;
+                char ch = str[i];
                 string character = ch.ToString();
                 if (!glyphs.ContainsKey(character))
                 {
@@ -235,10 +282,11 @@ namespace XREngine.Rendering
                 }
 
                 Glyph glyph = glyphs[character];
-                float translateX = xOffset + glyph.Bearing.X;
-                float translateY = offset.Y + glyph.Bearing.Y;
-                float scaleX = glyph.Size.X;
-                float scaleY = -glyph.Size.Y;
+                float scale = fontSize / 100.0f;
+                float translateX = (xOffset + glyph.Bearing.X) * scale;
+                float translateY = (offset.Y + glyph.Bearing.Y) * scale;
+                float scaleX = glyph.Size.X * scale;
+                float scaleY = -glyph.Size.Y * scale;
 
                 Vector4 transform = new(
                     translateX,
@@ -261,23 +309,267 @@ namespace XREngine.Rendering
                 
                 quads.Add((transform, uvs));
 
-                xOffset += glyph.AdvanceX;
+                xOffset += scaleX;
+                if (!last)
+                    xOffset += spacing;
             }
         }
+
+        /// <summary>
+        /// Retrieves quads for rendering a string of text.
+        /// </summary>
+        /// <param name="str"></param>
+        /// <param name="quads"></param>
+        /// <param name="fontSize"></param>
+        /// <param name="maxWidth"></param>
+        /// <param name="maxHeight"></param>
+        /// <param name="wordWrap"></param>
+        /// <param name="spacing"></param>
+        public void GetQuads(
+            string? str,
+            List<(Vector4 transform, Vector4 uvs)> quads,
+            float? fontSize,
+            float? maxWidth,
+            float? maxHeight,
+            bool wordWrap = false,
+            float spacing = 0.0f)
+            => GetQuads(str, quads, Vector2.Zero, fontSize, maxWidth, maxHeight, wordWrap, spacing);
+
+        /// <summary>
+        /// Retrieves quads for rendering a string of text.
+        /// </summary>
+        /// <param name="str"></param>
+        /// <param name="quads"></param>
+        /// <param name="offset"></param>
+        /// <param name="fontSize"></param>
+        /// <param name="maxWidth"></param>
+        /// <param name="maxHeight"></param>
+        /// <param name="wordWrap"></param>
+        /// <param name="spacing"></param>
+        /// <exception cref="InvalidOperationException"></exception>
+        public void GetQuads(
+            string? str,
+            List<(Vector4 transform, Vector4 uvs)> quads,
+            Vector2 offset,
+            float? fontSize,
+            float? maxWidth,
+            float? maxHeight,
+            bool wordWrap = false,
+            float spacing = 0.0f)
+        {
+            if (Glyphs is null)
+                throw new InvalidOperationException("Glyphs are not initialized.");
+
+            if (Atlas is null)
+                throw new InvalidOperationException("Atlas is not initialized.");
+
+            GetQuads(
+                str,
+                Glyphs,
+                new IVector2((int)Atlas.Width, (int)Atlas.Height),
+                quads,
+                offset,
+                fontSize,
+                maxWidth,
+                maxHeight,
+                wordWrap,
+                spacing);
+        }
+
+        /// <summary>
+        /// Retrieves quads for rendering a string of text.
+        /// </summary>
+        /// <param name="str"></param>
+        /// <param name="glyphs"></param>
+        /// <param name="atlasSize"></param>
+        /// <param name="quads"></param>
+        /// <param name="offset"></param>
+        /// <param name="fontSize"></param>
+        /// <param name="maxWidth"></param>
+        /// <param name="maxHeight"></param>
+        /// <param name="wordWrap"></param>
+        /// <param name="spacing"></param>
+        private static void GetQuads(
+            string? str,
+            Dictionary<string, Glyph> glyphs,
+            IVector2 atlasSize,
+            List<(Vector4 transform, Vector4 uvs)> quads,
+            Vector2 offset,
+            float? fontSize,
+            float? maxWidth,
+            float? maxHeight,
+            bool wordWrap = false,
+            float spacing = 0.0f)
+        {
+            quads.Clear();
+            if (str is null)
+                return;
+
+            float largestHeight = 0.0f;
+            float xOffset = offset.X;
+            float yOffset = offset.Y;
+            float lineHeight = 0.0f;
+
+            for (int i = 0; i < str.Length; i++)
+            {
+                bool last = i == str.Length - 1;
+                char ch = str[i];
+                string character = ch.ToString();
+                if (!glyphs.ContainsKey(character))
+                {
+                    // Handle missing glyphs (e.g., skip or substitute)
+                    continue;
+                }
+
+                Glyph glyph = glyphs[character];
+                float scale = (fontSize ?? 1.0f) / 100.0f;
+                float translateX = (xOffset + glyph.Bearing.X) * scale;
+                float translateY = (yOffset + glyph.Bearing.Y) * scale;
+                float scaleX = glyph.Size.X * scale;
+                float scaleY = -glyph.Size.Y * scale;
+
+                if (wordWrap && maxWidth.HasValue && (translateX + scaleX) > maxWidth.Value)
+                {
+                    xOffset = offset.X;
+                    yOffset += lineHeight;
+                    lineHeight = 0.0f;
+                    translateX = (xOffset + glyph.Bearing.X) * scale;
+                    translateY = (yOffset + glyph.Bearing.Y) * scale;
+                }
+
+                Vector4 transform = new(
+                    translateX,
+                    translateY,
+                    scaleX,
+                    scaleY);
+
+                float u0 = glyph.Position.X / atlasSize.X;
+                float v0 = glyph.Position.Y / atlasSize.Y;
+                float u1 = (glyph.Position.X + glyph.Size.X) / atlasSize.X;
+                float v1 = (glyph.Position.Y + glyph.Size.Y) / atlasSize.Y;
+
+                // Add UVs in the order matching the quad vertices
+                // Assuming quad vertices are defined in this order:
+                // Bottom-left (0, 0)
+                // Bottom-right (1, 0)
+                // Top-right (1, 1)
+                // Top-left (0, 1)
+                Vector4 uvs = new(u0, v0, u1, v1); // Bottom-left to Top-right
+
+                quads.Add((transform, uvs));
+
+                xOffset += glyph.Size.X;
+                if (!last)
+                    xOffset += spacing;
+
+                largestHeight = Math.Max(largestHeight, scaleY);
+                lineHeight = Math.Max(lineHeight, scaleY);
+            }
+
+            if (maxWidth.HasValue || maxHeight.HasValue)
+            {
+                float maxX = xOffset;
+                float maxY = yOffset + lineHeight;
+                float boundsX = maxWidth ?? float.MaxValue;
+                float boundsY = maxHeight ?? float.MaxValue;
+                float widthScale = boundsX / maxX;
+                float heightScale = boundsY / maxY;
+                float scale = Math.Min(widthScale, heightScale);
+                for (int i = 0; i < quads.Count; i++)
+                {
+                    Vector4 transform = quads[i].transform;
+                    transform.X *= scale;
+                    transform.Y *= scale;
+                    transform.Z *= scale;
+                    transform.W *= scale;
+                    quads[i] = (transform, quads[i].uvs);
+                }
+            }
+        }
+
+        public float CalculateFontSize(
+            string? str,
+            Vector2 offset,
+            Vector2 bounds,
+            float spacing = 0.0f)
+        {
+            if (Glyphs is null)
+                throw new InvalidOperationException("Glyphs are not initialized.");
+
+            return CalculateFontSize(str, Glyphs, offset, bounds, spacing);
+        }
+        public static float CalculateFontSize(
+            string? str,
+            Dictionary<string, Glyph> glyphs,
+            Vector2 offset,
+            Vector2 bounds,
+            float spacing = 0.0f)
+        {
+            if (str is null)
+                return 0.0f;
+
+            float maxHeight = 0.0f;
+            float xOffset = offset.X;
+            for (int i = 0; i < str.Length; i++)
+            {
+                bool last = i == str.Length - 1;
+                char ch = str[i];
+                string character = ch.ToString();
+                if (!glyphs.ContainsKey(character))
+                {
+                    // Handle missing glyphs (e.g., skip or substitute)
+                    continue;
+                }
+
+                Glyph glyph = glyphs[character];
+                float scale = 1.0f / 100.0f;
+                float scaleX = glyph.Size.X * scale;
+                float scaleY = -glyph.Size.Y * scale;
+
+                xOffset += glyph.Size.X;
+                if (!last)
+                    xOffset += spacing;
+                maxHeight = Math.Max(maxHeight, scaleY);
+            }
+
+            float widthScale = bounds.X / xOffset;
+            float heightScale = bounds.Y / maxHeight;
+            return Math.Min(widthScale, heightScale);
+        }
+
+        public static FontGlyphSet LoadEngineFont(string folderName, string fontName)
+            => Engine.Assets.LoadEngineAsset<FontGlyphSet>(
+                Engine.Rendering.Constants.EngineFontsCommonFolderName, 
+                folderName,
+                fontName);
+
+        public static async Task<FontGlyphSet> LoadEngineFontAsync(string folderName, string fontName)
+            => await Engine.Assets.LoadEngineAssetAsync<FontGlyphSet>(
+                Engine.Rendering.Constants.EngineFontsCommonFolderName,
+                folderName,
+                fontName);
+
+        public static FontGlyphSet LoadDefaultFont()
+            => LoadEngineFont(
+                Engine.Rendering.Settings.DefaultFontFolder,
+                Engine.Rendering.Settings.DefaultFontFileName);
+
+        public static async Task<FontGlyphSet> LoadDefaultFontAsync()
+            => await LoadEngineFontAsync(
+                Engine.Rendering.Settings.DefaultFontFolder,
+                Engine.Rendering.Settings.DefaultFontFileName);
 
         public class Glyph
         {
             public Vector2 Position;
             public IVector2 Size;
             public Vector2 Bearing;
-            public float AdvanceX;
 
             public Glyph() { }
-            public Glyph(IVector2 size, Vector2 bearing, float advanceX)
+            public Glyph(IVector2 size, Vector2 bearing)
             {
                 Size = size;
                 Bearing = bearing;
-                AdvanceX = advanceX;
             }
         }
     }

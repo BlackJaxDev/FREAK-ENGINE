@@ -38,7 +38,17 @@ namespace XREngine.Rendering
             _shaders = new EventList<XRShader>(shaders);
             PostShadersSet();
         }
+        public XRMaterial(IEnumerable<XRShader> shaders)
+        {
+            _shaders = new EventList<XRShader>(shaders);
+            PostShadersSet();
+        }
         public XRMaterial(ShaderVar[] parameters, params XRShader[] shaders) : base(parameters)
+        {
+            _shaders = new EventList<XRShader>(shaders);
+            PostShadersSet();
+        }
+        public XRMaterial(ShaderVar[] parameters, IEnumerable<XRShader> shaders) : base(parameters)
         {
             _shaders = new EventList<XRShader>(shaders);
             PostShadersSet();
@@ -48,12 +58,27 @@ namespace XREngine.Rendering
             _shaders = new EventList<XRShader>(shaders);
             PostShadersSet();
         }
+        public XRMaterial(XRTexture?[] textures, IEnumerable<XRShader> shaders) : base(textures)
+        {
+            _shaders = new EventList<XRShader>(shaders);
+            PostShadersSet();
+        }
         public XRMaterial(ShaderVar[] parameters, XRTexture?[] textures, params XRShader[] shaders) : base(parameters, textures)
         {
             _shaders = new EventList<XRShader>(shaders);
             PostShadersSet();
         }
+        public XRMaterial(ShaderVar[] parameters, XRTexture?[] textures, IEnumerable<XRShader> shaders) : base(parameters, textures)
+        {
+            _shaders = new EventList<XRShader>(shaders);
+            PostShadersSet();
+        }
         public XRMaterial(XRTexture?[] textures, ShaderVar[] parameters, params XRShader[] shaders) : base(parameters, textures)
+        {
+            _shaders = new EventList<XRShader>(shaders);
+            PostShadersSet();
+        }
+        public XRMaterial(XRTexture?[] textures, ShaderVar[] parameters, IEnumerable<XRShader> shaders) : base(parameters, textures)
         {
             _shaders = new EventList<XRShader>(shaders);
             PostShadersSet();
