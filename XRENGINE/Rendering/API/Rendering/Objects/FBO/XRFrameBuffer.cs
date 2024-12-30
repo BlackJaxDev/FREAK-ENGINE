@@ -12,20 +12,14 @@ namespace XREngine.Rendering
         private EDrawBuffersAttachment[]? _drawBuffers;
         private EFrameBufferTextureTypeFlags _textureTypes = EFrameBufferTextureTypeFlags.None;
         private (IFrameBufferAttachement Target, EFrameBufferAttachment Attachment, int MipLevel, int LayerIndex)[]? _targets;
-        private static XRFrameBuffer? _currentlyBound;
 
-        public static XRFrameBuffer? CurrentlyBound
-        {
-            get => _currentlyBound;
-            set
-            {
-                //if (_currentlyBound == value)
-                //    return;
+        private static readonly Stack<XRFrameBuffer> _readStack = new();
+        private static readonly Stack<XRFrameBuffer> _writeStack = new();
+        private static readonly Stack<XRFrameBuffer> _bindStack = new();
 
-                _currentlyBound = value;
-                //Debug.Out($"Framebuffer bound: {value?.GetDescribingName() ?? "<none>"}");
-            }
-        }
+        public static XRFrameBuffer? BoundForReading => _readStack.Count > 0 ? _readStack.Peek() : null;
+        public static XRFrameBuffer? BoundForWriting => _writeStack.Count > 0 ? _writeStack.Peek() : null;
+        public static XRFrameBuffer? CurrentlyBound => _bindStack.Count > 0 ? _bindStack.Peek() : null;
 
         public uint Width => Targets?.FirstOrDefault().Target?.Width ?? 0u;
         public uint Height => Targets?.FirstOrDefault().Target?.Height ?? 0u;
@@ -48,11 +42,6 @@ namespace XREngine.Rendering
 
         public event Action? Resized;
 
-        /// <summary>
-        /// Resizes the textures attached to this frame buffer.
-        /// </summary>
-        /// <param name="width"></param>
-        /// <param name="height"></param>
         public virtual void Resize(uint width, uint height)
         {
             if (Targets is null)
@@ -68,28 +57,12 @@ namespace XREngine.Rendering
         public event Action? PreSetRenderTargets;
         public event Action? PostSetRenderTargets;
 
-        /// <summary>
-        /// Uses the textures in the material to set the render targets.
-        /// </summary>
-        /// <param name="material"></param>
         public void SetRenderTargets(XRMaterial? material)
             => SetRenderTargets(material?.Textures.
                 Where(x => x?.FrameBufferAttachment != null).
                 Select(x => ((IFrameBufferAttachement)x!, x!.FrameBufferAttachment!.Value, 0, -1)).
                 ToArray());
 
-        /// <summary>
-        /// Informs the framebuffer where it is writing shader output data to;
-        /// any combination of textures and renderbuffers.
-        /// </summary>
-        /// <param name="targets">The array of targets to render to.
-        /// <list type="bullet">
-        /// <item><description><see cref="IFrameBufferAttachement"/> Target: the <see cref="XRTexture"/> or <see cref="XRRenderBuffer"/> to render to.</description></item>
-        /// <item><description><see cref="EFrameBufferAttachment"/> Attachment: which shader output to capture.</description></item>
-        /// <item><description><see cref="int"/> MipLevel: the level of detail to write to.</description></item>
-        /// <item><description><see cref="int"/> LayerIndex: the layer to write to. For example, a cubemap has 6 layers, one for each face.</description></item>
-        /// </list>
-        /// </param>
         public void SetRenderTargets(params (IFrameBufferAttachement Target, EFrameBufferAttachment Attachment, int MipLevel, int LayerIndex)[]? targets)
         {
             PreSetRenderTargets?.Invoke();
@@ -179,49 +152,85 @@ namespace XREngine.Rendering
         public event Action? UnbindFromWriteRequested;
         public event Action? UnbindRequested;
 
-        public StateObject BindForReading()
+        public void BindForReading()
         {
-            CurrentlyBound?.UnbindFromReading();
+            _readStack.Push(this);
+            OnBindForRead();
+        }
 
+        private void OnBindForRead()
+        {
             BindForReadRequested?.Invoke();
-            CurrentlyBound = this;
+        }
 
+        public StateObject BindForReadingState()
+        {
+            BindForReading();
             return new StateObject(UnbindFromReading);
         }
         public void UnbindFromReading()
         {
-            if (CurrentlyBound != this)
+            if (BoundForReading != this)
                 return;
 
-            UnbindFromReadRequested?.Invoke();
-            CurrentlyBound = null;
+            if (_readStack.Count > 0)
+            {
+                _readStack.Pop();
+                if (_readStack.TryPeek(out var fbo))
+                    fbo.OnBindForRead();
+                else
+                    UnbindFromReadRequested?.Invoke();
+            }
+            else
+                UnbindFromReadRequested?.Invoke();
+        }
+        public void BindForWriting()
+        {
+            _writeStack.Push(this);
+            OnBindForWrite();
         }
 
-        public StateObject BindForWriting()
+        private void OnBindForWrite()
         {
-            CurrentlyBound?.UnbindFromWriting();
-
             BindForWriteRequested?.Invoke();
-            CurrentlyBound = this;
+        }
 
+        public StateObject BindForWritingState()
+        {
+            BindForWriting();
             return new StateObject(UnbindFromWriting);
         }
         public void UnbindFromWriting()
         {
-            if (CurrentlyBound != this)
+            if (BoundForWriting != this)
                 return;
 
-            UnbindFromWriteRequested?.Invoke();
-            CurrentlyBound = null;
+            if (_writeStack.Count > 0)
+            {
+                _writeStack.Pop();
+                if (_writeStack.TryPeek(out var fbo))
+                    fbo.OnBindForWrite();
+                else
+                    UnbindFromWriteRequested?.Invoke();
+            }
+            else
+                UnbindFromWriteRequested?.Invoke();
         }
 
-        public StateObject Bind()
+        public void Bind()
         {
-            CurrentlyBound?.Unbind();
+            _bindStack.Push(this);
+            OnBind();
+        }
 
+        private void OnBind()
+        {
             BindRequested?.Invoke();
-            CurrentlyBound = this;
+        }
 
+        public StateObject BindState()
+        {
+            Bind();
             return new StateObject(Unbind);
         }
 
@@ -230,10 +239,18 @@ namespace XREngine.Rendering
             if (CurrentlyBound != this)
                 return;
 
-            UnbindRequested?.Invoke();
-            CurrentlyBound = null;
+            if (_bindStack.Count > 0)
+            {
+                _bindStack.Pop();
+                if (_bindStack.TryPeek(out var fbo))
+                    fbo.OnBind();
+                else
+                    UnbindRequested?.Invoke();
+            }
+            else
+                UnbindRequested?.Invoke();
         }
-        
+
         public event Action<int>? PreSetRenderTarget;
         public event Action<int>? PostSetRenderTarget;
 
@@ -252,9 +269,6 @@ namespace XREngine.Rendering
 
         public unsafe void AttachAll()
         {
-            //if (Targets is null || Targets.Length == 0)
-            //    return;
-
             if (Targets != null)
                 for (int i = 0; i < Targets.Length; ++i)
                     Attach(i);
@@ -268,9 +282,6 @@ namespace XREngine.Rendering
 
         public void DetachAll()
         {
-            //if (Targets is null || Targets.Length == 0)
-            //    return;
-
             if (Targets != null)
                 for (int i = 0; i < Targets.Length; ++i)
                     Detach(i);

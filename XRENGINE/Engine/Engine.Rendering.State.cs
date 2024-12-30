@@ -70,7 +70,7 @@ namespace XREngine
                     => AbstractRenderer.Current?.Clear(color, depth, stencil);
                 public static void ClearByBoundFBO()
                 {
-                    var boundFBO = XRFrameBuffer.CurrentlyBound;
+                    var boundFBO = XRFrameBuffer.BoundForWriting;
                     if (boundFBO is not null)
                     {
                         var textureTypes = boundFBO.TextureTypes;

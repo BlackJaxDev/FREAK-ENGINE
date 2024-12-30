@@ -76,6 +76,7 @@ namespace XREngine.Rendering
         private float _lodBias = 0.0f;
         private bool _resizable = true;
         private bool _exclusiveSharing = true;
+        private GrabPassInfo? _grabPass;
 
         public override bool IsResizeable => Resizable;
 
@@ -218,6 +219,11 @@ namespace XREngine.Rendering
         {
             get => _vWrap;
             set => SetField(ref _vWrap, value);
+        }
+        public GrabPassInfo? GrabPass
+        {
+            get => _grabPass;
+            set => SetField(ref _grabPass, value);
         }
         public float LodBias
         {
@@ -380,6 +386,67 @@ namespace XREngine.Rendering
             _pbo.MapBufferData();
             _pbo.SetDataPointer(mipmap.Address);
             _pbo.UnmapBufferData();
+        }
+
+        public class GrabPassInfo(XRTexture2D t, EReadBufferMode readBuffer, bool colorBit, bool depthBit, bool stencilBit, bool linearFilter, bool resizeToFit, float resizeScale)
+        {
+            public EReadBufferMode readBuffer = readBuffer;
+            public bool colorBit = colorBit;
+            public bool depthBit = depthBit;
+            public bool stencilBit = stencilBit;
+            public bool linearFilter = linearFilter;
+            public bool resizeToFit = resizeToFit;
+            public float resizeScale = resizeScale;
+            public XRFrameBuffer resultFBO = new((t, EFrameBufferAttachment.ColorAttachment0, 0, -1));
+
+            public void Grab(XRFrameBuffer? inFBO)
+            {
+                if (inFBO is null)
+                    return;
+
+                var rend = AbstractRenderer.Current;
+                if (rend is null)
+                    return;
+
+                if (resizeToFit && (inFBO.Width != resultFBO.Width || inFBO.Height != resultFBO.Height))
+                    resultFBO.Resize((uint)(inFBO.Width * resizeScale), (uint)(inFBO.Height * resizeScale));
+
+                rend.BlitFBO(inFBO, resultFBO, readBuffer, colorBit, depthBit, stencilBit, linearFilter);
+            }
+        }
+
+        public static XRTexture2D CreateGrabPassTextureResized(
+            float resizeScale = 1.0f,
+            EReadBufferMode readBuffer = EReadBufferMode.ColorAttachment0,
+            bool colorBit = true,
+            bool depthBit = false,
+            bool stencilBit = false,
+            bool linearFilter = true)
+        {
+            XRTexture2D t = CreateFrameBufferTexture(1, 1, EPixelInternalFormat.Rgba8, EPixelFormat.Rgba, EPixelType.UnsignedByte);
+            t.MinFilter = ETexMinFilter.Linear;
+            t.MagFilter = ETexMagFilter.Linear;
+            t.UWrap = ETexWrapMode.ClampToEdge;
+            t.VWrap = ETexWrapMode.ClampToEdge;
+            t.GrabPass = new GrabPassInfo(t, readBuffer, colorBit, depthBit, stencilBit, linearFilter, true, resizeScale);
+            return t;
+        }
+        public static XRTexture2D CreateGrabPassTextureStatic(
+            uint w,
+            uint h,
+            EReadBufferMode readBuffer = EReadBufferMode.ColorAttachment0,
+            bool colorBit = true,
+            bool depthBit = false,
+            bool stencilBit = false,
+            bool linearFilter = true)
+        {
+            XRTexture2D t = CreateFrameBufferTexture(w, h, EPixelInternalFormat.Rgba8, EPixelFormat.Rgba, EPixelType.UnsignedByte);
+            t.MinFilter = ETexMinFilter.Linear;
+            t.MagFilter = ETexMagFilter.Linear;
+            t.UWrap = ETexWrapMode.ClampToEdge;
+            t.VWrap = ETexWrapMode.ClampToEdge;
+            t.GrabPass = new GrabPassInfo(t, readBuffer, colorBit, depthBit, stencilBit, linearFilter, false, 1.0f);
+            return t;
         }
     }
 }

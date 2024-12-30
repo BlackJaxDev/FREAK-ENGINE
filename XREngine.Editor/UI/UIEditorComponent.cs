@@ -20,7 +20,7 @@ public partial class UIEditorComponent : UIInteractableComponent
         set => SetField(ref _rootMenuOptions, value);
     }
 
-    private float _menuHeight = 20.0f;
+    private float _menuHeight = 40.0f;
     public float MenuHeight
     {
         get => _menuHeight;
@@ -57,14 +57,14 @@ public partial class UIEditorComponent : UIInteractableComponent
         SceneNode.Transform.Clear();
 
         //There are two children, one for the menu and one for the dockable windows.
-        var menuNode = SceneNode.NewChild();
+        var menuNode = SceneNode.NewChild<UIMaterialComponent>(out var menuMat);
         var dockableNode = SceneNode.NewChild();
-
+        
         //Create the menu transform - this is a horizontal list of buttons.
         var listTfm = menuNode.SetTransform<UIListTransform>();
         listTfm.DisplayHorizontal = true;
-        listTfm.ItemSpacing = 5.0f;
-        listTfm.Padding = new Vector4(0.0f, 0.0f, 0.0f, 0.0f);
+        listTfm.ItemSpacing = 10.0f;
+        listTfm.Padding = new Vector4(4.0f);
         listTfm.ItemAlignment = EListAlignment.TopOrLeft;
         listTfm.ItemSize = null;
         listTfm.Height = MenuHeight;
@@ -72,12 +72,17 @@ public partial class UIEditorComponent : UIInteractableComponent
         listTfm.MinAnchor = new Vector2(0.0f, 1.0f);
         listTfm.NormalizedPivot = new Vector2(0.0f, 0.0f);
 
+        menuMat.Material = XRMaterial.CreateUnlitColorMaterialForward(ColorF4.Charcoal);
+
         //Create the buttons for each menu option.
         foreach (var menuItem in RootMenuOptions)
         {
             var buttonNode = menuNode.NewChild<UIButtonComponent, UIMaterialComponent>(out var button, out var background);
             menuItem.InteractableComponent = button;
-            background.Material = XRMaterial.CreateUnlitColorMaterialForward(ColorF4.Red);
+
+            var mat = XRMaterial.CreateUnlitColorMaterialForward(ColorF4.Transparent);
+            mat.EnableTransparency();
+            background.Material = mat;
 
             var buttonTfm = buttonNode.GetTransformAs<UIBoundableTransform>(true)!;
             buttonTfm.Width = null;
@@ -86,6 +91,7 @@ public partial class UIEditorComponent : UIInteractableComponent
             buttonTfm.MaxAnchor = new Vector2(0.0f, 1.0f);
             buttonTfm.MinAnchor = new Vector2(0.0f, 0.0f);
             buttonTfm.NormalizedPivot = new Vector2(0.0f, 0.0f);
+            buttonTfm.Margins = new Vector4(4.0f);
 
             var buttonTextNode = buttonNode.NewChild<UITextComponent>(out var text);
 
@@ -95,9 +101,11 @@ public partial class UIEditorComponent : UIInteractableComponent
             textTfm.MaxAnchor = new Vector2(1.0f, 1.0f);
             textTfm.MinAnchor = new Vector2(0.0f, 0.0f);
             textTfm.NormalizedPivot = new Vector2(0.0f, 0.0f);
+            textTfm.Padding = new Vector4(4.0f);
 
             text.FontSize = 20;
             text.Text = menuItem.Text;
+            text.Color = ColorF4.Gray;
         }
 
         //Create the dockable windows transform for panels

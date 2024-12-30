@@ -1,6 +1,5 @@
 ﻿using Extensions;
 using ImageMagick;
-using Silk.NET.OpenAL;
 using Silk.NET.OpenGL;
 using Silk.NET.OpenGLES.Extensions.EXT;
 using System.Numerics;
@@ -825,5 +824,37 @@ namespace XREngine.Rendering.OpenGL
         public unsafe void SetSemaphoreHandle(uint semaphore, void* semaphoreHandle)
             => EXTSemaphoreWin32?.ImportSemaphoreWin32Handle(semaphore, EXT.HandleTypeOpaqueWin32Ext, semaphoreHandle);
 
+        public override void BlitFBO(
+            XRFrameBuffer inFBO,
+            XRFrameBuffer outFBO,
+            int inX, int inY, uint inW, uint inH,
+            int outX, int outY, uint outW, uint outH,
+            EReadBufferMode readBufferMode,
+            bool colorBit, bool depthBit, bool stencilBit,
+            bool linearFilter)
+        {
+            using var outWrite = outFBO.BindForWritingState();
+            using var inRead = inFBO.BindForReadingState();
+            ClearBufferMask mask = 0;
+            if (colorBit)
+                mask |= ClearBufferMask.ColorBufferBit;
+            if (depthBit)
+                mask |= ClearBufferMask.DepthBufferBit;
+            if (stencilBit)
+                mask |= ClearBufferMask.StencilBufferBit;
+            var rbMode = ToGLEnum(readBufferMode);
+            Api.ReadBuffer(rbMode);
+            Api.BlitFramebuffer(
+                inX,
+                inY,
+                inX + (int)inW,
+                inY + (int)inH,
+                outX,
+                outY,
+                outX + (int)outW,
+                outY + (int)outH,
+                mask,
+                linearFilter ? BlitFramebufferFilter.Linear : BlitFramebufferFilter.Nearest);
+        }
     }
 }

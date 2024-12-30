@@ -1,7 +1,9 @@
 ﻿using Assimp;
 using OpenVR.NET.Manifest;
+using Silk.NET.Input;
 using System.Collections.Concurrent;
 using System.Numerics;
+using System.Windows.Forms;
 using XREngine;
 using XREngine.Animation;
 using XREngine.Components;
@@ -247,8 +249,12 @@ internal class Program
     private static List<UIEditorComponent.MenuOption> GenerateRootMenu()
     {
         return [
-            new("File"),
+            new("File", null, [Key.ControlLeft, Key.F],
+            [
+                new("Save", x => Engine.Assets.SaveAll())
+            ]),
             new("Edit"),
+            new("Assets"),
             new("View"),
             new("Window"),
             new("Help"),
@@ -297,7 +303,7 @@ internal class Program
         floorComp.RigidBody = floorBody;
 
         var floorShader = new XRShader(EShaderType.Fragment, @"
-#version 450
+#version 460
 layout (location = 0) out vec4 OutColor;
 
 uniform sampler2D Texture0;
@@ -314,39 +320,41 @@ const float kernel[5] = float[]
 );
 
 uniform vec4 MatColor;
+uniform float BlurStrength;
 
 void main()
 {
-    //float xOffset = 1.0f / ScreenWidth;
-    //float yOffset = 1.0f / ScreenHeight;
-    vec2 vTexCoord = vec2(gl_FragCoord.x / ScreenWidth, gl_FragCoord.y / ScreenHeight);
-    vec3 col = texture(Texture0, vTexCoord).rgb;// * kernel[0];
+    float xOffset = 1.0f / ScreenWidth;
+    float yOffset = 1.0f / ScreenHeight;
+    vec2 vTexCoord = vec2(gl_FragCoord.x * xOffset, gl_FragCoord.y * yOffset);
+    vec3 col = texture(Texture0, vTexCoord).rgb * kernel[0];
     
-    // Horizontal and vertical offsets for sampling
-    //for (int i = 1; i < 5; i++)
-    //{
-    //    // Sample pixels in the positive direction
-    //    col += texture(Texture0, vTexCoord + vec2(xOffset * i, 0.0)).rgb * kernel[i];
-    //    col += texture(Texture0, vTexCoord - vec2(xOffset * i, 0.0)).rgb * kernel[i];
-    //    col += texture(Texture0, vTexCoord + vec2(0.0, yOffset * i)).rgb * kernel[i];
-    //    col += texture(Texture0, vTexCoord - vec2(0.0, yOffset * i)).rgb * kernel[i];
-    //}
+    //Horizontal and vertical offsets for sampling
+    for (int i = 1; i < 5; i++)
+    {
+        //Sample pixels in the positive direction
+        col += texture(Texture0, vTexCoord + vec2(xOffset * i * BlurStrength, 0.0f)).rgb * kernel[i];
+        col += texture(Texture0, vTexCoord - vec2(xOffset * i * BlurStrength, 0.0f)).rgb * kernel[i];
+        col += texture(Texture0, vTexCoord + vec2(0.0f, yOffset * i * BlurStrength)).rgb * kernel[i];
+        col += texture(Texture0, vTexCoord - vec2(0.0f, yOffset * i * BlurStrength)).rgb * kernel[i];
+    }
 
-    OutColor = vec4(col, 1.0f);
+    OutColor = vec4(col, 1.0f) * MatColor;
 }");
-        XRMaterial floorMat = new([new ShaderVector4(new ColorF4(0.0f, 0.7f), "MatColor")], floorShader);
+        ShaderVar[] floorUniforms =
+        [
+            new ShaderVector4(new ColorF4(0.7f, 0.7f, 0.7f, 1.0f), "MatColor"),
+            new ShaderFloat(5.0f, "BlurStrength"),
+        ];
+        XRTexture2D grabTex = XRTexture2D.CreateGrabPassTextureResized(0.2f);
+        XRMaterial floorMat = new(floorUniforms, [grabTex], floorShader);
         floorMat.RenderOptions.CullMode = ECullMode.None;
         floorMat.RenderOptions.RequiredEngineUniforms = EUniformRequirements.Camera;
-        floorMat.EnableTransparency(); 
-        static void FloorMat_SettingUniforms(XRMaterialBase mat, XRRenderProgram program)
-        {
-            if ((Engine.Rendering.State.CurrentRenderingPipeline?.TryGetTexture(DefaultRenderPipeline.HDRSceneTextureName, out var tex) ?? false) && tex is not null)
-                program.Sampler("Texture0", tex, 0);
-        }
-        floorMat.SettingUniforms += FloorMat_SettingUniforms;
+        floorMat.RenderPass = (int)EDefaultRenderPass.TransparentForward;
+        //floorMat.EnableTransparency();
 
         var floorModel = floor.AddComponent<ModelComponent>()!;
-        floorModel.Model = new Model([new SubMesh(XRMesh.Create(VertexQuad.PosY(1000.0f)), floorMat)]);
+        floorModel.Model = new Model([new SubMesh(XRMesh.Create(VertexQuad.PosY(10000.0f)), floorMat)]);
 
         Random random = new();
         for (int i = 0; i < 100; i++)

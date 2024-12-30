@@ -20,6 +20,7 @@
                     fbo.BindForReading();
 
                 PopCommand.FrameBuffer = fbo;
+                PopCommand.Write = Write;
             }
         }
     }

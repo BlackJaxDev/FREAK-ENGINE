@@ -766,9 +766,11 @@ namespace XREngine.Rendering.OpenGL
                 if (location < 0)
                     return;
 
+                texture.PreSampling();
                 Renderer.SetActiveTexture(textureUnit);
                 Uniform(location, textureUnit);
                 texture.Bind();
+                texture.PostSampling();
             }
             #endregion
         }

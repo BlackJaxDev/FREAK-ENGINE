@@ -1,7 +1,10 @@
 ﻿using Extensions;
+using System.Numerics;
+using XREngine.Data.Colors;
 using XREngine.Data.Core;
 using XREngine.Data.Rendering;
 using XREngine.Rendering.Models.Materials;
+using XREngine.Rendering.Models.Materials.Shaders.Parameters;
 
 namespace XREngine.Rendering
 {
@@ -94,6 +97,159 @@ namespace XREngine.Rendering
         /// Use this to set uniform values to be passed to the fragment shader.
         /// </summary>
         public T2? Parameter<T2>(string name) where T2 : ShaderVar
-            => Parameters.FirstOrDefault(x => x.Name == name) as T2;
+        {
+            if (_nameIndexCache.TryGetValue(name, out var index))
+                return Parameter<T2>(index);
+            for (var i = 0; i < Parameters.Length; i++)
+            {
+                if (Parameters[i].Name == name)
+                {
+                    _nameIndexCache[name] = i;
+                    return Parameter<T2>(i);
+                }
+            }
+            return null;
+        }
+
+        private readonly Dictionary<string, int> _nameIndexCache = [];
+
+        public void ResetNameIndexCache()
+            => _nameIndexCache.Clear();
+
+        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+        {
+            base.OnPropertyChanged(propName, prev, field);
+            switch (propName)
+            {
+                case nameof(Parameters):
+                    ResetNameIndexCache();
+                    break;
+            }
+        }
+
+        public void SetFloat(string name, float value)
+        {
+            var param = Parameter<ShaderFloat>(name);
+            if (param is not null)
+                param.Value = value;
+        }
+        public void SetFloat(int index, float value)
+        {
+            var param = Parameter<ShaderFloat>(index);
+            if (param is not null)
+                param.Value = value;
+        }
+        public void SetInt(string name, int value)
+        {
+            var param = Parameter<ShaderInt>(name);
+            if (param is not null)
+                param.Value = value;
+        }
+        public void SetInt(int index, int value)
+        {
+            var param = Parameter<ShaderInt>(index);
+            if (param is not null)
+                param.Value = value;
+        }
+        public void SetVector2(string name, Vector2 value)
+        {
+            var param = Parameter<ShaderVector2>(name);
+            if (param is not null)
+                param.Value = value;
+        }
+        public void SetVector2(int index, Vector2 value)
+        {
+            var param = Parameter<ShaderVector2>(index);
+            if (param is not null)
+                param.Value = value;
+        }
+        public void SetVector3(string name, Vector3 value)
+        {
+            var param = Parameter<ShaderVector3>(name);
+            if (param is not null)
+                param.Value = value;
+        }
+        public void SetVector3(int index, Vector3 value)
+        {
+            var param = Parameter<ShaderVector3>(index);
+            if (param is not null)
+                param.Value = value;
+        }
+        public void SetVector4(string name, Vector4 value)
+        {
+            var param = Parameter<ShaderVector4>(name);
+            if (param is not null)
+                param.Value = value;
+        }
+        public void SetVector4(int index, Vector4 value)
+        {
+            var param = Parameter<ShaderVector4>(index);
+            if (param is not null)
+                param.Value = value;
+        }
+        public void SetMatrix4(string name, Matrix4x4 value)
+        {
+            var param = Parameter<ShaderMat4>(name);
+            if (param is not null)
+                param.Value = value;
+        }
+        public void SetMatrix4(int index, Matrix4x4 value)
+        {
+            var param = Parameter<ShaderMat4>(index);
+            if (param is not null)
+                param.Value = value;
+        }
+
+        public Dictionary<string, XRFrameBuffer> GrabPasses { get; } = [];
+
+        //public void AddGrabPass(string name, uint w, uint h)
+        //{
+        //    XRTexture2D t = XRTexture2D.CreateFrameBufferTexture(w, h, EPixelInternalFormat.Rgba8, EPixelFormat.Rgba, EPixelType.UnsignedByte);
+        //    //t.SizedInternalFormat = ESizedInternalFormat.Rgba8;
+        //    //t.Resizable = true;
+        //    t.MinFilter = ETexMinFilter.Linear;
+        //    t.MagFilter = ETexMagFilter.Linear;
+        //    t.UWrap = ETexWrapMode.ClampToEdge;
+        //    t.VWrap = ETexWrapMode.ClampToEdge;
+        //    t.Name = name;
+        //    var fbo = new XRFrameBuffer((t, EFrameBufferAttachment.ColorAttachment0, 0, -1));
+        //    GrabPasses[name] = fbo;
+        //}
+        //public void DestroyGrabPass(string name)
+        //{
+        //    if (!GrabPasses.TryGetValue(name, out var fbo))
+        //        return;
+            
+        //    fbo.Destroy();
+        //    GrabPasses.Remove(name);
+        //}
+        //public void DestroyAllGrabPasses()
+        //{
+        //    foreach (var fbo in GrabPasses.Values)
+        //        fbo.Destroy();
+        //    GrabPasses.Clear();
+        //}
+
+        //public XRTexture2D? GrabPass(
+        //    XRFrameBuffer inFBO,
+        //    string name,
+        //    EReadBufferMode readBuffer = EReadBufferMode.ColorAttachment0,
+        //    bool colorBit = true,
+        //    bool depthBit = false,
+        //    bool stencilBit = false,
+        //    bool linearFilter = true,
+        //    bool resizeToFit = true)
+        //{
+        //    var rend = AbstractRenderer.Current;
+        //    if (rend is null || inFBO is null || !GrabPasses.TryGetValue(name, out var outFBO))
+        //        return null;
+        //    if (resizeToFit && (inFBO.Width != outFBO.Width || inFBO.Height != outFBO.Height))
+        //        outFBO.Resize(inFBO.Width, inFBO.Height);
+        //    rend.BlitFBO(inFBO, outFBO, readBuffer, colorBit, depthBit, stencilBit, linearFilter);
+        //    return outFBO.Targets?[0].Target as XRTexture2D;
+        //}
+
+        //public XRFrameBuffer? GetGrabPassResult(string name)
+        //    => GrabPasses.TryGetValue(name, out var fbo) ? fbo : null;
     }
 }

@@ -149,7 +149,7 @@ public abstract class RenderPipeline : XRBase
         BoundingRectangle region = new(IVector2.Zero, new IVector2((int)width, (int)height));
 
         //Now render the texture to the FBO using the quad
-        using (fbo.BindForWriting())
+        using (fbo.BindForWritingState())
         {
             using (State.PushRenderArea(region))
             {

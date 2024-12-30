@@ -10,20 +10,21 @@ namespace XREngine.Rendering
     [XR3rdPartyExtensions("otf", "ttf")]
     public class FontGlyphSet : XRAsset
     {
-        private Dictionary<string, Glyph>? _glyphs;
-        private XRTexture2D? _atlas;
         private List<string> _characters = [];
-
         public List<string> Characters
         {
             get => _characters;
             set => SetField(ref _characters, value);
         }
+
+        private Dictionary<string, Glyph>? _glyphs;
         public Dictionary<string, Glyph>? Glyphs
         {
             get => _glyphs;
             set => SetField(ref _glyphs, value);
         }
+
+        private XRTexture2D? _atlas;
         public XRTexture2D? Atlas
         {
             get => _atlas;
@@ -96,7 +97,8 @@ namespace XREngine.Rendering
             string outputAtlasPath,
             float textSize,
             SKPaintStyle style = SKPaintStyle.Fill,
-            float strokeWidth = 0.0f)
+            float strokeWidth = 0.0f,
+            bool embolden = false)
         {
             // List to hold glyph data
             List<(string character, Glyph info)> glyphInfos = [];
@@ -105,12 +107,16 @@ namespace XREngine.Rendering
             // Create a paint object
             using SKPaint paint = new()
             {
-                IsAntialias = true,
+                //IsAntialias = true,
                 Color = SKColors.White,
                 Style = style,
                 StrokeWidth = strokeWidth,
             };
+
             using SKFont font = new(typeface, textSize);
+            font.BaselineSnap = false;
+            font.Edging = SKFontEdging.SubpixelAntialias;
+            font.Embolden = embolden;
 
             // Process each character
             foreach (string character in characters)

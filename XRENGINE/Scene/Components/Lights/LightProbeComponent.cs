@@ -280,7 +280,7 @@ namespace XREngine.Components.Lights
                 for (int i = 0; i < 6; ++i)
                 {
                     _irradianceFBO!.SetRenderTargets((IrradianceTexture, EFrameBufferAttachment.ColorAttachment0, 0, i));
-                    using (_irradianceFBO!.BindForWriting())
+                    using (_irradianceFBO!.BindForWritingState())
                     {
                         Engine.Rendering.State.ClearByBoundFBO();
                         //Engine.Rendering.State.EnableDepthTest(false);
@@ -321,7 +321,7 @@ namespace XREngine.Components.Lights
                     for (int i = 0; i < 6; ++i)
                     {
                         _prefilterFBO.SetRenderTargets((PrefilterTex, EFrameBufferAttachment.ColorAttachment0, mip, i));
-                        using (_prefilterFBO.BindForWriting())
+                        using (_prefilterFBO.BindForWritingState())
                         {
                             Engine.Rendering.State.ClearByBoundFBO();
                             //Engine.Rendering.State.EnableDepthTest(false);

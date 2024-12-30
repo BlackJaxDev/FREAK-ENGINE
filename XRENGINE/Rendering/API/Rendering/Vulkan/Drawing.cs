@@ -3,11 +3,61 @@ using Silk.NET.Vulkan;
 using System.Numerics;
 using XREngine.Data.Colors;
 using XREngine.Data.Geometry;
+using XREngine.Data.Rendering;
 
 namespace XREngine.Rendering.Vulkan
 {
     public unsafe partial class VulkanRenderer
     {
+        public override void BlitFBO(
+            XRFrameBuffer inFBO,
+            XRFrameBuffer outFBO,
+            int inX, int inY, uint inW, uint inH,
+            int outX, int outY, uint outW, uint outH,
+            EReadBufferMode readBufferMode,
+            bool colorBit, bool depthBit, bool stencilBit,
+            bool linearFilter)
+        {
+            if (inFBO is null || outFBO is null)
+                return;
+            //var commandBuffer = BeginSingleTimeCommands();
+            ImageBlit region = new()
+            {
+                SrcSubresource = new ImageSubresourceLayers
+                {
+                    AspectMask = ImageAspectFlags.ColorBit,
+                    MipLevel = 0,
+                    BaseArrayLayer = 0,
+                    LayerCount = 1
+                },
+                SrcOffsets = new ImageBlit.SrcOffsetsBuffer()
+                {
+                    Element0 = new Offset3D { X = inX, Y = inY, Z = 0 },
+                    Element1 = new Offset3D { X = (int)inW, Y = (int)inH, Z = 1 }
+                },
+                DstSubresource = new ImageSubresourceLayers
+                {
+                    AspectMask = ImageAspectFlags.ColorBit,
+                    MipLevel = 0,
+                    BaseArrayLayer = 0,
+                    LayerCount = 1
+                },
+                DstOffsets = new ImageBlit.DstOffsetsBuffer()
+                {
+                    Element0 = new Offset3D { X = outX, Y = outY, Z = 0 },
+                    Element1 = new Offset3D { X = (int)outW, Y = (int)outH, Z = 1 }
+                }
+            };
+            //commandBuffer.CmdBlitImage(
+            //    inFBO.ColorImage,
+            //    ImageLayout.TransferSrcOptimal,
+            //    outFBO.ColorImage,
+            //    ImageLayout.TransferDstOptimal,
+            //    1,
+            //    &region,
+            //    Filter.Linear);
+            //EndSingleTimeCommands(commandBuffer);
+        }
         public override void GetScreenshotAsync(BoundingRectangle region, bool withTransparency, Action<MagickImage> imageCallback)
         {
             throw new NotImplementedException();

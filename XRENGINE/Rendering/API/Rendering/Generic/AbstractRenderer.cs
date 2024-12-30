@@ -1,8 +1,5 @@
-﻿using Extensions;
-using ImageMagick;
-using SharpFont;
+﻿using ImageMagick;
 using Silk.NET.Core.Native;
-using Silk.NET.Maths;
 using Silk.NET.Windowing;
 using System.Collections.Concurrent;
 using System.Numerics;
@@ -180,6 +177,69 @@ namespace XREngine.Rendering
         public abstract void DispatchCompute(XRRenderProgram program, int v1, int v2, int v3);
 
         public abstract void GetScreenshotAsync(BoundingRectangle region, bool withTransparency, Action<MagickImage> imageCallback);
+
+        public void BlitFBO(
+            XRFrameBuffer inFBO,
+            XRFrameBuffer? outFBO,
+            EReadBufferMode readBufferMode,
+            bool colorBit, bool depthBit, bool stencilBit,
+            bool linearFilter)
+        {
+            if (inFBO is null || outFBO is null)
+                return;
+
+            BlitFBO(
+                inFBO,
+                outFBO,
+                inFBO.Width,
+                inFBO.Height,
+                outFBO.Width,
+                outFBO.Height,
+                readBufferMode,
+                colorBit,
+                depthBit,
+                stencilBit,
+                linearFilter);
+        }
+
+        public void BlitFBO(
+            XRFrameBuffer inFBO,
+            XRFrameBuffer outFBO,
+            uint inW, uint inH,
+            uint outW, uint outH,
+            EReadBufferMode readBufferMode,
+            bool colorBit, bool depthBit, bool stencilBit,
+            bool linearFilter)
+        {
+            if (inFBO is null || outFBO is null)
+                return;
+
+            BlitFBO(
+                inFBO,
+                outFBO,
+                0,
+                0,
+                inW,
+                inH,
+                0,
+                0,
+                outW,
+                outH,
+                readBufferMode,
+                colorBit,
+                depthBit,
+                stencilBit,
+                linearFilter);
+        }
+
+        public abstract void BlitFBO(
+            XRFrameBuffer inFBO,
+            XRFrameBuffer outFBO,
+            int inX, int inY, uint inW, uint inH,
+            int outX, int outY, uint outW, uint outH,
+            EReadBufferMode readBufferMode,
+            bool colorBit, bool depthBit, bool stencilBit,
+            bool linearFilter);
     }
     public abstract unsafe partial class AbstractRenderer<TAPI>(XRWindow window, bool shouldLinkWindow = true) : AbstractRenderer(window, shouldLinkWindow) where TAPI : NativeAPI
     {

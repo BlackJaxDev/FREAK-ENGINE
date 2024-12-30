@@ -476,13 +476,13 @@ namespace XREngine.Rendering
         }
         public float GetDepth(XRFrameBuffer fbo, Vector2 viewportPoint)
         {
-            using var t = fbo.BindForReading();
+            using var t = fbo.BindForReadingState();
             State.SetReadBuffer(EReadBufferMode.None);
             return State.GetDepth(viewportPoint.X, viewportPoint.Y);
         }
         public byte GetStencil(XRFrameBuffer fbo, Vector2 viewportPoint)
         {
-            using var t = fbo.BindForReading();
+            using var t = fbo.BindForReadingState();
             State.SetReadBuffer(EReadBufferMode.None);
             return State.GetStencilIndex(viewportPoint.X, viewportPoint.Y);
         }

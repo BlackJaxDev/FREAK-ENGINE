@@ -1,6 +1,5 @@
 ﻿using Extensions;
 using Silk.NET.OpenGL;
-using System.ComponentModel;
 using XREngine.Data;
 using XREngine.Data.Core;
 using XREngine.Data.Rendering;
@@ -294,6 +293,11 @@ namespace XREngine.Rendering.OpenGL
             Api.TextureParameterI(BindingId, GLEnum.TextureWrapT, in vWrap);
 
             base.SetParameters();
+        }
+
+        public override void PreSampling()
+        {
+            Data.GrabPass?.Grab(XRFrameBuffer.BoundForWriting);
         }
     }
 }

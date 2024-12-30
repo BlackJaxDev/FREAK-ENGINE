@@ -305,7 +305,10 @@ namespace XREngine.Rendering.UI
         /// </summary>
         /// <returns></returns>
         public float GetWidth()
-            => Width ?? CalcAutoWidthCallback?.Invoke(this) ?? GetMaxChildWidth();
+            => ApplyHorizontalPadding(Width ?? CalcAutoWidthCallback?.Invoke(this) ?? GetMaxChildWidth());
+
+        private float ApplyHorizontalPadding(float width)
+            => width + Padding.X + Padding.Z;
 
         /// <summary>
         /// Returns the height of the component.
@@ -313,7 +316,10 @@ namespace XREngine.Rendering.UI
         /// </summary>
         /// <returns></returns>
         public float GetHeight()
-            => Height ?? CalcAutoHeightCallback?.Invoke(this) ?? GetMaxChildHeight();
+            => ApplyVerticalPadding(Height ?? CalcAutoHeightCallback?.Invoke(this) ?? GetMaxChildHeight());
+
+        private float ApplyVerticalPadding(float height)
+            => height + Padding.Y + Padding.W;
 
         /// <summary>
         /// Calculates the width of the component based the widths of its children.

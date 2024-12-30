@@ -56,6 +56,7 @@ public class DefaultRenderPipeline : RenderPipeline
     public const string DepthStencilTextureName = "DepthStencil";
     public const string DiffuseTextureName = "LightingTexture";
     public const string HDRSceneTextureName = "HDRSceneTex";
+    public const string HDRSceneTexture2Name = "HDRSceneTex2";
     public const string BloomBlurTextureName = "BloomBlurTexture";
     public const string UserInterfaceTextureName = "HUDTex";
     public const string BRDFTextureName = "BRDF";
@@ -417,6 +418,13 @@ public class DefaultRenderPipeline : RenderPipeline
             NeedsRecreateTextureInternalSize,
             ResizeTextureInternalSize);
 
+        //HDR Scene texture 2
+        c.Add<VPRC_CacheOrCreateTexture>().SetOptions(
+            HDRSceneTexture2Name,
+            CreateHDRSceneTexture,
+            NeedsRecreateTextureInternalSize,
+            ResizeTextureInternalSize);
+
         //HUD texture
         c.Add<VPRC_CacheOrCreateTexture>().SetOptions(
             UserInterfaceTextureName,
@@ -445,7 +453,7 @@ public class DefaultRenderPipeline : RenderPipeline
     {
         XRTexture[] postProcessRefs =
         [
-            GetTexture<XRTexture2D>(HDRSceneTextureName)!,
+            GetTexture<XRTexture2D>(HDRSceneTexture2Name)!,
             GetTexture<XRTexture2D>(BloomBlurTextureName)!,
             GetTexture<XRTexture2DView>(DepthViewTextureName)!,
             GetTexture<XRTexture2DView>(StencilViewTextureName)!,
@@ -479,7 +487,7 @@ public class DefaultRenderPipeline : RenderPipeline
 
     private XRFrameBuffer CreateForwardPassFBO()
     {
-        XRTexture2D[] brightRefs = { GetTexture<XRTexture2D>(HDRSceneTextureName)! };
+        XRTexture2D[] brightRefs = [GetTexture<XRTexture2D>(HDRSceneTextureName)!];
         XRMaterial brightMat = new(
             [
                 new ShaderFloat(1.0f, "BloomIntensity"),
@@ -504,7 +512,7 @@ public class DefaultRenderPipeline : RenderPipeline
         var fbo = new XRQuadFrameBuffer(brightMat);
         fbo.SettingUniforms += BrightPassFBO_SettingUniforms;
         fbo.SetRenderTargets(
-            (GetTexture<XRTexture2D>(HDRSceneTextureName)!, EFrameBufferAttachment.ColorAttachment0, 0, -1),
+            (GetTexture<XRTexture2D>(HDRSceneTexture2Name)!, EFrameBufferAttachment.ColorAttachment0, 0, -1),
             (GetTexture<XRTexture2D>(DepthStencilTextureName)!, EFrameBufferAttachment.DepthStencilAttachment, 0, -1));
         
         return fbo;

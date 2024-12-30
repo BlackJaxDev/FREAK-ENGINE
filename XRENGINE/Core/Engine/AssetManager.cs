@@ -232,6 +232,41 @@ namespace XREngine
                 return existingAsset;
             }
             LoadedAssetsByIDInternal.AddOrUpdate(asset.ID, asset, UpdateIDDict);
+
+            asset.PropertyChanged += AssetPropertyChanged;
+        }
+
+        void AssetPropertyChanged(object? s, Data.Core.IXRPropertyChangedEventArgs e)
+        {
+            switch (e.PropertyName)
+            {
+                case nameof(XRAsset.FilePath):
+                    {
+                        if (s is XRAsset asset)
+                        {
+                            if (e.PreviousValue is string prev)
+                                LoadedAssetsByPathInternal.TryRemove(prev, out _);
+                            LoadedAssetsByPathInternal.TryAdd(asset.FilePath ?? string.Empty, asset);
+                        }
+                    }
+                    break;
+                case nameof(XRAsset.ID):
+                    {
+                        if (s is XRAsset asset)
+                        {
+                            if (e.PreviousValue is Guid prev)
+                                LoadedAssetsByIDInternal.TryRemove(prev, out _);
+                            LoadedAssetsByIDInternal.TryAdd(asset.ID, asset);
+                        }
+                    }
+                    break;
+                case nameof(XRAsset.IsDirty):
+                    {
+                        if (s is XRAsset asset && asset.IsDirty)
+                            DirtyAssets.Add(asset);
+                    }
+                    break;
+            }
         }
 
         public FileSystemWatcher GameWatcher { get; } = new FileSystemWatcher();
@@ -246,7 +281,8 @@ namespace XREngine
         public ConcurrentDictionary<string, XRAsset> LoadedAssetsByOriginalPathInternal { get; } = [];
         public ConcurrentDictionary<string, XRAsset> LoadedAssetsByPathInternal { get; } = [];
         public ConcurrentDictionary<Guid, XRAsset> LoadedAssetsByIDInternal { get; } = [];
-        
+        public ConcurrentBag<XRAsset> DirtyAssets { get; } = [];
+
         public XRAsset? GetAssetByID(Guid id)
             => LoadedAssetsByIDInternal.TryGetValue(id, out XRAsset? asset) ? asset : null;
 
@@ -666,6 +702,13 @@ namespace XREngine
                 Debug.LogWarning($"The file extension '{ext}' is not supported by the asset type '{typeof(T).Name}'.");
                 return null;
             }
+        }
+        
+        public void SaveAll()
+        {
+            foreach (var asset in DirtyAssets)
+                Save(asset);
+            DirtyAssets.Clear();
         }
     }
 }

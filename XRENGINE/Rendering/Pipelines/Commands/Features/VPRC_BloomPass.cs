@@ -172,7 +172,7 @@ namespace XREngine.Rendering.Pipelines.Commands
                 inputFBO.Height != _lastHeight)
                 RegenerateFBOs(inputFBO.Width, inputFBO.Height);
 
-            using (blur1!.BindForWriting())
+            using (blur1!.BindForWritingState())
                 inputFBO!.Render();
 
             var tex = Pipeline.GetTexture<XRTexture2D>(BloomOutputTextureName);
@@ -186,7 +186,7 @@ namespace XREngine.Rendering.Pipelines.Commands
         }
         private static void BloomScaledPass(XRQuadFrameBuffer fbo, BoundingRectangle rect, int mipmap)
         {
-            using (fbo.BindForWriting())
+            using (fbo.BindForWritingState())
             {
                 using (Pipeline.RenderState.PushRenderArea(rect))
                 {

@@ -58,6 +58,7 @@ namespace XREngine.Data.Colors
         public static readonly ColorF4 DarkGold = new(0.5f, 0.25f, 0.0f);
         public static readonly ColorF4 LightSilver = new(0.75f, 0.75f, 0.75f);
         public static readonly ColorF4 DarkSilver = new(0.25f, 0.25f, 0.25f);
+        public static readonly ColorF4 Charcoal = new(0.125f, 1.0f);
 
         public float R, G, B, A;
 

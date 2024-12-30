@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using XREngine.Core.Attributes;
+using XREngine.Data.Colors;
 using XREngine.Data.Core;
 using XREngine.Data.Rendering;
 using XREngine.Rendering.Commands;
@@ -20,6 +21,7 @@ namespace XREngine.Rendering.UI
             RenderedObjects[1] = RenderInfo2D = RenderInfo2D.New(this, _rc2D);
         }
 
+        private const string TextColorUniformName = "TextColor";
         private readonly RenderCommandMesh3D _rc3D = new((int)EDefaultRenderPass.TransparentForward);
         private readonly RenderCommandMesh2D _rc2D = new((int)EDefaultRenderPass.TransparentForward);
 
@@ -228,6 +230,15 @@ namespace XREngine.Rendering.UI
                             UpdateText(true);
                     }
                     break;
+                case nameof(Color):
+                    {
+                        var mat = _rc3D.Mesh?.Material;
+                        if (mat is not null)
+                            mat.SetVector4(TextColorUniformName, Color);
+                        else
+                            UpdateText(true);
+                    }
+                    break;
             }
         }
 
@@ -291,6 +302,7 @@ namespace XREngine.Rendering.UI
                 Enabled = ERenderParamUsage.Disabled,
                 Function = EComparison.Always
             },
+            BlendModeAllDrawBuffers = BlendMode.EnabledTransparent(),
         };
         public RenderingParameters RenderParameters
         {
@@ -309,6 +321,13 @@ namespace XREngine.Rendering.UI
             set => SetField(ref _nonVertexShadersOverride, value);
         }
 
+        private ColorF4 _color = new(0.0f, 0.0f, 0.0f, 1.0f);
+        public ColorF4 Color
+        {
+            get => _color;
+            set => SetField(ref _color, value);
+        }
+
         /// <summary>
         /// Override this method to create a fully custom material for the text using the font's atlas.
         /// </summary>
@@ -318,7 +337,7 @@ namespace XREngine.Rendering.UI
         {
             XRShader vertexShader = XRShader.EngineShader(Path.Combine("Common", "Text.vs"), EShaderType.Vertex);
             XRShader[] nonVertexShaders = NonVertexShadersOverride ?? [XRShader.EngineShader(Path.Combine("Common", "Text.fs"), EShaderType.Fragment)];
-            return new([atlas], new XRShader[] { vertexShader }.Concat(nonVertexShaders))
+            return new([new ShaderVector4(Color, TextColorUniformName)], [atlas], new XRShader[] { vertexShader }.Concat(nonVertexShaders))
             {
                 RenderPass = RenderPass,
                 RenderOptions = RenderParameters

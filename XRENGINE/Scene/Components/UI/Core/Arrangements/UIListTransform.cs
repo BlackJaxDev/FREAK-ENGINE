@@ -10,6 +10,8 @@ namespace XREngine.Rendering.UI
         private float _spacing = 0.0f;
         private EListAlignment _alignment = EListAlignment.TopOrLeft;
         private bool _virtual = false;
+        private float _upperVirtualBound = 0.0f;
+        private float _lowerVirtualBound = 0.0f;
 
         /// <summary>
         /// The width or height of each child component.
@@ -52,6 +54,36 @@ namespace XREngine.Rendering.UI
             get => _virtual;
             set => SetField(ref _virtual, value);
         }
+        /// <summary>
+        /// The upper bound of the virtual region.
+        /// </summary>
+        public float UpperVirtualBound
+        {
+            get => _upperVirtualBound;
+            set => SetField(ref _upperVirtualBound, value);
+        }
+        /// <summary>
+        /// The lower bound of the virtual region.
+        /// </summary>
+        public float LowerVirtualBound
+        {
+            get => _lowerVirtualBound;
+            set => SetField(ref _lowerVirtualBound, value);
+        }
+        public float VirtualRegionSize => UpperVirtualBound - LowerVirtualBound;
+        public void SetVirtualBounds(float upper, float lower)
+        {
+            UpperVirtualBound = upper;
+            LowerVirtualBound = lower;
+        }
+        public void SetVirtualBoundsRelativeToTop(float size)
+        {
+            LowerVirtualBound = UpperVirtualBound - size;
+        }
+        public void SetVirtualBoundsRelativeToBottom(float size)
+        {
+            UpperVirtualBound = LowerVirtualBound + size;
+        }
 
         protected override void OnResizeChildComponents(BoundingRectangleF parentRegion)
         {
@@ -88,9 +120,11 @@ namespace XREngine.Rendering.UI
                 {
                     float parentHeight = parentRegion.Height;
                     float size = ItemSize ?? bc.GetWidth();
-                    placementInfo.Offset = x - size;
-                    bc.FitLayout(new BoundingRectangleF(x - size, y, size, parentHeight));
                     x -= size;
+                    placementInfo.Offset = x;
+
+                    bc.FitLayout(new BoundingRectangleF(x, y, size, parentHeight));
+
                     if (i > 0)
                         x -= ItemSpacing;
                 }
@@ -98,9 +132,11 @@ namespace XREngine.Rendering.UI
                 {
                     float parentWidth = parentRegion.Width;
                     float size = ItemSize ?? bc.GetHeight();
-                    placementInfo.Offset = y - size;
-                    bc.FitLayout(new BoundingRectangleF(x, y - size, parentWidth, size));
                     y -= size;
+                    placementInfo.Offset = y;
+
+                    bc.FitLayout(new BoundingRectangleF(x, y, parentWidth, size));
+
                     if (i > 0)
                         y -= ItemSpacing;
                 }
@@ -109,33 +145,13 @@ namespace XREngine.Rendering.UI
 
         private void SizeChildrenCentered(BoundingRectangleF parentRegion, ref float y, ref float x)
         {
-            //TODO: verify this was implemented correctly
-            float totalSize = 0;
-            for (int i = 0; i < Children.Count; i++)
-            {
-                TransformBase? child = Children[i];
-                if (child is not UIBoundableTransform bc)
-                    continue;
+            float[] sizes = new float[Children.Count];
+            float totalSize = CalcTotalSize(sizes);
 
-                if (DisplayHorizontal)
-                {
-                    float size = ItemSize ?? bc.GetWidth();
-                    totalSize += size;
-                    if (i < Children.Count - 1)
-                        totalSize += ItemSpacing;
-                }
-                else
-                {
-                    float size = ItemSize ?? bc.GetHeight();
-                    totalSize += size;
-                    if (i < Children.Count - 1)
-                        totalSize += ItemSpacing;
-                }
-            }
-
-            float offset = DisplayHorizontal
-                ? (parentRegion.Width - totalSize) / 2
-                : (parentRegion.Height - totalSize) / 2;
+            if (DisplayHorizontal)
+                x += (parentRegion.Width - totalSize) / 2.0f;
+            else
+                y += (parentRegion.Height - totalSize) / 2.0f;
 
             for (int i = 0; i < Children.Count; i++)
             {
@@ -146,24 +162,49 @@ namespace XREngine.Rendering.UI
                 if (DisplayHorizontal)
                 {
                     float parentHeight = parentRegion.Height;
-                    float size = ItemSize ?? bc.GetWidth();
-                    placementInfo.Offset = x + offset;
-                    bc.FitLayout(new BoundingRectangleF(x + offset, y, size, parentHeight));
-                    offset += size;
-                    if (i < Children.Count - 1)
-                        offset += ItemSpacing;
+                    float size = sizes[i];
+                    placementInfo.Offset = x;
+
+                    FitLayoutHorizontal(y, x, bc, parentHeight, size);
+                    Increment(ref x, i, size);
                 }
                 else
                 {
                     float parentWidth = parentRegion.Width;
-                    float size = ItemSize ?? bc.GetHeight();
-                    placementInfo.Offset = y + offset;
-                    bc.FitLayout(new BoundingRectangleF(x, y + offset, parentWidth, size));
-                    offset += size;
-                    if (i < Children.Count - 1)
-                        offset += ItemSpacing;
+                    float size = sizes[i];
+                    placementInfo.Offset = y;
+
+                    FitLayoutVertical(y, x, bc, parentWidth, size);
+                    Increment(ref y, i, size);
                 }
             }
+        }
+
+        private float CalcTotalSize(float[] sizes)
+        {
+            float totalSize = 0.0f;
+            for (int i = 0; i < Children.Count; i++)
+            {
+                TransformBase? child = Children[i];
+                if (child is not UIBoundableTransform bc)
+                    continue;
+
+                float size = ItemSize ?? (DisplayHorizontal ? bc.GetWidth() : bc.GetHeight());
+
+                sizes[i] = size;
+                totalSize += size;
+                if (i < Children.Count - 1)
+                    totalSize += ItemSpacing;
+            }
+
+            return totalSize;
+        }
+
+        private void Increment(ref float value, int i, float size)
+        {
+            value += size;
+            if (i < Children.Count - 1)
+                value += ItemSpacing;
         }
 
         private void SizeChildrenLeftTop(BoundingRectangleF parentRegion, ref float y, ref float x)
@@ -179,23 +220,69 @@ namespace XREngine.Rendering.UI
                     float parentHeight = parentRegion.Height;
                     float size = ItemSize ?? bc.GetWidth();
                     placementInfo.Offset = x;
-                    bc.FitLayout(new BoundingRectangleF(x, y, size, parentHeight));
 
-                    x += size;
-                    if (i < Children.Count - 1)
-                        x += ItemSpacing;
+                    FitLayoutHorizontal(y, x, bc, parentHeight, size);
+                    Increment(ref x, i, size);
                 }
                 else
                 {
                     float parentWidth = parentRegion.Width;
                     float size = ItemSize ?? bc.GetHeight();
                     placementInfo.Offset = y;
-                    bc.FitLayout(new BoundingRectangleF(x, y, parentWidth, size));
 
-                    y += size;
-                    if (i < Children.Count - 1)
-                        y += ItemSpacing;
+                    FitLayoutVertical(y, x, bc, parentWidth, size);
+                    Increment(ref y, i, size);
                 }
+            }
+        }
+
+        private void FitLayoutHorizontal(float y, float x, UIBoundableTransform bc, float parentHeight, float size)
+        {
+            if (Virtual)
+            {
+                if (x + size < LowerVirtualBound || x > UpperVirtualBound)
+                {
+                    bc.Visibility = EVisibility.Collapsed;
+                    if (bc.SceneNode is not null)
+                        bc.SceneNode.IsActiveSelf = false;
+                }
+                else
+                {
+                    bc.Visibility = EVisibility.Visible;
+                    if (bc.SceneNode is not null)
+                        bc.SceneNode.IsActiveSelf = true;
+
+                    bc.FitLayout(new BoundingRectangleF(x, y, size, parentHeight));
+                }
+            }
+            else
+            {
+                bc.FitLayout(new BoundingRectangleF(x, y, size, parentHeight));
+            }
+        }
+
+        private void FitLayoutVertical(float y, float x, UIBoundableTransform bc, float parentWidth, float size)
+        {
+            if (Virtual)
+            {
+                if (y + size < LowerVirtualBound || y > UpperVirtualBound)
+                {
+                    bc.Visibility = EVisibility.Collapsed;
+                    if (bc.SceneNode is not null)
+                        bc.SceneNode.IsActiveSelf = false;
+                }
+                else
+                {
+                    bc.Visibility = EVisibility.Visible;
+                    if (bc.SceneNode is not null)
+                        bc.SceneNode.IsActiveSelf = true;
+
+                    bc.FitLayout(new BoundingRectangleF(x, y, parentWidth, size));
+                }
+            }
+            else
+            {
+                bc.FitLayout(new BoundingRectangleF(x, y, parentWidth, size));
             }
         }
 

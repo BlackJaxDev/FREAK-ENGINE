@@ -196,5 +196,15 @@ namespace XREngine.Rendering.OpenGL
         public abstract void PushData();
         public string ResolveSamplerName(int textureIndex, string? samplerNameOverride)
             => Data.ResolveSamplerName(textureIndex, samplerNameOverride);
+
+        public virtual void PostSampling()
+        {
+
+        }
+
+        public virtual void PreSampling()
+        {
+
+        }
     }
 }
