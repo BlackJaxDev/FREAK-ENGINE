@@ -89,7 +89,7 @@ namespace XREngine.Components
         public float KeyboardTranslateSpeed { get; set; } = 10.0f;
 
         [Category("Movement")]
-        public float KeyboardRotateSpeed { get; set; } = 0.01f;
+        public float KeyboardRotateSpeed { get; set; } = 1.0f;
 
         public override void RegisterInput(InputInterface input)
         {

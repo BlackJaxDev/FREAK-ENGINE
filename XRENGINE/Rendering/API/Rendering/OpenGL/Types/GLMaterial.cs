@@ -8,9 +8,14 @@ namespace XREngine.Rendering.OpenGL
     {
         public class GLMaterial(OpenGLRenderer renderer, XRMaterial material) : GLObject<XRMaterial>(renderer, material)
         {
-            private float _secondsLive = 0.0f;
-
             public override GLObjectType Type => GLObjectType.Material;
+
+            private float _secondsLive = 0.0f;
+            public float SecondsLive
+            {
+                get => _secondsLive;
+                set => SetField(ref _secondsLive, value);
+            }
 
             public GLRenderProgram? Program => Renderer.GenericToAPI<GLRenderProgram>(Data.ShaderPipelineProgram);
 
@@ -42,6 +47,7 @@ namespace XREngine.Rendering.OpenGL
             
             private void TextureAdded(XRTexture? tex)
             {
+
             }
 
             public void SetUniforms(GLRenderProgram? program)
@@ -60,12 +66,6 @@ namespace XREngine.Rendering.OpenGL
                 SetTextureUniforms(program);
                 SetEngineUniforms(program);
                 Data.OnSettingUniforms(program.Data);
-            }
-
-            public float SecondsLive
-            {
-                get => _secondsLive;
-                set => SetField(ref _secondsLive, value);
             }
 
             private void SetEngineUniforms(GLRenderProgram program)

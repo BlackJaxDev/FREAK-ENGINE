@@ -42,5 +42,7 @@
         //CameraRight,
 
         RootInvModelMatrix,
+        CameraForward,
+        CameraUp,
     }
 }

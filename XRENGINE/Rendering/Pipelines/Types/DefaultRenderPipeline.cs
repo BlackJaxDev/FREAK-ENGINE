@@ -114,8 +114,20 @@ public class DefaultRenderPipeline : RenderPipeline
         {
             //Render to the SSAO FBO
             var ssaoCommand = c.Add<VPRC_SSAO>();
-            ssaoCommand.SetGBufferInputTextureNames(NormalTextureName, DepthViewTextureName, AlbedoOpacityTextureName, RMSITextureName, DepthStencilTextureName);
-            ssaoCommand.SetOutputNames(SSAONoiseTextureName, SSAOIntensityTextureName, SSAOFBOName, SSAOBlurFBOName, GBufferFBOName);
+
+            ssaoCommand.SetGBufferInputTextureNames(
+                NormalTextureName,
+                DepthViewTextureName,
+                AlbedoOpacityTextureName,
+                RMSITextureName,
+                DepthStencilTextureName);
+
+            ssaoCommand.SetOutputNames(
+                SSAONoiseTextureName,
+                SSAOIntensityTextureName,
+                SSAOFBOName,
+                SSAOBlurFBOName,
+                GBufferFBOName);
 
             using (c.AddUsing<VPRC_BindFBOByName>(x => x.FrameBufferName = SSAOFBOName))
             {
@@ -143,7 +155,11 @@ public class DefaultRenderPipeline : RenderPipeline
                 c.Add<VPRC_StencilMask>().Set(~0u);
                 c.Add<VPRC_ClearByBoundFBO>();
 
-                c.Add<VPRC_LightCombinePass>().SetOptions(AlbedoOpacityTextureName, NormalTextureName, RMSITextureName, DepthViewTextureName);
+                c.Add<VPRC_LightCombinePass>().SetOptions(
+                    AlbedoOpacityTextureName,
+                    NormalTextureName,
+                    RMSITextureName,
+                    DepthViewTextureName);
             }
 
             //ForwardPass FBO

@@ -17,6 +17,28 @@ namespace XREngine.Rendering.UI
             set => SetField(ref _verticalSplit, value);
         }
 
+        private float _fixedSize = 0.0f;
+        /// <summary>
+        /// The fixed size of the top or bottom region, depending on TopFixed.
+        /// </summary>
+        public float FixedSize
+        {
+            get => _fixedSize;
+            set => SetField(ref _fixedSize, value);
+        }
+
+        private bool? _topFixed = null;
+        /// <summary>
+        /// If null, both regions scale by parent size.
+        /// If true, the top region uses FixedSize.
+        /// If false, the bottom region uses FixedSize.
+        /// </summary>
+        public bool? FirstFixedSize
+        {
+            get => _topFixed;
+            set => SetField(ref _topFixed, value);
+        }
+
         private float _splitPercent = 0.5f;
         public float SplitPercent
         {
@@ -24,7 +46,7 @@ namespace XREngine.Rendering.UI
             set => SetField(ref _splitPercent, value.Clamp(0.0f, 1.0f));
         }
 
-        private float _splitterSize = 5.0f;
+        private float _splitterSize = 0.0f;
         public float SplitterSize
         {
             get => _splitterSize;
@@ -50,16 +72,90 @@ namespace XREngine.Rendering.UI
 
             if (VerticalSplit)
             {
-                float split = parentRegion.Height * SplitPercent;
-                a.FitLayout(new(parentRegion.X, parentRegion.Y, parentRegion.Width, split));
-                b.FitLayout(new(parentRegion.X, parentRegion.Y + split, parentRegion.Width, parentRegion.Height - split));
+                float topSize, bottomSize;
+
+                if (FirstFixedSize.HasValue)
+                {
+                    if (FirstFixedSize.Value)
+                    {
+                        topSize = FixedSize;
+                        bottomSize = parentRegion.Height - FixedSize;
+                    }
+                    else
+                    {
+                        topSize = parentRegion.Height - FixedSize;
+                        bottomSize = FixedSize;
+                    }
+                }
+                else
+                {
+                    float split = parentRegion.Height * SplitPercent;
+                    topSize = split;
+                    bottomSize = parentRegion.Height - split;
+                }
+
+                if (a.PlacementInfo is UISplitChildPlacementInfo aInfo)
+                    aInfo.Offset = bottomSize + SplitterSize;
+                a.FitLayout(new(parentRegion.X, parentRegion.Y + bottomSize + SplitterSize, parentRegion.Width, topSize));
+
+                if (b.PlacementInfo is UISplitChildPlacementInfo bInfo)
+                    bInfo.Offset = 0;
+                b.FitLayout(new(parentRegion.X, parentRegion.Y, parentRegion.Width, bottomSize));
             }
             else
             {
-                float split = parentRegion.Width * SplitPercent;
-                a.FitLayout(new(parentRegion.X, parentRegion.Y, split, parentRegion.Height));
-                b.FitLayout(new(parentRegion.X + split, parentRegion.Y, parentRegion.Width - split, parentRegion.Height));
+                float leftSize, rightSize;
+
+                if (FirstFixedSize.HasValue)
+                {
+                    if (FirstFixedSize.Value)
+                    {
+                        leftSize = FixedSize;
+                        rightSize = parentRegion.Width - FixedSize;
+                    }
+                    else
+                    {
+                        leftSize = parentRegion.Width - FixedSize;
+                        rightSize = FixedSize;
+                    }
+                }
+                else
+                {
+                    float split = parentRegion.Width * SplitPercent;
+                    leftSize = split;
+                    rightSize = parentRegion.Width - split;
+                }
+
+                if (a.PlacementInfo is UISplitChildPlacementInfo aInfo)
+                    aInfo.Offset = 0;
+                a.FitLayout(new(parentRegion.X, parentRegion.Y, leftSize, parentRegion.Height));
+
+                if (b.PlacementInfo is UISplitChildPlacementInfo bInfo)
+                    bInfo.Offset = leftSize + SplitterSize;
+                b.FitLayout(new(parentRegion.X + leftSize + SplitterSize, parentRegion.Y, rightSize, parentRegion.Height));
             }
+        }
+        public override void VerifyPlacementInfo(UITransform childTransform, ref UIChildPlacementInfo? placementInfo)
+        {
+            if (placementInfo is not UISplitChildPlacementInfo)
+                placementInfo = new UISplitChildPlacementInfo(childTransform);
+        }
+        public class UISplitChildPlacementInfo(UITransform owner) : UIChildPlacementInfo(owner)
+        {
+            private float _offset;
+            public float Offset
+            {
+                get => _offset;
+                set => SetField(ref _offset, value);
+            }
+
+            public bool Vertical => (Owner?.Parent as UISplitTransform)?.VerticalSplit ?? false;
+
+            public override Matrix4x4 GetRelativeItemMatrix()
+                => Matrix4x4.CreateTranslation(
+                    Vertical ? 0 : Offset,
+                    Vertical ? Offset : 0,
+                    0);
         }
     }
 }

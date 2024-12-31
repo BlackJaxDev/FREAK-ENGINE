@@ -335,8 +335,8 @@ namespace XREngine.Rendering
             string? str,
             List<(Vector4 transform, Vector4 uvs)> quads,
             float? fontSize,
-            float? maxWidth,
-            float? maxHeight,
+            float maxWidth,
+            float maxHeight,
             bool wordWrap = false,
             float spacing = 0.0f)
             => GetQuads(str, quads, Vector2.Zero, fontSize, maxWidth, maxHeight, wordWrap, spacing);
@@ -358,8 +358,8 @@ namespace XREngine.Rendering
             List<(Vector4 transform, Vector4 uvs)> quads,
             Vector2 offset,
             float? fontSize,
-            float? maxWidth,
-            float? maxHeight,
+            float maxWidth,
+            float maxHeight,
             bool wordWrap = false,
             float spacing = 0.0f)
         {
@@ -402,8 +402,8 @@ namespace XREngine.Rendering
             List<(Vector4 transform, Vector4 uvs)> quads,
             Vector2 offset,
             float? fontSize,
-            float? maxWidth,
-            float? maxHeight,
+            float maxWidth,
+            float maxHeight,
             bool wordWrap = false,
             float spacing = 0.0f)
         {
@@ -434,7 +434,7 @@ namespace XREngine.Rendering
                 float scaleX = glyph.Size.X * scale;
                 float scaleY = -glyph.Size.Y * scale;
 
-                if (wordWrap && maxWidth.HasValue && (translateX + scaleX) > maxWidth.Value)
+                if (wordWrap && (translateX + scaleX) > maxWidth)
                 {
                     xOffset = offset.X;
                     yOffset += lineHeight;
@@ -472,12 +472,12 @@ namespace XREngine.Rendering
                 lineHeight = Math.Max(lineHeight, scaleY);
             }
 
-            if (maxWidth.HasValue || maxHeight.HasValue)
+            if (fontSize is null)
             {
                 float maxX = xOffset;
                 float maxY = yOffset + lineHeight;
-                float boundsX = maxWidth ?? float.MaxValue;
-                float boundsY = maxHeight ?? float.MaxValue;
+                float boundsX = maxWidth;
+                float boundsY = maxHeight;
                 float widthScale = boundsX / maxX;
                 float heightScale = boundsY / maxY;
                 float scale = Math.Min(widthScale, heightScale);

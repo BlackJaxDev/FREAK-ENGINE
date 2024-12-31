@@ -1,7 +1,9 @@
 ﻿using Extensions;
 using System.Numerics;
+using XREngine.Data.Colors;
 using XREngine.Data.Core;
 using XREngine.Data.Geometry;
+using XREngine.Rendering.Info;
 using XREngine.Scene.Transforms;
 
 namespace XREngine.Rendering.UI
@@ -164,14 +166,19 @@ namespace XREngine.Rendering.UI
         /// <returns></returns>
         protected override Matrix4x4 CreateLocalMatrix()
         {
+            Matrix4x4 mtx = Matrix4x4.CreateTranslation(new Vector3(ActualLocalBottomLeftTranslation, DepthTranslation));
             var p = PlacementInfo;
-            Matrix4x4 relativeMatrix = p?.GetRelativeItemMatrix() ?? Matrix4x4.Identity;
-            return
+            if (p is not null)
+                mtx *= p.GetRelativeItemMatrix();
+            if (Scale != Vector3.One || RotationRadians != 0.0f)
+            {
+                mtx *=
                 Matrix4x4.CreateTranslation(new Vector3(LocalPivotTranslation, 0.0f)) *
                 Matrix4x4.CreateScale(Scale) *
                 Matrix4x4.CreateFromAxisAngle(Globals.Backward, RotationRadians) *
-                Matrix4x4.CreateTranslation(new Vector3(ActualBottomLeftTranslation - LocalPivotTranslation, DepthTranslation)) *
-                relativeMatrix;
+                Matrix4x4.CreateTranslation(new Vector3(-LocalPivotTranslation, 0.0f));
+            }
+            return mtx;
         }
 
         private Vector2 _minAnchor = Vector2.Zero;
@@ -202,8 +209,9 @@ namespace XREngine.Rendering.UI
         protected override void OnResizeActual(BoundingRectangleF parentBounds)
         {
             GetActualBounds(parentBounds, out Vector2 bottomLeftTranslation, out Vector2 size);
+            RemakeAxisAlignedRegion(size);
             ActualSize = size;
-            ActualBottomLeftTranslation = bottomLeftTranslation;
+            ActualLocalBottomLeftTranslation = bottomLeftTranslation;
         }
 
         /// <summary>
@@ -215,7 +223,8 @@ namespace XREngine.Rendering.UI
         protected virtual void GetActualBounds(BoundingRectangleF parentBounds, out Vector2 bottomLeftTranslation, out Vector2 size)
         {
             GetAnchors(
-                parentBounds,
+                parentBounds.Width,
+                parentBounds.Height,
                 out float minX,
                 out float minY,
                 out float maxX,
@@ -261,7 +270,7 @@ namespace XREngine.Rendering.UI
             if (sameY)
                 minY += Translation.Y;
 
-            bottomLeftTranslation = new(minX, minY);
+            bottomLeftTranslation = new(minX + Margins.X, minY + Margins.Y);
         }
 
         /// <summary>
@@ -291,9 +300,9 @@ namespace XREngine.Rendering.UI
             set => SetField(ref _calcAutoWidthCallback, value);
         }
 
-        public bool UsesAutoSizing => 
-            (!Width.HasValue && CalcAutoWidthCallback is not null) || 
-            (!Height.HasValue && CalcAutoHeightCallback is not null);
+        public bool UsesAutoWidth => !Width.HasValue;
+        public bool UsesAutoHeight => !Height.HasValue;
+        public bool UsesAutoSizing => UsesAutoWidth || UsesAutoHeight;
 
         //TODO: cache the max child width and height?
         //private float _maxChildWidthCache = 0.0f;
@@ -305,10 +314,12 @@ namespace XREngine.Rendering.UI
         /// </summary>
         /// <returns></returns>
         public float GetWidth()
-            => ApplyHorizontalPadding(Width ?? CalcAutoWidthCallback?.Invoke(this) ?? GetMaxChildWidth());
+            => Width ?? CalcAutoWidthCallback?.Invoke(this) ?? GetMaxChildWidth();
 
         private float ApplyHorizontalPadding(float width)
             => width + Padding.X + Padding.Z;
+        private float ApplyHorizontalMargins(float width)
+            => width + Margins.X + Margins.Z;
 
         /// <summary>
         /// Returns the height of the component.
@@ -316,10 +327,12 @@ namespace XREngine.Rendering.UI
         /// </summary>
         /// <returns></returns>
         public float GetHeight()
-            => ApplyVerticalPadding(Height ?? CalcAutoHeightCallback?.Invoke(this) ?? GetMaxChildHeight());
+            => Height ?? CalcAutoHeightCallback?.Invoke(this) ?? GetMaxChildHeight();
 
         private float ApplyVerticalPadding(float height)
             => height + Padding.Y + Padding.W;
+        private float ApplyVerticalMargins(float height)
+            => height + Margins.Y + Margins.W;
 
         /// <summary>
         /// Calculates the width of the component based the widths of its children.
@@ -328,7 +341,7 @@ namespace XREngine.Rendering.UI
         public override float GetMaxChildWidth()
         {
             lock (Children)
-                return Children.Where(x => x is UIBoundableTransform).Cast<UIBoundableTransform>().Max(x => x.GetWidth());
+                return Children.Where(x => x is UIBoundableTransform).Cast<UIBoundableTransform>().Max(x => x.ApplyHorizontalMargins(x.GetWidth()));
         }
 
         /// <summary>
@@ -338,7 +351,7 @@ namespace XREngine.Rendering.UI
         public override float GetMaxChildHeight()
         {
             lock (Children)
-                return Children.Where(x => x is UIBoundableTransform).Cast<UIBoundableTransform>().Max(x => x.GetHeight());
+                return Children.Where(x => x is UIBoundableTransform).Cast<UIBoundableTransform>().Max(x => x.ApplyVerticalMargins(x.GetHeight()));
         }
 
         private void ClampSize(ref Vector2 size)
@@ -353,12 +366,12 @@ namespace XREngine.Rendering.UI
                 size.Y = Math.Min(size.Y, MaxHeight.Value);
         }
 
-        private void GetAnchors(BoundingRectangleF parentBounds, out float minX, out float minY, out float maxX, out float maxY)
+        private void GetAnchors(float parentWidth, float parentHeight, out float minX, out float minY, out float maxX, out float maxY)
         {
-            minX = parentBounds.Width * MinAnchor.X;
-            maxX = parentBounds.Width * MaxAnchor.X;
-            minY = parentBounds.Height * MinAnchor.Y;
-            maxY = parentBounds.Height * MaxAnchor.Y;
+            minX = parentWidth * MinAnchor.X;
+            maxX = parentWidth * MaxAnchor.X;
+            minY = parentHeight * MinAnchor.Y;
+            maxY = parentHeight * MaxAnchor.Y;
         }
 
         public BoundingRectangleF GetActualBounds()
@@ -378,7 +391,12 @@ namespace XREngine.Rendering.UI
         {
             base.OnLocalMatrixChanged();
             OnResizeChildComponents(ApplyPadding(GetActualBounds()));
-            RemakeAxisAlignedRegion();
+        }
+
+        protected override void OnWorldMatrixChanged()
+        {
+            RemakeAxisAlignedRegion(ActualSize);
+            base.OnWorldMatrixChanged();
         }
 
         private BoundingRectangleF ApplyPadding(BoundingRectangleF bounds)
@@ -415,9 +433,60 @@ namespace XREngine.Rendering.UI
             return bounds;
         }
 
-        protected virtual void RemakeAxisAlignedRegion()
+        private BoundingRectangleF _axisAlignedRegion;
+        public BoundingRectangleF AxisAlignedRegion
         {
-            Matrix4x4 mtx = Matrix4x4.CreateScale(ActualSize.X, ActualSize.Y, 1.0f) * WorldMatrix;
+            get => _axisAlignedRegion;
+            protected set => SetField(ref _axisAlignedRegion, value);
+        }
+
+        private Matrix4x4 _regionWorldTransform = Matrix4x4.Identity;
+        public Matrix4x4 RegionWorldTransform
+        {
+            get => _regionWorldTransform;
+            protected set => SetField(ref _regionWorldTransform, value);
+        }
+
+        protected override void RenderDebug(bool shadowPass)
+        {
+            base.RenderDebug(shadowPass);
+
+            if (!Engine.Rendering.Settings.RenderMesh2DBounds)
+                return;
+            
+            var region = AxisAlignedRegion;
+            ColorF4 color = Engine.Rendering.Settings.Bounds2DColor;
+            Engine.Rendering.Debug.RenderLine(
+                new Vector3(region.TopLeft, 0.0f) + Engine.Rendering.Debug.UIPositionBias,
+                new Vector3(region.TopRight, 0.0f) + Engine.Rendering.Debug.UIPositionBias,
+                color,
+                false,
+                1);
+            Engine.Rendering.Debug.RenderLine(
+                new Vector3(region.TopRight, 0.0f) + Engine.Rendering.Debug.UIPositionBias,
+                new Vector3(region.BottomRight, 0.0f) + Engine.Rendering.Debug.UIPositionBias,
+                color,
+                false,
+                1);
+            Engine.Rendering.Debug.RenderLine(
+                new Vector3(region.BottomRight, 0.0f) + Engine.Rendering.Debug.UIPositionBias,
+                new Vector3(region.BottomLeft, 0.0f) + Engine.Rendering.Debug.UIPositionBias,
+                color,
+                false,
+                1);
+            Engine.Rendering.Debug.RenderLine(
+                new Vector3(region.BottomLeft, 0.0f) + Engine.Rendering.Debug.UIPositionBias,
+                new Vector3(region.TopLeft, 0.0f) + Engine.Rendering.Debug.UIPositionBias,
+                color,
+                false,
+                1);
+        }
+
+        protected virtual void RemakeAxisAlignedRegion(Vector2 actualSize)
+        {
+            Matrix4x4 mtx = Matrix4x4.CreateScale(actualSize.X, actualSize.Y, 1.0f) * WorldMatrix;
+
+            RegionWorldTransform = mtx;
 
             Vector3 minPos = Vector3.Transform(Vector3.Zero, mtx);
             Vector3 maxPos = Vector3.Transform(new Vector3(Vector2.One, 0.0f), mtx);
@@ -426,7 +495,8 @@ namespace XREngine.Rendering.UI
             Vector2 min = new(Math.Min(minPos.X, maxPos.X), Math.Min(minPos.Y, maxPos.Y));
             Vector2 max = new(Math.Max(minPos.X, maxPos.X), Math.Max(minPos.Y, maxPos.Y));
 
-            DebugRenderInfo2D.CullingVolume = BoundingRectangleF.FromMinMaxSides(min.X, max.X, min.Y, max.Y, 0.0f, 0.0f);
+            DebugRenderInfo2D.CullingVolume = AxisAlignedRegion = BoundingRectangleF.FromMinMaxSides(min.X, max.X, min.Y, max.Y, 0.0f, 0.0f);
+            
             //Engine.PrintLine($"Axis-aligned region remade: {_axisAlignedRegion.Translation} {_axisAlignedRegion.Extents}");
         }
         public UITransform? FindDeepestComponent(Vector2 worldPoint, bool includeThis)
@@ -553,6 +623,22 @@ namespace XREngine.Rendering.UI
             MinHeight = null;
             MaxWidth = null;
             MaxHeight = null;
+        }
+
+        public void UpdateRenderInfoBounds(params RenderInfo[] infos)
+        {
+            float w = ActualWidth;
+            float h = ActualHeight;
+            foreach (var info in infos)
+            {
+                if (info is RenderInfo2D renderInfo2D)
+                    renderInfo2D.CullingVolume = AxisAlignedRegion;
+                else if (info is RenderInfo3D renderInfo3D)
+                {
+                    renderInfo3D.CullingOffsetMatrix = RegionWorldTransform;
+                    renderInfo3D.LocalCullingVolume = AABB.FromSize(new Vector3(h, w, 0.1f));
+                }
+            }
         }
     }
 }

@@ -186,7 +186,11 @@ namespace XREngine
 
                 private static unsafe void SetOptions(bool? depthTestEnabled, float? lineWidth, float? pointSize, XRMeshRenderer renderer)
                 {
-                    var opts = renderer.Material!.RenderOptions;
+                    var mat = renderer.Material;
+                    if (mat is null)
+                        return;
+
+                    var opts = mat.RenderOptions;
 
                     if (lineWidth.HasValue)
                         opts.LineWidth = lineWidth.Value;
@@ -195,7 +199,19 @@ namespace XREngine
                         opts.PointSize = pointSize.Value;
 
                     if (depthTestEnabled.HasValue)
-                        opts.DepthTest.Enabled = depthTestEnabled.Value ? ERenderParamUsage.Enabled : ERenderParamUsage.Disabled;
+                    {
+                        var enabled = depthTestEnabled.Value;
+                        if (enabled)
+                        {
+                            opts.DepthTest.Enabled = ERenderParamUsage.Enabled;
+                            mat.RenderPass = (int)EDefaultRenderPass.OpaqueForward;
+                        }
+                        else
+                        {
+                            opts.DepthTest.Enabled = ERenderParamUsage.Disabled;
+                            mat.RenderPass = (int)EDefaultRenderPass.OnTopForward;
+                        }
+                    }
                 }
 
                 public static void RenderPoint(
@@ -309,6 +325,17 @@ namespace XREngine
                     renderer.Render(
                         Matrix4x4.CreateScale(radius) * 
                         Matrix4x4.CreateTranslation(center));
+                }
+
+                public static void RenderRect2D(BoundingRectangleF bounds, bool solid, ColorF4 color, bool depthTestEnabled = true)
+                {
+                    RenderQuad(
+                        new Vector3(bounds.Center.X, bounds.Center.Y, 0.0f),
+                        Rotator.GetZero(),
+                        new Vector2(bounds.Extents.X, bounds.Extents.Y),
+                        solid,
+                        color,
+                        depthTestEnabled);
                 }
 
                 public static void RenderAABB(

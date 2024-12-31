@@ -1,10 +1,11 @@
 ﻿using System.Drawing;
 using System.Numerics;
+using XREngine.Components;
 using XREngine.Data.Colors;
 using XREngine.Data.Core;
 using XREngine.Data.Geometry;
+using XREngine.Data.Rendering;
 using XREngine.Input.Devices;
-using XREngine.Rendering.Commands;
 using XREngine.Rendering.Info;
 using XREngine.Scene.Transforms;
 
@@ -21,6 +22,11 @@ namespace XREngine.Rendering.UI
             get => _parentCanvas;
             set => SetField(ref _parentCanvas, value);
         }
+
+        public UICanvasTransform? GetCanvasTransform()
+            => ParentCanvas ?? this as UICanvasTransform;
+        public UICanvasComponent? GetCanvasComponent()
+            => GetCanvasTransform()?.SceneNode?.GetComponent<UICanvasComponent>();
 
         private string _stylingClass = string.Empty;
         /// <summary>
@@ -53,7 +59,7 @@ namespace XREngine.Rendering.UI
         /// <summary>
         /// This is the translation after being potentially modified by the parent's placement info.
         /// </summary>
-        public Vector2 ActualBottomLeftTranslation
+        public Vector2 ActualLocalBottomLeftTranslation
         {
             get => _actualTranslation;
             set => SetField(ref _actualTranslation, value);
@@ -103,10 +109,15 @@ namespace XREngine.Rendering.UI
         }
 
         protected override RenderInfo[] GetDebugRenderInfo()
-            => [DebugRenderInfo2D = RenderInfo2D.New(this, _debugRC = new RenderCommandMethod2D(0, RenderVisualGuides))];
+            => [DebugRenderInfo2D = RenderInfo2D.New(this, 
+                _debugRC = new RenderCommandMethod2D(
+                    (int)EDefaultRenderPass.OnTopForward,
+                    () => RenderDebug(false)))];
 
-        protected override Matrix4x4 CreateLocalMatrix()
-            => Matrix4x4.CreateScale(Scale) * Matrix4x4.CreateFromAxisAngle(Globals.Backward, RotationRadians) * Matrix4x4.CreateTranslation(new Vector3(Translation, DepthTranslation));
+        protected override Matrix4x4 CreateLocalMatrix() => 
+            Matrix4x4.CreateScale(Scale) * 
+            Matrix4x4.CreateFromAxisAngle(Globals.Backward, RotationRadians) *
+            Matrix4x4.CreateTranslation(new Vector3(Translation, DepthTranslation));
 
         /// <summary>
         /// Scale and translate in/out to/from a specific point.
@@ -184,7 +195,7 @@ namespace XREngine.Rendering.UI
             set => SetField(ref _collapseOnHide, value);
 
         }
-        protected EVisibility _visibility = EVisibility.Collapsed;
+        protected EVisibility _visibility = EVisibility.Visible;
         public virtual EVisibility Visibility
         {
             get => _visibility;
@@ -313,7 +324,7 @@ namespace XREngine.Rendering.UI
 
         protected virtual void OnResizeActual(BoundingRectangleF parentBounds)
         {
-            ActualBottomLeftTranslation = Translation;
+            ActualLocalBottomLeftTranslation = Translation;
         }
 
         public override byte[] EncodeToBytes(bool delta)
@@ -352,6 +363,9 @@ namespace XREngine.Rendering.UI
                     DebugRenderInfo2D.IsVisible = IsVisible;
                     break;
                 case nameof(ParentCanvas):
+                    if (this is IRenderable r)
+                        foreach (var rc in r.RenderedObjects)
+                            rc.UserInterfaceCanvas = ParentCanvas?.SceneNode?.GetComponent<UICanvasComponent>();
                     lock (Children)
                     {
                         foreach (var child in Children)
@@ -374,24 +388,14 @@ namespace XREngine.Rendering.UI
             }
         }
 
-        public virtual void AddRenderables(RenderCommandCollection passes, XRCamera camera)
+        protected override void RenderDebug(bool shadowPass)
         {
-            if (DebugRender)
-                passes.Add(_debugRC);
-        }
+            base.RenderDebug(shadowPass);
 
-        /// <summary>
-        /// Helper method for rendering transforms, bounds, rotations, etc in the editor.
-        /// </summary>
-        protected virtual void RenderVisualGuides()
-        {
-            Vector3 startPoint = (Parent?.WorldMatrix.Translation ?? Vector3.Zero) + Engine.Rendering.Debug.UIPositionBias;
+            if (!Engine.Rendering.Settings.RenderUITransformCoordinate)
+                return;
+            
             Vector3 endPoint = WorldTranslation + Engine.Rendering.Debug.UIPositionBias;
-
-            Engine.Rendering.Debug.RenderLine(startPoint, endPoint, ColorF4.White);
-            Engine.Rendering.Debug.RenderPoint(endPoint, ColorF4.White);
-
-            //Vector3 scale = WorldMatrix.Scale;
             Vector3 up = WorldUp * 50.0f;
             Vector3 right = WorldRight * 50.0f;
 

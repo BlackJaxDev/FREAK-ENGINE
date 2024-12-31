@@ -47,7 +47,14 @@ namespace XREngine.Data.Components
             base.Render(shadowPass);
 
             foreach ((OctreeNodeBase node, bool intersects) in _octreeNodesRendering)
-                Engine.Rendering.Debug.RenderAABB(node.Bounds.HalfExtents, node.Center, false, intersects ? ColorF4.Red : ColorF4.Yellow, false);
+                Engine.Rendering.Debug.RenderAABB(
+                    node.Bounds.HalfExtents,
+                    node.Center,
+                    false,
+                    intersects
+                        ? Engine.Rendering.Settings.OctreeIntersectedBoundsColor
+                        : Engine.Rendering.Settings.OctreeContainedBoundsColor,
+                    false);
         }
     }
 }

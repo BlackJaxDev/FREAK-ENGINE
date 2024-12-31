@@ -28,7 +28,7 @@ namespace XREngine.Data.Components
 
         public DebugVisualize3DComponent()
         {
-            RenderedObjects = [_renderInfo = RenderInfo3D.New(this, _rc = new((int)EDefaultRenderPass.OpaqueForward, Render))];
+            RenderedObjects = [_renderInfo = RenderInfo3D.New(this, _rc = new((int)EDefaultRenderPass.OnTopForward, Render))];
             _renderInfo.PreRenderCallback += RenderInfo_PreRenderCallback;
             _renderInfo.SwapBuffersCallback += RenderInfo_SwapBuffersCallback;
         }

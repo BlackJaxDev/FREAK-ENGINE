@@ -1,7 +1,9 @@
 ﻿using Extensions;
+using Silk.NET.GLFW;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
+using Silk.NET.Windowing.Glfw;
 using XREngine.Core;
 using XREngine.Data.Core;
 using XREngine.Input;
@@ -223,6 +225,8 @@ namespace XREngine.Rendering
         public XRWindow(WindowOptions options)
         {
             _viewports.CollectionChanged += ViewportsChanged;
+            Silk.NET.Windowing.Window.PrioritizeGlfw();
+            //options.WindowBorder = WindowBorder.Hidden;
             Window = Silk.NET.Windowing.Window.Create(options);
             Window.Load += Window_Load;
             Window.Initialize();

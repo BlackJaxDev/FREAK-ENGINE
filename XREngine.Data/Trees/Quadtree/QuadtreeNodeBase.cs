@@ -17,5 +17,6 @@ namespace XREngine.Data.Trees
 
         protected abstract QuadtreeNodeBase? GetNodeInternal(int index);
         public abstract void HandleMovedItem(IQuadtreeItem item);
+        public virtual void QueueItemMoved(IQuadtreeItem item) { }
     }
 }

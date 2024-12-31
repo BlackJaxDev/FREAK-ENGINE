@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using FFmpeg.AutoGen;
+using System.Numerics;
 using XREngine.Components;
 using XREngine.Data.Geometry;
 using XREngine.Data.Trees;
@@ -6,7 +7,7 @@ using XREngine.Rendering.Commands;
 
 namespace XREngine.Rendering.Info
 {
-    public class RenderInfo2D : RenderInfo, IQuadtreeItem
+    public class RenderInfo2D : RenderInfo, IQuadtreeItem, IComparable<RenderInfo2D>
     {
         private int _layerIndex = 0;
         private int _indexWithinLayer = 0;
@@ -111,7 +112,42 @@ namespace XREngine.Rendering.Info
                     else
                         UserInterfaceCanvas?.VisualScene2D?.RemoveRenderable(this);
                     break;
+                case nameof(CullingVolume):
+                    QuadtreeNode?.HandleMovedItem(this);
+                    break;
             }
+        }
+
+        public int CompareTo(RenderInfo2D? other)
+        {
+            if (other is null)
+                return 1;
+
+            float? depth = Owner?.TransformDepth;
+            float? otherDepth = other.Owner?.TransformDepth;
+            if (depth.HasValue && otherDepth.HasValue)
+            {
+                if (depth.Value > otherDepth.Value)
+                    return 1;
+                else if (depth.Value < otherDepth.Value)
+                    return -1;
+            }
+            else if (depth.HasValue)
+                return 1;
+            else if (otherDepth.HasValue)
+                return -1;
+
+            if (LayerIndex > other.LayerIndex)
+                return 1;
+            else if (LayerIndex < other.LayerIndex)
+                return -1;
+
+            if (IndexWithinLayer > other.IndexWithinLayer)
+                return 1;
+            else if (IndexWithinLayer < other.IndexWithinLayer)
+                return -1;
+
+            return 0;
         }
     }
 }

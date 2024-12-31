@@ -1,15 +1,49 @@
 ﻿using System.Numerics;
 using XREngine.Core.Attributes;
+using XREngine.Data.Core;
+using XREngine.Rendering.Info;
+using XREngine.Scene.Transforms;
 
 namespace XREngine.Rendering.UI
 {
     public delegate void DelMouseMove(float x, float y, UIInteractableComponent comp);
     /// <summary>
-    /// UI component that can be interacted with by the player.
+    /// Bounded UI component that can be interacted with by the player.
     /// </summary>
     [RequiresTransform(typeof(UIBoundableTransform))]
-    public abstract class UIInteractableComponent : UIComponent
+    public abstract class UIInteractableComponent : UIComponent, IRenderable
     {
+        public UIInteractableComponent()
+        {
+            //Use render tree purely for culling volume testing, not for rendering.
+            RenderInfo3D = RenderInfo3D.New(this);
+            RenderInfo2D = RenderInfo2D.New(this);
+            RenderedObjects = [RenderInfo2D, RenderInfo3D];
+        }
+
+        protected override void OnTransformWorldMatrixChanged(TransformBase transform)
+        {
+            base.OnTransformWorldMatrixChanged(transform);
+
+            if (transform is not UIBoundableTransform tfm)
+                return;
+
+            tfm.UpdateRenderInfoBounds(RenderInfo2D, RenderInfo3D);
+        }
+        protected override void UITransformPropertyChanged(object? sender, IXRPropertyChangedEventArgs e)
+        {
+            base.UITransformPropertyChanged(sender, e);
+            switch (e.PropertyName)
+            {
+                case nameof(UIBoundableTransform.ActualSize):
+                    BoundableTransform.UpdateRenderInfoBounds(RenderInfo2D, RenderInfo3D);
+                    break;
+            }
+        }
+
+        public RenderInfo3D RenderInfo3D { get; }
+        public RenderInfo2D RenderInfo2D { get; }
+
         public UIBoundableTransform BoundableTransform => TransformAs<UIBoundableTransform>(true)!;
 
         public event Action<UIInteractableComponent>? GotFocus;
@@ -63,6 +97,17 @@ namespace XREngine.Rendering.UI
         public UIInteractableComponent? GamepadDownComponent { get; set; }
         public UIInteractableComponent? GamepadLeftComponent { get; set; }
         public UIInteractableComponent? GamepadRightComponent { get; set; }
+        public RenderInfo[] RenderedObjects { get; }
+
+        private bool _needsMouseMove = false;
+        /// <summary>
+        /// Set to true if this component needs mouse move events.
+        /// </summary>
+        public bool NeedsMouseMove
+        {
+            get => _needsMouseMove;
+            set => SetField(ref _needsMouseMove, value);
+        }
 
         protected virtual void OnMouseMove(float x, float y)
             => MouseMove?.Invoke(x, y, this);
@@ -144,14 +189,10 @@ namespace XREngine.Rendering.UI
                 case nameof(IsMouseOver):
                     if (IsMouseOver)
                         OnMouseOverlapEnter();
-                    else
-                        OnMouseOverlapLeave();
                     break;
                 case nameof(IsFocused):
                     if (IsFocused)
                         OnGotFocus();
-                    else
-                        OnLostFocus();
                     break;
             }
         }
@@ -163,6 +204,10 @@ namespace XREngine.Rendering.UI
             {
                 switch (propName)
                 {
+                    case nameof(IsMouseOver):
+                        if (IsMouseOver)
+                            OnMouseOverlapLeave();
+                        break;
                     case nameof(IsFocused):
                         if (IsFocused)
                             OnLostFocus();
@@ -172,9 +217,9 @@ namespace XREngine.Rendering.UI
             return change;
         }
 
-        internal void DoMouseMove(object v1, object v2)
+        public virtual void MouseMoved(Vector2 lastPosLocal, Vector2 posLocal)
         {
-            throw new NotImplementedException();
+            OnMouseMove(posLocal.X, posLocal.Y);
         }
     }
 }

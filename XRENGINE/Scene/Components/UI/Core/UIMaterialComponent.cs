@@ -86,9 +86,14 @@ namespace XREngine.Rendering.UI
         {
             base.OnTransformWorldMatrixChanged(transform);
 
-            float w = BoundableTransform.ActualWidth;
-            float h = BoundableTransform.ActualHeight;
-            RenderCommand.WorldMatrix = Matrix4x4.CreateScale(w, h, 1.0f) * Transform.WorldMatrix;
+            if (transform is not UIBoundableTransform tfm)
+                return;
+
+            tfm.UpdateRenderInfoBounds(RenderInfo2D, RenderInfo3D);
+
+            var w = tfm.ActualWidth;
+            var h = tfm.ActualHeight;
+            RenderCommand.WorldMatrix = Matrix4x4.CreateScale(w, h, 1.0f) * tfm.WorldMatrix;
         }
 
         public RenderCommandMesh3D RenderCommand { get; } = new RenderCommandMesh3D(EDefaultRenderPass.OpaqueForward);

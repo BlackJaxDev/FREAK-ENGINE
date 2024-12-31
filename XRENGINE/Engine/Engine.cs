@@ -273,7 +273,9 @@ namespace XREngine
                 true,
                 VideoMode.Default,
                 24,
-                8);
+                8,
+                null,
+                true);
         }
 
         public static XRWorldInstance GetOrInitWorld(XRWorld targetWorld)

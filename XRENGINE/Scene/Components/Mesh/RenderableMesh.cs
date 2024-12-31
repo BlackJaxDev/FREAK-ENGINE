@@ -27,7 +27,7 @@ namespace XREngine.Components.Scene.Mesh
         public XRWorldInstance? World => Component.SceneNode.World;
         public LinkedList<RenderableLOD> LODs { get; private set; } = new();
 
-        private bool _renderBounds = Engine.Rendering.Settings.RenderMeshBounds;
+        private bool _renderBounds = Engine.Rendering.Settings.RenderMesh3DBounds;
         public bool RenderBounds
         {
             get => _renderBounds;
@@ -245,7 +245,6 @@ namespace XREngine.Components.Scene.Mesh
                 return;
             
             RenderInfo.CullingOffsetMatrix = _rc.WorldMatrix = rootBone.WorldMatrix;
-            RenderInfo.OctreeNode?.QueueItemMoved(RenderInfo);
         }
         private void Component_WorldMatrixChanged(TransformBase component)
         {
@@ -254,7 +253,6 @@ namespace XREngine.Components.Scene.Mesh
                 return;
             
             RenderInfo.CullingOffsetMatrix = _rc.WorldMatrix = component.WorldMatrix;
-            RenderInfo.OctreeNode?.QueueItemMoved(RenderInfo);
         }
     }
 }

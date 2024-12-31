@@ -94,7 +94,7 @@ namespace XREngine.Rendering.OpenGL
         [
             131185, //buffer will use video memory
             131204, //no base level, no mipmaps, etc
-            //131169, //allocated memory for render buffer
+            131169, //allocated memory for render buffer
             ////131216,
             131218,
             //131076,

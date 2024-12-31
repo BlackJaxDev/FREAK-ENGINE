@@ -2,7 +2,6 @@
 using System.Numerics;
 using XREngine.Data.Colors;
 using XREngine.Data.Geometry;
-using XREngine.Data.Rendering;
 
 namespace XREngine.Data.Trees
 {
@@ -43,12 +42,12 @@ namespace XREngine.Data.Trees
         }
 
         #region Child movement
-        public void ItemMoved(IQuadtreeItem item)
+        public override void QueueItemMoved(IQuadtreeItem item)
         {
             if (item is T t)
-                ItemMoved(t);
+                QueueItemMoved(t);
         }
-        public void ItemMoved(T item)
+        public void QueueItemMoved(T item)
         {
             //TODO: if the item is the only item within its volume, no need to subdivide more!!!
             //However, if the item is inserted into a volume with at least one other item in it, 
@@ -475,17 +474,17 @@ namespace XREngine.Data.Trees
                 return;
 
             //IsLoopingItems = true;
-            try
-            {
+            //try
+            //{
                 foreach (T? item in _items)
                     if (item is not null && item.Contains(point) &&
                         item.DeeperThan(currentDeepest))
                         currentDeepest = item;
-            }
-            catch (Exception ex)
-            {
-                Trace.WriteLine(ex);
-            }
+            //}
+            //catch (Exception ex)
+            //{
+            //    Trace.WriteLine(ex);
+            //}
             //IsLoopingItems = false;
         }
         public void FindAllIntersecting(Vector2 point, List<T> intersecting, Predicate<T>? predicate = null)
@@ -494,31 +493,31 @@ namespace XREngine.Data.Trees
                 return;
 
             //IsLoopingSubNodes = true;
-            try
-            {
+            //try
+            //{
                 foreach (QuadtreeNode<T>? n in _subNodes)
                     n?.FindAllIntersecting(point, intersecting);
-            }
-            catch (Exception ex)
-            {
-                Trace.WriteLine(ex);
-            }
+            //}
+            //catch (Exception ex)
+            //{
+            //    Trace.WriteLine(ex);
+            //}
             //IsLoopingSubNodes = false;
 
             if (_items.Count == 0)
                 return;
 
             //IsLoopingItems = true;
-            try
-            {
+            //try
+            //{
                 foreach (T? item in _items)
                     if (item.Contains(point) && (predicate?.Invoke(item) ?? true))
                         intersecting.Add(item);
-            }
-            catch (Exception ex)
-            {
-                Trace.WriteLine(ex);
-            }
+            //}
+            //catch (Exception ex)
+            //{
+            //    Trace.WriteLine(ex);
+            //}
             //IsLoopingItems = false;
         }
         public void FindAllIntersecting(Vector2 point, SortedSet<T> intersecting, Predicate<T>? predicate = null)
@@ -530,7 +529,7 @@ namespace XREngine.Data.Trees
             try
             {
                 foreach (QuadtreeNode<T>? n in _subNodes)
-                    n?.FindAllIntersecting(point, intersecting);
+                    n?.FindAllIntersecting(point, intersecting, predicate);
             }
             catch (Exception ex)
             {
@@ -542,16 +541,16 @@ namespace XREngine.Data.Trees
                 return;
 
             //IsLoopingItems = true;
-            try
-            {
+            //try
+            //{
                 foreach (T item in _items)
                     if (item.Contains(point) && (predicate?.Invoke(item) ?? true))
                         intersecting.Add(item);
-            }
-            catch (Exception ex)
-            {
-                Trace.WriteLine(ex);
-            }
+            //}
+            //catch (Exception ex)
+            //{
+            //    Trace.WriteLine(ex);
+            //}
             //IsLoopingItems = false;
         }
         //public void FindAll(Shape shape, List<T> list, EContainment containment)

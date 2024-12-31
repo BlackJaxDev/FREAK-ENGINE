@@ -104,7 +104,7 @@ namespace XREngine.Rendering.UI
                     MarkWorldModified();
                     break;
                 case nameof(Translation):
-                    ActualBottomLeftTranslation = Translation;
+                    ActualLocalBottomLeftTranslation = Translation;
                     break;
             }
         }

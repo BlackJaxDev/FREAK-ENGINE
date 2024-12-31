@@ -183,36 +183,32 @@ namespace XREngine.Components
 
             var vpCoord = vp.ScreenToViewportCoordinate(new Vector2(x, y));
             var normCoord = vp.NormalizeViewportCoordinate(vpCoord);
+            normCoord.Y = 1.0f - normCoord.Y;
 
             var canvasTransform = canvas.CanvasTransform;
             var space = canvasTransform.DrawSpace;
 
-            Vector2? uiCoord = GetUICoordinate(vp, normCoord, canvasTransform, space);
+            Vector2? uiCoord = GetUICoordinate(vp, canvas.Camera2D, normCoord, canvasTransform, space);
 
             if (uiCoord is not null)
-                SetCursorPosition(canvas, uiCoord.Value);
+                CursorPositionWorld2D = uiCoord.Value;
         }
 
-        public void SetCursorPosition(Vector2 cursorPosition)
+        private void CollectVisible()
         {
-            var canvas = GetCameraCanvas();
-            if (canvas is null)
-                return;
-
-            SetCursorPosition(canvas, cursorPosition);
+            GetCameraCanvas()?.VisualScene2D?.RenderTree?.FindAllIntersectingSorted(CursorPositionWorld2D, InteractableIntersections, InteractablePredicate);
         }
-        private void SetCursorPosition(UICanvasComponent canvas, Vector2 cursorPosition)
+
+        private void SwapBuffers()
         {
-            LastCursorPositionWorld2D = CursorPositionWorld2D;
-            CursorPositionWorld2D = cursorPosition;
-            var scene = canvas.VisualScene2D;
-            var tree = scene?.RenderTree;
-            tree?.FindAllIntersectingSorted(cursorPosition, InteractableIntersections, InteractablePredicate);
-            TopMostInteractable = InteractableIntersections.Min?.Owner as UIInteractableComponent;
+            TopMostInteractable = InteractableIntersections.FirstOrDefault(x => x.Owner is UIInteractableComponent)?.Owner as UIInteractableComponent;
+            //if (TopMostInteractable is not null)
+            //    Debug.Out($"Topmost interactable: {TopMostInteractable.Name}");
             ValidateAndSwapIntersections();
+            LastCursorPositionWorld2D = CursorPositionWorld2D;
         }
 
-        private static Vector2? GetUICoordinate(XRViewport vp, Vector2 normCoord, UICanvasTransform canvasTransform, ECanvasDrawSpace space)
+        private static Vector2? GetUICoordinate(XRViewport worldVP, XRCamera uiCam, Vector2 normCoord, UICanvasTransform canvasTransform, ECanvasDrawSpace space)
         {
             Vector2? uiCoord;
             //Convert to ui coord depending on the draw space
@@ -221,17 +217,13 @@ namespace XREngine.Components
                 case ECanvasDrawSpace.Screen:
                     {
                         //depth = 0 because we're in 2D, z coord is checked later
-                        uiCoord = vp.NormalizedViewportToWorldCoordinate(normCoord, 0.0f).XY();
+                        uiCoord = uiCam.NormalizedViewportToWorldCoordinate(normCoord, 0.0f).XY();
                         break;
                     }
                 case ECanvasDrawSpace.Camera:
                     {
-                        var cam = vp.Camera;
-                        if (cam is null)
-                            return null;
-
                         //Convert the normalized coord to world space using the draw distance
-                        Vector3 worldCoord = vp.NormalizedViewportToWorldCoordinate(normCoord, XRMath.DistanceToDepth(canvasTransform.CameraDrawSpaceDistance, cam.NearZ, cam.FarZ));
+                        Vector3 worldCoord = uiCam.NormalizedViewportToWorldCoordinate(normCoord, XRMath.DistanceToDepth(canvasTransform.CameraDrawSpaceDistance, uiCam.NearZ, uiCam.FarZ));
                         //Transform the world coord to the canvas' local space
                         Matrix4x4 worldToLocal = canvasTransform.InverseWorldMatrix;
                         uiCoord = Vector3.Transform(worldCoord, worldToLocal).XY();
@@ -240,13 +232,16 @@ namespace XREngine.Components
                 case ECanvasDrawSpace.World:
                     {
                         // Get the world segment from the normalized coord
-                        Segment worldSegment = vp.GetWorldSegment(normCoord);
-
                         // Transform the world segment to the canvas' local space
-                        Segment localSegment = worldSegment.TransformedBy(canvasTransform.InverseWorldMatrix);
+                        Segment localSegment = worldVP.GetWorldSegment(normCoord).TransformedBy(canvasTransform.InverseWorldMatrix);
 
                         // Check if the segment intersects the canvas' plane
-                        if (GeoUtil.SegmentIntersectsPlane(localSegment.Start, localSegment.End, XRMath.GetPlaneDistance(Vector3.Zero, Globals.Backward), Globals.Backward, out Vector3 localIntersectionPoint))
+                        if (GeoUtil.SegmentIntersectsPlane(
+                            localSegment.Start,
+                            localSegment.End,
+                            XRMath.GetPlaneDistance(Vector3.Zero, Globals.Backward),
+                            Globals.Backward,
+                            out Vector3 localIntersectionPoint))
                         {
                             // Check if the point is within the canvas' bounds
                             var bounds = canvasTransform.GetActualBounds();
@@ -272,9 +267,10 @@ namespace XREngine.Components
         /// </summary>
         private void ValidateAndSwapIntersections()
         {
-            LastInteractableIntersections.ForEach(ValidateIntersection);
-            InteractableIntersections.ForEach(ValidateIntersection);
+            var all = LastInteractableIntersections.Union(InteractableIntersections).ToArray();
+            all.ForEach(ValidateIntersection);
             (LastInteractableIntersections, InteractableIntersections) = (InteractableIntersections, LastInteractableIntersections);
+            InteractableIntersections.Clear();
         }
 
         private void OnGamepadInteract()
@@ -310,6 +306,14 @@ namespace XREngine.Components
         {
             base.OnComponentActivated();
             GetCameraCanvas()?.CanvasTransform.InvalidateLayout();
+            Engine.Time.Timer.CollectVisible += CollectVisible;
+            Engine.Time.Timer.SwapBuffers += SwapBuffers;
+        }
+        protected internal override void OnComponentDeactivated()
+        {
+            base.OnComponentDeactivated();
+            Engine.Time.Timer.CollectVisible -= CollectVisible;
+            Engine.Time.Timer.SwapBuffers -= SwapBuffers;
         }
 
         protected void OnChildAdded(UIComponent child)
@@ -336,17 +340,21 @@ namespace XREngine.Components
         private SortedSet<RenderInfo2D> LastInteractableIntersections = new(new Comparer());
         private SortedSet<RenderInfo2D> InteractableIntersections = new(new Comparer());
 
-        protected bool InteractablePredicate(RenderInfo2D item)
+        protected static bool InteractablePredicate(RenderInfo2D item)
             => item.Owner is UIInteractableComponent;
         private void ValidateIntersection(RenderInfo2D item)
         {
             if (item.Owner is not UIInteractableComponent inter)
                 return;
 
-            if (LastInteractableIntersections.Contains(item))
+            //Quick fix: sortedset uses a comparer to sort, but the comparer doesn't check for equality, resulting in invalid contains checks.
+            var last = LastInteractableIntersections.ToArray();
+            var curr = InteractableIntersections.ToArray();
+
+            if (last.Contains(item))
             {
                 //Mouse was over this renderable last update
-                if (!InteractableIntersections.Contains(item))
+                if (!curr.Contains(item))
                 {
                     //Lost mouse over
                     inter.IsMouseOver = false;
@@ -356,16 +364,23 @@ namespace XREngine.Components
                 {
                     //Had mouse over and still does now
                     var uiTransform = inter.UITransform;
-                    inter.DoMouseMove(
-                        uiTransform.CanvasToLocal(LastCursorPositionWorld2D),
-                        uiTransform.CanvasToLocal(CursorPositionWorld2D));
+                    if (inter.NeedsMouseMove)
+                        inter.MouseMoved(
+                            uiTransform.CanvasToLocal(LastCursorPositionWorld2D),
+                            uiTransform.CanvasToLocal(CursorPositionWorld2D));
                 }
             }
-            else if (InteractableIntersections.Contains(item)) //Mouse was not over this renderable last update
+            else if (curr.Contains(item)) //Mouse was not over this renderable last update
             {
                 //Got mouse over
                 inter.IsMouseOver = true;
                 inter.IsMouseDirectlyOver = inter == TopMostInteractable;
+            }
+            else
+            {
+                //Not over this renderable
+                inter.IsMouseOver = false;
+                inter.IsMouseDirectlyOver = false;
             }
         }
         private class Comparer : IComparer<RenderInfo2D>, IComparer

@@ -24,15 +24,10 @@ namespace XREngine.Rendering.Shaders.Generator
             Line("mat3 adjoint(mat4 m)");
             using (OpenBracketState())
             {
-                Line("return mat3(");
-                Line("    m[1].yzw * m[2].w - m[1].wzw * m[2].y,");
-                Line("    m[0].wzw * m[2].y - m[0].yzw * m[2].w,");
-                Line("    m[0].yzw * m[1].w - m[0].wzw * m[1].y);");
-                
-                //Line("    return mat3(");
-                //Line("        cross(m[1].xyz, m[2].xyz),");
-                //Line("        cross(m[2].xyz, m[0].xyz),");
-                //Line("        cross(m[0].xyz, m[1].xyz));");
+                Line("    return mat3(");
+                Line("        cross(m[1].xyz, m[2].xyz),");
+                Line("        cross(m[2].xyz, m[0].xyz),");
+                Line("        cross(m[0].xyz, m[1].xyz));");
             }
         }
 

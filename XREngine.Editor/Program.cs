@@ -38,6 +38,9 @@ using Quaternion = System.Numerics.Quaternion;
 
 internal class Program
 {
+    public const bool VisualizeOctree = true;
+    public const bool VisualizeQuadtree = true;
+
     /// <summary>
     /// This project serves as a hardcoded game client for development purposes.
     /// This editor will autogenerate the client exe csproj to compile production games.
@@ -132,12 +135,12 @@ internal class Program
         world.Scenes.Add(scene);
         var rootNode = new SceneNode(scene) { Name = "TestRootNode" };
 
-        //Visualize the octree
-        //rootNode.AddComponent<DebugVisualizeOctreeComponent>();
+        if (VisualizeOctree)
+            rootNode.AddComponent<DebugVisualizeOctreeComponent>();
 
         SceneNode cameraNode = CreateCamera(rootNode, out var camComp);
-        CreateUserInterface(rootNode, camComp);
-        CreateDesktopViewerPawn(cameraNode);
+        var pawn = CreateDesktopViewerPawn(cameraNode);
+        CreateUserInterface(rootNode, camComp, pawn);
         //SceneNode cameraNode = CreateDesktopCharacterPawn(rootNode);
         //AddFPSText(Engine.Assets.LoadEngineAsset<FontGlyphSet>("Fonts", "Roboto", "Roboto-Regular.ttf"), cameraNode);
         //CreateVRPawn(rootNode);
@@ -155,7 +158,7 @@ internal class Program
         AddPhysics(rootNode);
         //AddPBRTestOrbs(rootNode, 15.0f);
         //AddSpline(rootNode);
-        //ImportModels(desktopDir, rootNode);
+        ImportModels(desktopDir, rootNode);
         return world;
     }
 
@@ -185,7 +188,7 @@ internal class Program
         orb1Model.Model = new Model([new SubMesh(XRMesh.Shapes.SolidSphere(Vector3.Zero, radius, 32), mat)]);
     }
 
-    private static void CreateUserInterface(SceneNode parent, CameraComponent? camComp)
+    private static void CreateUserInterface(SceneNode parent, CameraComponent? camComp, EditorFlyingCameraPawnComponent pawn)
     {
         var rootCanvasNode = new SceneNode(parent) { Name = "TestUINode" };
         var canvas = rootCanvasNode.AddComponent<UICanvasComponent>()!;
@@ -194,7 +197,10 @@ internal class Program
         canvasTfm.Width = 1920.0f;
         canvasTfm.Height = 1080.0f;
         canvasTfm.CameraDrawSpaceDistance = 1.0f;
-        canvasTfm.Padding = new Vector4(10.0f);
+        canvasTfm.Padding = new Vector4(0.0f);
+
+        if (VisualizeQuadtree)
+            rootCanvasNode.AddComponent<DebugVisualizeQuadtreeComponent>();
 
         if (camComp is not null)
             camComp.UserInterface = canvas;
@@ -231,12 +237,13 @@ internal class Program
         //uiPanelComp.Material = mat;
 
         //Add input handler
-        rootCanvasNode.AddComponent<UIInputComponent>();
+        var input = rootCanvasNode.AddComponent<UIInputComponent>()!;
+        input.OwningPawn = pawn;
 
         //This will take care of editor UI arrangement operations for us
         var mainUINode = rootCanvasNode.NewChild<UIEditorComponent>(out var editorComp);
         editorComp.RootMenuOptions = GenerateRootMenu();
-        var tfm = editorComp.BoundableTransform;
+        var tfm = editorComp.SplitTransform;
         tfm.MinAnchor = new Vector2(0.0f, 0.0f);
         tfm.MaxAnchor = new Vector2(1.0f, 1.0f);
         tfm.NormalizedPivot = new Vector2(0.0f, 0.0f);
@@ -252,6 +259,7 @@ internal class Program
             new("File", null, [Key.ControlLeft, Key.F],
             [
                 new("Save", x => Engine.Assets.SaveAll())
+
             ]),
             new("Edit"),
             new("Assets"),
@@ -302,49 +310,13 @@ internal class Program
         floorBody.SetTransform(new Vector3(0.0f, -10.0f, 0.0f), Quaternion.CreateFromAxisAngle(Globals.Backward, XRMath.DegToRad(90.0f)), true);
         floorComp.RigidBody = floorBody;
 
-        var floorShader = new XRShader(EShaderType.Fragment, @"
-#version 460
-layout (location = 0) out vec4 OutColor;
-
-uniform sampler2D Texture0;
-uniform float ScreenWidth;
-uniform float ScreenHeight;
-
-const float kernel[5] = float[]
-(
-    0.227027f, // Weight for the center
-    0.194594f,
-    0.121621f,
-    0.054054f,
-    0.016216f
-);
-
-uniform vec4 MatColor;
-uniform float BlurStrength;
-
-void main()
-{
-    float xOffset = 1.0f / ScreenWidth;
-    float yOffset = 1.0f / ScreenHeight;
-    vec2 vTexCoord = vec2(gl_FragCoord.x * xOffset, gl_FragCoord.y * yOffset);
-    vec3 col = texture(Texture0, vTexCoord).rgb * kernel[0];
-    
-    //Horizontal and vertical offsets for sampling
-    for (int i = 1; i < 5; i++)
-    {
-        //Sample pixels in the positive direction
-        col += texture(Texture0, vTexCoord + vec2(xOffset * i * BlurStrength, 0.0f)).rgb * kernel[i];
-        col += texture(Texture0, vTexCoord - vec2(xOffset * i * BlurStrength, 0.0f)).rgb * kernel[i];
-        col += texture(Texture0, vTexCoord + vec2(0.0f, yOffset * i * BlurStrength)).rgb * kernel[i];
-        col += texture(Texture0, vTexCoord - vec2(0.0f, yOffset * i * BlurStrength)).rgb * kernel[i];
-    }
-
-    OutColor = vec4(col, 1.0f) * MatColor;
-}");
+        var floorShader = ShaderHelper.LoadEngineShader("Misc\\TestFloor.frag");
         ShaderVar[] floorUniforms =
         [
-            new ShaderVector4(new ColorF4(0.7f, 0.7f, 0.7f, 1.0f), "MatColor"),
-            new ShaderFloat(5.0f, "BlurStrength"),
+            new ShaderVector4(new ColorF4(0.9f, 0.9f, 0.9f, 1.0f), "MatColor"),
+            new ShaderFloat(10.0f, "BlurStrength"),
+            new ShaderInt(20, "SampleCount"),
+            new ShaderVector3(Globals.Up, "PlaneNormal"),
         ];
         XRTexture2D grabTex = XRTexture2D.CreateGrabPassTextureResized(0.2f);
         XRMaterial floorMat = new(floorUniforms, [grabTex], floorShader);
@@ -420,7 +392,7 @@ void main()
         spline!.Spline = anim;
     }
 
-    private static SceneNode CreateCamera(SceneNode parentNode, out CameraComponent? camComp, bool smoothed = false)
+    private static SceneNode CreateCamera(SceneNode parentNode, out CameraComponent? camComp, bool smoothed = true)
     {
         var cameraNode = new SceneNode(parentNode) { Name = "TestCameraNode" };
 
@@ -450,26 +422,27 @@ void main()
         SceneNode textNode = new(parentNode) { Name = "TestTextNode" };
         UITextComponent text = textNode.AddComponent<UITextComponent>()!;
         text.Font = font;
-        text.FontSize = 30;
+        text.FontSize = 20;
         text.RegisterAnimationTick<UITextComponent>(TickFPS);
         var textTransform = textNode.GetTransformAs<UIBoundableTransform>(true)!;
-        textTransform.MinAnchor = new Vector2(1.0f, 1.0f);
-        textTransform.MaxAnchor = new Vector2(1.0f, 1.0f);
-        textTransform.NormalizedPivot = new Vector2(1.0f, 1.0f);
-        //textTransform.Scale = new Vector3(0.5f, 0.5f, 0.5f);
+        textTransform.MinAnchor = new Vector2(1.0f, 0.0f);
+        textTransform.MaxAnchor = new Vector2(1.0f, 0.0f);
+        textTransform.NormalizedPivot = new Vector2(1.0f, 0.0f);
         textTransform.Width = null;
         textTransform.Height = null;
-        //textTransform.Scale = new Vector3(0.5f, 0.5f, 1.0f);
+        textTransform.Margins = new Vector4(10.0f, 10.0f, 10.0f, 10.0f);
+        textTransform.Scale = new Vector3(1.0f);
         return text;
     }
 
-    private static void CreateDesktopViewerPawn(SceneNode cameraNode)
+    private static EditorFlyingCameraPawnComponent CreateDesktopViewerPawn(SceneNode cameraNode)
     {
         var pawnComp = cameraNode.AddComponent<EditorFlyingCameraPawnComponent>();
         cameraNode.AddComponent<AudioListenerComponent>();
 
         pawnComp!.Name = "TestPawn";
         pawnComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
+        return pawnComp;
     }
 
     private static SceneNode CreateDesktopCharacterPawn(SceneNode rootNode)
@@ -627,7 +600,7 @@ void main()
             PostProcessSteps.JoinIdenticalVertices |
             PostProcessSteps.CalculateTangentSpace;
 
-        ModelImporter.ImportAsync(fbxPathDesktop, flags, null, MaterialFactory, importedModelsNode, 1, true).ContinueWith(OnFinishedAvatar);
+        //ModelImporter.ImportAsync(fbxPathDesktop, flags, null, MaterialFactory, importedModelsNode, 1, true).ContinueWith(OnFinishedAvatar);
 
         //ModelImporter.ImportAsync(Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj"), flags, null, MaterialFactory, importedModelsNode, 1, false).ContinueWith(OnFinishedWorld);
     }
@@ -648,7 +621,7 @@ void main()
                 RenderPass = (int)EDefaultRenderPass.Background,
                 RenderOptions = new RenderingParameters()
                 {
-                    CullMode = ECullMode.None,
+                    CullMode = ECullMode.Back,
                     DepthTest = new DepthTest()
                     {
                         UpdateDepth = false,

@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using XREngine.Core.Files;
+using XREngine.Data.Colors;
 
 namespace XREngine
 {
@@ -41,11 +42,17 @@ namespace XREngine
                 private bool _lightProbesCaptureDepth = false;
                 private uint _lightProbeDepthResolution = 256u;
                 private bool _allowBinaryProgramCaching = true;
-                private bool _renderMeshBounds = false;
                 private bool _calculateBlendshapesInComputeShader = false;
                 private bool _calculateSkinningInComputeShader = false;
                 private string _defaultFontFolder = "Roboto";
                 private string _defaultFontFileName = "Roboto-Regular.ttf";
+                private bool _renderTransformDebugInfo = true;
+                private bool _renderMesh3DBounds = true;
+                private bool _renderMesh2DBounds = true;
+                private bool _renderUITransformCoordinate = true;
+                private bool _renderTransformLines = true;
+                private bool _renderTransformPoints = true;
+                private bool _renderTransformCapsules = false;
 
                 /// <summary>
                 /// The default luminance used for calculation of exposure, etc.
@@ -133,13 +140,50 @@ namespace XREngine
                     set => SetField(ref _allowBinaryProgramCaching, value);
                 }
                 /// <summary>
-                /// If true, the engine will render the bounds of each mesh.
+                /// If true, the engine will render the bounds of each 3D mesh.
                 /// Useful for debugging, but should be disabled in production builds.
                 /// </summary>
-                public bool RenderMeshBounds 
+                public bool RenderMesh3DBounds 
                 {
-                    get => _renderMeshBounds;
-                    set => SetField(ref _renderMeshBounds, value);
+                    get => _renderMesh3DBounds;
+                    set => SetField(ref _renderMesh3DBounds, value);
+                }
+                /// <summary>
+                /// If true, the engine will render the bounds of each UI mesh.
+                /// Useful for debugging, but should be disabled in production builds.
+                /// </summary>
+                public bool RenderMesh2DBounds
+                {
+                    get => _renderMesh2DBounds;
+                    set => SetField(ref _renderMesh2DBounds, value);
+                }             
+                /// <summary>
+                /// If true, the engine will render all transforms in the scene as lines and points.
+                /// </summary>
+                public bool RenderTransformDebugInfo
+                {
+                    get => _renderTransformDebugInfo;
+                    set => SetField(ref _renderTransformDebugInfo, value);
+                }
+                public bool RenderUITransformCoordinate
+                {
+                    get => _renderUITransformCoordinate;
+                    set => SetField(ref _renderUITransformCoordinate, value);
+                }
+                public bool RenderTransformLines
+                {
+                    get => _renderTransformLines;
+                    set => SetField(ref _renderTransformLines, value);
+                }
+                public bool RenderTransformPoints
+                {
+                    get => _renderTransformPoints;
+                    set => SetField(ref _renderTransformPoints, value);
+                }
+                public bool RenderTransformCapsules
+                {
+                    get => _renderTransformCapsules;
+                    set => SetField(ref _renderTransformCapsules, value);
                 }
                 /// <summary>
                 /// If true, the engine will calculate blendshapes in a compute shader rather than the vertex shader.
@@ -176,6 +220,15 @@ namespace XREngine
                     get => _defaultFontFileName;
                     set => SetField(ref _defaultFontFileName, value);
                 }
+                public ColorF4 QuadtreeIntersectedBoundsColor { get; set; } = ColorF4.LightGray;
+                public ColorF4 QuadtreeContainedBoundsColor { get; set; } = ColorF4.Yellow;
+                public ColorF4 OctreeIntersectedBoundsColor { get; set; } = ColorF4.LightGray;
+                public ColorF4 OctreeContainedBoundsColor { get; set; } = ColorF4.Yellow;
+                public ColorF4 Bounds2DColor { get; set; } = ColorF4.LightLavender;
+                public ColorF4 Bounds3DColor { get; set; } = ColorF4.LightLavender;
+                public ColorF4 TransformPointColor { get; set; } = ColorF4.Orange;
+                public ColorF4 TransformLineColor { get; set; } = ColorF4.LightRed;
+                public ColorF4 TransformCapsuleColor { get; set; } = ColorF4.LightOrange;
             }
         }
     }

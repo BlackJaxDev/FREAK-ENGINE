@@ -8,19 +8,25 @@ namespace XREngine.Rendering.UI
     public class UIComponent : XRComponent
     {
         public UITransform UITransform => TransformAs<UITransform>(true)!;
-        public UICanvasComponent? UserInterfaceCanvas => UITransform.ParentCanvas?.SceneNode?.GetComponent<UICanvasComponent>();
+        public UICanvasComponent? UserInterfaceCanvas => UITransform.GetCanvasComponent();
 
         internal override void VerifyInterfacesOnStart()
         {
             base.VerifyInterfacesOnStart();
 
+            var canvas = UserInterfaceCanvas;
+            var tfm = UITransform;
+
+            //if (tfm is IRenderable r)
+            //    foreach (var obj in r.RenderedObjects)
+            //        obj.UserInterfaceCanvas = canvas;
+            
             if (this is not IRenderable rend)
                 return;
 
-            UITransform.PropertyChanging += UITransformPropertyChanging;
-            UITransform.PropertyChanged += UITransformPropertyChanged;
+            tfm.PropertyChanging += UITransformPropertyChanging;
+            tfm.PropertyChanged += UITransformPropertyChanged;
 
-            var canvas = UserInterfaceCanvas;
             foreach (var obj in rend.RenderedObjects)
                 obj.UserInterfaceCanvas = canvas;
         }
@@ -28,11 +34,17 @@ namespace XREngine.Rendering.UI
         {
             base.VerifyInterfacesOnStop();
 
+            var tfm = UITransform;
+
+            //if (tfm is IRenderable r)
+            //    foreach (var obj in r.RenderedObjects)
+            //        obj.UserInterfaceCanvas = null;
+
             if (this is not IRenderable rend)
                 return;
 
-            UITransform.PropertyChanging -= UITransformPropertyChanging;
-            UITransform.PropertyChanged -= UITransformPropertyChanged;
+            tfm.PropertyChanging -= UITransformPropertyChanging;
+            tfm.PropertyChanged -= UITransformPropertyChanged;
 
             foreach (var obj in rend.RenderedObjects)
                 obj.UserInterfaceCanvas = null;
@@ -44,6 +56,10 @@ namespace XREngine.Rendering.UI
 
             if (this is not IRenderable rend || SceneNode.IsTransformNull || Transform is not UITransform uiTfm)
                 return;
+
+            //if (uiTfm is IRenderable r)
+            //    foreach (var obj in r.RenderedObjects)
+            //        obj.UserInterfaceCanvas = null;
 
             uiTfm.PropertyChanging -= UITransformPropertyChanging;
             uiTfm.PropertyChanged -= UITransformPropertyChanged;
@@ -58,10 +74,14 @@ namespace XREngine.Rendering.UI
             if (this is not IRenderable rend || SceneNode.IsTransformNull || Transform is not UITransform uiTfm)
                 return;
 
+            //if (uiTfm is IRenderable r)
+            //    foreach (var obj in r.RenderedObjects)
+            //        obj.UserInterfaceCanvas = UserInterfaceCanvas;
+
             uiTfm.PropertyChanging += UITransformPropertyChanging;
             uiTfm.PropertyChanged += UITransformPropertyChanged;
 
-            var canvas = uiTfm.ParentCanvas?.SceneNode?.GetComponent<UICanvasComponent>();
+            var canvas = uiTfm.GetCanvasComponent();
             foreach (var obj in rend.RenderedObjects)
                 obj.UserInterfaceCanvas = canvas;
         }

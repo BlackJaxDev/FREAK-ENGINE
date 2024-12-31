@@ -11,8 +11,10 @@ namespace XREngine.Editor.UI.Components;
 /// The root component for the desktop editor.
 /// </summary>
 [RequiresTransform(typeof(UISplitTransform))]
-public partial class UIEditorComponent : UIInteractableComponent
+public partial class UIEditorComponent : UIComponent
 {
+    public UISplitTransform SplitTransform => TransformAs<UISplitTransform>(true)!;
+
     private List<MenuOption> _rootMenuOptions = [];
     public List<MenuOption> RootMenuOptions
     {
@@ -54,6 +56,12 @@ public partial class UIEditorComponent : UIInteractableComponent
 
     public void RemakeChildren()
     {
+        var tfm = SplitTransform;
+        tfm.VerticalSplit = true;
+        tfm.FirstFixedSize = true;
+        tfm.FixedSize = MenuHeight;
+        tfm.SplitterSize = 0.0f;
+
         SceneNode.Transform.Clear();
 
         //There are two children, one for the menu and one for the dockable windows.
@@ -63,13 +71,14 @@ public partial class UIEditorComponent : UIInteractableComponent
         //Create the menu transform - this is a horizontal list of buttons.
         var listTfm = menuNode.SetTransform<UIListTransform>();
         listTfm.DisplayHorizontal = true;
-        listTfm.ItemSpacing = 10.0f;
-        listTfm.Padding = new Vector4(4.0f);
+        listTfm.ItemSpacing = 4.0f;
+        listTfm.Padding = new Vector4(0.0f);
         listTfm.ItemAlignment = EListAlignment.TopOrLeft;
         listTfm.ItemSize = null;
-        listTfm.Height = MenuHeight;
+        listTfm.Height = null;
+        listTfm.Width = null;
         listTfm.MaxAnchor = new Vector2(1.0f, 1.0f);
-        listTfm.MinAnchor = new Vector2(0.0f, 1.0f);
+        listTfm.MinAnchor = new Vector2(0.0f, 0.0f);
         listTfm.NormalizedPivot = new Vector2(0.0f, 0.0f);
 
         menuMat.Material = XRMaterial.CreateUnlitColorMaterialForward(ColorF4.Charcoal);
@@ -79,6 +88,7 @@ public partial class UIEditorComponent : UIInteractableComponent
         {
             var buttonNode = menuNode.NewChild<UIButtonComponent, UIMaterialComponent>(out var button, out var background);
             menuItem.InteractableComponent = button;
+            button.Name = menuItem.Text;
 
             var mat = XRMaterial.CreateUnlitColorMaterialForward(ColorF4.Transparent);
             mat.EnableTransparency();
@@ -101,9 +111,9 @@ public partial class UIEditorComponent : UIInteractableComponent
             textTfm.MaxAnchor = new Vector2(1.0f, 1.0f);
             textTfm.MinAnchor = new Vector2(0.0f, 0.0f);
             textTfm.NormalizedPivot = new Vector2(0.0f, 0.0f);
-            textTfm.Padding = new Vector4(4.0f);
+            textTfm.Margins = new Vector4(10.0f, 4.0f, 10.0f, 4.0f);
 
-            text.FontSize = 20;
+            text.FontSize = 18;
             text.Text = menuItem.Text;
             text.Color = ColorF4.Gray;
         }

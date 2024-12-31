@@ -10,6 +10,19 @@ using XREngine.Scene.Transforms;
 
 namespace XREngine.Rendering.UI
 {
+    public enum EVerticalAlignment
+    {
+        Top,
+        Center,
+        Bottom
+    }
+    public enum EHorizontalAlignment
+    {
+        Left,
+        Center,
+        Right
+    }
+
     [RequiresTransform(typeof(UIBoundableTransform))]
     public class UITextComponent : UIComponent, IRenderable
     {
@@ -46,6 +59,20 @@ namespace XREngine.Rendering.UI
         {
             get => _glyphRelativeTransforms;
             set => SetField(ref _glyphRelativeTransforms, value);
+        }
+
+        private EVerticalAlignment _verticalAlignment = EVerticalAlignment.Center;
+        public EVerticalAlignment VerticalAlignment
+        {
+            get => _verticalAlignment;
+            set => SetField(ref _verticalAlignment, value);
+        }
+
+        private EHorizontalAlignment _horizontalAlignment = EHorizontalAlignment.Center;
+        public EHorizontalAlignment HorizontalAlignment
+        {
+            get => _horizontalAlignment;
+            set => SetField(ref _horizontalAlignment, value);
         }
 
         private string? _text;
@@ -113,12 +140,15 @@ namespace XREngine.Rendering.UI
         protected override void OnTransformWorldMatrixChanged(TransformBase transform)
         {
             base.OnTransformWorldMatrixChanged(transform);
+
             _rc3D.WorldMatrix = transform.WorldMatrix;
             _rc2D.WorldMatrix = transform.WorldMatrix;
+
             RenderInfo3D.PreAddRenderCommandsCallback = ShouldRender3D;
             RenderInfo2D.PreAddRenderCommandsCallback = ShouldRender2D;
-        }
 
+            BoundableTransform.UpdateRenderInfoBounds(RenderInfo2D, RenderInfo3D);
+        }
         private bool ShouldRender3D(RenderInfo info, RenderCommandCollection passes, XRCamera? camera)
         {
             var canvas = BoundableTransform?.ParentCanvas;
@@ -156,7 +186,7 @@ namespace XREngine.Rendering.UI
             base.UITransformPropertyChanged(sender, e);
             switch (e.PropertyName)
             {
-                case nameof(UIBoundableTransform.ActualBottomLeftTranslation):
+                case nameof(UIBoundableTransform.ActualLocalBottomLeftTranslation):
                 case nameof(UIBoundableTransform.ActualSize):
                     UpdateText(false);
                     break;
@@ -255,10 +285,59 @@ namespace XREngine.Rendering.UI
             lock (_glyphLock)
             {
                 var tfm = BoundableTransform;
-                Font.GetQuads(Text, _glyphs, FontSize, null, null, WordWrap, 5.0f);
+                float w = tfm.ActualWidth;
+                float h = tfm.ActualHeight;
+                Font.GetQuads(Text, _glyphs, FontSize, w, h, WordWrap, 5.0f);
+                AlignQuads(tfm, w, h);
                 count = (uint)(_glyphs?.Count ?? 0);
             }
             ResizeGlyphCount(count);
+        }
+
+        private void AlignQuads(UIBoundableTransform tfm, float w, float h)
+        {
+            if (VerticalAlignment != EVerticalAlignment.Bottom)
+                AlignQuadsVertical(tfm, h);
+            if (HorizontalAlignment != EHorizontalAlignment.Left)
+                AlignQuadsHorizontal(tfm, w);
+        }
+
+        private void AlignQuadsHorizontal(UIBoundableTransform tfm, float w)
+        {
+            //Calc max glyph width
+            float textW = CalcAutoWidth(tfm);
+            //Calc offset, which is a percentage of the remaining space not taken up by the text
+            float offset = HorizontalAlignment switch
+            {
+                EHorizontalAlignment.Right => w - textW,
+                EHorizontalAlignment.Center => (w - textW) / 2.0f,
+                _ => 0.0f
+            };
+            for (int i = 0; i < _glyphs.Count; i++)
+            {
+                (Vector4 transform, Vector4 uvs) glyph = _glyphs[i];
+                glyph.transform = new(glyph.transform.X + offset, glyph.transform.Y, glyph.transform.Z, glyph.transform.W);
+                _glyphs[i] = glyph;
+            }
+        }
+
+        private void AlignQuadsVertical(UIBoundableTransform tfm, float h)
+        {
+            //Calc max glyph height
+            float textH = CalcAutoHeight(tfm);
+            //Calc offset, which is a percentage of the remaining space not taken up by the text
+            float offset = VerticalAlignment switch
+            {
+                EVerticalAlignment.Top => (h - textH),
+                EVerticalAlignment.Center => (h - textH) / 2.0f,
+                _ => 0.0f
+            };
+            for (int i = 0; i < _glyphs.Count; i++)
+            {
+                (Vector4 transform, Vector4 uvs) glyph = _glyphs[i];
+                glyph.transform = new(glyph.transform.X, glyph.transform.Y + offset, glyph.transform.Z, glyph.transform.W);
+                _glyphs[i] = glyph;
+            }
         }
 
         /// <summary>
@@ -277,10 +356,10 @@ namespace XREngine.Rendering.UI
                 _rc3D.Mesh.Destroy();
             }
 
-            var mesh = XRMesh.Create(VertexQuad.PosZ(1.0f, true, 0.0f, false));
-            XRMaterial mat = CreateMaterial(atlas);
+            var rend = new XRMeshRenderer(
+                XRMesh.Create(VertexQuad.PosZ(1.0f, true, 0.0f, false)),
+                CreateMaterial(atlas));
 
-            var rend = new XRMeshRenderer(mesh, mat);
             rend.SettingUniforms += MeshRend_SettingUniforms;
             CreateSSBOs(rend);
             _rc3D.Mesh = rend;

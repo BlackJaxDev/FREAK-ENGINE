@@ -62,7 +62,8 @@ namespace XREngine.Rendering
         public Matrix4x4 GetProjectionMatrix()
         {
             VerifyProjection();
-            return _projectionMatrix!.Value;
+            var matrix = _projectionMatrix;
+            return matrix ?? CalculateProjectionMatrix();
         }
 
         /// <summary>

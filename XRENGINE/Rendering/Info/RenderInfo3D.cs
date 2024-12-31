@@ -13,6 +13,9 @@ namespace XREngine.Rendering.Info
 
         public static Func<IRenderable, RenderCommand[], RenderInfo3D>? ConstructorOverride { get; set; } = null;
 
+        public static RenderInfo3D New(IRenderable owner)
+            => ConstructorOverride?.Invoke(owner, []) ?? new RenderInfo3D(owner);
+
         public static RenderInfo3D New(IRenderable owner, params RenderCommand[] renderCommands)
             => ConstructorOverride?.Invoke(owner, renderCommands) ?? new RenderInfo3D(owner, renderCommands);
 
@@ -147,6 +150,10 @@ namespace XREngine.Rendering.Info
                         WorldInstance?.VisualScene?.AddRenderable(this);
                     else
                         WorldInstance?.VisualScene?.RemoveRenderable(this);
+                    break;
+                case nameof(CullingOffsetMatrix):
+                case nameof(LocalCullingVolume):
+                    OctreeNode?.QueueItemMoved(this);
                     break;
             }
         }

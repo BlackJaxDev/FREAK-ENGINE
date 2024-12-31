@@ -48,9 +48,9 @@ namespace XREngine.Scene.Transforms
             _inverseLocalMatrix = new MatrixInfo { NeedsRecalc = true };
             _inverseWorldMatrix = new MatrixInfo { NeedsRecalc = true };
 
-            RenderInfo = RenderInfo3D.New(this, new RenderCommandMethod3D((int)EDefaultRenderPass.OpaqueForward, RenderDebug));
+            RenderInfo = RenderInfo3D.New(this, new RenderCommandMethod3D((int)EDefaultRenderPass.OnTopForward, RenderDebug));
             RenderedObjects = GetDebugRenderInfo();
-            DebugRender = false;
+            DebugRender = Engine.Rendering.Settings.RenderTransformDebugInfo;
 
             Parent = parent;
         }
@@ -90,9 +90,24 @@ namespace XREngine.Scene.Transforms
             if (shadowPass)
                 return;
             
-            Engine.Rendering.Debug.RenderLine(Parent?.WorldTranslation ?? Vector3.Zero, WorldTranslation, ColorF4.LightRed, false, 1);
-            Engine.Rendering.Debug.RenderPoint(WorldTranslation, ColorF4.Green, false);
-            //Engine.Rendering.Debug.RenderCapsule(Capsule, ColorF4.LightOrange, false);
+            var settings = Engine.Rendering.Settings;
+
+            if (settings.RenderTransformLines)
+                Engine.Rendering.Debug.RenderLine(
+                    Parent?.WorldTranslation ?? Vector3.Zero,
+                    WorldTranslation,
+                    settings.TransformLineColor,
+                    false,
+                    1);
+
+            if (settings.RenderTransformPoints)
+                Engine.Rendering.Debug.RenderPoint(
+                    WorldTranslation,
+                    settings.TransformPointColor,
+                    false);
+
+            if (settings.RenderTransformCapsules)
+                Engine.Rendering.Debug.RenderCapsule(Capsule, settings.TransformCapsuleColor, false);
         }
 
         private void ChildAdded(TransformBase e)
