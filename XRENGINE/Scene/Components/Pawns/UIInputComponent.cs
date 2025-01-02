@@ -41,16 +41,7 @@ namespace XREngine.Components
         public UIInteractableComponent? FocusedComponent
         {
             get => _focusedComponent;
-            set
-            {
-                if (_focusedComponent != null)
-                    _focusedComponent.IsFocused = false;
-
-                _focusedComponent = value;
-
-                if (_focusedComponent != null)
-                    _focusedComponent.IsFocused = true;
-            }
+            set => SetField(ref _focusedComponent, value);
         }
 
         private PawnComponent? _owningPawn;
@@ -74,6 +65,13 @@ namespace XREngine.Components
                     case nameof(OwningPawn):
                         UnlinkOwningPawn();
                         break;
+                    case nameof(FocusedComponent):
+                        if (_focusedComponent is not null)
+                        {
+                            //_focusedComponent.IsFocused = false;
+                            _focusedComponent.PropertyChanged -= FocusedComponentPropertyChanged;
+                        }
+                        break;
                 }
             }
             return change;
@@ -86,7 +84,25 @@ namespace XREngine.Components
                 case nameof(OwningPawn):
                     LinkOwningPawn();
                     break;
+                case nameof(FocusedComponent):
+                    if (_focusedComponent is not null)
+                    {
+                        _focusedComponent.IsFocused = true;
+                        _focusedComponent.PropertyChanged += FocusedComponentPropertyChanged;
+                    }
+                    if (prev is UIInteractableComponent prevInteractable)
+                    {
+                        prevInteractable.IsFocused = false;
+                        //prevInteractable.PropertyChanged -= FocusedComponentPropertyChanged;
+                    }
+                    break;
             }
+        }
+
+        private void FocusedComponentPropertyChanged(object? sender, IXRPropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(UIInteractableComponent.IsFocused) && !(_focusedComponent?.IsFocused ?? false))
+                FocusedComponent = null;
         }
 
         private void UnlinkOwningPawn()
@@ -94,8 +110,8 @@ namespace XREngine.Components
             if (_owningPawn is null || _owningPawn.LocalPlayerController == null)
                 return;
 
-            _owningPawn.PropertyChanging -= OwningPawn_PropertyChanging;
-            _owningPawn.PropertyChanged -= OnOwningPawnPropertyChanged;
+            _owningPawn.PropertyChanging -= OwningPawnPropertyChanging;
+            _owningPawn.PropertyChanged -= OwningPawnPropertyChanged;
 
             UnlinkInput();
         }
@@ -105,13 +121,13 @@ namespace XREngine.Components
             if (_owningPawn is null)
                 return;
 
-            _owningPawn.PropertyChanging += OwningPawn_PropertyChanging;
-            _owningPawn.PropertyChanged += OnOwningPawnPropertyChanged;
+            _owningPawn.PropertyChanging += OwningPawnPropertyChanging;
+            _owningPawn.PropertyChanged += OwningPawnPropertyChanged;
 
             LinkInput();
         }
 
-        private void OwningPawn_PropertyChanging(object? sender, IXRPropertyChangingEventArgs e)
+        private void OwningPawnPropertyChanging(object? sender, IXRPropertyChangingEventArgs e)
         {
             if (e.PropertyName == nameof(PawnComponent.LocalPlayerController))
             {
@@ -119,7 +135,7 @@ namespace XREngine.Components
             }
         }
 
-        private void OnOwningPawnPropertyChanged(object? sender, IXRPropertyChangedEventArgs e)
+        private void OwningPawnPropertyChanged(object? sender, IXRPropertyChangedEventArgs e)
         {
             if (e.PropertyName == nameof(PawnComponent.LocalPlayerController))
             {
@@ -148,13 +164,22 @@ namespace XREngine.Components
         public void RegisterInput(InputInterface input)
         {
             input.RegisterMouseMove(MouseMove, EMouseMoveType.Absolute);
-            input.RegisterMouseButtonEvent(EMouseButton.LeftClick, EButtonInputType.Pressed, OnLeftClickSelect);
+            input.RegisterMouseButtonEvent(EMouseButton.LeftClick, EButtonInputType.Pressed, OnMouseInteractButtonDown);
+            input.RegisterMouseButtonEvent(EMouseButton.LeftClick, EButtonInputType.Released, OnMouseInteractButtonUp);
+
+            input.RegisterButtonEvent(EGamePadButton.FaceDown, EButtonInputType.Pressed, OnGamepadInteractButtonDown);
+            input.RegisterButtonEvent(EGamePadButton.FaceDown, EButtonInputType.Released, OnGamepadInteractButtonUp);
+
+            input.RegisterButtonEvent(EGamePadButton.FaceRight, EButtonInputType.Pressed, OnGamepadBackButtonDown);
+            input.RegisterButtonEvent(EGamePadButton.FaceRight, EButtonInputType.Released, OnGamepadBackButtonUp);
 
             input.RegisterAxisUpdate(EGamePadAxis.LeftThumbstickX, OnLeftStickX, false);
             input.RegisterAxisUpdate(EGamePadAxis.LeftThumbstickY, OnLeftStickY, false);
+
             input.RegisterButtonEvent(EGamePadButton.DPadUp, EButtonInputType.Pressed, OnDPadUp);
-            input.RegisterButtonEvent(EGamePadButton.FaceDown, EButtonInputType.Pressed, OnGamepadInteract);
-            input.RegisterButtonEvent(EGamePadButton.FaceRight, EButtonInputType.Pressed, OnGamepadBack);
+            input.RegisterButtonEvent(EGamePadButton.DPadDown, EButtonInputType.Pressed, OnDPadDown);
+            input.RegisterButtonEvent(EGamePadButton.DPadLeft, EButtonInputType.Pressed, OnDPadLeft);
+            input.RegisterButtonEvent(EGamePadButton.DPadRight, EButtonInputType.Pressed, OnDPadRight);
         }
 
         /// <summary>
@@ -223,7 +248,13 @@ namespace XREngine.Components
                 case ECanvasDrawSpace.Camera:
                     {
                         //Convert the normalized coord to world space using the draw distance
-                        Vector3 worldCoord = uiCam.NormalizedViewportToWorldCoordinate(normCoord, XRMath.DistanceToDepth(canvasTransform.CameraDrawSpaceDistance, uiCam.NearZ, uiCam.FarZ));
+                        Vector3 worldCoord = uiCam.NormalizedViewportToWorldCoordinate(
+                            normCoord,
+                            XRMath.DistanceToDepth(
+                                canvasTransform.CameraDrawSpaceDistance,
+                                uiCam.NearZ,
+                                uiCam.FarZ));
+
                         //Transform the world coord to the canvas' local space
                         Matrix4x4 worldToLocal = canvasTransform.InverseWorldMatrix;
                         uiCoord = Vector3.Transform(worldCoord, worldToLocal).XY();
@@ -267,23 +298,39 @@ namespace XREngine.Components
         /// </summary>
         private void ValidateAndSwapIntersections()
         {
-            var all = LastInteractableIntersections.Union(InteractableIntersections).ToArray();
-            all.ForEach(ValidateIntersection);
+            LastInteractableIntersections.Union(InteractableIntersections).ForEach(ValidateIntersection);
             (LastInteractableIntersections, InteractableIntersections) = (InteractableIntersections, LastInteractableIntersections);
             InteractableIntersections.Clear();
         }
 
-        private void OnGamepadInteract()
+        private void OnGamepadInteractButtonDown()
+        {
+            FocusedComponent?.OnInteract();
+        }
+        private void OnGamepadInteractButtonUp()
         {
 
         }
-        private void OnLeftClickSelect()
+
+        private void OnMouseInteractButtonDown()
         {
             FocusedComponent = TopMostInteractable;
+
+            if (FocusedComponent is not null && FocusedComponent.InteractOnButtonDown)
+                FocusedComponent.OnInteract();
         }
-        protected virtual void OnGamepadBack()
+        private void OnMouseInteractButtonUp()
         {
-            _focusedComponent?.OnBack();
+            if (FocusedComponent is not null && TopMostInteractable == FocusedComponent && !FocusedComponent.InteractOnButtonDown)
+                OnInteract();
+        }
+        protected virtual void OnGamepadBackButtonDown()
+        {
+            FocusedComponent?.OnBack();
+        }
+        protected virtual void OnGamepadBackButtonUp()
+        {
+
         }
 
         protected virtual void OnLeftStickX(float value) { }
@@ -295,9 +342,21 @@ namespace XREngine.Components
         /// </summary>
         protected virtual void OnInteract()
         {
-            _focusedComponent?.OnInteract();
+            FocusedComponent?.OnInteract();
         }
         protected virtual void OnDPadUp()
+        {
+
+        }
+        protected virtual void OnDPadDown()
+        {
+
+        }
+        protected virtual void OnDPadLeft()
+        {
+
+        }
+        protected virtual void OnDPadRight()
         {
 
         }

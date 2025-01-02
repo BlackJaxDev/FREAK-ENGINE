@@ -9,13 +9,13 @@ namespace XREngine.Rendering.UI
     /// <summary>
     /// Houses a viewport that renders a scene from a designated camera.
     /// </summary>
-    public unsafe class UIVideoComponent : UIMaterialComponent, IRenderable
+    public unsafe class UIVideoComponent : UIMaterialComponent
     {
         public AudioSourceComponent? AudioSource => GetSiblingComponent<AudioSourceComponent>();
 
         private readonly XRMaterialFrameBuffer _fbo;
 
-        private string _streamUrl;
+        private string? _streamUrl;
         private AVFormatContext* _formatContext;
         private AVCodecContext* _videoCodecContext;
         private AVCodecContext* _audioCodecContext;

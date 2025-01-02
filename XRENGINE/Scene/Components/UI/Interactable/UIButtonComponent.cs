@@ -4,10 +4,21 @@ namespace XREngine.Rendering.UI
 {
     public class UIButtonComponent : UIInteractableComponent
     {
-        protected override void OnMouseOverlapEnter() => Highlight();
-        protected override void OnMouseOverlapLeave() => Unhighlight();
+        protected override void OnMouseDirectOverlapEnter() => Highlight();
+        protected override void OnMouseDirectOverlapLeave() => Unhighlight();
         protected override void OnGamepadNavigateEnter() => Highlight();
         protected override void OnGamepadNavigateLeave() => Unhighlight();
+
+        public void RegisterClickActions(params Action<UIInteractableComponent>[] actions)
+        {
+            foreach (var action in actions)
+                InteractAction += action;
+        }
+        public void UnregisterClickActions(params Action<UIInteractableComponent>[] actions)
+        {
+            foreach (var action in actions)
+                InteractAction -= action;
+        }
 
         public UIMaterialComponent? BackgroundMaterialComponent => GetSiblingComponent<UIMaterialComponent>();
         public UITextComponent? TextComponent => SceneNode.FirstChild?.GetComponent<UITextComponent>();
@@ -19,13 +30,6 @@ namespace XREngine.Rendering.UI
         public ColorF4 DefaultTextColor { get; set; } = ColorF4.Gray;
         public ColorF4 HighlightTextColor { get; set; } = ColorF4.White;
 
-        public Action? ClickAction { get; set; }
-
-        public virtual void Click()
-        {
-            ClickAction?.Invoke();
-        }
-        
         protected virtual void Highlight()
         {
             var bg = BackgroundMaterialComponent?.Material;

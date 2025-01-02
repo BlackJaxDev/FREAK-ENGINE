@@ -3,7 +3,6 @@ using OpenVR.NET.Manifest;
 using Silk.NET.Input;
 using System.Collections.Concurrent;
 using System.Numerics;
-using System.Windows.Forms;
 using XREngine;
 using XREngine.Animation;
 using XREngine.Components;
@@ -18,6 +17,7 @@ using XREngine.Data.Core;
 using XREngine.Data.Rendering;
 using XREngine.Editor;
 using XREngine.Editor.UI.Components;
+using XREngine.Editor.UI.Toolbar;
 using XREngine.Native;
 using XREngine.Rendering;
 using XREngine.Rendering.Commands;
@@ -38,8 +38,19 @@ using Quaternion = System.Numerics.Quaternion;
 
 internal class Program
 {
-    public const bool VisualizeOctree = true;
-    public const bool VisualizeQuadtree = true;
+    public const bool VisualizeOctree = false;
+    public const bool VisualizeQuadtree = false;
+    public const bool Physics = true;
+    public const bool DirLight = true;
+    public const bool SpotLight = false;
+    public const bool DirLight2 = true;
+    public const bool PointLight = false;
+    public const bool SoundNode = false;
+    public const bool LightProbe = true;
+    public const bool Skybox = true;
+    public const bool Spline = false;
+    public const bool StaticModel = false;
+    public const bool AnimatedModel = false;
 
     /// <summary>
     /// This project serves as a hardcoded game client for development purposes.
@@ -75,9 +86,9 @@ internal class Program
     {
         int w = 1920;
         int h = 1080;
-        float updateHz = 90.0f;
+        float updateHz = 60.0f;
         float renderHz = 0.0f;
-        float fixedHz = 30.0f;
+        float fixedHz = 60.0f;
 
         int primaryX = NativeMethods.GetSystemMetrics(0);
         int primaryY = NativeMethods.GetSystemMetrics(1);
@@ -142,51 +153,62 @@ internal class Program
         var pawn = CreateDesktopViewerPawn(cameraNode);
         CreateUserInterface(rootNode, camComp, pawn);
         //SceneNode cameraNode = CreateDesktopCharacterPawn(rootNode);
-        //AddFPSText(Engine.Assets.LoadEngineAsset<FontGlyphSet>("Fonts", "Roboto", "Roboto-Regular.ttf"), cameraNode);
         //CreateVRPawn(rootNode);
-        //AddTestBox(rootNode);
-        AddDirLight(rootNode);
-        //AddSpotLight(rootNode);
-        //AddDirLight2(rootNode, dirLightTransform, dirLightComp);
-        //AddPointLight(rootNode);
-        AddSoundNode(rootNode);
-        string[] names = ["warm_restaurant_4k", "overcast_soil_puresky_4k", "studio_small_09_4k", "klippad_sunrise_2_4k"];
-        Random r = new();
-        XRTexture2D skyEquirect = Engine.Assets.LoadEngineAsset<XRTexture2D>("Textures", $"{names[r.Next(0, names.Length - 1)]}.exr");
-        AddLightProbe(rootNode, skyEquirect);
-        AddSkybox(rootNode, skyEquirect);
-        AddPhysics(rootNode);
-        //AddPBRTestOrbs(rootNode, 15.0f);
-        //AddSpline(rootNode);
+
+        if (DirLight)
+            AddDirLight(rootNode);
+        if (SpotLight)
+            AddSpotLight(rootNode);
+        if (DirLight2)
+            AddDirLight2(rootNode);
+        if (PointLight)
+            AddPointLight(rootNode);
+        if (SoundNode)
+            AddSoundNode(rootNode);
+        if (LightProbe || Skybox)
+        {
+            string[] names = ["warm_restaurant_4k", "overcast_soil_puresky_4k", "studio_small_09_4k", "klippad_sunrise_2_4k"];
+            Random r = new();
+            XRTexture2D skyEquirect = Engine.Assets.LoadEngineAsset<XRTexture2D>("Textures", $"{names[r.Next(0, names.Length - 1)]}.exr");
+
+            if (LightProbe)
+                AddLightProbe(rootNode, skyEquirect);
+            if (Skybox)
+                AddSkybox(rootNode, skyEquirect);
+        }
+        if (Physics)
+            AddPhysics(rootNode);
+        if (Spline)
+            AddSpline(rootNode);
         ImportModels(desktopDir, rootNode);
         return world;
     }
 
-    private static void AddPBRTestOrbs(SceneNode rootNode, float y)
-    {
-        for (int metallic = 0; metallic < 10; metallic++)
-            for (int roughness = 0; roughness < 10; roughness++)
-                AddPBRTestOrb(rootNode, metallic / 10.0f, roughness / 10.0f, 0.5f, 0.5f, 10, 10, y);
-    }
+    //private static void AddPBRTestOrbs(SceneNode rootNode, float y)
+    //{
+    //    for (int metallic = 0; metallic < 10; metallic++)
+    //        for (int roughness = 0; roughness < 10; roughness++)
+    //            AddPBRTestOrb(rootNode, metallic / 10.0f, roughness / 10.0f, 0.5f, 0.5f, 10, 10, y);
+    //}
 
-    private static void AddPBRTestOrb(SceneNode rootNode, float metallic, float roughness, float radius, float padding, int metallicCount, int roughnessCount, float y)
-    {
-        var orb1 = new SceneNode(rootNode) { Name = "TestOrb1" };
-        var orb1Transform = orb1.SetTransform<Transform>();
+    //private static void AddPBRTestOrb(SceneNode rootNode, float metallic, float roughness, float radius, float padding, int metallicCount, int roughnessCount, float y)
+    //{
+    //    var orb1 = new SceneNode(rootNode) { Name = "TestOrb1" };
+    //    var orb1Transform = orb1.SetTransform<Transform>();
 
-        //arrange in grid using metallic and roughness
-        orb1Transform.Translation = new Vector3(
-            (metallic * 2.0f - 1.0f) * (radius + padding) * metallicCount,
-            y + padding + radius,
-            (roughness * 2.0f - 1.0f) * (radius + padding) * roughnessCount);
+    //    //arrange in grid using metallic and roughness
+    //    orb1Transform.Translation = new Vector3(
+    //        (metallic * 2.0f - 1.0f) * (radius + padding) * metallicCount,
+    //        y + padding + radius,
+    //        (roughness * 2.0f - 1.0f) * (radius + padding) * roughnessCount);
 
-        var orb1Model = orb1.AddComponent<ModelComponent>()!;
-        var mat = XRMaterial.CreateLitColorMaterial(ColorF4.Red);
-        mat.RenderPass = (int)EDefaultRenderPass.OpaqueDeferredLit;
-        mat.Parameter<ShaderFloat>("Roughness")!.Value = roughness;
-        mat.Parameter<ShaderFloat>("Metallic")!.Value = metallic;
-        orb1Model.Model = new Model([new SubMesh(XRMesh.Shapes.SolidSphere(Vector3.Zero, radius, 32), mat)]);
-    }
+    //    var orb1Model = orb1.AddComponent<ModelComponent>()!;
+    //    var mat = XRMaterial.CreateLitColorMaterial(ColorF4.Red);
+    //    mat.RenderPass = (int)EDefaultRenderPass.OpaqueDeferredLit;
+    //    mat.Parameter<ShaderFloat>("Roughness")!.Value = roughness;
+    //    mat.Parameter<ShaderFloat>("Metallic")!.Value = metallic;
+    //    orb1Model.Model = new Model([new SubMesh(XRMesh.Shapes.SolidSphere(Vector3.Zero, radius, 32), mat)]);
+    //}
 
     private static void CreateUserInterface(SceneNode parent, CameraComponent? camComp, EditorFlyingCameraPawnComponent pawn)
     {
@@ -207,62 +229,58 @@ internal class Program
 
         AddFPSText(null, rootCanvasNode);
 
-        //var uiPanel = new SceneNode(uiNode) { Name = "TestUIPanel" };
-        //var uiPanelComp = uiPanel.AddComponent<UIMaterialComponent>()!;
-        //var uiPanelTransform = uiPanel.GetTransformAs<UIBoundableTransform>(true)!;
-        //uiPanelTransform.HorizontalAlignment = EHorizontalAlign.Stretch;
-        //uiPanelTransform.VerticalAlignment = EVerticalAlign.Stretch;
-        //var mat = XRMaterial.CreateUnlitColorMaterialForward(new ColorF4(1.0f, 0.0f, 0.0f, 0.5f));
-        //mat.RenderPass = (int)EDefaultRenderPass.TransparentForward;
-        //mat.RenderOptions = new RenderingParameters()
-        //{
-        //    CullMode = ECullMode.Back,
-        //    DepthTest = new DepthTest()
-        //    {
-        //        UpdateDepth = false,
-        //        Enabled = ERenderParamUsage.Disabled,
-        //        Function = EComparison.Always,
-        //    },
-        //    BlendModeAllDrawBuffers = new BlendMode()
-        //    {
-        //        Enabled = ERenderParamUsage.Enabled,
-        //        RgbSrcFactor = EBlendingFactor.SrcAlpha,
-        //        AlphaSrcFactor = EBlendingFactor.SrcAlpha,
-        //        RgbDstFactor = EBlendingFactor.OneMinusSrcAlpha,
-        //        AlphaDstFactor = EBlendingFactor.OneMinusSrcAlpha,
-        //        RgbEquation = EBlendEquationMode.FuncAdd,
-        //        AlphaEquation = EBlendEquationMode.FuncAdd,
-        //    },
-        //};
-        //uiPanelComp.Material = mat;
-
         //Add input handler
         var input = rootCanvasNode.AddComponent<UIInputComponent>()!;
         input.OwningPawn = pawn;
 
         //This will take care of editor UI arrangement operations for us
         var mainUINode = rootCanvasNode.NewChild<UIEditorComponent>(out var editorComp);
-        editorComp.RootMenuOptions = GenerateRootMenu();
-        var tfm = editorComp.SplitTransform;
-        tfm.MinAnchor = new Vector2(0.0f, 0.0f);
-        tfm.MaxAnchor = new Vector2(1.0f, 1.0f);
-        tfm.NormalizedPivot = new Vector2(0.0f, 0.0f);
-        tfm.Translation = new Vector2(0.0f, 0.0f);
-        tfm.Width = null;
-        tfm.Height = null;
+        editorComp.MenuOptions = GenerateRootMenu();
+        var tfm = editorComp.UITransform as UIBoundableTransform;
+        if (tfm is not null)
+        {
+            tfm.MinAnchor = new Vector2(0.0f, 0.0f);
+            tfm.MaxAnchor = new Vector2(1.0f, 1.0f);
+            tfm.NormalizedPivot = new Vector2(0.0f, 0.0f);
+            tfm.Translation = new Vector2(0.0f, 0.0f);
+            tfm.Width = null;
+            tfm.Height = null;
+        }
+    }
+
+    public static void TakeScreenshot(UIInteractableComponent comp)
+    {
+        //Debug.Out("Take Screenshot clicked");
+
+        var camera = Engine.State.GetOrCreateLocalPlayer(ELocalPlayerIndex.One).ControlledPawn as EditorFlyingCameraPawnComponent;
+        camera?.TakeScreenshot();
+    }
+    public static void LoadProject(UIInteractableComponent comp)
+    {
+        //Debug.Out("Load Project clicked");
+    }
+    public static async void SaveAll(UIInteractableComponent comp)
+    {
+        await Engine.Assets.SaveAllAsync();
     }
 
     //TODO: allow scripts to add menu options with attributes
-    private static List<UIEditorComponent.MenuOption> GenerateRootMenu()
+    private static List<ToolbarButton> GenerateRootMenu()
     {
         return [
-            new("File", null, [Key.ControlLeft, Key.F],
+            new("File", [Key.ControlLeft, Key.F],
             [
-                new("Save", x => Engine.Assets.SaveAll())
-
+                new("Save", SaveAll),
+                new("Open", [
+                    new ToolbarButton("Project", LoadProject),
+                    ])
             ]),
             new("Edit"),
             new("Assets"),
+            new("Tools", [Key.ControlLeft, Key.T],
+            [
+                new("Take Screenshot", TakeScreenshot),
+            ]),
             new("View"),
             new("Window"),
             new("Help"),
@@ -484,6 +502,22 @@ internal class Program
         dirLightComp.SetShadowMapResolution(2048, 2048);
     }
 
+    private static void AddDirLight2(SceneNode rootNode)
+    {
+        var dirLightNode2 = new SceneNode(rootNode) { Name = "TestDirectionalLightNode2" };
+        var dirLightTransform2 = dirLightNode2.SetTransform<Transform>();
+        dirLightTransform2.Translation = new Vector3(0.0f, 10.0f, 0.0f);
+        dirLightTransform2.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitX, MathF.PI / 2.0f);
+        if (!dirLightNode2.TryAddComponent<DirectionalLightComponent>(out var dirLightComp2))
+            return;
+
+        dirLightComp2!.Name = "TestDirectionalLight2";
+        dirLightComp2.Color = new Vector3(1.0f, 0.8f, 0.8f);
+        dirLightComp2.Intensity = 1.0f;
+        dirLightComp2.Scale = new Vector3(1000.0f, 1000.0f, 1000.0f);
+        dirLightComp2.CastsShadows = true;
+    }
+
     private static void AddSpotLight(SceneNode rootNode)
     {
         var spotLightNode = new SceneNode(rootNode) { Name = "TestSpotLightNode" };
@@ -501,22 +535,6 @@ internal class Program
         spotLightComp.SetCutoffs(10, 40);
         spotLightComp.CastsShadows = true;
         spotLightComp.SetShadowMapResolution(256, 256);
-    }
-
-    private static void AddDirLight2(SceneNode rootNode, Transform dirLightTransform, DirectionalLightComponent dirLightComp)
-    {
-        var dirLightNode2 = new SceneNode(rootNode) { Name = "TestDirectionalLightNode2" };
-        var dirLightTransform2 = dirLightNode2.SetTransform<Transform>();
-        dirLightTransform2.Translation = new Vector3(0.0f, 10.0f, 0.0f);
-        dirLightTransform.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitX, MathF.PI / 2.0f);
-        if (!dirLightNode2.TryAddComponent<DirectionalLightComponent>(out var dirLightComp2))
-            return;
-        
-        dirLightComp!.Name = "TestDirectionalLight2";
-        dirLightComp.Color = new Vector3(1.0f, 0.8f, 0.8f);
-        dirLightComp.Intensity = 1.0f;
-        dirLightComp.Scale = new Vector3(1000.0f, 1000.0f, 1000.0f);
-        dirLightComp.CastsShadows = true;
     }
 
     private static void AddPointLight(SceneNode rootNode)
@@ -600,9 +618,10 @@ internal class Program
             PostProcessSteps.JoinIdenticalVertices |
             PostProcessSteps.CalculateTangentSpace;
 
-        //ModelImporter.ImportAsync(fbxPathDesktop, flags, null, MaterialFactory, importedModelsNode, 1, true).ContinueWith(OnFinishedAvatar);
-
-        //ModelImporter.ImportAsync(Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj"), flags, null, MaterialFactory, importedModelsNode, 1, false).ContinueWith(OnFinishedWorld);
+        if (AnimatedModel)
+            ModelImporter.ImportAsync(fbxPathDesktop, flags, null, MaterialFactory, importedModelsNode, 1, true).ContinueWith(OnFinishedAvatar);
+        if (StaticModel)
+            ModelImporter.ImportAsync(Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj"), flags, null, MaterialFactory, importedModelsNode, 1, false).ContinueWith(OnFinishedWorld);
     }
 
     private static void AddSkybox(SceneNode rootNode, XRTexture2D skyEquirect)

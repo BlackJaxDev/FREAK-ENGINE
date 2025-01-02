@@ -14,18 +14,19 @@ namespace XREngine.Rendering.UI
             }
 
             private float _offset;
-            public float Offset
+            public float BottomOrLeftOffset
             {
                 get => _offset;
                 set => SetField(ref _offset, value);
             }
 
-            public bool Horizontal => (Owner?.Parent as UIListTransform)?.DisplayHorizontal ?? false;
+            public UIListTransform? Transform => Owner?.Parent as UIListTransform;
+            public bool Horizontal => Transform?.DisplayHorizontal ?? false;
 
             public override Matrix4x4 GetRelativeItemMatrix()
                 => Matrix4x4.CreateTranslation(
-                    Horizontal ? Offset : 0,
-                    Horizontal ? 0 : Offset,
+                    Horizontal ? BottomOrLeftOffset : 0,
+                    Horizontal ? 0 : BottomOrLeftOffset,
                     0);
         }
     }

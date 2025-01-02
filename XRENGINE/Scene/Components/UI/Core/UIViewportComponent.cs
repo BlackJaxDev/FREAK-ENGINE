@@ -5,7 +5,7 @@ namespace XREngine.Rendering.UI
     /// <summary>
     /// Houses a viewport that renders a scene from a designated camera.
     /// </summary>
-    public class UIViewportComponent : UIMaterialComponent, IRenderable
+    public class UIViewportComponent : UIMaterialComponent
     {
         public event DelSetUniforms? SettingUniforms;
 
@@ -20,8 +20,8 @@ namespace XREngine.Rendering.UI
         {
             _fbo = new XRMaterialFrameBuffer(Material);
 
-            if (RenderCommand.Mesh is not null)
-                RenderCommand.Mesh.SettingUniforms += SetUniforms;
+            if (RenderCommand3D.Mesh is not null)
+                RenderCommand3D.Mesh.SettingUniforms += SetUniforms;
 
             Engine.Time.Timer.SwapBuffers += SwapBuffers;
             //Engine.Time.Timer.UpdateFrame += Update;

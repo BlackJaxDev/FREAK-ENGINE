@@ -8,7 +8,7 @@ namespace XREngine.Editor.UI.Components;
 public partial class UIProjectBrowserComponent : UIComponent
 {
     private Dictionary<string, FileInfo> _fileCache = [];
-    private EArrangement _arrangement = EArrangement.Grid;
+    private EArrangement _arrangement = EArrangement.List;
     private float _gridItemSize = 100.0f;
     private bool _showHiddenFiles = false;
     private EFileDetails _displayedFileDetails = EFileDetails.Name | EFileDetails.Size | EFileDetails.Date | EFileDetails.Type;
@@ -52,6 +52,7 @@ public partial class UIProjectBrowserComponent : UIComponent
     protected override void OnComponentActivated()
     {
         base.OnComponentActivated();
+        _fileCache = GetCurrentFiles();
         LinkCallbacks();
     }
 

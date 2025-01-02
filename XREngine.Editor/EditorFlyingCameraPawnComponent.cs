@@ -16,7 +16,7 @@ using XREngine.Scene.Transforms;
 
 namespace XREngine.Editor;
 
-public class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent, IRenderable
+public partial class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent, IRenderable
 {
     public EditorFlyingCameraPawnComponent()
     {
@@ -271,11 +271,15 @@ public class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent, IRende
         base.Tick();
         Highlight();
         if (CtrlPressed && (Keyboard?.Pressed(EKey.S) ?? false))
-            QueueScreenshot();
+            TakeScreenshot();
     }
 
     private bool _wantsScreenshot = false;
-    private void QueueScreenshot()
+
+    /// <summary>
+    /// Takes a screenshot of the current viewport and saves it to the desktop.
+    /// </summary>
+    public void TakeScreenshot()
         => _wantsScreenshot = true;
 
     public override void RegisterInput(InputInterface input)

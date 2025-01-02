@@ -10,9 +10,9 @@ namespace XREngine.Modeling
 
         private MeshGenerator()
         {
-            Vertices = new List<Vector3>();
-            Indices = new List<int>();
-            Normals = new List<Vector3>();
+            Vertices = [];
+            Indices = [];
+            Normals = [];
         }
         private int GetMiddlePoint(int p1, int p2, float radius, IDictionary<long, int> cache)
         {
@@ -54,45 +54,45 @@ namespace XREngine.Modeling
             AddVertex(new Vector3(-t, 0, 1) * radius);
 
             int[][] faces =
-            {
-                new[] {0, 11, 5},
-                new[] {0, 5, 1},
-                new[] {0, 1, 7},
-                new[] {0, 7, 10},
-                new[] {0, 10, 11},
-                new[] {1, 5, 9},
-                new[] {5, 11, 4},
-                new[] {11, 10, 2},
-                new[] {10, 7, 6},
-                new[] {7, 1, 8},
-                new[] {3, 9, 4},
-                new[] {3, 4, 2},
-                new[] {3, 2, 6},
-                new[] {3, 6, 8},
-                new[] {3, 8, 9},
-                new[] {4, 9, 5},
-                new[] {2, 4, 11},
-                new[] {6, 2, 10},
-                new[] {8, 6, 7},
-                new[] {9, 8, 1}
-            };
+            [
+                [0, 11, 5],
+                [0, 5, 1],
+                [0, 1, 7],
+                [0, 7, 10],
+                [0, 10, 11],
+                [1, 5, 9],
+                [5, 11, 4],
+                [11, 10, 2],
+                [10, 7, 6],
+                [7, 1, 8],
+                [3, 9, 4],
+                [3, 4, 2],
+                [3, 2, 6],
+                [3, 6, 8],
+                [3, 8, 9],
+                [4, 9, 5],
+                [2, 4, 11],
+                [6, 2, 10],
+                [8, 6, 7],
+                [9, 8, 1]
+            ];
 
             IDictionary<long, int> middlePointCache = new Dictionary<long, int>();
             List<int[]> refinedFaces = new(faces);
 
             for (int i = 0; i < detailLevel; i++)
             {
-                List<int[]> newFaces = new();
+                List<int[]> newFaces = [];
                 foreach (int[] face in refinedFaces)
                 {
                     int a = GetMiddlePoint(face[0], face[1], radius, middlePointCache);
                     int b = GetMiddlePoint(face[1], face[2], radius, middlePointCache);
                     int c = GetMiddlePoint(face[2], face[0], radius, middlePointCache);
 
-                    newFaces.Add(new[] { face[0], a, c });
-                    newFaces.Add(new[] { face[1], b, a });
-                    newFaces.Add(new[] { face[2], c, b });
-                    newFaces.Add(new[] { a, b, c });
+                    newFaces.Add([face[0], a, c]);
+                    newFaces.Add([face[1], b, a]);
+                    newFaces.Add([face[2], c, b]);
+                    newFaces.Add([a, b, c]);
                 }
 
                 refinedFaces = newFaces;
@@ -243,12 +243,12 @@ namespace XREngine.Modeling
         }
         public void SubdivideMesh()
         {
-            Dictionary<int, List<int>> vertexNeighbors = new();
-            Dictionary<Edge, int> edgeVertices = new();
-            List<int> newTriangles = new();
+            Dictionary<int, List<int>> vertexNeighbors = [];
+            Dictionary<Edge, int> edgeVertices = [];
+            List<int> newTriangles = [];
 
             for (int i = 0; i < Vertices.Count; i++)
-                vertexNeighbors.Add(i, new List<int>());
+                vertexNeighbors.Add(i, []);
             
             for (int i = 0; i < Indices.Count; i += 3)
             {
@@ -258,15 +258,11 @@ namespace XREngine.Modeling
                     int next = Indices[i + (j + 1) % 3];
 
                     if (!vertexNeighbors[current].Contains(next))
-                    {
                         vertexNeighbors[current].Add(next);
-                    }
-
+                    
                     if (!vertexNeighbors[next].Contains(current))
-                    {
                         vertexNeighbors[next].Add(current);
-                    }
-
+                    
                     Edge edge = new(current, next);
                     if (!edgeVertices.ContainsKey(edge))
                     {
@@ -280,20 +276,17 @@ namespace XREngine.Modeling
             Array.Copy(Vertices.ToArray(), newVertices, Vertices.Count);
 
             foreach (var edge in edgeVertices)
-            {
-                Vector3 midpoint = (Vertices[edge.Key.vertex1] + Vertices[edge.Key.vertex2]) * 0.5f;
-                newVertices[edge.Value] = midpoint;
-            }
-
+                newVertices[edge.Value] = (Vertices[edge.Key.vertex1] + Vertices[edge.Key.vertex2]) * 0.5f;
+            
             for (int i = 0; i < Indices.Count; i += 3)
             {
-                int[] cornerVertices = new int[] { Indices[i], Indices[i + 1], Indices[i + 2] };
-                int[] midVertices = new int[]
-                {
+                int[] cornerVertices = [Indices[i], Indices[i + 1], Indices[i + 2]];
+                int[] midVertices =
+                [
                     edgeVertices[new Edge(cornerVertices[0], cornerVertices[1])],
                     edgeVertices[new Edge(cornerVertices[1], cornerVertices[2])],
                     edgeVertices[new Edge(cornerVertices[2], cornerVertices[0])]
-                };
+                ];
 
                 newTriangles.Add(cornerVertices[0]);
                 newTriangles.Add(midVertices[0]);
@@ -312,7 +305,7 @@ namespace XREngine.Modeling
                 newTriangles.Add(midVertices[2]);
             }
 
-            Vertices = newVertices.ToList();
+            Vertices = [.. newVertices];
             Indices = newTriangles;
 
             RecalculateNormals();
@@ -338,7 +331,7 @@ namespace XREngine.Modeling
             for (int i = 0; i < normals.Length; i++)
                 Vector3.Normalize(normals[i]);
             
-            Normals = normals.ToList();
+            Normals = [.. normals];
         }
     }
 }

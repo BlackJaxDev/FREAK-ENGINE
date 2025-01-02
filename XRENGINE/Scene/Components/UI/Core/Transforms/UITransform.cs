@@ -1,7 +1,6 @@
 ﻿using System.Drawing;
 using System.Numerics;
 using XREngine.Components;
-using XREngine.Data.Colors;
 using XREngine.Data.Core;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
@@ -159,10 +158,17 @@ namespace XREngine.Rendering.UI
             Scale = new Vector3(newScale, Scale.Z);
         }
 
+        public event Action<UITransform>? LayoutInvalidated;
+        protected void OnLayoutInvalidated()
+            => LayoutInvalidated?.Invoke(this);
         public virtual void InvalidateLayout()
         {
             if (ParentCanvas != null && ParentCanvas != this)
                 ParentCanvas.InvalidateLayout();
+            MarkLocalModified();
+            if (Parent is UIBoundableTransform parent && parent.UsesAutoSizing)
+                parent.InvalidateLayout();
+            OnLayoutInvalidated();
         }
 
         /// <summary>
@@ -174,33 +180,22 @@ namespace XREngine.Rendering.UI
 
         }
 
-        public bool IsVisible
-        {
-            get => Visibility == EVisibility.Visible;
-            set
-            {
-                if (value)
-                    Visibility = EVisibility.Visible;
-                else if (CollapseOnHide)
-                    Visibility = EVisibility.Collapsed;
-                else
-                    Visibility = EVisibility.Hidden;
-            }
-        }
+        public bool IsVisible => Visibility == EVisibility.Visible;
+        public bool IsHidden => Visibility == EVisibility.Hidden;
+        public bool IsCollapsed => Visibility == EVisibility.Collapsed;
 
-        private bool _collapseOnHide = true;
-        public bool CollapseOnHide
-        {
-            get => _collapseOnHide;
-            set => SetField(ref _collapseOnHide, value);
+        public void Show() => Visibility = EVisibility.Visible;
+        public void Hide() => Visibility = EVisibility.Hidden;
+        public void Collapse() => Visibility = EVisibility.Collapsed;
 
-        }
         protected EVisibility _visibility = EVisibility.Visible;
         public virtual EVisibility Visibility
         {
             get => _visibility;
             set => SetField(ref _visibility, value);
         }
+
+        public bool IsVisibleInHierarchy => IsVisible && (Parent is not UITransform tfm || tfm.IsVisibleInHierarchy);
 
         private UIChildPlacementInfo? _placementInfo = null;
         /// <summary>
@@ -357,10 +352,10 @@ namespace XREngine.Rendering.UI
                 case nameof(Translation):
                 case nameof(DepthTranslation):
                 case nameof(Scale):
-                    MarkLocalModified();
+                    InvalidateLayout();
                     break;
                 case nameof(Visibility):
-                    DebugRenderInfo2D.IsVisible = IsVisible;
+                    InvalidateLayout();
                     break;
                 case nameof(ParentCanvas):
                     if (this is IRenderable r)
@@ -372,10 +367,10 @@ namespace XREngine.Rendering.UI
                             if (child is UITransform uiTransform)
                                 uiTransform.ParentCanvas = ParentCanvas;
                     }
-                    ParentCanvas?.InvalidateLayout();
+                    InvalidateLayout();
                     break;
                 case nameof(PlacementInfo):
-                    ParentCanvas?.InvalidateLayout();
+                    InvalidateLayout();
                     break;
                 case nameof(Parent):
                     ParentCanvas = Parent switch
@@ -384,6 +379,7 @@ namespace XREngine.Rendering.UI
                         UITransform uiTfm => uiTfm.ParentCanvas,
                         _ => null,
                     };
+                    InvalidateLayout();
                     break;
             }
         }

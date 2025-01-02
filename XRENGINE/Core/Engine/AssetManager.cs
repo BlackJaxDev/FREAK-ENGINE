@@ -710,5 +710,12 @@ namespace XREngine
                 Save(asset);
             DirtyAssets.Clear();
         }
+
+        public async Task SaveAllAsync()
+        {
+            var tasks = DirtyAssets.Select(SaveAsync);
+            await Task.WhenAll(tasks);
+            DirtyAssets.Clear();
+        }
     }
 }

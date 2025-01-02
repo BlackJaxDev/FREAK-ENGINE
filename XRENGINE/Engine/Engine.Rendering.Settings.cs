@@ -46,7 +46,7 @@ namespace XREngine
                 private bool _calculateSkinningInComputeShader = false;
                 private string _defaultFontFolder = "Roboto";
                 private string _defaultFontFileName = "Roboto-Regular.ttf";
-                private bool _renderTransformDebugInfo = true;
+                private bool _renderTransformDebugInfo = false;
                 private bool _renderMesh3DBounds = true;
                 private bool _renderMesh2DBounds = true;
                 private bool _renderUITransformCoordinate = true;

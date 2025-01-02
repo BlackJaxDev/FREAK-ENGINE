@@ -944,6 +944,9 @@ namespace XREngine.Scene
         public SceneNode? LastChild
             => Transform.LastChild()?.SceneNode;
 
+        public SceneNode? GetChild(int index)
+            => Transform.GetChild(index)?.SceneNode;
+
         public bool IsTransformNull => _transform is null;
     }
 }

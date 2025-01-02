@@ -23,24 +23,14 @@ namespace XREngine.Rendering.UI
         Right
     }
 
-    [RequiresTransform(typeof(UIBoundableTransform))]
-    public class UITextComponent : UIComponent, IRenderable
+    public class UITextComponent : UIRenderableComponent
     {
-        public UIBoundableTransform BoundableTransform => TransformAs<UIBoundableTransform>(true)!;
-
         public UITextComponent()
         {
-            RenderedObjects[0] = RenderInfo3D = RenderInfo3D.New(this, _rc3D);
-            RenderedObjects[1] = RenderInfo2D = RenderInfo2D.New(this, _rc2D);
+            RenderPass = (int)EDefaultRenderPass.TransparentForward;
         }
 
         private const string TextColorUniformName = "TextColor";
-        private readonly RenderCommandMesh3D _rc3D = new((int)EDefaultRenderPass.TransparentForward);
-        private readonly RenderCommandMesh2D _rc2D = new((int)EDefaultRenderPass.TransparentForward);
-
-        public RenderInfo[] RenderedObjects { get; } = new RenderInfo[2];
-        public RenderInfo3D RenderInfo3D { get; }
-        public RenderInfo2D RenderInfo2D { get; }
 
         private readonly List<(Vector4 transform, Vector4 uvs)> _glyphs = [];
         private XRDataBuffer? _uvsBuffer;
@@ -137,29 +127,6 @@ namespace XREngine.Rendering.UI
             set => SetField(ref _hideOverflow, value);
         }
 
-        protected override void OnTransformWorldMatrixChanged(TransformBase transform)
-        {
-            base.OnTransformWorldMatrixChanged(transform);
-
-            _rc3D.WorldMatrix = transform.WorldMatrix;
-            _rc2D.WorldMatrix = transform.WorldMatrix;
-
-            RenderInfo3D.PreAddRenderCommandsCallback = ShouldRender3D;
-            RenderInfo2D.PreAddRenderCommandsCallback = ShouldRender2D;
-
-            BoundableTransform.UpdateRenderInfoBounds(RenderInfo2D, RenderInfo3D);
-        }
-        private bool ShouldRender3D(RenderInfo info, RenderCommandCollection passes, XRCamera? camera)
-        {
-            var canvas = BoundableTransform?.ParentCanvas;
-            return canvas is not null && canvas.DrawSpace != ECanvasDrawSpace.Screen;
-        }
-        private bool ShouldRender2D(RenderInfo info, RenderCommandCollection passes, XRCamera? camera)
-        {
-            var canvas = BoundableTransform?.ParentCanvas;
-            return canvas is not null && canvas.DrawSpace == ECanvasDrawSpace.Screen;
-        }
-
         override protected void OnTransformChanging()
         {
             base.OnTransformChanging();
@@ -244,7 +211,7 @@ namespace XREngine.Rendering.UI
                     break;
                 case nameof(RenderPass):
                     {
-                        var mat = _rc3D.Mesh?.Material;
+                        var mat = RenderCommand3D.Mesh?.Material;
                         if (mat is not null)
                             mat.RenderPass = RenderPass;
                         else
@@ -253,7 +220,7 @@ namespace XREngine.Rendering.UI
                     break;
                 case nameof(RenderParameters):
                     {
-                        var mat = _rc3D.Mesh?.Material;
+                        var mat = RenderCommand3D.Mesh?.Material;
                         if (mat is not null)
                             mat.RenderOptions = RenderParameters;
                         else
@@ -262,7 +229,7 @@ namespace XREngine.Rendering.UI
                     break;
                 case nameof(Color):
                     {
-                        var mat = _rc3D.Mesh?.Material;
+                        var mat = Mesh?.Material;
                         if (mat is not null)
                             mat.SetVector4(TextColorUniformName, Color);
                         else
@@ -347,13 +314,14 @@ namespace XREngine.Rendering.UI
         /// <param name="atlas"></param>
         private void VerifyCreated(bool forceRemake, XRTexture2D? atlas)
         {
-            if (!forceRemake && _rc3D.Mesh is not null || atlas is null)
+            var mesh = Mesh;
+            if (!forceRemake && mesh is not null || atlas is null)
                 return;
 
-            if (_rc3D.Mesh is not null)
+            if (mesh is not null)
             {
-                _rc3D.Mesh.SettingUniforms -= MeshRend_SettingUniforms;
-                _rc3D.Mesh.Destroy();
+                mesh.SettingUniforms -= MeshRend_SettingUniforms;
+                mesh.Destroy();
             }
 
             var rend = new XRMeshRenderer(
@@ -362,15 +330,7 @@ namespace XREngine.Rendering.UI
 
             rend.SettingUniforms += MeshRend_SettingUniforms;
             CreateSSBOs(rend);
-            _rc3D.Mesh = rend;
-            _rc2D.Mesh = rend;
-        }
-
-        private int _renderPass = (int)EDefaultRenderPass.TransparentForward;
-        public int RenderPass
-        {
-            get => _renderPass;
-            set => SetField(ref _renderPass, value);
+            Mesh = rend;
         }
 
         private RenderingParameters _renderParameters = new()
@@ -450,8 +410,8 @@ namespace XREngine.Rendering.UI
         /// <param name="count"></param>
         private void ResizeGlyphCount(uint count)
         {
-            _rc3D.Instances = count;
-            _rc2D.Instances = count;
+            RenderCommand3D.Instances = count;
+            RenderCommand2D.Instances = count;
             if (_allocatedGlyphCount < count)
             {
                 _allocatedGlyphCount = count;

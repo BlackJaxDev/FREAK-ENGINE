@@ -16,14 +16,16 @@ namespace XREngine.Rendering.UI
         public UIBoundableTransform() : base(null)
         {
             _normalizedPivot = Vector2.Zero;
-            _width = 0.0f;
-            _height = 0.0f;
+            _width = null;
+            _height = null;
             _minHeight = null;
             _minWidth = null;
             _maxHeight = null;
             _maxWidth = null;
             _margins = Vector4.Zero;
             _padding = Vector4.Zero;
+            _minAnchor = Vector2.Zero;
+            _maxAnchor = Vector2.One;
         }
         
         protected Vector2 _actualSize = new();
@@ -44,7 +46,7 @@ namespace XREngine.Rendering.UI
         /// </summary>
         public float ActualHeight => ActualSize.Y;
 
-        private float? _width;
+        private float? _width = null;
         /// <summary>
         /// The requested width of this component before layouting.
         /// </summary>
@@ -54,7 +56,7 @@ namespace XREngine.Rendering.UI
             set => SetField(ref _width, value);
         }
 
-        private float? _height;
+        private float? _height = null;
         /// <summary>
         /// The requested height of this component before layouting.
         /// </summary>
@@ -278,7 +280,7 @@ namespace XREngine.Rendering.UI
         /// </summary>
         /// <returns></returns>
         public float GetAspect()
-            => GetWidth() / GetHeight();
+            => ActualWidth / ActualHeight;
 
         private Func<UIBoundableTransform, float>? _calcAutoHeightCallback = null;
         /// <summary>
@@ -314,7 +316,12 @@ namespace XREngine.Rendering.UI
         /// </summary>
         /// <returns></returns>
         public float GetWidth()
-            => Width ?? CalcAutoWidthCallback?.Invoke(this) ?? GetMaxChildWidth();
+        {
+            if (IsCollapsed)
+                return 0.0f;
+
+            return Width ?? CalcAutoWidthCallback?.Invoke(this) ?? GetMaxChildWidth();
+        }
 
         private float ApplyHorizontalPadding(float width)
             => width + Padding.X + Padding.Z;
@@ -327,7 +334,12 @@ namespace XREngine.Rendering.UI
         /// </summary>
         /// <returns></returns>
         public float GetHeight()
-            => Height ?? CalcAutoHeightCallback?.Invoke(this) ?? GetMaxChildHeight();
+        {
+            if (IsCollapsed)
+                return 0.0f;
+
+            return Height ?? CalcAutoHeightCallback?.Invoke(this) ?? GetMaxChildHeight();
+        }
 
         private float ApplyVerticalPadding(float height)
             => height + Padding.Y + Padding.W;
@@ -341,7 +353,18 @@ namespace XREngine.Rendering.UI
         public override float GetMaxChildWidth()
         {
             lock (Children)
-                return Children.Where(x => x is UIBoundableTransform).Cast<UIBoundableTransform>().Max(x => x.ApplyHorizontalMargins(x.GetWidth()));
+            {
+                var children = Children.
+                    Where(x => x is UIBoundableTransform b && !b.IsCollapsed && !b.ExcludeFromParentAutoCalcWidth).
+                    Cast<UIBoundableTransform>();
+                float maxWidth = 0.0f;
+                foreach (var child in children)
+                {
+                    float width = child.ApplyHorizontalMargins(child.GetWidth());
+                    maxWidth = Math.Max(maxWidth, width);
+                }
+                return maxWidth;
+            }
         }
 
         /// <summary>
@@ -351,7 +374,18 @@ namespace XREngine.Rendering.UI
         public override float GetMaxChildHeight()
         {
             lock (Children)
-                return Children.Where(x => x is UIBoundableTransform).Cast<UIBoundableTransform>().Max(x => x.ApplyVerticalMargins(x.GetHeight()));
+            {
+                var children = Children.
+                    Where(x => x is UIBoundableTransform b && !b.IsCollapsed && !b.ExcludeFromParentAutoCalcHeight).
+                    Cast<UIBoundableTransform>();
+                float maxHeight = 0.0f;
+                foreach (var child in children)
+                {
+                    float height = child.ApplyVerticalMargins(child.GetHeight());
+                    maxHeight = Math.Max(maxHeight, height);
+                }
+                return maxHeight;
+            }
         }
 
         private void ClampSize(ref Vector2 size)
@@ -445,6 +479,20 @@ namespace XREngine.Rendering.UI
         {
             get => _regionWorldTransform;
             protected set => SetField(ref _regionWorldTransform, value);
+        }
+
+        private bool _excludeFromParentAutoCalcWidth = false;
+        public bool ExcludeFromParentAutoCalcWidth
+        {
+            get => _excludeFromParentAutoCalcWidth;
+            set => SetField(ref _excludeFromParentAutoCalcWidth, value);
+        }
+
+        private bool _excludeFromParentAutoCalcHeight = false;
+        public bool ExcludeFromParentAutoCalcHeight
+        {
+            get => _excludeFromParentAutoCalcHeight;
+            set => SetField(ref _excludeFromParentAutoCalcHeight, value);
         }
 
         protected override void RenderDebug(bool shadowPass)

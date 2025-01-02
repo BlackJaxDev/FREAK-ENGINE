@@ -51,6 +51,8 @@ namespace XREngine.Rendering.UI
         public event DelMouseMove? MouseMove;
         public event Action<UIInteractableComponent>? MouseOverlapEnter;
         public event Action<UIInteractableComponent>? MouseOverlapLeave;
+        public event Action<UIInteractableComponent>? MouseDirectOverlapEnter;
+        public event Action<UIInteractableComponent>? MouseDirectOverlapLeave;
         public event Action<UIInteractableComponent>? GamepadNavigateEnter;
         public event Action<UIInteractableComponent>? GamepadNavigateLeave;
 
@@ -109,12 +111,23 @@ namespace XREngine.Rendering.UI
             set => SetField(ref _needsMouseMove, value);
         }
 
+        private bool _interactOnButtonDown = false;
+        public bool InteractOnButtonDown
+        {
+            get => _interactOnButtonDown;
+            set => SetField(ref _interactOnButtonDown, value);
+        }
+
         protected virtual void OnMouseMove(float x, float y)
             => MouseMove?.Invoke(x, y, this);
         protected virtual void OnMouseOverlapEnter()
             => MouseOverlapEnter?.Invoke(this);
         protected virtual void OnMouseOverlapLeave()
             => MouseOverlapLeave?.Invoke(this);
+        protected virtual void OnMouseDirectOverlapEnter()
+            => MouseDirectOverlapEnter?.Invoke(this);
+        protected virtual void OnMouseDirectOverlapLeave()
+            => MouseDirectOverlapLeave?.Invoke(this);
         protected virtual void OnGamepadNavigateEnter()
             => GamepadNavigateEnter?.Invoke(this);
         protected virtual void OnGamepadNavigateLeave()
@@ -167,7 +180,6 @@ namespace XREngine.Rendering.UI
         public void OnBack()
         {
             BackAction?.Invoke(this);
-            IsFocused = false;
         }
 
         public event Action<UIInteractableComponent>? InteractAction;
@@ -178,7 +190,6 @@ namespace XREngine.Rendering.UI
         public void OnInteract()
         {
             InteractAction?.Invoke(this);
-            IsFocused = true;
         }
 
         protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
@@ -189,6 +200,10 @@ namespace XREngine.Rendering.UI
                 case nameof(IsMouseOver):
                     if (IsMouseOver)
                         OnMouseOverlapEnter();
+                    break;
+                case nameof(IsMouseDirectlyOver):
+                    if (IsMouseDirectlyOver)
+                        OnMouseDirectOverlapEnter();
                     break;
                 case nameof(IsFocused):
                     if (IsFocused)
@@ -207,6 +222,10 @@ namespace XREngine.Rendering.UI
                     case nameof(IsMouseOver):
                         if (IsMouseOver)
                             OnMouseOverlapLeave();
+                        break;
+                    case nameof(IsMouseDirectlyOver):
+                        if (IsMouseDirectlyOver)
+                            OnMouseDirectOverlapLeave();
                         break;
                     case nameof(IsFocused):
                         if (IsFocused)
