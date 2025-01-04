@@ -39,7 +39,7 @@ void main()
     vec3 FragPosVS = ViewPosFromDepth(Depth, uv);
 
     vec3 randomVec = vec3(texture(Texture1, uv * NoiseScale).rg * 2.0f - 1.0f, 0.0f);
-    vec3 viewNormal = normalize(vec3(ProjMatrix * inverse(InverseViewMatrix) * vec4(Normal, 0.0f)));
+    vec3 viewNormal = normalize((inverse(InverseViewMatrix) * vec4(Normal, 0.0f)).rgb);
     vec3 viewTangent = normalize(randomVec - viewNormal * dot(randomVec, viewNormal));
     vec3 viewBitangent = cross(viewNormal, viewTangent);
     mat3 TBN = mat3(viewTangent, viewBitangent, viewNormal);

@@ -8,7 +8,7 @@ namespace XREngine.Rendering.UI
     /// A transform that splits two children into two regions.
     /// The user can drag the splitter to resize the regions.
     /// </summary>
-    public class UISplitTransform : UIBoundableTransform
+    public class UIDualSplitTransform : UIBoundableTransform
     {
         private bool _verticalSplit = false;
         public bool VerticalSplit
@@ -67,10 +67,15 @@ namespace XREngine.Rendering.UI
         {
             var a = First;
             var b = Second;
-            if (a == null || b == null)
+            if (a is null)
                 return;
 
-            if (VerticalSplit)
+            if (b is null)
+            {
+                a.FitLayout(parentRegion);
+                return;
+            }
+            else if (VerticalSplit)
             {
                 float topSize, bottomSize;
 
@@ -149,7 +154,7 @@ namespace XREngine.Rendering.UI
                 set => SetField(ref _offset, value);
             }
 
-            public bool Vertical => (Owner?.Parent as UISplitTransform)?.VerticalSplit ?? false;
+            public bool Vertical => (Owner?.Parent as UIDualSplitTransform)?.VerticalSplit ?? false;
 
             public override Matrix4x4 GetRelativeItemMatrix()
                 => Matrix4x4.CreateTranslation(

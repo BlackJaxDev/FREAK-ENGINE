@@ -146,7 +146,7 @@ public partial class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent
 
         _lastRaycastSegment = vp.GetWorldSegment(p);
 
-        vp.PickScene(p, true, true, true, _lastPickResults);
+        vp.PickScene(p, false, true, true, _lastPickResults);
         //Task.Run(() => SetRaycastResult(orderedResults));
 
         //if (RenderRaycast)

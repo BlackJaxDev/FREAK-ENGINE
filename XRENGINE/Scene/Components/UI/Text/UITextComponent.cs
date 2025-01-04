@@ -1,12 +1,8 @@
 ﻿using System.Numerics;
-using XREngine.Core.Attributes;
 using XREngine.Data.Colors;
 using XREngine.Data.Core;
 using XREngine.Data.Rendering;
-using XREngine.Rendering.Commands;
-using XREngine.Rendering.Info;
 using XREngine.Rendering.Models.Materials;
-using XREngine.Scene.Transforms;
 
 namespace XREngine.Rendering.UI
 {
@@ -155,7 +151,7 @@ namespace XREngine.Rendering.UI
             {
                 case nameof(UIBoundableTransform.ActualLocalBottomLeftTranslation):
                 case nameof(UIBoundableTransform.ActualSize):
-                    UpdateText(false);
+                    UpdateText(false, false);
                     break;
             }
         }
@@ -244,7 +240,7 @@ namespace XREngine.Rendering.UI
         /// Verifies that the mesh is created and the font atlas is loaded.
         /// </summary>
         /// <param name="forceRemake"></param>
-        private void UpdateText(bool forceRemake)
+        private void UpdateText(bool forceRemake, bool invalidateLayout = true)
         {
             Font ??= FontGlyphSet.LoadDefaultFont();
             VerifyCreated(forceRemake, Font.Atlas);
@@ -258,7 +254,7 @@ namespace XREngine.Rendering.UI
                 AlignQuads(tfm, w, h);
                 count = (uint)(_glyphs?.Count ?? 0);
             }
-            ResizeGlyphCount(count);
+            ResizeGlyphCount(count, invalidateLayout);
         }
 
         private void AlignQuads(UIBoundableTransform tfm, float w, float h)
@@ -408,7 +404,7 @@ namespace XREngine.Rendering.UI
         /// Resizes all SSBOs, sets glyph instance count, and invalidates layout if auto-sizing is enabled.
         /// </summary>
         /// <param name="count"></param>
-        private void ResizeGlyphCount(uint count)
+        private void ResizeGlyphCount(uint count, bool invalidateLayout)
         {
             RenderCommand3D.Instances = count;
             RenderCommand2D.Instances = count;
@@ -422,9 +418,12 @@ namespace XREngine.Rendering.UI
             }
             _dataChanged = true;
 
-            var tfm = BoundableTransform;
-            if (tfm.UsesAutoSizing)
-                tfm.InvalidateLayout();
+            if (invalidateLayout)
+            {
+                var tfm = BoundableTransform;
+                if (tfm.UsesAutoSizing)
+                    tfm.InvalidateLayout();
+            }
         }
 
         /// <summary>

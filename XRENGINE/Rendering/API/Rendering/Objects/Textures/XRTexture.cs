@@ -295,6 +295,7 @@ namespace XREngine.Rendering
         }
 
         public virtual bool IsResizeable { get; } = false;
+        public virtual bool HasAlphaChannel { get; } = false;
 
         public void AttachToFBO(XRFrameBuffer target, int mipLevel = 0)
         {

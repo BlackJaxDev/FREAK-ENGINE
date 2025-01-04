@@ -145,7 +145,7 @@ namespace XREngine.Components
 
         public UIComponent?[] FindDeepestComponents(Vector2 normalizedViewportPosition)
         {
-            var results = VisualScene2D.RenderTree.Collect(x => x.Bounds.Contains(normalizedViewportPosition), y => y.CullingVolume?.Contains(normalizedViewportPosition) ?? true);
+            var results = VisualScene2D.RenderTree.Collect(x => x.Bounds.Contains(normalizedViewportPosition), y => y?.CullingVolume?.Contains(normalizedViewportPosition) ?? true);
             return OrderQuadtreeResultsByDepth(results).ToArray();
         }
 

@@ -69,10 +69,10 @@ namespace XREngine.Rendering.UI
             if (!IsLayoutInvalidated || IsNestedCanvas)
                 return;
 
+            IsLayoutInvalidated = false;
             IsUpdatingLayout = true;
             LayoutingStarted?.Invoke(this);
             FitLayout(GetRootCanvasBounds());
-            IsLayoutInvalidated = false;
             IsUpdatingLayout = false;
             LayoutingFinished?.Invoke(this);
         }

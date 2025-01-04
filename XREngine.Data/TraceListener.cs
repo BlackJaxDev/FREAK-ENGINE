@@ -7,6 +7,9 @@ namespace XREngine
         private bool _isActive;
         private readonly object _lock = new();
 
+        public event TraceListenerEventHandler? TraceListenerEvent;
+        public delegate void TraceListenerEventHandler(string? message);
+
         //TODO: output to session file using stream
         public override void WriteLine(string? message)
             => Write(message + Environment.NewLine);
@@ -23,7 +26,7 @@ namespace XREngine
                 {
                     _isActive = true;
                     base.Write(message);
-                    //TODO: output to session file using stream
+                    TraceListenerEvent?.Invoke(message);
                 }
                 finally
                 {

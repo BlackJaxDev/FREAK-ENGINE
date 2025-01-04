@@ -15,7 +15,7 @@ namespace XREngine.Rendering
     {
         private static object _lock = new();
         
-        public event Action Invalidated;
+        public event Action? Invalidated;
         public void Invalidate() => Invalidated?.Invoke();
 
         public Mipmap2D() { }

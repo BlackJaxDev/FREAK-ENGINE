@@ -374,6 +374,14 @@ namespace XREngine.Rendering
             }
         }
 
+        public override bool HasAlphaChannel => Mipmaps.Any(HasAlpha);
+
+        private static bool HasAlpha(Mipmap2D x) => x.PixelFormat switch
+        {
+            EPixelFormat.Bgra or EPixelFormat.Rgba or EPixelFormat.LuminanceAlpha => true,
+            _ => false,
+        };
+
         public unsafe void LoadFromPBO(int mipIndex)
         {
             if (_pbo is null)

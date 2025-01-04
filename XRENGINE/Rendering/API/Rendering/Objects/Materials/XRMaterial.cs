@@ -186,7 +186,7 @@ namespace XREngine.Rendering
         public static XRMaterial CreateUnlitAlphaTextureMaterialForward(XRTexture2D texture)
             => new([texture], ShaderHelper.UnlitAlphaTextureFragForward());
 
-        public static XRMaterial CreateUnlitTextureMaterialForward(XRTexture2D texture)
+        public static XRMaterial CreateUnlitTextureMaterialForward(XRTexture texture)
             => new([texture], ShaderHelper.UnlitTextureFragForward());
 
         public static XRMaterial CreateUnlitTextureMaterialForward()

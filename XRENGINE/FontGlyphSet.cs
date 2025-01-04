@@ -10,6 +10,8 @@ namespace XREngine.Rendering
     [XR3rdPartyExtensions("otf", "ttf")]
     public class FontGlyphSet : XRAsset
     {
+        private const float FontDrawSize = 100.0f;
+
         private List<string> _characters = [];
         public List<string> Characters
         {
@@ -55,7 +57,7 @@ namespace XREngine.Rendering
             }
             Characters = characters;
             SKTypeface typeface = SKTypeface.FromFile(filePath);
-            GenerateFontAtlas(typeface, characters, Path.Combine(folder, $"{name}.png"), 100.0f);
+            GenerateFontAtlas(typeface, characters, Path.Combine(folder, $"{name}.png"), FontDrawSize);
             return true;
         }
 
@@ -107,16 +109,21 @@ namespace XREngine.Rendering
             // Create a paint object
             using SKPaint paint = new()
             {
-                //IsAntialias = true,
                 Color = SKColors.White,
                 Style = style,
                 StrokeWidth = strokeWidth,
+                IsDither = true,
+                BlendMode = SKBlendMode.SrcOver,
+                IsAntialias = true,
             };
 
             using SKFont font = new(typeface, textSize);
-            font.BaselineSnap = false;
+            font.BaselineSnap = true;
             font.Edging = SKFontEdging.SubpixelAntialias;
+            font.ForceAutoHinting = true;
+            font.Subpixel = true;
             font.Embolden = embolden;
+            font.Hinting = SKFontHinting.Full;
 
             // Process each character
             foreach (string character in characters)
@@ -288,7 +295,7 @@ namespace XREngine.Rendering
                 }
 
                 Glyph glyph = glyphs[character];
-                float scale = fontSize / 100.0f;
+                float scale = fontSize / FontDrawSize;
                 float translateX = (xOffset + glyph.Bearing.X) * scale;
                 float translateY = (offset.Y + glyph.Bearing.Y) * scale;
                 float scaleX = glyph.Size.X * scale;
@@ -428,7 +435,7 @@ namespace XREngine.Rendering
                 }
 
                 Glyph glyph = glyphs[character];
-                float scale = (fontSize ?? 1.0f) / 100.0f;
+                float scale = (fontSize ?? 1.0f) / FontDrawSize;
                 float translateX = (xOffset + glyph.Bearing.X) * scale;
                 float translateY = (yOffset + glyph.Bearing.Y) * scale;
                 float scaleX = glyph.Size.X * scale;
@@ -528,7 +535,7 @@ namespace XREngine.Rendering
                 }
 
                 Glyph glyph = glyphs[character];
-                float scale = 1.0f / 100.0f;
+                float scale = 1.0f / FontDrawSize;
                 float scaleX = glyph.Size.X * scale;
                 float scaleY = -glyph.Size.Y * scale;
 

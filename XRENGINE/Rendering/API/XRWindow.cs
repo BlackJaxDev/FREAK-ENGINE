@@ -87,7 +87,7 @@ namespace XREngine.Rendering
             if (w is null)
                 return;
 
-            w.Resize -= FramebufferResizeCallback;
+            w.FramebufferResize -= FramebufferResizeCallback;
             w.Render -= RenderCallback;
         }
 
@@ -97,7 +97,7 @@ namespace XREngine.Rendering
             if (w is null)
                 return;
 
-            w.Resize += FramebufferResizeCallback;
+            w.FramebufferResize += FramebufferResizeCallback;
             w.Render += RenderCallback;
         }
 
@@ -159,6 +159,7 @@ namespace XREngine.Rendering
         {
             Renderer.FrameBufferInvalidated();
             Viewports.ForEach(vp => vp.Resize((uint)obj.X, (uint)obj.Y, false));
+            Window.DoRender();
         }
 
         public XRViewport GetOrAddViewportForPlayer(LocalPlayerController controller, bool autoSizeAllViewports)

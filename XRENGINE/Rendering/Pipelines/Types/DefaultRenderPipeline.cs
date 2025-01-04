@@ -37,8 +37,8 @@ public class DefaultRenderPipeline : RenderPipeline
     }
 
     //FBOs
-    public const string SSAOFBOName = "SSAOFBO";
-    public const string SSAOBlurFBOName = "SSAOBlurFBO";
+    public const string AmbientOcclusionFBOName = "SSAOFBO";
+    public const string AmbientOcclusionBlurFBOName = "SSAOBlurFBO";
     public const string GBufferFBOName = "GBufferFBO";
     public const string LightCombineFBOName = "LightCombineFBO";
     public const string ForwardPassFBOName = "ForwardPassFBO";
@@ -47,7 +47,7 @@ public class DefaultRenderPipeline : RenderPipeline
 
     //Textures
     public const string SSAONoiseTextureName = "SSAONoiseTexture";
-    public const string SSAOIntensityTextureName = "SSAOIntensityTexture";
+    public const string AmbientOcclusionIntensityTextureName = "SSAOIntensityTexture";
     public const string NormalTextureName = "Normal";
     public const string DepthViewTextureName = "DepthView";
     public const string StencilViewTextureName = "StencilView";
@@ -113,23 +113,23 @@ public class DefaultRenderPipeline : RenderPipeline
         using (c.AddUsing<VPRC_PushViewportRenderArea>(t => t.UseInternalResolution = true))
         {
             //Render to the SSAO FBO
-            var ssaoCommand = c.Add<VPRC_SSAO>();
+            var aoCmd = c.Add<VPRC_SSAO>();
 
-            ssaoCommand.SetGBufferInputTextureNames(
+            aoCmd.SetGBufferInputTextureNames(
                 NormalTextureName,
                 DepthViewTextureName,
                 AlbedoOpacityTextureName,
                 RMSITextureName,
                 DepthStencilTextureName);
 
-            ssaoCommand.SetOutputNames(
+            aoCmd.SetOutputNames(
                 SSAONoiseTextureName,
-                SSAOIntensityTextureName,
-                SSAOFBOName,
-                SSAOBlurFBOName,
+                AmbientOcclusionIntensityTextureName,
+                AmbientOcclusionFBOName,
+                AmbientOcclusionBlurFBOName,
                 GBufferFBOName);
 
-            using (c.AddUsing<VPRC_BindFBOByName>(x => x.FrameBufferName = SSAOFBOName))
+            using (c.AddUsing<VPRC_BindFBOByName>(x => x.FrameBufferName = AmbientOcclusionFBOName))
             {
                 c.Add<VPRC_StencilMask>().Set(~0u);
                 c.Add<VPRC_ClearByBoundFBO>();
@@ -140,8 +140,8 @@ public class DefaultRenderPipeline : RenderPipeline
             }
 
             c.Add<VPRC_DepthTest>().Enable = false;
-            c.Add<VPRC_RenderQuadToFBO>().SetTargets(SSAOFBOName, SSAOBlurFBOName);
-            c.Add<VPRC_RenderQuadToFBO>().SetTargets(SSAOBlurFBOName, GBufferFBOName);
+            c.Add<VPRC_RenderQuadToFBO>().SetTargets(AmbientOcclusionFBOName, AmbientOcclusionBlurFBOName);
+            c.Add<VPRC_RenderQuadToFBO>().SetTargets(AmbientOcclusionBlurFBOName, GBufferFBOName);
 
             //LightCombine FBO
             c.Add<VPRC_CacheOrCreateFBO>().SetOptions(
@@ -552,7 +552,7 @@ public class DefaultRenderPipeline : RenderPipeline
             GetTexture<XRTexture2D>(AlbedoOpacityTextureName)!,
             GetTexture<XRTexture2D>(NormalTextureName)!,
             GetTexture<XRTexture2D>(RMSITextureName)!,
-            GetTexture<XRTexture2D>(SSAOIntensityTextureName)!,
+            GetTexture<XRTexture2D>(AmbientOcclusionIntensityTextureName)!,
             GetTexture<XRTexture2DView>(DepthViewTextureName)!,
             diffuseTexture,
             GetTexture<XRTexture2D>(BRDFTextureName)!,

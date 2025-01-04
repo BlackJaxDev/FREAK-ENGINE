@@ -198,6 +198,21 @@ namespace XREngine.Rendering
                 //        depthKeys.Add(transform.Depth + 1);
                 //});
 
+                //Also good in theory but still has overhead issues.
+                //void Calc(TransformBase tfm)
+                //{
+                //    if (!tfm.ParallelDepthRecalculate())
+                //        return;
+
+                //    int depthPlusOne = tfm.Depth + 1;
+                //    lock (depthKeys)
+                //    {
+                //        if (!depthKeys.Contains(depthPlusOne))
+                //            depthKeys.Add(depthPlusOne);
+                //    }
+                //}
+                //Task.WaitAll([.. bag.Select(x => Task.Run(() => Calc(x)))]);
+
                 foreach (var transform in bag)
                     if (transform.ParallelDepthRecalculate())
                     {

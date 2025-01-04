@@ -559,9 +559,9 @@ namespace XREngine.Rendering.OpenGL
                 glTex.GenerateMipmaps();
             
             //Get the average color from the scene texture
-            Vector3 rgb = Vector3.Zero;
+            Vector4 rgb = Vector4.Zero;
             void* addr = &rgb;
-            Api.GetTextureImage(glTex.BindingId, texture.SmallestMipmapLevel, GLObjectBase.ToGLEnum(EPixelFormat.Rgb), GLObjectBase.ToGLEnum(EPixelType.Float), (uint)sizeof(Vector3), addr);
+            Api.GetTextureImage(glTex.BindingId, texture.SmallestMipmapLevel, GLObjectBase.ToGLEnum(EPixelFormat.Rgba), GLObjectBase.ToGLEnum(EPixelType.Float), (uint)sizeof(Vector4), addr);
 
             if (float.IsNaN(rgb.X) ||
                 float.IsNaN(rgb.Y) ||
@@ -569,7 +569,7 @@ namespace XREngine.Rendering.OpenGL
                 return false;
 
             //Calculate luminance factor off of the average color
-            dotLuminance = rgb.Dot(luminance);
+            dotLuminance = rgb.XYZ().Dot(luminance);
             return true;
         }
 

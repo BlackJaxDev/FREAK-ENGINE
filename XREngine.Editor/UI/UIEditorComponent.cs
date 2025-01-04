@@ -21,7 +21,7 @@ public partial class UIEditorComponent : UIComponent
         set => SetField(ref _rootMenuOptions, value);
     }
 
-    private float _menuHeight = 40.0f;
+    private float _menuHeight = 34.0f;
     public float MenuHeight
     {
         get => _menuHeight;
@@ -60,7 +60,7 @@ public partial class UIEditorComponent : UIComponent
         SceneNode.Transform.Clear();
 
         var splitChild = SceneNode.NewChild();
-        var splitTfm = splitChild.GetTransformAs<UISplitTransform>(true)!;
+        var splitTfm = splitChild.GetTransformAs<UIDualSplitTransform>(true)!;
         splitTfm.VerticalSplit = true;
         splitTfm.FirstFixedSize = true;
         splitTfm.FixedSize = MenuHeight;
@@ -71,10 +71,43 @@ public partial class UIEditorComponent : UIComponent
         toolbarComp.SubmenuItemHeight = MenuHeight;
         _toolbar = toolbarComp;
 
-        //Create the dockable windows transform for panels
-        var dockableNode = splitChild.NewChild();
-        var dock = dockableNode.SetTransform<UISplitTransform>();
-        dock.VerticalSplit = false;
+        var listNode = splitChild.NewChild();
+        listNode.SetTransform<UIListTransform>();
+
+        listNode.NewChild<HierarchyPanel>(out var hierarchy);
+        hierarchy.BoundableTransform.Width = 300.0f;
+        hierarchy.RootNodes.Clear();
+        if (World is not null)
+            hierarchy.RootNodes.AddRange(World.RootNodes);
+
+        ////Create the dockable windows transform for panels
+        //var dockableNode = splitChild.NewChild<UIDockingRootComponent>(out var root);
+        //var dock = root.DockingTransform;
+
+        //var leftNode = dock.Left?.SceneNode;
+        //if (leftNode is not null)
+        //{
+        //    leftNode.Transform.Clear();
+        //    leftNode.NewChild<HierarchyPanel>(out var hierarchy);
+
+        //    hierarchy.RootNodes.Clear();
+        //    if (World is not null)
+        //        hierarchy.RootNodes.AddRange(World.RootNodes);
+        //}
+
+        //var rightNode = dock.Right?.SceneNode;
+        //if (rightNode is not null)
+        //{
+        //    rightNode.Transform.Clear();
+        //    rightNode.NewChild<InspectorPanel>(out var inspector);
+        //}
+
+        //var bottomNode = dock.Bottom?.SceneNode;
+        //if (bottomNode is not null)
+        //{
+        //    bottomNode.Transform.Clear();
+        //    bottomNode.NewChild<ConsolePanel>(out var console);
+        //}
     }
 
     /// <summary>

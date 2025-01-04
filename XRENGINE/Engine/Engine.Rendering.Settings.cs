@@ -47,12 +47,13 @@ namespace XREngine
                 private string _defaultFontFolder = "Roboto";
                 private string _defaultFontFileName = "Roboto-Regular.ttf";
                 private bool _renderTransformDebugInfo = false;
-                private bool _renderMesh3DBounds = true;
-                private bool _renderMesh2DBounds = true;
+                private bool _renderMesh3DBounds = false;
+                private bool _renderMesh2DBounds = false;
                 private bool _renderUITransformCoordinate = true;
                 private bool _renderTransformLines = true;
                 private bool _renderTransformPoints = true;
                 private bool _renderTransformCapsules = false;
+                private bool _visualizeDirectionalLightVolumes = false;
 
                 /// <summary>
                 /// The default luminance used for calculation of exposure, etc.
@@ -184,6 +185,11 @@ namespace XREngine
                 {
                     get => _renderTransformCapsules;
                     set => SetField(ref _renderTransformCapsules, value);
+                }
+                public bool VisualizeDirectionalLightVolumes
+                {
+                    get => _visualizeDirectionalLightVolumes;
+                    set => SetField(ref _visualizeDirectionalLightVolumes, value);
                 }
                 /// <summary>
                 /// If true, the engine will calculate blendshapes in a compute shader rather than the vertex shader.

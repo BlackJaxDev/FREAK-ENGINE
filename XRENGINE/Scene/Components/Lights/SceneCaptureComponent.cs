@@ -137,7 +137,7 @@ namespace XREngine.Components.Lights
             for (int i = 0; i < 6; ++i)
                 Viewports[i]?.SwapBuffers(_shadowPass);
         }
-        private const bool _shadowPass = true;
+        private const bool _shadowPass = false;
         //protected override void OnWorldTransformChanged()
         //{
         //    base.OnWorldTransformChanged();

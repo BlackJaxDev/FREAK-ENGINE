@@ -34,5 +34,7 @@ namespace XREngine.Rendering
 
         public uint Width => ViewedTexture.Width;
         public uint Height => ViewedTexture.Height;
+
+        public override bool HasAlphaChannel => ViewedTexture.HasAlphaChannel;
     }
 }

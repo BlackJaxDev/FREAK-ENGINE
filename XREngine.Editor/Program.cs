@@ -34,6 +34,7 @@ using XREngine.VRClient;
 using static XREngine.Audio.AudioSource;
 using static XREngine.Scene.Transforms.RigidBodyTransform;
 using ActionType = OpenVR.NET.Manifest.ActionType;
+using BlendMode = XREngine.Rendering.Models.Materials.BlendMode;
 using Quaternion = System.Numerics.Quaternion;
 
 internal class Program
@@ -49,7 +50,7 @@ internal class Program
     public const bool LightProbe = true;
     public const bool Skybox = true;
     public const bool Spline = false;
-    public const bool StaticModel = false;
+    public const bool StaticModel = true;
     public const bool AnimatedModel = false;
 
     /// <summary>
@@ -88,7 +89,7 @@ internal class Program
         int h = 1080;
         float updateHz = 60.0f;
         float renderHz = 0.0f;
-        float fixedHz = 60.0f;
+        float fixedHz = 30.0f;
 
         int primaryX = NativeMethods.GetSystemMetrics(0);
         int primaryY = NativeMethods.GetSystemMetrics(1);
@@ -218,7 +219,7 @@ internal class Program
         canvasTfm.DrawSpace = ECanvasDrawSpace.Screen;
         canvasTfm.Width = 1920.0f;
         canvasTfm.Height = 1080.0f;
-        canvasTfm.CameraDrawSpaceDistance = 1.0f;
+        canvasTfm.CameraDrawSpaceDistance = 100.0f;
         canvasTfm.Padding = new Vector4(0.0f);
 
         if (VisualizeQuadtree)
@@ -227,7 +228,7 @@ internal class Program
         if (camComp is not null)
             camComp.UserInterface = canvas;
 
-        AddFPSText(null, rootCanvasNode);
+        //AddFPSText(null, rootCanvasNode);
 
         //Add input handler
         var input = rootCanvasNode.AddComponent<UIInputComponent>()!;
@@ -279,7 +280,7 @@ internal class Program
             new("Assets"),
             new("Tools", [Key.ControlLeft, Key.T],
             [
-                new("Take Screenshot", TakeScreenshot),
+                new("Take_Screenshot", TakeScreenshot),
             ]),
             new("View"),
             new("Window"),
@@ -328,26 +329,27 @@ internal class Program
         floorBody.SetTransform(new Vector3(0.0f, -10.0f, 0.0f), Quaternion.CreateFromAxisAngle(Globals.Backward, XRMath.DegToRad(90.0f)), true);
         floorComp.RigidBody = floorBody;
 
-        var floorShader = ShaderHelper.LoadEngineShader("Misc\\TestFloor.frag");
-        ShaderVar[] floorUniforms =
-        [
-            new ShaderVector4(new ColorF4(0.9f, 0.9f, 0.9f, 1.0f), "MatColor"),
-            new ShaderFloat(10.0f, "BlurStrength"),
-            new ShaderInt(20, "SampleCount"),
-            new ShaderVector3(Globals.Up, "PlaneNormal"),
-        ];
-        XRTexture2D grabTex = XRTexture2D.CreateGrabPassTextureResized(0.2f);
-        XRMaterial floorMat = new(floorUniforms, [grabTex], floorShader);
+        //var floorShader = ShaderHelper.LoadEngineShader("Misc\\TestFloor.frag");
+        //ShaderVar[] floorUniforms =
+        //[
+        //    new ShaderVector4(new ColorF4(0.9f, 0.9f, 0.9f, 1.0f), "MatColor"),
+        //    new ShaderFloat(10.0f, "BlurStrength"),
+        //    new ShaderInt(20, "SampleCount"),
+        //    new ShaderVector3(Globals.Up, "PlaneNormal"),
+        //];
+        //XRTexture2D grabTex = XRTexture2D.CreateGrabPassTextureResized(0.2f);
+        //XRMaterial floorMat = new(floorUniforms, [grabTex], floorShader);
+        XRMaterial floorMat = XRMaterial.CreateLitColorMaterial(ColorF4.Gray);
         floorMat.RenderOptions.CullMode = ECullMode.None;
-        floorMat.RenderOptions.RequiredEngineUniforms = EUniformRequirements.Camera;
-        floorMat.RenderPass = (int)EDefaultRenderPass.TransparentForward;
+        //floorMat.RenderOptions.RequiredEngineUniforms = EUniformRequirements.Camera;
+        floorMat.RenderPass = (int)EDefaultRenderPass.OpaqueDeferredLit;
         //floorMat.EnableTransparency();
 
         var floorModel = floor.AddComponent<ModelComponent>()!;
         floorModel.Model = new Model([new SubMesh(XRMesh.Create(VertexQuad.PosY(10000.0f)), floorMat)]);
 
         Random random = new();
-        for (int i = 0; i < 100; i++)
+        for (int i = 0; i < 10; i++)
             AddBall(rootNode, ballPhysMat, ballRadius, random);
     }
 
@@ -418,8 +420,8 @@ internal class Program
         {
             var laggedTransform = cameraNode.GetTransformAs<SmoothedTransform>(true)!;
             laggedTransform.RotationSmoothingSpeed = 30.0f;
-            laggedTransform.TranslationSmoothingSpeed = 15.0f;
-            laggedTransform.ScaleSmoothingSpeed = 15.0f;
+            laggedTransform.TranslationSmoothingSpeed = 30.0f;
+            laggedTransform.ScaleSmoothingSpeed = 30.0f;
         }
 
         if (cameraNode.TryAddComponent<CameraComponent>(out var cameraComp))
@@ -440,7 +442,7 @@ internal class Program
         SceneNode textNode = new(parentNode) { Name = "TestTextNode" };
         UITextComponent text = textNode.AddComponent<UITextComponent>()!;
         text.Font = font;
-        text.FontSize = 20;
+        text.FontSize = 22;
         text.RegisterAnimationTick<UITextComponent>(TickFPS);
         var textTransform = textNode.GetTransformAs<UIBoundableTransform>(true)!;
         textTransform.MinAnchor = new Vector2(1.0f, 0.0f);
@@ -695,38 +697,72 @@ internal class Program
     {
         //Random r = new();
 
-        XRMaterial mat = textures.Count > 0 ?
-            new XRMaterial([
+        XRTexture[] textureList = new XRTexture[textures.Count];
+        XRMaterial mat = new(textureList);
+        Task.Run(() => Parallel.For(0, textures.Count, i => LoadTexture(modelFilePath, textures, textureList, i))).ContinueWith(x =>
+        {
+            for (int i = 0; i < textureList.Length; i++)
+            {
+                XRTexture? tex = textureList[i];
+                if (tex is not null)
+                    mat.Textures[i] = tex;
+            }
+
+            bool transp = false;
+            if (textureList.Length > 0)
+            {
+                if (textures.Any(x => (x.Flags & 0x2) != 0 || x.TextureType == TextureType.Opacity) || textureList.Any(x => x.HasAlphaChannel))
+                {
+                    transp = true;
+                    mat.Shaders.Add(ShaderHelper.UnlitTextureFragForward()!);
+                }
+                else
+                {
+                    mat.Shaders.Add(ShaderHelper.TextureFragDeferred()!);
+                    mat.Parameters = 
+                    [
+                        new ShaderFloat(1.0f, "Opacity"),
+                        new ShaderFloat(1.0f, "Specular"),
+                        new ShaderFloat(0.9f, "Roughness"),
+                        new ShaderFloat(0.0f, "Metallic"),
+                        new ShaderFloat(1.0f, "IndexOfRefraction"),
+                    ];
+                }
+            }
+            else
+            {
+                mat.Shaders.Add(ShaderHelper.LitColorFragDeferred()!);
+                mat.Parameters =
+                [
+                    new ShaderVector3(ColorF3.Magenta, "BaseColor"),
                     new ShaderFloat(1.0f, "Opacity"),
                     new ShaderFloat(1.0f, "Specular"),
                     new ShaderFloat(1.0f, "Roughness"),
                     new ShaderFloat(0.0f, "Metallic"),
                     new ShaderFloat(1.0f, "IndexOfRefraction"),
-                ], new XRTexture?[textures.Count], ShaderHelper.TextureFragDeferred()!) :
-            XRMaterial.CreateLitColorMaterial(new ColorF4(1.0f, 1.0f, 0.0f, 1.0f));
-        mat.RenderPass = (int)EDefaultRenderPass.OpaqueDeferredLit;
-        mat.Name = name;
-        mat.RenderOptions = new RenderingParameters()
-        {
-            CullMode = ECullMode.None,
-            DepthTest = new DepthTest()
+                ];
+            }
+
+            mat.RenderPass = transp ? (int)EDefaultRenderPass.TransparentForward : (int)EDefaultRenderPass.OpaqueDeferredLit;
+            mat.Name = name;
+            mat.RenderOptions = new RenderingParameters()
             {
-                UpdateDepth = true,
-                Enabled = ERenderParamUsage.Enabled,
-                Function = EComparison.Less,
-            },
-            LineWidth = 5.0f,
-        };
-
-        Task.Run(() => Parallel.For(0, textures.Count, i => LoadTexture(modelFilePath, textures, mat, i)));
-
-        //for (int i = 0; i < mat.Textures.Count; i++)
-        //    LoadTexture(modelFilePath, textures, mat, i);
+                CullMode = ECullMode.Back,
+                DepthTest = new DepthTest()
+                {
+                    UpdateDepth = true,
+                    Enabled = ERenderParamUsage.Enabled,
+                    Function = EComparison.Less,
+                },
+                LineWidth = 5.0f,
+                BlendModeAllDrawBuffers = transp ? BlendMode.EnabledTransparent() : BlendMode.Disabled(),
+            };
+        });
 
         return mat;
     }
 
-    private static void LoadTexture(string modelFilePath, List<TextureSlot> textures, XRMaterial mat, int i)
+    private static void LoadTexture(string modelFilePath, List<TextureSlot> textures, XRTexture[] textureList, int i)
     {
         string path = textures[i].FilePath;
         if (string.IsNullOrWhiteSpace(path))
@@ -774,7 +810,7 @@ internal class Program
             return tex;
         }
 
-        mat.Textures[i] = _textureCache.GetOrAdd(path, TextureFactory);
+        textureList[i] = _textureCache.GetOrAdd(path, TextureFactory);
     }
 
     private static readonly Queue<float> _fpsAvg = new();

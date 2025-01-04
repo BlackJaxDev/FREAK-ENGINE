@@ -89,6 +89,9 @@ namespace XREngine.Data.Colors
         public static readonly ColorF3 Blue = new(0.0f, 0.0f, 1.0f);
         public static readonly ColorF3 White = new(1.0f, 1.0f, 1.0f);
         public static readonly ColorF3 Black = new(0.0f, 0.0f, 0.0f);
+        public static readonly ColorF3 Yellow = new(1.0f, 1.0f, 0.0f);
+        public static readonly ColorF3 Cyan = new(0.0f, 1.0f, 1.0f);
+        public static readonly ColorF3 Magenta = new(1.0f, 0.0f, 1.0f);
 
         public static implicit operator ColorF3(RGBAPixel p) => new(p.R * ByteToFloat, p.G * ByteToFloat, p.B * ByteToFloat);
         public static implicit operator ColorF3(ARGBPixel p) => new(p.R * ByteToFloat, p.G * ByteToFloat, p.B * ByteToFloat);
