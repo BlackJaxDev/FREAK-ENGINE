@@ -142,6 +142,10 @@ namespace XREngine.Rendering.Vulkan
         {
             throw new NotImplementedException();
         }
+        public override void SetCroppingEnabled(bool enabled)
+        {
+            throw new NotImplementedException();
+        }
 
         //private VkModel? _testModel;
 

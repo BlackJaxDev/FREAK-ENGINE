@@ -24,7 +24,7 @@ namespace XREngine.Rendering.OpenGL
 
             internal uint? _bindingId;
 
-            public bool TryGetBindingId(out uint bindingId)
+            public virtual bool TryGetBindingId(out uint bindingId)
             {
                 if (_bindingId.HasValue)
                 {

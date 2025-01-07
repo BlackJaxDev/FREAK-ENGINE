@@ -76,8 +76,8 @@ namespace XREngine.Components.Lights
                 Resizable = false,
                 SizedInternalFormat = ESizedInternalFormat.Rgb8,
                 Name = "SceneCaptureEnvColor",
-                AutoGenerateMipmaps = false,
-                //FrameBufferAttachment = EFrameBufferAttachment.ColorAttachment0,
+                AutoGenerateMipmaps = true,
+                FrameBufferAttachment = EFrameBufferAttachment.ColorAttachment0,
             };
             //_envTex.Generate();
 
@@ -106,13 +106,14 @@ namespace XREngine.Components.Lights
                 //_tempDepth.Allocate();
             }
 
-            _renderFBO = new XRCubeFrameBuffer(null, Transform, 0.1f, 10000.0f, true);
+            _renderFBO = new XRCubeFrameBuffer(null);
             //_renderFBO.Generate();
 
-            int i = 0;
-            foreach (XRCamera cam in _renderFBO)
+            var cameras = XRCubeFrameBuffer.GetCamerasPerFace(0.1f, 10000.0f, true, Transform);
+            for (int i = 0; i < cameras.Length; i++)
             {
-                Viewports[i++] = new XRViewport(null, ColorResolution, ColorResolution)
+                XRCamera cam = cameras[i];
+                Viewports[i] = new XRViewport(null, ColorResolution, ColorResolution)
                 {
                     WorldInstanceOverride = World,
                     Camera = cam,

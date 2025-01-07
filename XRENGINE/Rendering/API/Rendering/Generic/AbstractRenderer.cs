@@ -90,6 +90,7 @@ namespace XREngine.Rendering
 
         public abstract void CropRenderArea(BoundingRectangle region);
         public abstract void SetRenderArea(BoundingRectangle region);
+        public abstract void SetCroppingEnabled(bool enabled);
 
         /// <summary>
         /// Gets or creates a new API-specific render object linked to this window renderer from a generic render object.
@@ -178,17 +179,24 @@ namespace XREngine.Rendering
 
         public abstract void GetScreenshotAsync(BoundingRectangle region, bool withTransparency, Action<MagickImage> imageCallback);
 
-        public void BlitFBO(
+        /// <summary>
+        /// Blits the contents of one framebuffer to another.
+        /// </summary>
+        /// <param name="inFBO"></param>
+        /// <param name="outFBO"></param>
+        /// <param name="readBufferMode"></param>
+        /// <param name="colorBit"></param>
+        /// <param name="depthBit"></param>
+        /// <param name="stencilBit"></param>
+        /// <param name="linearFilter"></param>
+        public void BlitFBOToFBO(
             XRFrameBuffer inFBO,
-            XRFrameBuffer? outFBO,
+            XRFrameBuffer outFBO,
             EReadBufferMode readBufferMode,
             bool colorBit, bool depthBit, bool stencilBit,
             bool linearFilter)
         {
-            if (inFBO is null || outFBO is null)
-                return;
-
-            BlitFBO(
+            Blit(
                 inFBO,
                 outFBO,
                 inFBO.Width,
@@ -202,19 +210,136 @@ namespace XREngine.Rendering
                 linearFilter);
         }
 
-        public void BlitFBO(
-            XRFrameBuffer inFBO,
+        /// <summary>
+        /// Blits the contents of a viewport to a framebuffer.
+        /// </summary>
+        /// <param name="inViewport"></param>
+        /// <param name="outFBO"></param>
+        /// <param name="readBufferMode"></param>
+        /// <param name="colorBit"></param>
+        /// <param name="depthBit"></param>
+        /// <param name="stencilBit"></param>
+        /// <param name="linearFilter"></param>
+        public void BlitViewportToFBO(
+            XRViewport inViewport,
             XRFrameBuffer outFBO,
+            EReadBufferMode readBufferMode,
+            bool colorBit, bool depthBit, bool stencilBit,
+            bool linearFilter)
+        {
+            Blit(
+                null,
+                outFBO,
+                inViewport.Region.X,
+                inViewport.Region.Y,
+                (uint)inViewport.Width,
+                (uint)inViewport.Height,
+                0,
+                0,
+                outFBO.Width,
+                outFBO.Height,
+                readBufferMode,
+                colorBit,
+                depthBit,
+                stencilBit,
+                linearFilter);
+        }
+
+        /// <summary>
+        /// Blits the contents of a framebuffer to a viewport.
+        /// </summary>
+        /// <param name="inFBO"></param>
+        /// <param name="outViewport"></param>
+        /// <param name="readBufferMode"></param>
+        /// <param name="colorBit"></param>
+        /// <param name="depthBit"></param>
+        /// <param name="stencilBit"></param>
+        /// <param name="linearFilter"></param>
+        public void BlitFBOToViewport(
+            XRFrameBuffer inFBO,
+            XRViewport outViewport,
+            EReadBufferMode readBufferMode,
+            bool colorBit, bool depthBit, bool stencilBit,
+            bool linearFilter)
+        {
+            Blit(
+                inFBO,
+                null,
+                0,
+                0,
+                inFBO.Width,
+                inFBO.Height,
+                outViewport.Region.X,
+                outViewport.Region.Y,
+                (uint)outViewport.Width,
+                (uint)outViewport.Height,
+                readBufferMode,
+                colorBit,
+                depthBit,
+                stencilBit,
+                linearFilter);
+        }
+
+        /// <summary>
+        /// Blits the contents of one viewport to another.
+        /// Both viewports must be in the same window.
+        /// </summary>
+        /// <param name="inViewport"></param>
+        /// <param name="outViewport"></param>
+        /// <param name="readBufferMode"></param>
+        /// <param name="colorBit"></param>
+        /// <param name="depthBit"></param>
+        /// <param name="stencilBit"></param>
+        /// <param name="linearFilter"></param>
+        public void BlitViewportToViewport(
+            XRViewport inViewport,
+            XRViewport outViewport,
+            EReadBufferMode readBufferMode,
+            bool colorBit, bool depthBit, bool stencilBit,
+            bool linearFilter)
+        {
+            Blit(
+                null,
+                null,
+                inViewport.Region.X,
+                inViewport.Region.Y,
+                (uint)inViewport.Width,
+                (uint)inViewport.Height,
+                outViewport.Region.X,
+                outViewport.Region.Y,
+                (uint)outViewport.Width,
+                (uint)outViewport.Height,
+                readBufferMode,
+                colorBit,
+                depthBit,
+                stencilBit,
+                linearFilter);
+        }
+
+        /// <summary>
+        /// Blits the contents of one framebuffer to another.
+        /// </summary>
+        /// <param name="inFBO"></param>
+        /// <param name="outFBO"></param>
+        /// <param name="inW"></param>
+        /// <param name="inH"></param>
+        /// <param name="outW"></param>
+        /// <param name="outH"></param>
+        /// <param name="readBufferMode"></param>
+        /// <param name="colorBit"></param>
+        /// <param name="depthBit"></param>
+        /// <param name="stencilBit"></param>
+        /// <param name="linearFilter"></param>
+        public void Blit(
+            XRFrameBuffer? inFBO,
+            XRFrameBuffer? outFBO,
             uint inW, uint inH,
             uint outW, uint outH,
             EReadBufferMode readBufferMode,
             bool colorBit, bool depthBit, bool stencilBit,
             bool linearFilter)
         {
-            if (inFBO is null || outFBO is null)
-                return;
-
-            BlitFBO(
+            Blit(
                 inFBO,
                 outFBO,
                 0,
@@ -232,9 +357,27 @@ namespace XREngine.Rendering
                 linearFilter);
         }
 
-        public abstract void BlitFBO(
-            XRFrameBuffer inFBO,
-            XRFrameBuffer outFBO,
+        /// <summary>
+        /// Blits the contents of one framebuffer to another.
+        /// </summary>
+        /// <param name="inFBO"></param>
+        /// <param name="outFBO"></param>
+        /// <param name="inX"></param>
+        /// <param name="inY"></param>
+        /// <param name="inW"></param>
+        /// <param name="inH"></param>
+        /// <param name="outX"></param>
+        /// <param name="outY"></param>
+        /// <param name="outW"></param>
+        /// <param name="outH"></param>
+        /// <param name="readBufferMode"></param>
+        /// <param name="colorBit"></param>
+        /// <param name="depthBit"></param>
+        /// <param name="stencilBit"></param>
+        /// <param name="linearFilter"></param>
+        public abstract void Blit(
+            XRFrameBuffer? inFBO,
+            XRFrameBuffer? outFBO,
             int inX, int inY, uint inW, uint inH,
             int outX, int outY, uint outW, uint outH,
             EReadBufferMode readBufferMode,

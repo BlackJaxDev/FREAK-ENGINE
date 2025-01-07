@@ -164,7 +164,7 @@ namespace XREngine.Rendering.OpenGL
                 EPixelInternalFormat? internalFormatForce = null;
                 if (!Data.Resizable && !_storageSet)
                 {
-                    Api.TextureStorage2D(BindingId, (uint)Data.SmallestMipmapLevel + 1u, ToGLEnum(Data.SizedInternalFormat), Data.Width, Data.Height);
+                    Api.TextureStorage2D(BindingId, (uint)Data.SmallestMipmapLevel, ToGLEnum(Data.SizedInternalFormat), Data.Width, Data.Height);
                     internalFormatForce = ToBaseInternalFormat(Data.SizedInternalFormat);
                     _storageSet = true;
                 }
@@ -297,7 +297,7 @@ namespace XREngine.Rendering.OpenGL
 
         public override void PreSampling()
         {
-            Data.GrabPass?.Grab(XRFrameBuffer.BoundForWriting);
+            Data.GrabPass?.Grab(XRFrameBuffer.BoundForWriting, Engine.Rendering.State.RenderingPipelineState?.WindowViewport);
         }
     }
 }

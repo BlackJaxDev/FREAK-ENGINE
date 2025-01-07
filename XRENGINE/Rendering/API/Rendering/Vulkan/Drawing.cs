@@ -9,7 +9,7 @@ namespace XREngine.Rendering.Vulkan
 {
     public unsafe partial class VulkanRenderer
     {
-        public override void BlitFBO(
+        public override void Blit(
             XRFrameBuffer inFBO,
             XRFrameBuffer outFBO,
             int inX, int inY, uint inW, uint inH,

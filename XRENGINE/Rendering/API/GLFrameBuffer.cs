@@ -76,19 +76,29 @@ namespace XREngine.Rendering.OpenGL
                 _invalidated = true;
         }
 
+        private bool _verifying = false;
         private void VerifyAttached()
         {
-            if (_invalidated)
-            {
-                Data.AttachAll();
-                _invalidated = false;
-            }
+            if (!_invalidated || _verifying)
+                return;
+            _invalidated = false;
+            _verifying = true;
+            Data.AttachAll();
+            _verifying = false;
+        }
+
+        public override bool TryGetBindingId(out uint bindingId)
+        {
+            bool success = base.TryGetBindingId(out bindingId);
+            if (success)
+                VerifyAttached();
+            return success;
         }
 
         public void BindForReading()
         {
             Api.BindFramebuffer(GLEnum.ReadFramebuffer, BindingId);
-            VerifyAttached();
+            //VerifyAttached();
         }
 
         public void UnbindFromReading()
@@ -100,7 +110,7 @@ namespace XREngine.Rendering.OpenGL
         public void BindForWriting()
         {
             Api.BindFramebuffer(GLEnum.DrawFramebuffer, BindingId);
-            VerifyAttached();
+            //VerifyAttached();
         }
         public void UnbindFromWriting()
         {

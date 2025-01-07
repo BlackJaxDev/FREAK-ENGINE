@@ -159,7 +159,7 @@ namespace XREngine.Rendering
         {
             Renderer.FrameBufferInvalidated();
             Viewports.ForEach(vp => vp.Resize((uint)obj.X, (uint)obj.Y, false));
-            Window.DoRender();
+            RenderFrame();
         }
 
         public XRViewport GetOrAddViewportForPlayer(LocalPlayerController controller, bool autoSizeAllViewports)
@@ -286,10 +286,5 @@ namespace XREngine.Rendering
 
         public void UpdateViewportSizes()
             => Window_Resize(Window.Size);
-        
-        private void Window_FramebufferResize(Vector2D<int> obj)
-        {
-
-        }
     }
 }

@@ -237,7 +237,7 @@ namespace XREngine.Rendering
         /// Returns the level of the smallest allowed mipmap based on the maximum dimension of the base texture.
         /// </summary>
         public int SmallestMipmapLevel =>
-            Math.Min((int)Math.Floor(Math.Log10(MaxDimension) * 3.321928f), SmallestAllowedMipmapLevel);
+            Math.Min((int)Math.Floor(Math.Log2(MaxDimension)) + 1, SmallestAllowedMipmapLevel);
 
         //Note: 3.321928f is approx 1 / (log base 10 of 2)
         public static int GetSmallestMipmapLevel(uint width, uint height, int smallestAllowedMipmapLevel = 1000)

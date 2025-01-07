@@ -72,10 +72,12 @@ public partial class UIEditorComponent : UIComponent
         _toolbar = toolbarComp;
 
         var listNode = splitChild.NewChild();
-        listNode.SetTransform<UIListTransform>();
+        var listTfm = listNode.SetTransform<UIListTransform>();
+        listTfm.DisplayHorizontal = true;
+        listTfm.ItemAlignment = EListAlignment.TopOrLeft;
 
         listNode.NewChild<HierarchyPanel>(out var hierarchy);
-        hierarchy.BoundableTransform.Width = 300.0f;
+        //hierarchy.BoundableTransform.Width = 200.0f;
         hierarchy.RootNodes.Clear();
         if (World is not null)
             hierarchy.RootNodes.AddRange(World.RootNodes);

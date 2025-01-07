@@ -208,8 +208,8 @@ namespace XREngine
             if (rootNode)
                 rootTransform = sceneNode.Transform;
 
-            if (node.MeshCount > 0)
-                Debug.Out($"Node {name} has {node.MeshCount} meshes");
+            //if (node.MeshCount > 0)
+            //    Debug.Out($"Node {name} has {node.MeshCount} meshes");
 
             for (var i = 0; i < node.ChildCount; i++)
                 ProcessNode(

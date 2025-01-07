@@ -90,7 +90,7 @@ namespace XREngine.Components.Lights
             Prefilter,
         }
 
-        private ERenderPreview _previewDisplay = ERenderPreview.Environment;
+        private ERenderPreview _previewDisplay = ERenderPreview.Irradiance;
         public ERenderPreview PreviewDisplay
         {
             get => _previewDisplay;
@@ -175,8 +175,8 @@ namespace XREngine.Components.Lights
             XRMaterial irrMat = new([], texArray, irrShader);
             XRMaterial prefMat = new(prefilterVars, texArray, prefShader);
 
-            _irradianceFBO = new XRCubeFrameBuffer(irrMat, null, 0.0f, 1.0f, false);
-            _prefilterFBO = new XRCubeFrameBuffer(prefMat, null, 0.0f, 1.0f, false);
+            _irradianceFBO = new XRCubeFrameBuffer(irrMat);
+            _prefilterFBO = new XRCubeFrameBuffer(prefMat);
 
             CachePreviewSphere();
         }
@@ -222,11 +222,8 @@ namespace XREngine.Components.Lights
             r.DepthTest.Enabled = ERenderParamUsage.Disabled;
             r.CullMode = ECullMode.None;
             XRTexture[] texArray = [_environmentTextureEquirect!];
-            XRMaterial irrMat = new([], texArray, irrShader);
-            XRMaterial prefMat = new(prefilterVars, texArray, prefShader);
-
-            _irradianceFBO = new XRCubeFrameBuffer(irrMat, null, 0.0f, 1.0f, false);
-            _prefilterFBO = new XRCubeFrameBuffer(prefMat, null, 0.0f, 1.0f, false);
+            _irradianceFBO = new XRCubeFrameBuffer(new([], texArray, irrShader));
+            _prefilterFBO = new XRCubeFrameBuffer(new(prefilterVars, texArray, prefShader));
 
             CachePreviewSphere();
         }
@@ -339,7 +336,10 @@ namespace XREngine.Components.Lights
             PreviewSphere?.Destroy();
 
             int pass = (int)EDefaultRenderPass.OpaqueForward;
-            PreviewSphere = new XRMeshRenderer(XRMesh.Shapes.SolidSphere(Vector3.Zero, 1.0f, 20u), new([GetPreviewTexture()], XRShader.EngineShader(GetPreviewShaderPath(), EShaderType.Fragment)) { RenderPass = pass });
+            var mesh = XRMesh.Shapes.SolidSphere(Vector3.Zero, 1.0f, 20u);
+            var mat = new XRMaterial([GetPreviewTexture()], XRShader.EngineShader(GetPreviewShaderPath(), EShaderType.Fragment)) { RenderPass = pass };
+            PreviewSphere = new XRMeshRenderer(mesh, mat);
+
             _visualRC.Mesh = PreviewSphere;
             _visualRC.WorldMatrix = Transform.WorldMatrix;
             _visualRC.RenderPass = pass;

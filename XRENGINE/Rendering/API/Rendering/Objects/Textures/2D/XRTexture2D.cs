@@ -407,19 +407,35 @@ namespace XREngine.Rendering
             public float resizeScale = resizeScale;
             public XRFrameBuffer resultFBO = new((t, EFrameBufferAttachment.ColorAttachment0, 0, -1));
 
-            public void Grab(XRFrameBuffer? inFBO)
+            public void Grab(XRFrameBuffer? inFBO, XRViewport? viewport)
             {
-                if (inFBO is null)
-                    return;
-
                 var rend = AbstractRenderer.Current;
                 if (rend is null)
                     return;
 
-                if (resizeToFit && (inFBO.Width != resultFBO.Width || inFBO.Height != resultFBO.Height))
-                    resultFBO.Resize((uint)(inFBO.Width * resizeScale), (uint)(inFBO.Height * resizeScale));
+                uint w, h;
+                if (inFBO is not null)
+                {
+                    w = inFBO.Width;
+                    h = inFBO.Height;
+                    Resize(w, h);
+                    rend.BlitFBOToFBO(inFBO, resultFBO, readBuffer, colorBit, depthBit, stencilBit, linearFilter);
+                }
+                else if (viewport is not null)
+                {
+                    w = (uint)viewport.Width;
+                    h = (uint)viewport.Height;
+                    Resize(w, h);
+                    rend.BlitViewportToFBO(viewport, resultFBO, readBuffer, colorBit, depthBit, stencilBit, linearFilter);
+                }
+            }
 
-                rend.BlitFBO(inFBO, resultFBO, readBuffer, colorBit, depthBit, stencilBit, linearFilter);
+            private void Resize(uint w, uint h)
+            {
+                if (!resizeToFit || w == resultFBO.Width && h == resultFBO.Height)
+                    return;
+
+                resultFBO.Resize((uint)(w * resizeScale), (uint)(h * resizeScale));
             }
         }
 
@@ -432,8 +448,8 @@ namespace XREngine.Rendering
             bool linearFilter = true)
         {
             XRTexture2D t = CreateFrameBufferTexture(1, 1, EPixelInternalFormat.Rgba8, EPixelFormat.Rgba, EPixelType.UnsignedByte);
-            t.MinFilter = ETexMinFilter.Linear;
-            t.MagFilter = ETexMagFilter.Linear;
+            t.MinFilter = ETexMinFilter.Nearest;
+            t.MagFilter = ETexMagFilter.Nearest;
             t.UWrap = ETexWrapMode.ClampToEdge;
             t.VWrap = ETexWrapMode.ClampToEdge;
             t.GrabPass = new GrabPassInfo(t, readBuffer, colorBit, depthBit, stencilBit, linearFilter, true, resizeScale);

@@ -58,7 +58,6 @@ namespace XREngine.Rendering
         public XRQuadFrameBuffer(XRMaterial mat, bool useTriangle = true) : base(mat)
         {
             FullScreenMesh = new XRMeshRenderer(Mesh(useTriangle), mat);
-            //FullScreenMesh.Generate();
             FullScreenMesh.SettingUniforms += SetUniforms;
         }
 

@@ -1,8 +1,6 @@
 ﻿using System.Numerics;
 using XREngine.Data.Colors;
-using XREngine.Data.Rendering;
 using XREngine.Rendering;
-using XREngine.Rendering.Models.Materials;
 using XREngine.Rendering.UI;
 using XREngine.Scene;
 
@@ -43,31 +41,6 @@ public partial class HierarchyPanel : EditorPanel
         CreateTree(SceneNode, this);
     }
 
-    private XRMaterial? _menuBackgroundMaterial;
-    public XRMaterial MenuBackgroundMaterial
-    {
-        get => _menuBackgroundMaterial ??= MakeBackgroundMaterial();
-        set => SetField(ref _menuBackgroundMaterial, value);
-    }
-
-    private static XRMaterial MakeBackgroundMaterial()
-    {
-        var floorShader = ShaderHelper.LoadEngineShader("Misc\\TestFloor.frag");
-        ShaderVar[] floorUniforms =
-        [
-            new ShaderVector4(ColorF4.Charcoal, "MatColor"),
-            new ShaderFloat(10.0f, "BlurStrength"),
-            new ShaderInt(20, "SampleCount"),
-            new ShaderVector3(Globals.Backward, "PlaneNormal"),
-        ];
-        XRTexture2D grabTex = XRTexture2D.CreateGrabPassTextureResized(0.2f);
-        var floorMat = new XRMaterial(floorUniforms, [grabTex], floorShader);
-        floorMat.RenderOptions.CullMode = ECullMode.None;
-        floorMat.RenderOptions.RequiredEngineUniforms = EUniformRequirements.Camera;
-        floorMat.RenderPass = (int)EDefaultRenderPass.TransparentForward;
-        return floorMat;
-    }
-
     public float ItemHeight { get; set; } = 30.0f;
 
     public partial class NodeWrapper(SceneNode node) : UIComponent
@@ -88,14 +61,14 @@ public partial class HierarchyPanel : EditorPanel
     private void CreateTree(SceneNode parentNode, HierarchyPanel hierarchyPanel)
     {
         var listNode = parentNode.NewChild<UIMaterialComponent>(out var menuMat);
-        menuMat.Material = MenuBackgroundMaterial;
+        menuMat.Material = BackgroundMaterial;
         var listTfm = listNode.SetTransform<UIListTransform>();
         listTfm.DisplayHorizontal = false;
         listTfm.ItemSpacing = 0;
         listTfm.Padding = new Vector4(0.0f);
         listTfm.ItemAlignment = EListAlignment.TopOrLeft;
         listTfm.ItemSize = ItemHeight;
-        listTfm.Width = null;
+        listTfm.Width = 150;
         listTfm.Height = null;
         CreateNodes(listNode, RootNodes);
     }
@@ -113,7 +86,7 @@ public partial class HierarchyPanel : EditorPanel
             background.Material = mat;
 
             var buttonTfm = buttonNode.GetTransformAs<UIBoundableTransform>(true)!;
-            buttonTfm.MaxAnchor = new Vector2(0.0f, 1.0f);
+            buttonTfm.MaxAnchor = new Vector2(1.0f, 1.0f);
             buttonTfm.Margins = new Vector4(0.0f);
 
             buttonNode.NewChild<UITextComponent>(out var text);

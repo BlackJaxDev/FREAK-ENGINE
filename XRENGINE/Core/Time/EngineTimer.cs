@@ -179,6 +179,11 @@ namespace XREngine.Timers
             _renderDone.Set();
         }
 
+        public void SetRenderDone()
+        {
+            _renderDone.Set();
+        }
+
         public void Stop()
         {
             _watch.Stop();

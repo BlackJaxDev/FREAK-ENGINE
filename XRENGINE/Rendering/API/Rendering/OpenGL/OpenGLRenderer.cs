@@ -256,11 +256,7 @@ namespace XREngine.Rendering.OpenGL
         }
         public override void BindFrameBuffer(EFramebufferTarget fboTarget, XRFrameBuffer? fbo)
         {
-            GLFrameBuffer? glFBO = GenericToAPI<GLFrameBuffer>(fbo);
-            if (glFBO is null)
-                return;
-
-            Api.BindFramebuffer(GLObjectBase.ToGLEnum(fboTarget), (uint)(glFBO?.BindingId ?? 0));
+            Api.BindFramebuffer(GLObjectBase.ToGLEnum(fboTarget), GenericToAPI<GLFrameBuffer>(fbo)?.BindingId ?? 0u);
         }
         public override void Clear(bool color, bool depth, bool stencil)
         {
@@ -388,6 +384,14 @@ namespace XREngine.Rendering.OpenGL
 
         public override void CropRenderArea(BoundingRectangle region)
             => Api.Scissor(region.X, region.Y, (uint)region.Width, (uint)region.Height);
+
+        public override void SetCroppingEnabled(bool enabled)
+        {
+            if (enabled)
+                Api.Enable(EnableCap.ScissorTest);
+            else
+                Api.Disable(EnableCap.ScissorTest);
+        }
 
         public void CheckFrameBufferErrors(GLFrameBuffer fbo)
         {
@@ -825,17 +829,15 @@ namespace XREngine.Rendering.OpenGL
         public unsafe void SetSemaphoreHandle(uint semaphore, void* semaphoreHandle)
             => EXTSemaphoreWin32?.ImportSemaphoreWin32Handle(semaphore, EXT.HandleTypeOpaqueWin32Ext, semaphoreHandle);
 
-        public override void BlitFBO(
-            XRFrameBuffer inFBO,
-            XRFrameBuffer outFBO,
+        public override void Blit(
+            XRFrameBuffer? inFBO,
+            XRFrameBuffer? outFBO,
             int inX, int inY, uint inW, uint inH,
             int outX, int outY, uint outW, uint outH,
             EReadBufferMode readBufferMode,
             bool colorBit, bool depthBit, bool stencilBit,
             bool linearFilter)
         {
-            using var outWrite = outFBO.BindForWritingState();
-            using var inRead = inFBO.BindForReadingState();
             ClearBufferMask mask = 0;
             if (colorBit)
                 mask |= ClearBufferMask.ColorBufferBit;
@@ -843,9 +845,16 @@ namespace XREngine.Rendering.OpenGL
                 mask |= ClearBufferMask.DepthBufferBit;
             if (stencilBit)
                 mask |= ClearBufferMask.StencilBufferBit;
-            var rbMode = ToGLEnum(readBufferMode);
-            Api.ReadBuffer(rbMode);
-            Api.BlitFramebuffer(
+
+            var glIn = GenericToAPI<GLFrameBuffer>(inFBO);
+            var glOut = GenericToAPI<GLFrameBuffer>(outFBO);
+            var inID = glIn?.BindingId ?? 0u;
+            var outID = glOut?.BindingId ?? 0u;
+
+            Api.NamedFramebufferReadBuffer(inID, ToGLEnum(readBufferMode));
+            Api.BlitNamedFramebuffer(
+                inID,
+                outID,
                 inX,
                 inY,
                 inX + (int)inW,

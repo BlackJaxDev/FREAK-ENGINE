@@ -10,7 +10,7 @@ namespace XREngine
         public void OnPoolableReleased() => OnStateEnded = null;
         public void OnPoolableReset() => OnStateEnded = null;
 
-        void IDisposable.Dispose()
+        public void Dispose()
         {
             OnStateEnded?.Invoke();
             GC.SuppressFinalize(this);

@@ -127,11 +127,11 @@ namespace XREngine.Data.Transforms.Rotations
             => Matrix4x4.CreateRotationZ(Roll);
 
         public readonly Quaternion GetYawQuaternion()
-            => Quaternion.CreateFromAxisAngle(Globals.Up, XRMath.DegToRad(Yaw));
+            => Quaternion.CreateFromAxisAngle(Vector3.UnitY, XRMath.DegToRad(Yaw));
         public readonly Quaternion GetPitchQuaternion()
-            => Quaternion.CreateFromAxisAngle(Globals.Right, XRMath.DegToRad(Pitch));
+            => Quaternion.CreateFromAxisAngle(Vector3.UnitX, XRMath.DegToRad(Pitch));
         public readonly Quaternion GetRollQuaternion()
-            => Quaternion.CreateFromAxisAngle(Globals.Forward, XRMath.DegToRad(Roll));
+            => Quaternion.CreateFromAxisAngle(Vector3.UnitZ, XRMath.DegToRad(Roll));
 
         public static Rotator CreateLookat(Vector3 vector)
             => XRMath.LookatAngles(vector);

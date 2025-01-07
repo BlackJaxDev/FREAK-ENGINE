@@ -162,7 +162,11 @@ namespace XREngine.Rendering
                     sidePoints[i].Normal = normal;
 
                     topVertex = new Vertex(topPoint, up, new Vector2(0.5f));
-                    tris.Add(new VertexTriangle(sidePoints[i + 1 == sides ? 0 : i + 1], sidePoints[i], topVertex));
+                    tris.Add(new VertexTriangle(
+                        sidePoints[i + 1 == sides ? 0 : i + 1],
+                        sidePoints[i],
+                        topVertex));
+
                     if (tris.Count - 2 >= 0)
                     {
                         VertexTriangle lastTri = tris[^2];

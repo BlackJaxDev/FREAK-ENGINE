@@ -163,7 +163,7 @@ namespace XREngine.Rendering.Models.Materials.Textures
                 EPixelInternalFormat? internalFormatForce = null;
                 if (!Data.Resizable && !_storageSet)
                 {
-                    Api.TextureStorage2D(BindingId, (uint)Data.SmallestMipmapLevel + 1u, ToGLEnum(Data.SizedInternalFormat), Data.Extent, Data.Extent);
+                    Api.TexStorage2D(GLEnum.TextureCubeMap, (uint)Data.SmallestMipmapLevel, ToGLEnum(Data.SizedInternalFormat), Data.Extent, Data.Extent);
                     internalFormatForce = ToBaseInternalFormat(Data.SizedInternalFormat);
                     _storageSet = true;
                 }

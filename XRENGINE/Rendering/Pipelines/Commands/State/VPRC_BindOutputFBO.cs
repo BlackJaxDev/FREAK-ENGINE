@@ -12,16 +12,16 @@
         protected override void Execute()
         {
             var fbo = Pipeline.RenderState.OutputFBO;
-            if (fbo != null)
-            {
-                if (Write)
-                    fbo.BindForWriting();
-                else
-                    fbo.BindForReading();
+            if (fbo is null)
+                return;
+            
+            if (Write)
+                fbo.BindForWriting();
+            else
+                fbo.BindForReading();
 
-                PopCommand.FrameBuffer = fbo;
-                PopCommand.Write = Write;
-            }
+            PopCommand.FrameBuffer = fbo;
+            PopCommand.Write = Write;
         }
     }
 }

@@ -269,6 +269,7 @@ namespace XREngine.Rendering
 
         public unsafe void AttachAll()
         {
+            using var t = BindState();
             if (Targets != null)
                 for (int i = 0; i < Targets.Length; ++i)
                     Attach(i);

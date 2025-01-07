@@ -65,31 +65,6 @@ public partial class UIToolbarComponent : UIComponent
         CreateMenu(SceneNode, true, null, null, RootMenuOptions, false, null, this);
     }
 
-    private XRMaterial? _menuBackgroundMaterial;
-    public XRMaterial MenuBackgroundMaterial
-    {
-        get => _menuBackgroundMaterial ??= MakeBackgroundMaterial();
-        set => SetField(ref _menuBackgroundMaterial, value);
-    }
-
-    private static XRMaterial MakeBackgroundMaterial()
-    {
-        var floorShader = ShaderHelper.LoadEngineShader("Misc\\TestFloor.frag");
-        ShaderVar[] floorUniforms =
-        [
-            new ShaderVector4(ColorF4.Charcoal, "MatColor"),
-            new ShaderFloat(10.0f, "BlurStrength"),
-            new ShaderInt(20, "SampleCount"),
-            new ShaderVector3(Globals.Backward, "PlaneNormal"),
-        ];
-        XRTexture2D grabTex = XRTexture2D.CreateGrabPassTextureResized(0.2f);
-        var floorMat = new XRMaterial(floorUniforms, [grabTex], floorShader);
-        floorMat.RenderOptions.CullMode = ECullMode.None;
-        floorMat.RenderOptions.RequiredEngineUniforms = EUniformRequirements.Camera;
-        floorMat.RenderPass = (int)EDefaultRenderPass.TransparentForward;
-        return floorMat;
-    }
-
     public UIListTransform CreateMenu(
         SceneNode parentNode,
         bool horizontal,
@@ -101,10 +76,10 @@ public partial class UIToolbarComponent : UIComponent
         UIToolbarComponent toolbar)
     {
         var listNode = parentNode.NewChild<UIMaterialComponent>(out var menuMat);
-        menuMat.Material = MenuBackgroundMaterial;
+        menuMat.Material = EditorPanel.BackgroundMaterial;
         var listTfm = listNode.SetTransform<UIListTransform>();
         listTfm.DisplayHorizontal = horizontal;
-        listTfm.ItemSpacing = Margin;
+        listTfm.ItemSpacing = 0.0f;
         listTfm.Padding = new Vector4(0.0f);
         listTfm.ItemAlignment = EListAlignment.TopOrLeft;
         listTfm.ItemSize = menuHeight;

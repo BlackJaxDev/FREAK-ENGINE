@@ -142,7 +142,7 @@ namespace XREngine.Rendering
             (worldOverride ?? World)?.VisualScene?.CollectRenderedItems(
                 _renderPipeline.MeshRenderCommands,
                 camera,
-                CameraComponent?.CullWithFrustum ?? true,
+                CameraComponent?.CullWithFrustum ?? false,
                 CameraComponent?.CullingCameraOverride,
                 shadowPass);
 

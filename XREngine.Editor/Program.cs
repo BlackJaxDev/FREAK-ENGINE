@@ -41,7 +41,7 @@ internal class Program
 {
     public const bool VisualizeOctree = false;
     public const bool VisualizeQuadtree = false;
-    public const bool Physics = true;
+    public const bool Physics = false;
     public const bool DirLight = true;
     public const bool SpotLight = false;
     public const bool DirLight2 = true;
@@ -532,7 +532,7 @@ internal class Program
         spotLightComp!.Name = "TestSpotLight";
         spotLightComp.Color = new Vector3(1.0f, 1.0f, 1.0f);
         spotLightComp.Intensity = 10.0f;
-        spotLightComp.Brightness = 1.0f;
+        spotLightComp.Brightness = 5.0f;
         spotLightComp.Distance = 40.0f;
         spotLightComp.SetCutoffs(10, 40);
         spotLightComp.CastsShadows = true;
@@ -592,8 +592,8 @@ internal class Program
         //Engine.EnqueueMainThreadTask(probeComp.GenerateIrradianceMap);
         //Engine.EnqueueMainThreadTask(probeComp.GeneratePrefilterMap);
 
-        probeComp.SetCaptureResolution(256, false, 256);
-        probeComp.RealTimeCapture = false;
+        probeComp.SetCaptureResolution(1024, false, 1024);
+        probeComp.RealTimeCapture = true;
         probeComp.RealTimeCaptureUpdateInterval = TimeSpan.FromSeconds(1);
 
         //Task.Run(async () =>
@@ -797,7 +797,7 @@ internal class Program
             }
             else
             {
-                Debug.Out($"Loaded texture: {path}");
+                //Debug.Out($"Loaded texture: {path}");
                 tex.MagFilter = ETexMagFilter.Linear;
                 tex.MinFilter = ETexMinFilter.Linear;
                 tex.UWrap = ETexWrapMode.Repeat;
