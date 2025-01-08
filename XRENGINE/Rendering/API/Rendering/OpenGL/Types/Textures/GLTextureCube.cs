@@ -130,6 +130,7 @@ namespace XREngine.Rendering.Models.Materials.Textures
                 return;
 
             Api.NamedFramebufferTextureLayer(apiFBO.BindingId, ToGLEnum(attachment), 0, mipLevel, (int)face);
+            //Api.FramebufferTexture2D(GLEnum.Framebuffer, ToGLEnum(attachment), GLEnum.TextureCubeMapPositiveX + (int)face, 0, mipLevel);
         }
         public void AttachFaceToFBO(XRFrameBuffer fbo, EFrameBufferAttachment attachment, ECubemapFace face, int mipLevel)
         {
@@ -137,6 +138,7 @@ namespace XREngine.Rendering.Models.Materials.Textures
                 return;
 
             Api.NamedFramebufferTextureLayer(apiFBO.BindingId, ToGLEnum(attachment), BindingId, mipLevel, (int)face);
+            //Api.FramebufferTexture2D(GLEnum.Framebuffer, ToGLEnum(attachment), GLEnum.TextureCubeMapPositiveX + (int)face, BindingId, mipLevel);
         }
 
         public unsafe override void PushData()
@@ -218,9 +220,6 @@ namespace XREngine.Rendering.Models.Materials.Textures
 
             for (int side = 0; side < 6; ++side)
             {
-                ETextureTarget target = ETextureTarget.TextureCubeMapPositiveX + side;
-                GLEnum glTarget = ToGLEnum(target);
-
                 var mip = cubeMip?.Sides[side];
                 if (mip is null)
                 {
@@ -239,6 +238,7 @@ namespace XREngine.Rendering.Models.Materials.Textures
                     hasPushedResized = info!.HasPushedResizedData;
                 }
 
+                GLEnum glTarget = GLEnum.TextureCubeMapPositiveX + side;
                 if (data is null || data.Length == 0)
                     Push(glTarget, i, Data.Extent >> i, Data.Extent >> i, pixelFormat, pixelType, internalPixelFormat, hasPushedResized);
                 else

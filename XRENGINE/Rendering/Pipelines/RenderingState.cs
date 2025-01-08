@@ -59,7 +59,7 @@ public sealed partial class XRRenderPipelineInstance
                 _renderingScenes.Push(Scene);
 
             if (SceneCamera is not null)
-                _renderingCameras.Push(RenderingCamera);
+                _renderingCameras.Push(SceneCamera);
 
             return new StateObject(PopMainAttributes);
         }
@@ -117,7 +117,32 @@ public sealed partial class XRRenderPipelineInstance
             if (_renderRegionStack.Count > 0)
                 AbstractRenderer.Current?.SetRenderArea(_renderRegionStack.Peek());
         }
-        
+
+        public BoundingRectangle CurrentCropRegion
+            => _cropRegionStack.TryPeek(out var area) ? area : BoundingRectangle.Empty;
+        private readonly Stack<BoundingRectangle> _cropRegionStack = new();
+        public StateObject PushCropArea(int width, int height)
+            => PushCropArea(0, 0, width, height);
+        public StateObject PushCropArea(int x, int y, int width, int height)
+            => PushCropArea(new BoundingRectangle(x, y, width, height));
+        public StateObject PushCropArea(BoundingRectangle region)
+        {
+            _cropRegionStack.Push(region);
+            AbstractRenderer.Current?.SetCroppingEnabled(true);
+            AbstractRenderer.Current?.CropRenderArea(region);
+            return new StateObject(PopCropArea);
+        }
+        public void PopCropArea()
+        {
+            if (_cropRegionStack.Count <= 0)
+                return;
+
+            _cropRegionStack.Pop();
+            if (_cropRegionStack.Count > 0)
+                AbstractRenderer.Current?.CropRenderArea(_cropRegionStack.Peek());
+        }
+
+
         /// <summary>
         /// This material will be used to render all objects in the scene if set.
         /// </summary>

@@ -400,7 +400,7 @@ namespace XREngine.Components
         private SortedSet<RenderInfo2D> InteractableIntersections = new(new Comparer());
 
         protected static bool InteractablePredicate(RenderInfo2D item)
-            => item.Owner is UIInteractableComponent;
+            => item.Owner is UIInteractableComponent ui && ui.BoundableTransform.IsVisibleInHierarchy;
         private void ValidateIntersection(RenderInfo2D item)
         {
             if (item.Owner is not UIInteractableComponent inter)

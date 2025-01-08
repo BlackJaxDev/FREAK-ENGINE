@@ -18,10 +18,12 @@
                 return;
             }
 
-            Pipeline.RenderState.PushRenderArea(
-                UseInternalResolution
-                    ? vp.InternalResolutionRegion
-                    : vp.Region);
+            var res = UseInternalResolution
+                ? vp.InternalResolutionRegion
+                : vp.Region;
+
+            Pipeline.RenderState.PushRenderArea(res);
+            Pipeline.RenderState.PushCropArea(res);
         }
     }
 }

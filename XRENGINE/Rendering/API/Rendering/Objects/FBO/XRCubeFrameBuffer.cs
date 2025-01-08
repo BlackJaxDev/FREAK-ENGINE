@@ -54,10 +54,10 @@ namespace XREngine.Rendering
             [
                 new(0.0f, -90.0f, 180.0f), //+X
                 new(0.0f, 90.0f, 180.0f), //-X
-                new(90.0f, 0.0f, 180.0f), //+Y
-                new(-90.0f, 0.0f, 180.0f), //-Y
-                new(0.0f, 180.0f, 0.0f), //+Z
-                new(0.0f, 0.0f, 0.0f), //-Z
+                new(90.0f, 0.0f, 0.0f), //+Y
+                new(-90.0f, 0.0f, 0.0f), //-Y
+                new(0.0f, 180.0f, 180.0f), //+Z
+                new(0.0f, 0.0f, 180.0f), //-Z
             ];
 
             XRCameraParameters p;
@@ -76,8 +76,6 @@ namespace XREngine.Rendering
                 {
                     Parent = parent,
                     Rotation = rotations[i].ToQuaternion(),
-                    Translation = new Vector3(0.0f, 0.0f, 0.0f),
-                    Scale = new Vector3(1.0f, 1.0f, 1.0f),
                 };
                 tfm.RecalcLocal();
                 tfm.RecalcWorld(false);

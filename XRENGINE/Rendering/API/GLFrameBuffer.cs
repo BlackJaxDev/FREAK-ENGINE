@@ -11,10 +11,10 @@ namespace XREngine.Rendering.OpenGL
         protected override void UnlinkData()
         {
             Data.SetDrawBuffersRequested -= SetDrawBuffers;
-            Data.PreSetRenderTarget -= Value_PreSetRenderTarget;
-            Data.PostSetRenderTarget -= Value_PostSetRenderTarget;
-            Data.PreSetRenderTargets -= Value_PreSetRenderTargets;
-            Data.PostSetRenderTargets -= Value_PostSetRenderTargets;
+            Data.PreSetRenderTarget -= PreSetRenderTarget;
+            Data.PostSetRenderTarget -= PostSetRenderTarget;
+            Data.PreSetRenderTargets -= PreSetRenderTargets;
+            Data.PostSetRenderTargets -= PostSetRenderTargets;
             Data.BindForReadRequested -= BindForReading;
             Data.BindForWriteRequested -= BindForWriting;
             Data.BindRequested -= Bind;
@@ -26,10 +26,10 @@ namespace XREngine.Rendering.OpenGL
         protected override void LinkData()
         {
             Data.SetDrawBuffersRequested += SetDrawBuffers;
-            Data.PreSetRenderTarget += Value_PreSetRenderTarget;
-            Data.PostSetRenderTarget += Value_PostSetRenderTarget;
-            Data.PreSetRenderTargets += Value_PreSetRenderTargets;
-            Data.PostSetRenderTargets += Value_PostSetRenderTargets;
+            Data.PreSetRenderTarget += PreSetRenderTarget;
+            Data.PostSetRenderTarget += PostSetRenderTarget;
+            Data.PreSetRenderTargets += PreSetRenderTargets;
+            Data.PostSetRenderTargets += PostSetRenderTargets;
             Data.BindForReadRequested += BindForReading;
             Data.BindForWriteRequested += BindForWriting;
             Data.BindRequested += Bind;
@@ -40,14 +40,14 @@ namespace XREngine.Rendering.OpenGL
 
         private bool _invalidated = true;
 
-        private void Value_PreSetRenderTargets()
+        private void PreSetRenderTargets()
         {
             if (IsGenerated)
                 Data.DetachAll();
             else
                 _invalidated = true;
         }
-        private void Value_PostSetRenderTargets()
+        private void PostSetRenderTargets()
         {
             if (IsGenerated)
                 Data.AttachAll();
@@ -55,7 +55,7 @@ namespace XREngine.Rendering.OpenGL
                 _invalidated = true;
         }
 
-        private void Value_PreSetRenderTarget(int i)
+        private void PreSetRenderTarget(int i)
         {
             if (IsGenerated)
             {
@@ -65,7 +65,7 @@ namespace XREngine.Rendering.OpenGL
             else
                 _invalidated = true;
         }
-        private void Value_PostSetRenderTarget(int i)
+        private void PostSetRenderTarget(int i)
         {
             if (IsGenerated)
             {
@@ -81,8 +81,8 @@ namespace XREngine.Rendering.OpenGL
         {
             if (!_invalidated || _verifying)
                 return;
-            _invalidated = false;
             _verifying = true;
+            _invalidated = false;
             Data.AttachAll();
             _verifying = false;
         }

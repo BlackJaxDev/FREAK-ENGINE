@@ -66,18 +66,18 @@ namespace XREngine.Components.Lights
         protected virtual void InitializeForCapture()
         {
             _environmentTextureCubemap?.Destroy();
-            _environmentTextureCubemap = new XRTextureCube(ColorResolution, EPixelInternalFormat.Rgb8, EPixelFormat.Rgb, EPixelType.UnsignedByte, false)
+            _environmentTextureCubemap = new XRTextureCube(ColorResolution, EPixelInternalFormat.Rgba8, EPixelFormat.Rgba, EPixelType.UnsignedByte, false)
             {
                 MinFilter = ETexMinFilter.NearestMipmapLinear,
                 MagFilter = ETexMagFilter.Nearest,
                 UWrap = ETexWrapMode.ClampToEdge,
                 VWrap = ETexWrapMode.ClampToEdge,
                 WWrap = ETexWrapMode.ClampToEdge,
-                Resizable = false,
-                SizedInternalFormat = ESizedInternalFormat.Rgb8,
+                Resizable = true,
+                SizedInternalFormat = ESizedInternalFormat.Rgba8,
                 Name = "SceneCaptureEnvColor",
-                AutoGenerateMipmaps = true,
-                FrameBufferAttachment = EFrameBufferAttachment.ColorAttachment0,
+                AutoGenerateMipmaps = false,
+                //FrameBufferAttachment = EFrameBufferAttachment.ColorAttachment0,
             };
             //_envTex.Generate();
 
@@ -91,7 +91,7 @@ namespace XREngine.Components.Lights
                     UWrap = ETexWrapMode.ClampToEdge,
                     VWrap = ETexWrapMode.ClampToEdge,
                     WWrap = ETexWrapMode.ClampToEdge,
-                    Resizable = false,
+                    Resizable = true,
                     SizedInternalFormat = ESizedInternalFormat.Depth24Stencil8,
                     Name = "SceneCaptureEnvDepth",
                     AutoGenerateMipmaps = false,

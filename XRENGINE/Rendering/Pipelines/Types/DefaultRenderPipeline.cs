@@ -213,11 +213,11 @@ public class DefaultRenderPipeline : RenderPipeline
         {
             using (c.AddUsing<VPRC_BindOutputFBO>())
             {
-                c.Add<VPRC_StencilMask>().Set(~0u);
-                c.Add<VPRC_ClearByBoundFBO>();
+                //c.Add<VPRC_StencilMask>().Set(~0u);
+                //c.Add<VPRC_ClearByBoundFBO>();
 
-                c.Add<VPRC_DepthFunc>().Comp = EComparison.Always;
-                c.Add<VPRC_DepthWrite>().Allow = false;
+                //c.Add<VPRC_DepthFunc>().Comp = EComparison.Always;
+                //c.Add<VPRC_DepthWrite>().Allow = false;
 
                 c.Add<VPRC_RenderQuadFBO>().FrameBufferName = PostProcessFBOName;
                 c.Add<VPRC_RenderScreenSpaceUI>();

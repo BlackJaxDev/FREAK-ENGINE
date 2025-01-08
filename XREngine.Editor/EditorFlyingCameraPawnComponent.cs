@@ -111,7 +111,7 @@ public partial class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent
         if (rend is null)
             return;
 
-        var vp = Engine.Rendering.State.RenderingPipelineState?.WindowViewport;
+        var vp = Viewport;
         if (vp is null)
             return;
 

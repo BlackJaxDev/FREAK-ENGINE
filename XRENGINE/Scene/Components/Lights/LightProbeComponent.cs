@@ -90,7 +90,7 @@ namespace XREngine.Components.Lights
             Prefilter,
         }
 
-        private ERenderPreview _previewDisplay = ERenderPreview.Irradiance;
+        private ERenderPreview _previewDisplay = ERenderPreview.Prefilter;
         public ERenderPreview PreviewDisplay
         {
             get => _previewDisplay;
@@ -142,7 +142,7 @@ namespace XREngine.Components.Lights
                 UWrap = ETexWrapMode.ClampToEdge,
                 VWrap = ETexWrapMode.ClampToEdge,
                 WWrap = ETexWrapMode.ClampToEdge,
-                Resizable = false,
+                Resizable = true,
                 SizedInternalFormat = ESizedInternalFormat.Rgb8,
                 AutoGenerateMipmaps = false,
             };
@@ -154,7 +154,7 @@ namespace XREngine.Components.Lights
                 UWrap = ETexWrapMode.ClampToEdge,
                 VWrap = ETexWrapMode.ClampToEdge,
                 WWrap = ETexWrapMode.ClampToEdge,
-                Resizable = false,
+                Resizable = true,
                 SizedInternalFormat = ESizedInternalFormat.Rgb16f,
                 AutoGenerateMipmaps = false,
             };
@@ -192,7 +192,7 @@ namespace XREngine.Components.Lights
                 UWrap = ETexWrapMode.ClampToEdge,
                 VWrap = ETexWrapMode.ClampToEdge,
                 WWrap = ETexWrapMode.ClampToEdge,
-                Resizable = false,
+                Resizable = true,
                 SizedInternalFormat = ESizedInternalFormat.Rgb8,
                 AutoGenerateMipmaps = false,
             };
@@ -204,7 +204,7 @@ namespace XREngine.Components.Lights
                 UWrap = ETexWrapMode.ClampToEdge,
                 VWrap = ETexWrapMode.ClampToEdge,
                 WWrap = ETexWrapMode.ClampToEdge,
-                Resizable = false,
+                Resizable = true,
                 SizedInternalFormat = ESizedInternalFormat.Rgb16f,
                 AutoGenerateMipmaps = false,
             };
@@ -279,7 +279,7 @@ namespace XREngine.Components.Lights
                     _irradianceFBO!.SetRenderTargets((IrradianceTexture, EFrameBufferAttachment.ColorAttachment0, 0, i));
                     using (_irradianceFBO!.BindForWritingState())
                     {
-                        Engine.Rendering.State.ClearByBoundFBO();
+                        //Engine.Rendering.State.ClearByBoundFBO();
                         //Engine.Rendering.State.EnableDepthTest(false);
                         //Engine.Rendering.State.StencilMask(~0u);
                         _irradianceFBO.RenderFullscreen(ECubemapFace.PosX + i);
@@ -320,7 +320,7 @@ namespace XREngine.Components.Lights
                         _prefilterFBO.SetRenderTargets((PrefilterTex, EFrameBufferAttachment.ColorAttachment0, mip, i));
                         using (_prefilterFBO.BindForWritingState())
                         {
-                            Engine.Rendering.State.ClearByBoundFBO();
+                            //Engine.Rendering.State.ClearByBoundFBO();
                             //Engine.Rendering.State.EnableDepthTest(false);
                             //Engine.Rendering.State.StencilMask(~0u);
                             _prefilterFBO.RenderFullscreen(ECubemapFace.PosX + i);
@@ -328,7 +328,6 @@ namespace XREngine.Components.Lights
                     }
                 }
             }
-            
         }
 
         private void CachePreviewSphere()

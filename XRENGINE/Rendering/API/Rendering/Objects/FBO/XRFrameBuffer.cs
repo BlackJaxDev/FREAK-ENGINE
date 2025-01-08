@@ -253,6 +253,10 @@ namespace XREngine.Rendering
 
         public event Action<int>? PreSetRenderTarget;
         public event Action<int>? PostSetRenderTarget;
+        public event Action? SetDrawBuffersRequested;
+
+        private unsafe void SetDrawBuffers()
+            => SetDrawBuffersRequested?.Invoke();
 
         public void SetRenderTarget(int i, (IFrameBufferAttachement Target, EFrameBufferAttachment Attachment, int MipLevel, int LayerIndex) target)
         {
@@ -274,19 +278,17 @@ namespace XREngine.Rendering
                 for (int i = 0; i < Targets.Length; ++i)
                     Attach(i);
             SetDrawBuffers();
+            //AbstractRenderer.Current?.SetReadBuffer(EReadBufferMode.None);
         }
-
-        public event Action? SetDrawBuffersRequested;
-
-        private unsafe void SetDrawBuffers()
-            => SetDrawBuffersRequested?.Invoke();
 
         public void DetachAll()
         {
+            using var t = BindState();
             if (Targets != null)
                 for (int i = 0; i < Targets.Length; ++i)
                     Detach(i);
         }
+
         public void Attach(int i)
         {
             var targets = Targets;
@@ -312,6 +314,7 @@ namespace XREngine.Rendering
                     break;
             }
         }
+
         public void Detach(int i)
         {
             if (Targets is null)
