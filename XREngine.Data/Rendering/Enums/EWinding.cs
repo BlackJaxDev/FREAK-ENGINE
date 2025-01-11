@@ -3,6 +3,6 @@
     public enum EWinding
     {
         Clockwise,
-        Counterclockwise,
+        CounterClockwise,
     }
 }

@@ -480,7 +480,11 @@ namespace XREngine.Data.Trees
         /// <param name="segment"></param>
         /// <param name="orderedItems"></param>
         /// <param name="directTest"></param>
-        public void Raycast<T2>(Segment segment, SortedDictionary<float, List<(T2 item, object? data)>> items, Func<T, Segment, (float? distance, object? data)> directTest) where T2 : class, IRenderableBase
+        public void Raycast<TRenderableType>(
+            Segment segment,
+            SortedDictionary<float, List<(T item, object? data)>> items,
+            Func<T, Segment, (float? distance, object? data)> directTest)
+            where TRenderableType : IRenderableBase
         {
             if (!_bounds.IntersectsSegment(segment))
                 return;
@@ -488,7 +492,7 @@ namespace XREngine.Data.Trees
             for (int i = 0; i < _items.Count; ++i)
             {
                 T item = _items[i];
-                if (item.Owner is not T2 t2)
+                if (item.Owner is not TRenderableType)
                     continue;
 
                 var worldCullingVolume = item.WorldCullingVolume;
@@ -498,14 +502,14 @@ namespace XREngine.Data.Trees
                 (float? dist, object? data) = directTest(item, segment);
                 if (dist is not null)
                 {
-                    if (!items.TryGetValue(dist.Value, out List<(T2 item, object? data)>? list))
+                    if (!items.TryGetValue(dist.Value, out List<(T item, object? data)>? list))
                         items.Add(dist.Value, list = []);
-                    list.Add((t2, data));
+                    list.Add((item, data));
                 }
             }
 
             for (int i = 0; i < _subNodes.Length; ++i)
-                _subNodes[i]?.Raycast(segment, items, directTest);
+                _subNodes[i]?.Raycast<TRenderableType>(segment, items, directTest);
         }
 
         /// <summary>

@@ -5,18 +5,11 @@ namespace XREngine.Components.Lights
 {
     public class SceneCaptureComponent : XRComponent
     {
-        private uint _colorResolution = Engine.Rendering.Settings.LightProbeColorResolution;
-        public uint ColorResolution
+        private uint _colorResolution = Engine.Rendering.Settings.LightProbeResolution;
+        public uint Resolution
         {
             get => _colorResolution;
             set => SetField(ref _colorResolution, value);
-        }
-
-        private uint _depthResolution = Engine.Rendering.Settings.LightProbeDepthResolution;
-        public uint DepthResolution
-        {
-            get => _depthResolution;
-            set => SetField(ref _depthResolution, value);
         }
 
         private bool _captureDepthCubeMap = Engine.Rendering.Settings.LightProbesCaptureDepth;
@@ -49,10 +42,9 @@ namespace XREngine.Components.Lights
         public XRTextureCube? EnvironmentDepthTextureCubemap => _environmentDepthTextureCubemap;
         protected XRCubeFrameBuffer? RenderFBO => _renderFBO;
 
-        public void SetCaptureResolution(uint colorResolution, bool captureDepth = false, uint depthResolution = 1u)
+        public void SetCaptureResolution(uint colorResolution, bool captureDepth = false)
         {
-            ColorResolution = colorResolution;
-            DepthResolution = depthResolution;
+            Resolution = colorResolution;
             CaptureDepthCubeMap = captureDepth;
             InitializeForCapture();
         }
@@ -66,14 +58,14 @@ namespace XREngine.Components.Lights
         protected virtual void InitializeForCapture()
         {
             _environmentTextureCubemap?.Destroy();
-            _environmentTextureCubemap = new XRTextureCube(ColorResolution, EPixelInternalFormat.Rgba8, EPixelFormat.Rgba, EPixelType.UnsignedByte, false)
+            _environmentTextureCubemap = new XRTextureCube(Resolution, EPixelInternalFormat.Rgba8, EPixelFormat.Rgba, EPixelType.UnsignedByte, false)
             {
                 MinFilter = ETexMinFilter.NearestMipmapLinear,
                 MagFilter = ETexMagFilter.Nearest,
                 UWrap = ETexWrapMode.ClampToEdge,
                 VWrap = ETexWrapMode.ClampToEdge,
                 WWrap = ETexWrapMode.ClampToEdge,
-                Resizable = true,
+                Resizable = false,
                 SizedInternalFormat = ESizedInternalFormat.Rgba8,
                 Name = "SceneCaptureEnvColor",
                 AutoGenerateMipmaps = false,
@@ -84,14 +76,14 @@ namespace XREngine.Components.Lights
             if (CaptureDepthCubeMap)
             {
                 _environmentDepthTextureCubemap?.Destroy();
-                _environmentDepthTextureCubemap = new XRTextureCube(DepthResolution, EPixelInternalFormat.DepthComponent24, EPixelFormat.DepthStencil, EPixelType.UnsignedInt248, false)
+                _environmentDepthTextureCubemap = new XRTextureCube(Resolution, EPixelInternalFormat.DepthComponent24, EPixelFormat.DepthStencil, EPixelType.UnsignedInt248, false)
                 {
                     MinFilter = ETexMinFilter.NearestMipmapLinear,
                     MagFilter = ETexMagFilter.Nearest,
                     UWrap = ETexWrapMode.ClampToEdge,
                     VWrap = ETexWrapMode.ClampToEdge,
                     WWrap = ETexWrapMode.ClampToEdge,
-                    Resizable = true,
+                    Resizable = false,
                     SizedInternalFormat = ESizedInternalFormat.Depth24Stencil8,
                     Name = "SceneCaptureEnvDepth",
                     AutoGenerateMipmaps = false,
@@ -101,7 +93,7 @@ namespace XREngine.Components.Lights
             }
             else
             {
-                _tempDepth = new XRRenderBuffer(DepthResolution, DepthResolution, ERenderBufferStorage.Depth24Stencil8);
+                _tempDepth = new XRRenderBuffer(Resolution, Resolution, ERenderBufferStorage.Depth24Stencil8);
                 //_tempDepth.Generate();
                 //_tempDepth.Allocate();
             }
@@ -113,7 +105,7 @@ namespace XREngine.Components.Lights
             for (int i = 0; i < cameras.Length; i++)
             {
                 XRCamera cam = cameras[i];
-                Viewports[i] = new XRViewport(null, ColorResolution, ColorResolution)
+                Viewports[i] = new XRViewport(null, Resolution, Resolution)
                 {
                     WorldInstanceOverride = World,
                     Camera = cam,
@@ -128,22 +120,45 @@ namespace XREngine.Components.Lights
                 cam.PostProcessing.ColorGrading.Exposure = 1.0f;
             }
         }
+
+        private bool _progressiveRenderEnabled = true;
+        /// <summary>
+        /// If true, the SceneCaptureComponent will render one face of the cubemap each time a Render call is made.
+        /// </summary>
+        public bool ProgressiveRenderEnabled
+        {
+            get => _progressiveRenderEnabled;
+            set => SetField(ref _progressiveRenderEnabled, value);
+        }
+
+        private int _currentFace = 0;
+
         public virtual void CollectVisible()
         {
-            for (int i = 0; i < 6; ++i)
-                Viewports[i]?.CollectVisible(null, null, _shadowPass);
+            if (_progressiveRenderEnabled)
+                CollectVisibleFace(_currentFace);
+            else
+                for (int i = 0; i < 6; ++i)
+                    CollectVisibleFace(i);
         }
+
+        private void CollectVisibleFace(int i)
+            => Viewports[i]?.CollectVisible(null, null, _shadowPass);
+
         public virtual void SwapBuffers()
         {
-            for (int i = 0; i < 6; ++i)
-                Viewports[i]?.SwapBuffers(_shadowPass);
+            if (_progressiveRenderEnabled)
+                SwapBuffersFace(_currentFace);
+            else
+                for (int i = 0; i < 6; ++i)
+                    SwapBuffersFace(i);
         }
+
+        private void SwapBuffersFace(int i)
+            => Viewports[i]?.SwapBuffers(_shadowPass);
+
         private const bool _shadowPass = false;
-        //protected override void OnWorldTransformChanged()
-        //{
-        //    base.OnWorldTransformChanged();
-        //    //RenderFBO?.SetTransform(WorldPoint);
-        //}
+
         /// <summary>
         /// Renders the scene to the ResultTexture cubemap.
         /// </summary>
@@ -152,8 +167,26 @@ namespace XREngine.Components.Lights
             if (World is null || RenderFBO is null)
                 return;
 
-            IFrameBufferAttachement depthAttachment;
-            int[] depthLayers;
+            GetDepthParams(out IFrameBufferAttachement depthAttachment, out int[] depthLayers);
+
+            if (_progressiveRenderEnabled)
+            {
+                RenderFace(depthAttachment, depthLayers, _currentFace);
+                _currentFace = (_currentFace + 1) % 6;
+            }
+            else
+                for (int i = 0; i < 6; ++i)
+                    RenderFace(depthAttachment, depthLayers, i);
+            
+            if (_environmentTextureCubemap is not null)
+            {
+                _environmentTextureCubemap.Bind();
+                _environmentTextureCubemap.GenerateMipmapsGPU();
+            }
+        }
+
+        private void GetDepthParams(out IFrameBufferAttachement depthAttachment, out int[] depthLayers)
+        {
             if (CaptureDepthCubeMap)
             {
                 depthAttachment = _environmentDepthTextureCubemap!;
@@ -164,21 +197,27 @@ namespace XREngine.Components.Lights
                 depthAttachment = _tempDepth!;
                 depthLayers = [0, 0, 0, 0, 0, 0];
             }
-
-            for (int i = 0; i < 6; ++i)
-            {
-                RenderFBO.SetRenderTargets(
-                    (_environmentTextureCubemap!, EFrameBufferAttachment.ColorAttachment0, 0, i),
-                    (depthAttachment, EFrameBufferAttachment.DepthStencilAttachment, 0, depthLayers[i]));
-
-                Viewports[i]!.Render(RenderFBO, null, null, _shadowPass, null);
-            }
-
-            if (_environmentTextureCubemap is not null)
-            {
-                _environmentTextureCubemap.Bind();
-                _environmentTextureCubemap.GenerateMipmapsGPU();
-            }
         }
+
+        private void RenderFace(IFrameBufferAttachement depthAttachment, int[] depthLayers, int i)
+        {
+            RenderFBO!.SetRenderTargets(
+                (_environmentTextureCubemap!, EFrameBufferAttachment.ColorAttachment0, 0, i),
+                (depthAttachment, EFrameBufferAttachment.DepthStencilAttachment, 0, depthLayers[i]));
+
+            Viewports[i]!.Render(RenderFBO, null, null, _shadowPass, null);
+        }
+
+        public void FullCapture(uint colorResolution, bool captureDepth)
+        {
+            SetCaptureResolution(colorResolution, captureDepth);
+            QueueCapture();
+        }
+
+        /// <summary>
+        /// Queues the light probe for capture.
+        /// </summary>
+        public void QueueCapture()
+            => World?.Lights?.QueueForCapture(this);
     }
 }

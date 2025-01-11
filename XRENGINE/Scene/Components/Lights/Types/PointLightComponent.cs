@@ -1,10 +1,7 @@
-﻿using Extensions;
-using System.Numerics;
+﻿using System.Numerics;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
-using XREngine.Data.Transforms.Rotations;
 using XREngine.Rendering;
-using XREngine.Scene;
 using XREngine.Scene.Transforms;
 
 namespace XREngine.Components.Lights
@@ -41,7 +38,7 @@ namespace XREngine.Components.Lights
         protected override XRMesh GetWireframeMesh()
             => XRMesh.Shapes.WireframeSphere(Vector3.Zero, Radius, 32);
 
-        public XRCamera[] ShadowCameras { get; }
+        public XRCamera[] ShadowCameras { get; private set; }
 
         private Sphere _influenceVolume;
 
@@ -53,23 +50,14 @@ namespace XREngine.Components.Lights
             _influenceVolume = new Sphere(Vector3.Zero, radius);
             Brightness = brightness;
 
-            ShadowCameras = new XRCamera[6];
-            Rotator[] rotations =
-            [
-                new(  0.0f, -90.0f, 180.0f), //+X
-                new(  0.0f,  90.0f, 180.0f), //-X
-                new( 90.0f,   0.0f,   0.0f), //+Y
-                new(-90.0f,   0.0f,   0.0f), //-Y
-                new(  0.0f, 180.0f, 180.0f), //+Z
-                new(  0.0f,   0.0f, 180.0f), //-Z
-            ];
-
             PositionOnlyTransform positionTransform = new(Transform);
-            ShadowCameras.Fill(i => new XRCamera(new Transform(rotations[i], positionTransform), new XRPerspectiveCameraParameters(90.0f, 1.0f, 0.01f, radius)));
+            ShadowCameras = XRCubeFrameBuffer.GetCamerasPerFace(0.1f, radius, true, positionTransform);
             ShadowExponentBase = 1.0f;
             ShadowExponent = 2.5f;
             ShadowMinBias = 0.05f;
             ShadowMaxBias = 10.0f;
+
+            MeshCenterAdjustMatrix = Matrix4x4.CreateScale(radius);
         }
 
         protected override void OnTransformChanged()
@@ -121,8 +109,8 @@ namespace XREngine.Components.Lights
             program.Uniform($"{targetStructName}Color", _color);
             program.Uniform($"{targetStructName}DiffuseIntensity", _diffuseIntensity);
             program.Uniform($"{targetStructName}Position", _influenceVolume.Center);
-            program.Uniform($"{targetStructName}Radius", Radius);
-            program.Uniform($"{targetStructName}Brightness", Brightness);
+            program.Uniform($"{targetStructName}Radius", _influenceVolume.Radius);
+            program.Uniform($"{targetStructName}Brightness", _brightness);
 
             var mat = ShadowMap?.Material;
             if (mat is null || mat.Textures.Count < 2)
@@ -143,7 +131,7 @@ namespace XREngine.Components.Lights
         /// </summary>
         private void SetShadowDepthUniforms(XRMaterialBase material, XRRenderProgram program)
         {
-            program.Uniform("FarPlaneDist", Radius);
+            program.Uniform("FarPlaneDist", _influenceVolume.Radius);
             program.Uniform("LightPos", _influenceVolume.Center);
             for (int i = 0; i < ShadowCameras.Length; ++i)
             {
@@ -245,9 +233,12 @@ namespace XREngine.Components.Lights
                     if (ShadowMap?.Material is not null)
                         ShadowMap.Material.SettingUniforms += SetShadowDepthUniforms;
                     break;
-                case nameof(Radius):
-                    MeshCenterAdjustMatrix = Matrix4x4.CreateScale(Radius);
-                    break;
+                //case nameof(Radius):
+                //    MeshCenterAdjustMatrix = Matrix4x4.CreateScale(Radius);
+                //    foreach (var cam in ShadowCameras)
+                //        cam.FarZ = Radius;
+                //    _influenceVolume.Radius = Radius;
+                //    break;
             }
         }
     }

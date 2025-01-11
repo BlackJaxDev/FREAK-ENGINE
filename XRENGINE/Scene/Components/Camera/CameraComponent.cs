@@ -1,6 +1,4 @@
-﻿using Silk.NET.OpenXR;
-using System.ComponentModel;
-using System.Numerics;
+﻿using System.Numerics;
 using XREngine.Data.Core;
 using XREngine.Data.Geometry;
 using XREngine.Rendering;

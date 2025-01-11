@@ -19,15 +19,6 @@ layout(binding = 6) uniform sampler2D BRDF;
 layout(binding = 7) uniform samplerCube Irradiance;
 layout(binding = 8) uniform samplerCube Prefilter;
 
-layout(binding = 9) uniform samplerCube Irradiance1;
-layout(binding = 10) uniform samplerCube Prefilter1;
-
-layout(binding = 11) uniform samplerCube Irradiance2;
-layout(binding = 12) uniform samplerCube Prefilter2;
-
-layout(binding = 13) uniform samplerCube Irradiance3;
-layout(binding = 14) uniform samplerCube Prefilter3;
-
 uniform vec3 CameraPosition;
 uniform mat4 InverseViewMatrix;
 uniform mat4 ProjMatrix;

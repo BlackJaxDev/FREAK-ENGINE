@@ -1,10 +1,12 @@
 ﻿using Extensions;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using XREngine.Audio;
 using XREngine.Components;
+using XREngine.Components.Scene.Mesh;
 using XREngine.Data.Core;
 using XREngine.Data.Geometry;
 using XREngine.Data.Trees;
@@ -418,32 +420,41 @@ namespace XREngine.Rendering
             Sequences.Clear();
         }
 
-        public bool Raycast(
+        public bool RaycastPhysics(
             CameraComponent cameraComponent,
             Vector2 normalizedScreenPoint,
-            bool testOctree,
-            bool testPhysics,
             SortedDictionary<float, List<(XRComponent item, object? data)>> orderedResults)
-            => Raycast(
+            => RaycastPhysics(
                 cameraComponent.Camera.GetWorldSegment(normalizedScreenPoint),
-                testOctree,
-                testPhysics,
                 orderedResults);
 
-        public bool Raycast(
+        public bool RaycastPhysics(
             Segment worldSegment,
-            bool testOctree,
-            bool testPhysics,
             SortedDictionary<float, List<(XRComponent item, object? data)>> orderedResults)
         {
-            bool hasMatches = false;
-            //if (testOctree)
-            //    VisualScene.Raycast(worldSegment, orderedResults, DirectItemTest);
-            if (testPhysics)
-                PhysicsScene.Raycast(worldSegment, orderedResults);
-            return hasMatches;
+            orderedResults.Clear();
+            PhysicsScene.Raycast(worldSegment, orderedResults);
+            return orderedResults.Count > 0;
         }
 
+        public bool RaycastOctree(
+            CameraComponent cameraComponent,
+            Vector2 normalizedScreenPoint,
+            SortedDictionary<float, List<(RenderInfo3D item, object? data)>> orderedResults)
+            => RaycastOctree(
+                cameraComponent.Camera.GetWorldSegment(normalizedScreenPoint),
+                orderedResults);
+
+        public bool RaycastOctree(
+            Segment worldSegment,
+            SortedDictionary<float, List<(RenderInfo3D item, object? data)>> orderedResults)
+        {
+            orderedResults.Clear();
+            VisualScene.Raycast<IRenderable>(worldSegment, orderedResults, DirectItemTest);
+            return orderedResults.Count > 0;
+        }
+
+        [RequiresDynamicCode("Calls XREngine.Components.Scene.Mesh.ModelComponent.Intersect(Segment, out Triangle?)")]
         private static (float? distance, object? data) DirectItemTest(RenderInfo3D item, Segment segment)
         {
             if (item is not RenderInfo renderable)
@@ -451,11 +462,11 @@ namespace XREngine.Rendering
             
             switch (renderable.Owner)
             {
-                //case ModelComponent model:
-                //    {
-                //        float? dist = model.Intersect(segment, out Triangle? tri);
-                //        return (dist ?? 0.0f, tri);
-                //    }
+                case ModelComponent model:
+                    {
+                        float? dist = model.Intersect(segment, out Triangle? tri);
+                        return (dist, tri);
+                    }
                 case TransformBase transform:
                     {
                         Capsule c = transform.Capsule;

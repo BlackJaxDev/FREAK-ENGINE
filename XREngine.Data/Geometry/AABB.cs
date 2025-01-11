@@ -474,12 +474,37 @@ namespace XREngine.Data.Geometry
 
         public readonly bool IntersectsSegment(Segment segment)
         {
-            GetPlanes(out var up, out var down, out var right, out var left, out var back, out var front);
-            Plane[] planes = { up, down, right, left, back, front };
-            foreach (Plane plane in planes)
-                if (GeoUtil.RayIntersectsPlane(segment.Start, (segment.End - segment.Start).Normalized(), XRMath.GetPlanePoint(plane), plane.Normal, out Vector3 point) && ContainsPoint(point))
-                    return true;
-            return false;
+            Vector3 dir = (segment.End - segment.Start) * 0.5f;
+            Vector3 mid = segment.Start + dir;
+            Vector3 extents = HalfExtents;
+            Vector3 center = Center - mid;
+
+            float adx = MathF.Abs(dir.X);
+            if (MathF.Abs(center.X) > extents.X + adx)
+                return false;
+
+            float ady = MathF.Abs(dir.Y);
+            if (MathF.Abs(center.Y) > extents.Y + ady)
+                return false;
+
+            float adz = MathF.Abs(dir.Z);
+            if (MathF.Abs(center.Z) > extents.Z + adz)
+                return false;
+
+            adx += float.Epsilon;
+            ady += float.Epsilon;
+            adz += float.Epsilon;
+
+            if (MathF.Abs(center.Y * dir.Z - center.Z * dir.Y) > extents.Y * adz + extents.Z * ady)
+                return false;
+
+            if (MathF.Abs(center.Z * dir.X - center.X * dir.Z) > extents.X * adz + extents.Z * adx)
+                return false;
+
+            if (MathF.Abs(center.X * dir.Y - center.Y * dir.X) > extents.X * ady + extents.Y * adx)
+                return false;
+
+            return true;
         }
 
         public static AABB FromSphere(Vector3 center, float radius)

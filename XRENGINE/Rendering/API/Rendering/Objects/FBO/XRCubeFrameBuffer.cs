@@ -14,7 +14,7 @@ namespace XREngine.Rendering
         /// <summary>
         /// These cameras are used to render each face of the clip-space cube.
         /// </summary>
-        private static readonly XRCamera[] LocalCameras = GetCamerasPerFace(0.0f, 1.0f, true, null);
+        private static readonly XRCamera[] LocalCameras = GetCamerasPerFace(0.1f, 1.0f, false, null);
 
         public XRCubeFrameBuffer(XRMaterial? mat) : base(mat)
         {
@@ -30,13 +30,19 @@ namespace XREngine.Rendering
         /// </summary>
         public void RenderFullscreen(ECubemapFace face)
         {
+            var cam = LocalCameras[(int)face];
+
             var state = Engine.Rendering.State.RenderingPipelineState;
-            if (state is null)
-                FullScreenCubeMesh.Render();
+            if (state is not null)
+            {
+                using (state.PushRenderingCamera(cam))
+                    FullScreenCubeMesh.Render();
+            }
             else
             {
-                using (state.PushRenderingCamera(LocalCameras[(int)face]))
-                    FullScreenCubeMesh.Render();
+                Engine.Rendering.State.RenderingCameraOverride = cam;
+                FullScreenCubeMesh.Render();
+                Engine.Rendering.State.RenderingCameraOverride = null;
             }
         }
 

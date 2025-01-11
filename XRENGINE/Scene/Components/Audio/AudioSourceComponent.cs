@@ -332,7 +332,12 @@ namespace XREngine.Components.Scene
                 Play();
         }
 
-        public bool PlayOnActivate { get; set; } = false;
+        private bool _playOnActivate = false;
+        public bool PlayOnActivate
+        {
+            get => _playOnActivate;
+            set => SetField(ref _playOnActivate, value);
+        }
 
         protected internal override void OnComponentDeactivated()
         {
@@ -381,14 +386,14 @@ namespace XREngine.Components.Scene
                                 source.RelativeToListener = RelativeToListener;
                         }
                         break;
-                    //case nameof(Type):
-                    //    lock (ActiveListeners)
-                    //    {
-                    //        foreach (var source in ActiveListeners.Values)
-                    //            source.SourceType = Type;
-                    //    }
-                    //    break;
-                    case nameof(Loop):
+                case nameof(Type):
+                    lock (ActiveListeners)
+                    {
+                        foreach (var source in ActiveListeners.Values)
+                            source.SourceType = Type;
+                    }
+                    break;
+                case nameof(Loop):
                         lock (ActiveListeners)
                         {
                             foreach (var source in ActiveListeners.Values)
@@ -625,7 +630,7 @@ namespace XREngine.Components.Scene
         private AudioSource AddSource(ListenerContext x)
         {
             var s = x.TakeSource();
-            //s.SourceType = Type;
+            s.SourceType = Type;
             s.RolloffFactor = RolloffFactor;
             s.ReferenceDistance = ReferenceDistance;
             s.MaxDistance = MaxDistance;

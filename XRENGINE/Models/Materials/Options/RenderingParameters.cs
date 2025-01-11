@@ -15,7 +15,7 @@ namespace XREngine.Rendering.Models.Materials
         private float _lineWidth = AbstractRenderer.DefaultLineSize;
         private float _pointSize = AbstractRenderer.DefaultPointSize;
         private ECullMode _cullMode = ECullMode.Back;
-        private EWinding _winding = EWinding.Clockwise;
+        private EWinding _winding = EWinding.CounterClockwise;
         private bool _writeAlpha = true;
         private bool _writeBlue = true;
         private bool _writeGreen = true;
@@ -35,6 +35,10 @@ namespace XREngine.Rendering.Models.Materials
             BlendModeAllDrawBuffers = BlendMode.EnabledTransparent();
         }
 
+        /// <summary>
+        /// The engine can provide built-in uniforms to the shader.
+        /// This property allows you to request the engine to provide which uniforms you need.
+        /// </summary>
         public EUniformRequirements RequiredEngineUniforms
         {
             get => _requiredEngineUniforms;
@@ -60,11 +64,18 @@ namespace XREngine.Rendering.Models.Materials
             get => _writeAlpha;
             set => SetField(ref _writeAlpha, value);
         }
+        /// <summary>
+        /// Specifies the winding order of the triangles.
+        /// Default is counter-clockwise.
+        /// </summary>
         public EWinding Winding
         {
             get => _winding;
             set => SetField(ref _winding, value);
         }
+        /// <summary>
+        /// Specifies which side(s) of each triangle should be left unrendered, if any.
+        /// </summary>
         public ECullMode CullMode
         {
             get => _cullMode;
@@ -80,21 +91,36 @@ namespace XREngine.Rendering.Models.Materials
             get => _lineWidth;
             set => SetField(ref _lineWidth, value);
         }
+        /// <summary>
+        /// Specifies how the depth buffer should be tested.
+        /// </summary>
         public DepthTest DepthTest
         {
             get => _depthTest;
             set => SetField(ref _depthTest, value);
         }
+        /// <summary>
+        /// Specifies how the stencil buffer should be tested.
+        /// </summary>
         public StencilTest StencilTest
         {
             get => _stencilTest;
             set => SetField(ref _stencilTest, value);
         }
+        /// <summary>
+        /// If set, each draw buffer attachment can be blended with a different blend mode.
+        /// BlendModeAllDrawBuffers takes precedence over this if both are set.
+        /// </summary>
         public Dictionary<uint, BlendMode>? BlendModesPerDrawBuffer
         {
             get => _blendModesPerDrawBuffer;
             set => SetField(ref _blendModesPerDrawBuffer, value);
         }
+        /// <summary>
+        /// If set, this blend mode will be used for all draw buffers.
+        /// Specifies how all color attachments should be blended with this material.
+        /// Takes precedence over BlendModesPerDrawBuffer if both are set.
+        /// </summary>
         public BlendMode? BlendModeAllDrawBuffers
         {
             get => _blendModeAllDrawBuffers;

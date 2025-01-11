@@ -1,6 +1,7 @@
 ﻿using System.Drawing;
 using System.Numerics;
 using XREngine.Components;
+using XREngine.Data;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
 using XREngine.Data.Trees;
@@ -33,9 +34,9 @@ namespace XREngine.Scene
 
         public void Raycast<T>(
             Segment worldSegment,
-            SortedDictionary<float, List<(T item, object? data)>> items,
-            Func<RenderInfo3D, Segment, (float? distance, object? data)> directTest) where T : class, IRenderable
-            => RenderTree.Raycast(worldSegment, items, directTest);
+            SortedDictionary<float, List<(RenderInfo3D item, object? data)>> items,
+            Func<RenderInfo3D, Segment, (float? distance, object? data)> directTest) where T : IRenderable
+            => RenderTree.Raycast<T>(worldSegment, items, directTest);
 
         public override void CollectRenderedItems(RenderCommandCollection meshRenderCommands, XRCamera? camera, bool cullWithFrustum, Func<XRCamera>? cullingCameraOverride, bool shadowPass)
         {

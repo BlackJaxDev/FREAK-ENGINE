@@ -38,7 +38,7 @@ namespace XREngine
                 private bool _optimizeTo4Weights = false;
                 private bool _optimizeWeightsIfPossible = true;
                 private bool _tickGroupedItemsInParallel = false;
-                private uint lightProbeColorResolution = 512u;
+                private uint _lightProbeResolution = 512u;
                 private bool _lightProbesCaptureDepth = false;
                 private uint _lightProbeDepthResolution = 256u;
                 private bool _allowBinaryProgramCaching = true;
@@ -53,7 +53,7 @@ namespace XREngine
                 private bool _renderTransformLines = true;
                 private bool _renderTransformPoints = true;
                 private bool _renderTransformCapsules = false;
-                private bool _visualizeDirectionalLightVolumes = false;
+                private bool _visualizeDirectionalLightVolumes = true;
 
                 /// <summary>
                 /// The default luminance used for calculation of exposure, etc.
@@ -111,10 +111,10 @@ namespace XREngine
                 /// <summary>
                 /// The default resolution of the light probe color texture.
                 /// </summary>
-                public uint LightProbeColorResolution
+                public uint LightProbeResolution
                 {
-                    get => lightProbeColorResolution;
-                    set => SetField(ref lightProbeColorResolution, value);
+                    get => _lightProbeResolution;
+                    set => SetField(ref _lightProbeResolution, value);
                 }
                 /// <summary>
                 /// If true, the light probes will also capture depth information.
@@ -123,14 +123,6 @@ namespace XREngine
                 {
                     get => _lightProbesCaptureDepth;
                     set => SetField(ref _lightProbesCaptureDepth, value);
-                }
-                /// <summary>
-                /// The default resolution of the light probe depth texture.
-                /// </summary>
-                public uint LightProbeDepthResolution
-                {
-                    get => _lightProbeDepthResolution;
-                    set => SetField(ref _lightProbeDepthResolution, value);
                 }
                 /// <summary>
                 /// If true, the engine will cache compiled binary programs for faster loading times on next startups until the GPU driver is updated.

@@ -4,7 +4,6 @@ using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
 using XREngine.Rendering;
 using XREngine.Rendering.Models.Materials;
-using XREngine.Scene;
 using XREngine.Scene.Transforms;
 using static XREngine.Data.Core.XRMath;
 
@@ -62,7 +61,7 @@ namespace XREngine.Components.Lights
             set => SetCutoffs(value, OuterCutoffAngleDegrees, false);
         }
 
-        public static XRMesh GetVolumeMeshStatic()
+        public static XRMesh GetVolumeMesh()
             => XRMesh.Shapes.SolidCone(Vector3.Zero, Globals.Backward, 1.0f, 1.0f, 32, true);
         protected override XRMesh GetWireframeMesh()
             => XRMesh.Shapes.WireframeCone(Vector3.Zero, Globals.Backward, 1.0f, 1.0f, 32);

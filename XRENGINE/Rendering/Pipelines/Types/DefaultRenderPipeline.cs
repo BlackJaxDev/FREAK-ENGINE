@@ -214,7 +214,7 @@ public class DefaultRenderPipeline : RenderPipeline
             using (c.AddUsing<VPRC_BindOutputFBO>())
             {
                 //c.Add<VPRC_StencilMask>().Set(~0u);
-                //c.Add<VPRC_ClearByBoundFBO>();
+                c.Add<VPRC_ClearByBoundFBO>();
 
                 //c.Add<VPRC_DepthFunc>().Comp = EComparison.Always;
                 //c.Add<VPRC_DepthWrite>().Allow = false;
@@ -570,33 +570,19 @@ public class DefaultRenderPipeline : RenderPipeline
                     Function = EComparison.Always,
                     UpdateDepth = false,
                 },
-                //RequiredEngineUniforms = EUniformRequirements.Camera
+                RequiredEngineUniforms = EUniformRequirements.Camera
             }
         };
 
         var lightCombineFBO = new XRQuadFrameBuffer(lightCombineMat) { Name = LightCombineFBOName };
         lightCombineFBO.SetRenderTargets((diffuseTexture, EFrameBufferAttachment.ColorAttachment0, 0, -1));
-        lightCombineFBO.SettingUniforms += LightCombineFBO_SettingUniforms;
+        lightCombineFBO.SettingUniforms += SetProbeUniforms;
         return lightCombineFBO;
     }
 
-    private void LightCombineFBO_SettingUniforms(XRRenderProgram program)
+    private void SetProbeUniforms(XRRenderProgram program)
     {
-        if (RenderingWorld is null)
-            return;
-
-        var sceneCam = RenderingPipelineState?.SceneCamera;
-        if (sceneCam is null)
-            return;
-        
-        sceneCam.SetUniforms(program);
-
-        //var lightProbes = scene.Lights.GetNearestProbes(/*program.LightProbeTransform?.WorldTranslation ?? */Vector3.Zero);
-        //if (lightProbes.Length == 0)
-        //    return;
-
-        //LightProbeComponent probe = lightProbes[0];
-        if (RenderingWorld.Lights.LightProbes.Count == 0)
+        if (RenderingWorld is null || RenderingWorld.Lights.LightProbes.Count == 0)
             return;
 
         LightProbeComponent probe = RenderingWorld.Lights.LightProbes[0];
@@ -612,9 +598,9 @@ public class DefaultRenderPipeline : RenderPipeline
 
         ++baseCount;
 
-        if (probe.PrefilterTex != null)
+        if (probe.PrefilterTexture != null)
         {
-            var tex = probe.PrefilterTex;
+            var tex = probe.PrefilterTexture;
             if (tex != null)
                 program.Sampler("Prefilter", tex, baseCount);
         }

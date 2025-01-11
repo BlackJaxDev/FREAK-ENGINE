@@ -42,16 +42,18 @@ internal class Program
     public const bool VisualizeOctree = false;
     public const bool VisualizeQuadtree = false;
     public const bool Physics = false;
-    public const bool DirLight = true;
+    public const bool DirLight = false;
     public const bool SpotLight = false;
-    public const bool DirLight2 = true;
-    public const bool PointLight = false;
-    public const bool SoundNode = false;
+    public const bool DirLight2 = false;
+    public const bool PointLight = true;
+    public const bool SoundNode = true;
     public const bool LightProbe = true;
     public const bool Skybox = true;
     public const bool Spline = false;
-    public const bool StaticModel = true;
-    public const bool AnimatedModel = false;
+    public const bool DeferredDecal = false;
+    public const bool StaticModel = false;
+    public const bool AnimatedModel = true;
+    public const bool AddEditorUI = false;
 
     /// <summary>
     /// This project serves as a hardcoded game client for development purposes.
@@ -181,8 +183,22 @@ internal class Program
             AddPhysics(rootNode);
         if (Spline)
             AddSpline(rootNode);
+        if (DeferredDecal)
+            AddDeferredDecal(rootNode);
         ImportModels(desktopDir, rootNode);
         return world;
+    }
+
+    private static void AddDeferredDecal(SceneNode rootNode)
+    {
+        var decalNode = new SceneNode(rootNode) { Name = "TestDecalNode" };
+        var decalTfm = decalNode.SetTransform<Transform>();
+        decalTfm.Translation = new Vector3(0.0f, 5.0f, 0.0f);
+        decalTfm.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitX, XRMath.DegToRad(70.0f));
+        decalTfm.Scale = new Vector3(7.0f);
+        var decalComp = decalNode.AddComponent<DeferredDecalComponent>()!;
+        decalComp.Name = "TestDecal";
+        decalComp.SetTexture(Engine.Assets.LoadEngineAsset<XRTexture2D>("Textures", "decal guide.png"));
     }
 
     //private static void AddPBRTestOrbs(SceneNode rootNode, float y)
@@ -228,24 +244,27 @@ internal class Program
         if (camComp is not null)
             camComp.UserInterface = canvas;
 
-        //AddFPSText(null, rootCanvasNode);
+        AddFPSText(null, rootCanvasNode);
 
         //Add input handler
         var input = rootCanvasNode.AddComponent<UIInputComponent>()!;
         input.OwningPawn = pawn;
 
-        //This will take care of editor UI arrangement operations for us
-        var mainUINode = rootCanvasNode.NewChild<UIEditorComponent>(out var editorComp);
-        editorComp.MenuOptions = GenerateRootMenu();
-        var tfm = editorComp.UITransform as UIBoundableTransform;
-        if (tfm is not null)
+        if (AddEditorUI)
         {
-            tfm.MinAnchor = new Vector2(0.0f, 0.0f);
-            tfm.MaxAnchor = new Vector2(1.0f, 1.0f);
-            tfm.NormalizedPivot = new Vector2(0.0f, 0.0f);
-            tfm.Translation = new Vector2(0.0f, 0.0f);
-            tfm.Width = null;
-            tfm.Height = null;
+            //This will take care of editor UI arrangement operations for us
+            var mainUINode = rootCanvasNode.NewChild<UIEditorComponent>(out var editorComp);
+            editorComp.MenuOptions = GenerateRootMenu();
+            var tfm = editorComp.UITransform as UIBoundableTransform;
+            if (tfm is not null)
+            {
+                tfm.MinAnchor = new Vector2(0.0f, 0.0f);
+                tfm.MaxAnchor = new Vector2(1.0f, 1.0f);
+                tfm.NormalizedPivot = new Vector2(0.0f, 0.0f);
+                tfm.Translation = new Vector2(0.0f, 0.0f);
+                tfm.Width = null;
+                tfm.Height = null;
+            }
         }
     }
 
@@ -349,7 +368,7 @@ internal class Program
         floorModel.Model = new Model([new SubMesh(XRMesh.Create(VertexQuad.PosY(10000.0f)), floorMat)]);
 
         Random random = new();
-        for (int i = 0; i < 10; i++)
+        for (int i = 0; i < 100; i++)
             AddBall(rootNode, ballPhysMat, ballRadius, random);
     }
 
@@ -458,7 +477,9 @@ internal class Program
     private static EditorFlyingCameraPawnComponent CreateDesktopViewerPawn(SceneNode cameraNode)
     {
         var pawnComp = cameraNode.AddComponent<EditorFlyingCameraPawnComponent>();
-        cameraNode.AddComponent<AudioListenerComponent>();
+        var listener = cameraNode.AddComponent<AudioListenerComponent>()!;
+        //listener.Gain = 1.0f;
+        //listener.DistanceModel = DistanceModel.LinearDistanceClamped;
 
         pawnComp!.Name = "TestPawn";
         pawnComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
@@ -498,7 +519,7 @@ internal class Program
         
         dirLightComp!.Name = "TestDirectionalLight";
         dirLightComp.Color = new Vector3(1, 1, 1);
-        dirLightComp.Intensity = 1.0f;
+        dirLightComp.DiffuseIntensity = 1.0f;
         dirLightComp.Scale = new Vector3(1000.0f, 1000.0f, 1000.0f);
         dirLightComp.CastsShadows = false;
         dirLightComp.SetShadowMapResolution(2048, 2048);
@@ -515,9 +536,9 @@ internal class Program
 
         dirLightComp2!.Name = "TestDirectionalLight2";
         dirLightComp2.Color = new Vector3(1.0f, 0.8f, 0.8f);
-        dirLightComp2.Intensity = 1.0f;
+        dirLightComp2.DiffuseIntensity = 1.0f;
         dirLightComp2.Scale = new Vector3(1000.0f, 1000.0f, 1000.0f);
-        dirLightComp2.CastsShadows = true;
+        dirLightComp2.CastsShadows = false;
     }
 
     private static void AddSpotLight(SceneNode rootNode)
@@ -531,7 +552,7 @@ internal class Program
         
         spotLightComp!.Name = "TestSpotLight";
         spotLightComp.Color = new Vector3(1.0f, 1.0f, 1.0f);
-        spotLightComp.Intensity = 10.0f;
+        spotLightComp.DiffuseIntensity = 10.0f;
         spotLightComp.Brightness = 5.0f;
         spotLightComp.Distance = 40.0f;
         spotLightComp.SetCutoffs(10, 40);
@@ -543,17 +564,17 @@ internal class Program
     {
         var pointLight = new SceneNode(rootNode) { Name = "TestPointLightNode" };
         var pointLightTransform = pointLight.SetTransform<Transform>();
-        pointLightTransform.Translation = new Vector3(100.0f, 1.0f, 0.0f);
+        pointLightTransform.Translation = new Vector3(0.0f, 2.0f, 0.0f);
         if (!pointLight.TryAddComponent<PointLightComponent>(out var pointLightComp))
             return;
         
         pointLightComp!.Name = "TestPointLight";
         pointLightComp.Color = new Vector3(1.0f, 1.0f, 1.0f);
-        pointLightComp.Intensity = 10.0f;
-        pointLightComp.Brightness = 1.0f;
-        pointLightComp.Radius = 1000.0f;
+        pointLightComp.DiffuseIntensity = 10.0f;
+        pointLightComp.Brightness = 10.0f;
+        pointLightComp.Radius = 10000.0f;
         pointLightComp.CastsShadows = true;
-        pointLightComp.SetShadowMapResolution(256, 256);
+        pointLightComp.SetShadowMapResolution(1024, 1024);
     }
 
     private static void AddSoundNode(SceneNode rootNode)
@@ -569,9 +590,9 @@ internal class Program
         data.ConvertToMono(); //Convert to mono for 3D audio - stereo will just play equally in both ears
         soundComp.RelativeToListener = false;
         soundComp.ReferenceDistance = 1.0f;
-        soundComp.MaxDistance = 10.0f;
+        soundComp.MaxDistance = 100.0f;
         soundComp.RolloffFactor = 1.0f;
-        soundComp.Gain = 0.3f;
+        soundComp.Gain = 0.5f;
         soundComp.Loop = true;
         soundComp.Type = ESourceType.Static;
         soundComp.StaticBuffer = data;
@@ -582,7 +603,7 @@ internal class Program
     {
         var probe = new SceneNode(rootNode) { Name = "TestLightProbeNode" };
         var probeTransform = probe.SetTransform<Transform>();
-        probeTransform.Translation = new Vector3(0.0f, 10.0f, 0.0f);
+        probeTransform.Translation = new Vector3(0.0f, 20.0f, 0.0f);
         if (!probe.TryAddComponent<LightProbeComponent>(out var probeComp))
             return;
         
@@ -592,9 +613,10 @@ internal class Program
         //Engine.EnqueueMainThreadTask(probeComp.GenerateIrradianceMap);
         //Engine.EnqueueMainThreadTask(probeComp.GeneratePrefilterMap);
 
-        probeComp.SetCaptureResolution(1024, false, 1024);
-        probeComp.RealTimeCapture = true;
-        probeComp.RealTimeCaptureUpdateInterval = TimeSpan.FromSeconds(1);
+        probeComp.SetCaptureResolution(512, false);
+        probeComp.RealtimeCapture = true;
+        probeComp.PreviewDisplay = LightProbeComponent.ERenderPreview.Prefilter;
+        probeComp.RealTimeCaptureUpdateInterval = TimeSpan.FromSeconds(1.0f);
 
         //Task.Run(async () =>
         //{
@@ -618,7 +640,12 @@ internal class Program
         var flags =
             PostProcessSteps.Triangulate |
             PostProcessSteps.JoinIdenticalVertices |
-            PostProcessSteps.CalculateTangentSpace;
+            PostProcessSteps.CalculateTangentSpace |
+            PostProcessSteps.OptimizeGraph |
+            PostProcessSteps.OptimizeMeshes |
+            PostProcessSteps.SortByPrimitiveType |
+            PostProcessSteps.ImproveCacheLocality |
+            PostProcessSteps.RemoveRedundantMaterials;
 
         if (AnimatedModel)
             ModelImporter.ImportAsync(fbxPathDesktop, flags, null, MaterialFactory, importedModelsNode, 1, true).ContinueWith(OnFinishedAvatar);
@@ -636,7 +663,7 @@ internal class Program
         
         skyboxComp!.Name = "TestSkybox";
         skyboxComp.Model = new Model([new SubMesh(
-            XRMesh.Shapes.SolidBox(new Vector3(-10000), new Vector3(10000), true, XRMesh.Shapes.ECubemapTextureUVs.None),
+            XRMesh.Shapes.SolidBox(new Vector3(-9000), new Vector3(9000), true, XRMesh.Shapes.ECubemapTextureUVs.None),
             new XRMaterial([skyEquirect], Engine.Assets.LoadEngineAsset<XRShader>("Shaders", "Scene3D", "Equirect.fs"))
             {
                 RenderPass = (int)EDefaultRenderPass.Background,
@@ -711,7 +738,7 @@ internal class Program
             bool transp = false;
             if (textureList.Length > 0)
             {
-                if (textures.Any(x => (x.Flags & 0x2) != 0 || x.TextureType == TextureType.Opacity) || textureList.Any(x => x.HasAlphaChannel))
+                if (textures.Any(x => (x.Flags & 0x2) != 0 || x.TextureType == TextureType.Opacity) || textureList.Any(x => x is not null && x.HasAlphaChannel))
                 {
                     transp = true;
                     mat.Shaders.Add(ShaderHelper.UnlitTextureFragForward()!);

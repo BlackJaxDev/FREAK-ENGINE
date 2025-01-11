@@ -725,12 +725,22 @@ namespace XREngine.Rendering.OpenGL
             Api.PointSize(r.PointSize);
             Api.LineWidth(r.LineWidth.Clamp(0.0f, 1.0f));
             Api.ColorMask(r.WriteRed, r.WriteGreen, r.WriteBlue, r.WriteAlpha);
+            Api.FrontFace(ToGLEnum(r.Winding));
+
             ApplyCulling(r);
             ApplyDepth(r);
             ApplyBlending(r);
             ApplyStencil(r);
             //Alpha testing is done in-shader
         }
+
+        private GLEnum ToGLEnum(EWinding winding)
+            => winding switch
+            {
+                EWinding.Clockwise => GLEnum.CW,
+                EWinding.CounterClockwise => GLEnum.Ccw,
+                _ => GLEnum.Ccw
+            };
 
         private void ApplyStencil(RenderingParameters r)
         {

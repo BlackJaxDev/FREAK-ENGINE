@@ -4,7 +4,6 @@ using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
 using XREngine.Rendering;
 using XREngine.Rendering.Info;
-using XREngine.Scene;
 using XREngine.Scene.Transforms;
 
 namespace XREngine.Components.Lights
@@ -73,7 +72,7 @@ namespace XREngine.Components.Lights
 
         protected override void OnTransformWorldMatrixChanged(TransformBase transform)
         {
-            _lightMatrix = MeshCenterAdjustMatrix * Transform.WorldMatrix;
+            _lightMatrix = MeshCenterAdjustMatrix * transform.WorldMatrix;
             _shadowVolumeRC.WorldMatrix = _lightMatrix;
             base.OnTransformWorldMatrixChanged(transform);
         }
@@ -132,7 +131,7 @@ namespace XREngine.Components.Lights
             set => SetField(ref _color, value);
         }
 
-        public float Intensity
+        public float DiffuseIntensity
         {
             get => _diffuseIntensity;
             set => SetField(ref _diffuseIntensity, value);

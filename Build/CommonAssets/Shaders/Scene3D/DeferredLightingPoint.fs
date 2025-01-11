@@ -207,8 +207,8 @@ void main()
 	//Resolve world fragment position using depth and screen UV
 	vec3 fragPosWS = WorldPosFromDepth(depth, uv);
 
-	float fadeRange = MaxFade - MinFade;
-	float dist = length(CameraPosition - fragPosWS);
-	float strength = smoothstep(1.0f, 0.0f, clamp((dist - MinFade) / fadeRange, 0.0f, 1.0f));
-	OutColor = strength * CalcTotalLight(fragPosWS, normal, albedo, rms);
+	//float fadeRange = MaxFade - MinFade;
+	//float dist = length(CameraPosition - fragPosWS);
+	//float strength = smoothstep(1.0f, 0.0f, clamp((dist - MinFade) / fadeRange, 0.0f, 1.0f));
+	OutColor = CalcTotalLight(fragPosWS, normal, albedo, rms);
 }

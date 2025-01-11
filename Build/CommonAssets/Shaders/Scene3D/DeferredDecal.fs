@@ -14,22 +14,22 @@ uniform sampler2D Texture4; //Decal AlbedoOpacity
 
 uniform float ScreenWidth;
 uniform float ScreenHeight;
-uniform mat4 InvProjMatrix;
-uniform mat4 CameraToWorldSpaceMatrix;
-uniform mat4 InvBoxWorldMatrix;
+uniform mat4 ProjMatrix;
+uniform mat4 InverseViewMatrix;
 uniform mat4 BoxWorldMatrix;
 uniform vec3 BoxHalfScale;
 
 vec3 WorldPosFromDepth(in float depth, in vec2 uv)
 {
 	vec4 clipSpacePosition = vec4(vec3(uv, depth) * 2.0f - 1.0f, 1.0f);
-	vec4 viewSpacePosition = InvProjMatrix * clipSpacePosition;
+	vec4 viewSpacePosition = inverse(ProjMatrix) * clipSpacePosition;
 	viewSpacePosition /= viewSpacePosition.w;
-	return (CameraToWorldSpaceMatrix * viewSpacePosition).xyz;
+	return (InverseViewMatrix * viewSpacePosition).xyz;
 }
+
 void main()
 {
-  vec2 uv = gl_FragCoord.xy / vec2(ScreenWidth, ScreenHeight);
+	vec2 uv = gl_FragCoord.xy / vec2(ScreenWidth, ScreenHeight);
 
 	//Retrieve shading information from GBuffer textures
 	vec4 albedo = texture(Texture0, uv);
@@ -39,15 +39,15 @@ void main()
 
 	//Resolve world fragment position using depth and screen UV
 	vec3 fragPosWS = WorldPosFromDepth(depth, uv);
-  vec4 fragPosOS = (InvBoxWorldMatrix * vec4(fragPosWS, 1.0f));
+	vec4 fragPosOS = (inverse(BoxWorldMatrix) * vec4(fragPosWS, 1.0f));
 	fragPosOS.xyz /= BoxHalfScale;
 
-  if (abs(fragPosOS.x) > 1.0f ||
-			abs(fragPosOS.y) > 1.0f ||
-			abs(fragPosOS.z) > 1.0f)
-    discard;
+  	if (abs(fragPosOS.x) > 1.0f ||
+		abs(fragPosOS.y) > 1.0f ||
+		abs(fragPosOS.z) > 1.0f)
+    	discard;
 
-  vec2 decalUV = fragPosOS.xz * vec2(0.5f) + vec2(0.5f);
+  	vec2 decalUV = fragPosOS.xz * vec2(0.5f) + vec2(0.5f);
 	float intensity = smoothstep(0.0f, 1.0f, 1.0f - abs(fragPosOS.y));
 
 	vec3 viewDDYBinormal = normalize(dFdy(fragPosWS));
@@ -57,7 +57,7 @@ void main()
 	//tangent = normalize(tangent - normal * dot(normal, tangent));
 
 	vec3 normal2 = normalize(cross(viewDDXTangent, viewDDYBinormal));
-	mat3 tbnToWorld = mat3(CameraToWorldSpaceMatrix) * mat3(viewDDXTangent, viewDDYBinormal, normal2);
+	mat3 tbnToWorld = mat3(InverseViewMatrix) * mat3(viewDDXTangent, viewDDYBinormal, normal2);
 
 	vec4 decalAlbedoOpacity = texture(Texture4, decalUV);
 	//vec3 decalNormal = normal;//texture(Texture5, decalUV).rgb;
@@ -69,6 +69,6 @@ void main()
 	//decalRMSI = mix(rmsi, decalRMSI, decalAlbedo.a);
 
 	AlbedoOpacity = vec4(decalAlbedoOpacity.rgb, albedo.a);
-  Normal = normal;
+  	Normal = normal;
 	RMSI = rmsi;
 }

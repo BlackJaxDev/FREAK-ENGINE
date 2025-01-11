@@ -34,6 +34,10 @@ namespace XREngine.Scene
         private ConcurrentBag<SceneCaptureComponent> _captureBagUpdating = [];
         private ConcurrentBag<SceneCaptureComponent> _captureBagRendering = [];
 
+        /// <summary>
+        /// Enqueues a scene capture component for rendering.
+        /// </summary>
+        /// <param name="component"></param>
         public void QueueForCapture(SceneCaptureComponent component)
         {
             if (CaptureQueue.Contains(component))
@@ -120,9 +124,8 @@ namespace XREngine.Scene
         /// </summary>
         public void CaptureLightProbes()
             => CaptureLightProbes(
-                Engine.Rendering.Settings.LightProbeColorResolution,
-                Engine.Rendering.Settings.LightProbesCaptureDepth,
-                Engine.Rendering.Settings.LightProbeDepthResolution);
+                Engine.Rendering.Settings.LightProbeResolution,
+                Engine.Rendering.Settings.LightProbesCaptureDepth);
 
         /// <summary>
         /// Renders the scene from each light probe's perspective.
@@ -131,7 +134,7 @@ namespace XREngine.Scene
         /// <param name="captureDepth"></param>
         /// <param name="depthResolution"></param>
         /// <param name="force"></param>
-        public void CaptureLightProbes(uint colorResolution, bool captureDepth, uint depthResolution, bool force = false)
+        public void CaptureLightProbes(uint colorResolution, bool captureDepth, bool force = false)
         {
             if (_capturing || (!force && IBLCaptured))
                 return;
@@ -146,7 +149,7 @@ namespace XREngine.Scene
                 for (int i = 0; i < list.Count; i++)
                 {
                     Debug.Out(EOutputVerbosity.Verbose, true, true, true, true, 0, 10, $"Capturing light probe {i + 1} of {list.Count}.");
-                    list[i].FullCapture(colorResolution, captureDepth, depthResolution);
+                    list[i].FullCapture(colorResolution, captureDepth);
                 }
             }
             catch (Exception e)

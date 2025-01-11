@@ -8,6 +8,7 @@ using XREngine.Data.Trees;
 using XREngine.Input;
 using XREngine.Physics;
 using XREngine.Physics.RayTracing;
+using XREngine.Rendering.Info;
 using XREngine.Rendering.UI;
 using State = XREngine.Engine.Rendering.State;
 
@@ -142,7 +143,7 @@ namespace XREngine.Rendering
             (worldOverride ?? World)?.VisualScene?.CollectRenderedItems(
                 _renderPipeline.MeshRenderCommands,
                 camera,
-                CameraComponent?.CullWithFrustum ?? false,
+                CameraComponent?.CullWithFrustum ?? true,
                 CameraComponent?.CullingCameraOverride,
                 shadowPass);
 
@@ -528,40 +529,47 @@ namespace XREngine.Rendering
             bool testHud,
             bool testSceneOctree,
             bool testScenePhysics,
-            SortedDictionary<float, List<(XRComponent item, object? data)>> orderedResults,
+            SortedDictionary<float, List<(RenderInfo3D item, object? data)>> orderedOctreeResults,
+            SortedDictionary<float, List<(XRComponent item, object? data)>> orderedPhysicsResults,
             params XRComponent[] ignored)
         {
             bool hasMatches = false;
             if (CameraComponent is null)
                 return hasMatches;
 
-            if (testHud)
+            //if (testHud)
+            //{
+            //    var cameraCanvas = CameraComponent.GetUserInterfaceOverlay();
+            //    if (cameraCanvas is not null && cameraCanvas.CanvasTransform.DrawSpace != ECanvasDrawSpace.World)
+            //    {
+            //        UIComponent?[] hudComps = cameraCanvas.FindDeepestComponents(normalizedViewportPosition);
+            //        foreach (var hudComp in hudComps)
+            //        {
+            //            if (hudComp is not UIInteractableComponent inter || !inter.IsActive)
+            //                continue;
+                        
+            //            hasMatches = true;
+            //            float dist = 0.0f;
+            //            dist = CameraComponent.Camera.DistanceFrom(hudComp.Transform.WorldTranslation, false);
+            //            orderedPhysicsResults.Add(dist, [(inter, null)]);
+            //        }
+            //    }
+            //}
+
+            if (testSceneOctree)
             {
-                var cameraCanvas = CameraComponent.GetUserInterfaceOverlay();
-                if (cameraCanvas is not null && cameraCanvas.CanvasTransform.DrawSpace != ECanvasDrawSpace.World)
-                {
-                    UIComponent?[] hudComps = cameraCanvas.FindDeepestComponents(normalizedViewportPosition);
-                    foreach (var hudComp in hudComps)
-                    {
-                        if (hudComp is UIInteractableComponent inter && inter.IsActive)
-                        {
-                            hasMatches = true;
-                            float dist = 0.0f;
-                            dist = CameraComponent.Camera.DistanceFrom(hudComp.Transform.WorldTranslation, false);
-                            orderedResults.Add(dist, [(inter, null)]);
-                        }
-                    }
-                }
+                hasMatches |= World?.RaycastOctree(
+                    CameraComponent,
+                    normalizedViewportPosition,
+                    orderedOctreeResults) ?? false;
             }
 
-            if (testSceneOctree || testScenePhysics)
+            if (testScenePhysics)
             {
-                hasMatches |= World?.Raycast(
+                hasMatches |= World?.RaycastPhysics(
                     CameraComponent, 
-                    normalizedViewportPosition, 
-                    testSceneOctree,
-                    testScenePhysics,
-                    orderedResults) ?? false;
+                    normalizedViewportPosition,
+                    orderedPhysicsResults) ?? false;
             }
 
             return hasMatches;

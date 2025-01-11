@@ -115,8 +115,8 @@ namespace XREngine.Rendering.Pipelines.Commands
             XRMaterial dirLightMat = new(lightRefs, dirLightShader) { RenderOptions = additiveRenderParams, RenderPass = (int)EDefaultRenderPass.OpaqueForward };
 
             XRMesh pointLightMesh = PointLightComponent.GetVolumeMesh();
-            XRMesh spotLightMesh = SpotLightComponent.GetVolumeMeshStatic();
-            XRMesh dirLightMesh = DirectionalLightComponent.GetVolumeMeshStatic();
+            XRMesh spotLightMesh = SpotLightComponent.GetVolumeMesh();
+            XRMesh dirLightMesh = DirectionalLightComponent.GetVolumeMesh();
 
             PointLightRenderer = new XRMeshRenderer(pointLightMesh, pointLightMat);
             PointLightRenderer.SettingUniforms += LightManager_SettingUniforms;

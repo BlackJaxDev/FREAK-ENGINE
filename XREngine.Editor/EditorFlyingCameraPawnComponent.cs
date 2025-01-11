@@ -104,7 +104,9 @@ public partial class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent
     public bool RenderFrustum { get; set; } = false;
     public bool RenderRaycast { get; set; } = false;
 
-    private readonly SortedDictionary<float, List<(XRComponent item, object? data)>> _lastPickResults = [];
+    private readonly SortedDictionary<float, List<(XRComponent item, object? data)>> _lastPhysicsPickResults = [];
+    private readonly SortedDictionary<float, List<(RenderInfo3D item, object? data)>> _lastOctreePickResults = [];
+
     private void PostRender(bool shadowPass)
     {
         var rend = AbstractRenderer.Current;
@@ -144,9 +146,12 @@ public partial class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent
         p = vp.NormalizeInternalCoordinate(p);
         DepthHitNormalizedViewportPoint = depth is not null && depth.Value > 0.0f && depth.Value < 1.0f ? new Vector3(p.X, p.Y, depth.Value) : null;
 
-        _lastRaycastSegment = vp.GetWorldSegment(p);
-
-        vp.PickScene(p, false, true, true, _lastPickResults);
+        //_lastRaycastSegment = vp.GetWorldSegment(p);
+        lock (_raycastLock)
+            if (vp.PickScene(p, false, true, true, _lastOctreePickResults, _lastPhysicsPickResults))
+            {
+                //Debug.Out(Name + " picked something!");
+            }
         //Task.Run(() => SetRaycastResult(orderedResults));
 
         //if (RenderRaycast)
@@ -269,7 +274,6 @@ public partial class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent
     protected override void Tick()
     {
         base.Tick();
-        Highlight();
         if (CtrlPressed && (Keyboard?.Pressed(EKey.S) ?? false))
             TakeScreenshot();
     }
@@ -293,43 +297,43 @@ public partial class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent
     private Triangle? _hitTriangle = null;
     private TransformBase? _hitTransform = null;
 
-    private void Highlight()
-    {
-        if (World is not null && Viewport is not null)
-        {
-            var cam = GetCamera();
-            if (cam is not null)
-            {
-                var input = LocalInput;
-                if (input is not null)
-                {
-                    var pos = input?.Mouse?.CursorPosition;
-                    if (pos is not null)
-                    {
-                        Raycast(pos.Value);
-                        return;
-                    }
-                }
-            }
-        }
+    //private void Highlight()
+    //{
+    //    if (World is not null && Viewport is not null)
+    //    {
+    //        var cam = GetCamera();
+    //        if (cam is not null)
+    //        {
+    //            var input = LocalInput;
+    //            if (input is not null)
+    //            {
+    //                var pos = input?.Mouse?.CursorPosition;
+    //                if (pos is not null)
+    //                {
+    //                    Raycast(pos.Value);
+    //                    return;
+    //                }
+    //            }
+    //        }
+    //    }
 
-        lock (_raycastLock)
-            _lastRaycast = null;
-    }
+    //    lock (_raycastLock)
+    //        _lastRaycast = null;
+    //}
 
     private Segment _lastRaycastSegment = new(Vector3.Zero, Vector3.Zero);
     private Vector3? _depthHitNormalizedViewportPoint = null;
     private Vector3? _lastDepthHitNormalizedViewportPoint = null;
 
-    private void Raycast(Vector2 screenPoint)
-    {
-        if (World is null || Viewport is null)
-            return;
+    //private void Raycast(Vector2 screenPoint)
+    //{
+    //    if (World is null || Viewport is null)
+    //        return;
 
-        //This code only works on the render thread, and I honestly don't understand why the math fails here but not there lol
-        screenPoint.Y = Viewport.Height - screenPoint.Y;
-        _lastRaycastSegment = Viewport.GetWorldSegment(screenPoint);
-    }
+    //    //This code only works on the render thread, and I honestly don't understand why the math fails here but not there lol
+    //    screenPoint.Y = Viewport.Height - screenPoint.Y;
+    //    _lastRaycastSegment = Viewport.GetWorldSegment(screenPoint);
+    //}
 
     private void Select()
     {
@@ -337,35 +341,27 @@ public partial class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent
         if (input is null)
             return;
 
-        var lc = input?.Mouse?.LeftClick;
-        if (lc is null)
-            return;
+        //var lc = input?.Mouse?.LeftClick;
+        //if (lc is null)
+        //    return;
 
-        if (!lc.GetState(EButtonInputType.Pressed))
-            return;
+        //if (!lc.GetState(EButtonInputType.Pressed))
+        //    return;
 
         List<SceneNode> currentHits = [];
         lock (_raycastLock)
         {
-            if (_lastRaycast is not null)
-            {
-                foreach (var x in _lastRaycast.Values)
-                {
-                    foreach (var (item, _) in x)
-                    {
-                        if (item is not RenderInfo3D ri)
-                            continue;
-                        if (ri.Owner is not XRComponent comp)
-                            continue;
-                        if (comp.SceneNode is null)
-                            continue;
+            foreach (var x in _lastPhysicsPickResults.Values)
+                foreach (var (comp, _) in x)
+                    if (comp?.SceneNode is not null)
                         currentHits.Add(comp.SceneNode);
-                    }
-                }
-            }
+            
+            foreach (var x in _lastOctreePickResults.Values)
+                foreach (var (info, _) in x)
+                    if (info.Owner is XRComponent comp && comp.SceneNode is not null)
+                        currentHits.Add(comp.SceneNode);
         }
 
-        SceneNode? node = null;
         if (_lastSelection is null)
         {
             _lastSelection = currentHits;
@@ -379,11 +375,19 @@ public partial class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent
 
         //intersect with the last hit values to see if we are still hitting the same thing
         bool sameNodes = currentHits.Count > 0 && currentHits.Intersect(_lastSelection).Count() == currentHits.Count;
+
+        SceneNode? node;
         if (sameNodes)
         {
             //cycle the selection
             _lastHitIndex = (_lastHitIndex + 1) % currentHits.Count;
             node = currentHits[_lastHitIndex];
+        }
+        else
+        {
+            _lastSelection = currentHits;
+            _lastHitIndex = 0;
+            node = currentHits.Count > 0 ? currentHits[_lastHitIndex] : null;
         }
 
         if (node is null)

@@ -19,7 +19,7 @@ namespace XREngine.Components.Lights
             set => SetField(ref _scale, value);
         }
 
-        public static XRMesh GetVolumeMeshStatic()
+        public static XRMesh GetVolumeMesh()
             => XRMesh.Shapes.SolidBox(new Vector3(-0.5f), new Vector3(0.5f));
         protected override XRMesh GetWireframeMesh()
             => XRMesh.Shapes.WireframeBox(new Vector3(-0.5f), new Vector3(0.5f));

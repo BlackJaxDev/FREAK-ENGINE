@@ -1741,14 +1741,13 @@ namespace XREngine.Rendering
             [RequiresDynamicCode("")]
             get
             {
-                if (_bvhTree is null)
+                if (_bvhTree is null && !_generating)
                 {
                     _generating = true;
                     Task.Run(GenerateBVH);
                 }
-                return _bvhTree!;
+                return _bvhTree;
             }
-            internal set => _bvhTree = value;
         }
 
         [RequiresDynamicCode("")]
