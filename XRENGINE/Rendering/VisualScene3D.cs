@@ -43,7 +43,6 @@ namespace XREngine.Scene
             var cullingCamera = cullingCameraOverride?.Invoke() ?? camera;
             var collectionVolume = cullWithFrustum ? cullingCamera?.WorldFrustum() : null;
             CollectRenderedItems(meshRenderCommands, collectionVolume, camera, shadowPass);
-
         }
         public void CollectRenderedItems(RenderCommandCollection commands, IVolume? collectionVolume, XRCamera? camera, bool shadowPass)
         {

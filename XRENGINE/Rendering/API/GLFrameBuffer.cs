@@ -98,7 +98,6 @@ namespace XREngine.Rendering.OpenGL
         public void BindForReading()
         {
             Api.BindFramebuffer(GLEnum.ReadFramebuffer, BindingId);
-            //VerifyAttached();
         }
 
         public void UnbindFromReading()
@@ -110,7 +109,6 @@ namespace XREngine.Rendering.OpenGL
         public void BindForWriting()
         {
             Api.BindFramebuffer(GLEnum.DrawFramebuffer, BindingId);
-            //VerifyAttached();
         }
         public void UnbindFromWriting()
         {

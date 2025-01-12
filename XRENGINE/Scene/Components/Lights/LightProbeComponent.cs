@@ -116,13 +116,20 @@ namespace XREngine.Components.Lights
             base.OnTransformWorldMatrixChanged(transform);
         }
 
+        private uint _irradianceResolution = 128;
+        public uint IrradianceResolution
+        {
+            get => _irradianceResolution;
+            set => SetField(ref _irradianceResolution, value);
+        }
+
         protected override void InitializeForCapture()
         {
             base.InitializeForCapture();
 
             //Irradiance texture doesn't need to be very high quality, 
             //linear filtering on low resolution will do fine
-            IrradianceTexture = new XRTextureCube(64, EPixelInternalFormat.Rgb8, EPixelFormat.Rgb, EPixelType.UnsignedByte, false)
+            IrradianceTexture = new XRTextureCube(IrradianceResolution, EPixelInternalFormat.Rgb8, EPixelFormat.Rgb, EPixelType.UnsignedByte, false)
             {
                 MinFilter = ETexMinFilter.Linear,
                 MagFilter = ETexMagFilter.Linear,
@@ -171,7 +178,7 @@ namespace XREngine.Components.Lights
         {
             //Irradiance texture doesn't need to be very high quality, 
             //linear filtering on low resolution will do fine
-            IrradianceTexture = new XRTextureCube(64, EPixelInternalFormat.Rgb8, EPixelFormat.Rgb, EPixelType.UnsignedByte, false)
+            IrradianceTexture = new XRTextureCube(IrradianceResolution, EPixelInternalFormat.Rgb8, EPixelFormat.Rgb, EPixelType.UnsignedByte, false)
             {
                 MinFilter = ETexMinFilter.Linear,
                 MagFilter = ETexMagFilter.Linear,
@@ -249,34 +256,26 @@ namespace XREngine.Components.Lights
             if (IrradianceTexture is null)
                 return;
 
-            _environmentTextureCubemap?.Bind();
-            _environmentTextureCubemap?.GenerateMipmapsGPU();
-
             uint res = IrradianceTexture.Extent;
             AbstractRenderer.Current?.SetRenderArea(new BoundingRectangle(IVector2.Zero, new IVector2((int)res, (int)res)));
-            
             for (int i = 0; i < 6; ++i)
             {
                 _irradianceFBO!.SetRenderTargets((IrradianceTexture, EFrameBufferAttachment.ColorAttachment0, 0, i));
                 using (_irradianceFBO!.BindForWritingState())
                 {
-                    Engine.Rendering.State.Clear(true, false, false);
-                    Engine.Rendering.State.EnableDepthTest(false);
+                    Engine.Rendering.State.ClearByBoundFBO();
                     _irradianceFBO.RenderFullscreen(ECubemapFace.PosX + i);
                 }
             }
+
+            //Generate mipmaps from the first mip level we just generated
+            IrradianceTexture.GenerateMipmapsGPU();
         }
 
         private void GeneratePrefilterInternal()
         {
             if (PrefilterTexture is null)
                 return;
-
-            _environmentTextureCubemap?.Bind();
-            _environmentTextureCubemap?.GenerateMipmapsGPU();
-
-            PrefilterTexture.Bind();
-            PrefilterTexture.GenerateMipmapsGPU();
 
             int maxMipLevels = PrefilterTexture.SmallestMipmapLevel;
             int res = _prefilterFBO!.Material!.Parameter<ShaderInt>(1)!.Value;

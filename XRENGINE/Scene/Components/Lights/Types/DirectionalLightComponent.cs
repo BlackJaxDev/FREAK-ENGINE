@@ -8,7 +8,7 @@ using XREngine.Scene.Transforms;
 namespace XREngine.Components.Lights
 {
     [RequiresTransform(typeof(Transform))]
-    public class DirectionalLightComponent : LightComponent
+    public class DirectionalLightComponent : OneViewLightComponent
     {
         private const float NearZ = 0.01f;
 
@@ -24,15 +24,15 @@ namespace XREngine.Components.Lights
         protected override XRMesh GetWireframeMesh()
             => XRMesh.Shapes.WireframeBox(new Vector3(-0.5f), new Vector3(0.5f));
 
-        protected XRCamera GetShadowCamera()
+        protected override XRCameraParameters GetCameraParameters()
         {
             XROrthographicCameraParameters parameters = new(Scale.X, Scale.Y, NearZ, Scale.Z - NearZ);
             parameters.SetOriginPercentages(0.5f, 0.5f);
-            return new(ShadowCameraTransform, parameters);
+            return parameters;
         }
 
-        private XRCamera? _shadowCamera;
-        private XRCamera ShadowCamera => _shadowCamera ??= GetShadowCamera();
+        protected override TransformBase GetShadowCameraParentTransform()
+            => ShadowCameraTransform;
 
         private Transform? _shadowCameraTransform;
         private Transform ShadowCameraTransform => _shadowCameraTransform ??= new Transform() 
@@ -42,26 +42,22 @@ namespace XREngine.Components.Lights
             Translation = Globals.Backward * Scale.Z * 0.5f,
         };
 
+        protected override void OnTransformChanged()
+        {
+            base.OnTransformChanged();
+            ShadowCameraTransform.Parent = Transform;
+        }
+
         protected internal override void OnComponentActivated()
         {
             base.OnComponentActivated();
-
-            if (Type != ELightType.Dynamic)
-                return;
-
-            if (CastsShadows && ShadowMap is null)
-                SetShadowMapResolution(1024u, 1024u);
-
-            World?.Lights.DirectionalLights.Add(this);
+            if (Type == ELightType.Dynamic)
+                World?.Lights.DynamicDirectionalLights.Add(this);
         }
-
         protected internal override void OnComponentDeactivated()
         {
-            ShadowMap?.Destroy();
-            
             if (Type == ELightType.Dynamic)
-                World?.Lights.DirectionalLights.Remove(this);
-
+                World?.Lights.DynamicDirectionalLights.Remove(this);
             base.OnComponentDeactivated();
         }
 
@@ -117,28 +113,6 @@ namespace XREngine.Components.Lights
             return mat;
         }
 
-        public override void CollectVisibleItems(XRWorldInstance world)
-        {
-            if (!CastsShadows)
-                return;
-
-            world.VisualScene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, ShadowCamera.WorldFrustum(), ShadowCamera, true);
-        }
-
-        public override void RenderShadowMap(XRWorldInstance world, bool collectVisibleNow = false)
-        {
-            if (!CastsShadows || ShadowMap?.Material is null)
-                return;
-
-            if (collectVisibleNow)
-            {
-                world.VisualScene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, ShadowCamera.WorldFrustum(), ShadowCamera, true);
-                _shadowRenderPipeline.MeshRenderCommands.SwapBuffers(true);
-            }
-
-            _shadowRenderPipeline.Render(world.VisualScene, ShadowCamera, null, ShadowMap, null, true, ShadowMap.Material);
-        }
-
         protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
         {
             base.OnPropertyChanged(propName, prev, field);
@@ -151,19 +125,28 @@ namespace XREngine.Components.Lights
                 case nameof(Scale):
                     MeshCenterAdjustMatrix = Matrix4x4.CreateScale(Scale);
                     ShadowCameraTransform.Translation = Globals.Backward * Scale.Z * 0.5f;
-                    if (ShadowCamera.Parameters is not XROrthographicCameraParameters p)
+                    if (ShadowCamera is not null)
                     {
-                        XROrthographicCameraParameters parameters = new(Scale.X, Scale.Y, NearZ, Scale.Z - NearZ);
-                        parameters.SetOriginPercentages(0.5f, 0.5f);
-                        ShadowCamera.Parameters = parameters;
+                        if (ShadowCamera.Parameters is not XROrthographicCameraParameters p)
+                        {
+                            XROrthographicCameraParameters parameters = new(Scale.X, Scale.Y, NearZ, Scale.Z - NearZ);
+                            parameters.SetOriginPercentages(0.5f, 0.5f);
+                            ShadowCamera.Parameters = parameters;
+                        }
+                        else
+                        {
+                            p.Width = Scale.X;
+                            p.Height = Scale.Y;
+                            p.FarZ = Scale.Z - NearZ;
+                            p.NearZ = NearZ;
+                        }
                     }
+                    break;
+                case nameof(Type):
+                    if (Type == ELightType.Dynamic)
+                        World?.Lights.DynamicDirectionalLights.Add(this);
                     else
-                    {
-                        p.Width = Scale.X;
-                        p.Height = Scale.Y;
-                        p.FarZ = Scale.Z - NearZ;
-                        p.NearZ = NearZ;
-                    }
+                        World?.Lights.DynamicDirectionalLights.Remove(this);
                     break;
             }
         }

@@ -1,4 +1,6 @@
-﻿using XREngine.Rendering;
+﻿using XREngine.Data.Colors;
+using XREngine.Data.Rendering;
+using XREngine.Rendering;
 using XREngine.Rendering.Commands;
 using XREngine.Rendering.Pipelines.Commands;
 
@@ -15,7 +17,26 @@ namespace XREngine.Components.Lights
 
         protected override ViewportRenderCommandContainer GenerateCommandChain()
         {
-            return DefaultRenderPipeline.CreateFBOTargetCommands();
+            ViewportRenderCommandContainer c = [];
+
+            c.Add<VPRC_SetClears>().Set(ColorF4.Transparent, 1.0f, 0);
+            c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.PreRender;
+
+            using (c.AddUsing<VPRC_PushOutputFBORenderArea>())
+            {
+                using (c.AddUsing<VPRC_BindOutputFBO>())
+                {
+                    c.Add<VPRC_StencilMask>().Set(~0u);
+                    c.Add<VPRC_ClearByBoundFBO>();
+                    c.Add<VPRC_DepthTest>().Enable = true;
+                    c.Add<VPRC_DepthWrite>().Allow = true;
+                    c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.OpaqueDeferredLit;
+                    c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.OpaqueForward;
+                    c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.TransparentForward;
+                }
+            }
+            c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.PostRender;
+            return c;
         }
         protected override Dictionary<int, IComparer<RenderCommand>?> GetPassIndicesAndSorters()
         {
@@ -28,6 +49,7 @@ namespace XREngine.Components.Lights
                 { 3, null }, //OpaqueForward
                 { 4, null }, //TransparentForward
                 //{ 5, _nearToFarSorter }, //No on top (UI)
+                { 6, null } //Postrender
             };
         }
     }

@@ -25,12 +25,25 @@ namespace XREngine.Scene
         public Octree<LightProbeCell> LightProbeTree { get; } = new(new AABB());
         
         public XRWorldInstance World { get; } = world;
-        public EventList<SpotLightComponent> SpotLights { get; } = [];
-        public EventList<PointLightComponent> PointLights { get; } = [];
-        public EventList<DirectionalLightComponent> DirectionalLights { get; } = [];
+
+        /// <summary>
+        /// All spotlights that are not baked and need to be rendered.
+        /// </summary>
+        public EventList<SpotLightComponent> DynamicSpotLights { get; } = [];
+        /// <summary>
+        /// All point lights that are not baked and need to be rendered.
+        /// </summary>
+        public EventList<PointLightComponent> DynamicPointLights { get; } = [];
+        /// <summary>
+        /// All directional lights that are not baked and need to be rendered.
+        /// </summary>
+        public EventList<DirectionalLightComponent> DynamicDirectionalLights { get; } = [];
+        /// <summary>
+        /// All light probes in the scene.
+        /// </summary>
         public EventList<LightProbeComponent> LightProbes { get; } = [];
 
-        public ConcurrentQueue<SceneCaptureComponent> CaptureQueue = new();
+        private ConcurrentQueue<SceneCaptureComponent> _captureQueue = new();
         private ConcurrentBag<SceneCaptureComponent> _captureBagUpdating = [];
         private ConcurrentBag<SceneCaptureComponent> _captureBagRendering = [];
 
@@ -40,38 +53,38 @@ namespace XREngine.Scene
         /// <param name="component"></param>
         public void QueueForCapture(SceneCaptureComponent component)
         {
-            if (CaptureQueue.Contains(component))
+            if (_captureQueue.Contains(component))
                 return;
 
-            CaptureQueue.Enqueue(component);
+            _captureQueue.Enqueue(component);
         }
 
         public bool RenderingShadowMaps { get; private set; } = false;
 
         internal void SetForwardLightingUniforms(XRRenderProgram program)
         {
-            program.Uniform("DirLightCount", DirectionalLights.Count);
-            program.Uniform("PointLightCount", PointLights.Count);
-            program.Uniform("SpotLightCount", SpotLights.Count);
+            program.Uniform("DirLightCount", DynamicDirectionalLights.Count);
+            program.Uniform("PointLightCount", DynamicPointLights.Count);
+            program.Uniform("SpotLightCount", DynamicSpotLights.Count);
 
-            for (int i = 0; i < DirectionalLights.Count; ++i)
-                DirectionalLights[i].SetUniforms(program, $"DirLightData[{i}]");
-            for (int i = 0; i < SpotLights.Count; ++i)
-                SpotLights[i].SetUniforms(program, $"SpotLightData[{i}]");
-            for (int i = 0; i < PointLights.Count; ++i)
-                PointLights[i].SetUniforms(program, $"PointLightData[{i}]");
+            for (int i = 0; i < DynamicDirectionalLights.Count; ++i)
+                DynamicDirectionalLights[i].SetUniforms(program, $"DirLightData[{i}]");
+            for (int i = 0; i < DynamicSpotLights.Count; ++i)
+                DynamicSpotLights[i].SetUniforms(program, $"SpotLightData[{i}]");
+            for (int i = 0; i < DynamicPointLights.Count; ++i)
+                DynamicPointLights[i].SetUniforms(program, $"PointLightData[{i}]");
         }
 
         public void CollectVisibleItems()
         {
-            foreach (DirectionalLightComponent l in DirectionalLights)
-                l.CollectVisibleItems(World);
-            foreach (SpotLightComponent l in SpotLights)
-                l.CollectVisibleItems(World);
-            foreach (PointLightComponent l in PointLights)
-                l.CollectVisibleItems(World);
+            foreach (DirectionalLightComponent l in DynamicDirectionalLights)
+                l.CollectVisibleItems();
+            foreach (SpotLightComponent l in DynamicSpotLights)
+                l.CollectVisibleItems();
+            foreach (PointLightComponent l in DynamicPointLights)
+                l.CollectVisibleItems();
 
-            while (CaptureQueue.TryDequeue(out SceneCaptureComponent? capture))
+            while (_captureQueue.TryDequeue(out SceneCaptureComponent? capture))
             {
                 if (_captureBagUpdating.Contains(capture))
                     continue;
@@ -82,11 +95,11 @@ namespace XREngine.Scene
 
         public void SwapBuffers()
         {
-            foreach (DirectionalLightComponent l in DirectionalLights)
+            foreach (DirectionalLightComponent l in DynamicDirectionalLights)
                 l.SwapBuffers();
-            foreach (SpotLightComponent l in SpotLights)
+            foreach (SpotLightComponent l in DynamicSpotLights)
                 l.SwapBuffers();
-            foreach (PointLightComponent l in PointLights)
+            foreach (PointLightComponent l in DynamicPointLights)
                 l.SwapBuffers();
 
             _captureBagRendering.Clear();
@@ -99,12 +112,12 @@ namespace XREngine.Scene
         {
             RenderingShadowMaps = true;
 
-            foreach (DirectionalLightComponent l in DirectionalLights)
-                l.RenderShadowMap(World, collectVisibleNow);
-            foreach (SpotLightComponent l in SpotLights)
-                l.RenderShadowMap(World, collectVisibleNow);
-            foreach (PointLightComponent l in PointLights)
-                l.RenderShadowMap(World, collectVisibleNow);
+            foreach (DirectionalLightComponent l in DynamicDirectionalLights)
+                l.RenderShadowMap(collectVisibleNow);
+            foreach (SpotLightComponent l in DynamicSpotLights)
+                l.RenderShadowMap(collectVisibleNow);
+            foreach (PointLightComponent l in DynamicPointLights)
+                l.RenderShadowMap(collectVisibleNow);
 
             RenderingShadowMaps = false;
 
@@ -114,9 +127,9 @@ namespace XREngine.Scene
 
         public void Clear()
         {
-            SpotLights.Clear();
-            PointLights.Clear();
-            DirectionalLights.Clear();
+            DynamicSpotLights.Clear();
+            DynamicPointLights.Clear();
+            DynamicDirectionalLights.Clear();
         }
 
         /// <summary>

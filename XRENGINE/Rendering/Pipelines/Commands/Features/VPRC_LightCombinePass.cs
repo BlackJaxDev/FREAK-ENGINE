@@ -58,11 +58,11 @@ namespace XREngine.Rendering.Pipelines.Commands
 
             using (Pipeline.RenderState.PushRenderingCamera(Pipeline.RenderState.SceneCamera))
             {
-                foreach (PointLightComponent c in lights.PointLights)
+                foreach (PointLightComponent c in lights.DynamicPointLights)
                     RenderPointLight(c);
-                foreach (SpotLightComponent c in lights.SpotLights)
+                foreach (SpotLightComponent c in lights.DynamicSpotLights)
                     RenderSpotLight(c);
-                foreach (DirectionalLightComponent c in lights.DirectionalLights)
+                foreach (DirectionalLightComponent c in lights.DynamicDirectionalLights)
                     RenderDirLight(c);
             }
         }

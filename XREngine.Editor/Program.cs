@@ -42,17 +42,17 @@ internal class Program
     public const bool VisualizeOctree = false;
     public const bool VisualizeQuadtree = false;
     public const bool Physics = false;
-    public const bool DirLight = false;
+    public const bool DirLight = true;
     public const bool SpotLight = false;
     public const bool DirLight2 = false;
-    public const bool PointLight = true;
+    public const bool PointLight = false;
     public const bool SoundNode = true;
     public const bool LightProbe = true;
     public const bool Skybox = true;
     public const bool Spline = false;
     public const bool DeferredDecal = false;
-    public const bool StaticModel = false;
-    public const bool AnimatedModel = true;
+    public const bool StaticModel = true;
+    public const bool AnimatedModel = false;
     public const bool AddEditorUI = false;
 
     /// <summary>
@@ -170,7 +170,7 @@ internal class Program
             AddSoundNode(rootNode);
         if (LightProbe || Skybox)
         {
-            string[] names = ["warm_restaurant_4k", "overcast_soil_puresky_4k", "studio_small_09_4k", "klippad_sunrise_2_4k"];
+            string[] names = ["warm_restaurant_4k", "overcast_soil_puresky_4k", "studio_small_09_4k", "klippad_sunrise_2_4k", "satara_night_4k"];
             Random r = new();
             XRTexture2D skyEquirect = Engine.Assets.LoadEngineAsset<XRTexture2D>("Textures", $"{names[r.Next(0, names.Length - 1)]}.exr");
 
@@ -521,8 +521,8 @@ internal class Program
         dirLightComp.Color = new Vector3(1, 1, 1);
         dirLightComp.DiffuseIntensity = 1.0f;
         dirLightComp.Scale = new Vector3(1000.0f, 1000.0f, 1000.0f);
-        dirLightComp.CastsShadows = false;
-        dirLightComp.SetShadowMapResolution(2048, 2048);
+        dirLightComp.CastsShadows = true;
+        dirLightComp.SetShadowMapResolution(4096, 4096);
     }
 
     private static void AddDirLight2(SceneNode rootNode)
@@ -557,7 +557,7 @@ internal class Program
         spotLightComp.Distance = 40.0f;
         spotLightComp.SetCutoffs(10, 40);
         spotLightComp.CastsShadows = true;
-        spotLightComp.SetShadowMapResolution(256, 256);
+        spotLightComp.SetShadowMapResolution(2048, 2048);
     }
 
     private static void AddPointLight(SceneNode rootNode)
@@ -613,7 +613,7 @@ internal class Program
         //Engine.EnqueueMainThreadTask(probeComp.GenerateIrradianceMap);
         //Engine.EnqueueMainThreadTask(probeComp.GeneratePrefilterMap);
 
-        probeComp.SetCaptureResolution(512, false);
+        probeComp.SetCaptureResolution(256, false);
         probeComp.RealtimeCapture = true;
         probeComp.PreviewDisplay = LightProbeComponent.ERenderPreview.Prefilter;
         probeComp.RealTimeCaptureUpdateInterval = TimeSpan.FromSeconds(1.0f);

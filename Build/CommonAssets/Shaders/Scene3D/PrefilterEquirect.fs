@@ -1,7 +1,7 @@
 #version 450
 
 layout (location = 0) out vec3 OutColor;
-layout (location = 0) in vec3 FragPos;
+layout (location = 20) in vec3 FragPosLocal;
 
 uniform sampler2D Texture0;
 uniform float Roughness = 0.0f;
@@ -65,7 +65,7 @@ vec3 ImportanceSampleGGX(vec2 Xi, vec3 N, float roughness)
 
 void main()
 {
-    vec3 N = normalize(FragPos);
+    vec3 N = normalize(FragPosLocal);
 
     // make the simplyfying assumption that V equals R equals the normal
     vec3 R = N;

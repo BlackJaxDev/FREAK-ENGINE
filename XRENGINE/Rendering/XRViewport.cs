@@ -4,10 +4,7 @@ using XREngine.Components;
 using XREngine.Data.Core;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
-using XREngine.Data.Trees;
 using XREngine.Input;
-using XREngine.Physics;
-using XREngine.Physics.RayTracing;
 using XREngine.Rendering.Info;
 using XREngine.Rendering.UI;
 using State = XREngine.Engine.Rendering.State;
@@ -63,7 +60,16 @@ namespace XREngine.Rendering
         /// The index of the viewport.
         /// Viewports with a lower index will be rendered first, and viewports with a higher index will be rendered last, on top of the previous viewports.
         /// </summary>
-        public int Index { get; set; } = 0;
+        public int Index
+        {
+            get => _index;
+            set => SetField(ref _index, value);
+        }
+
+        /// <summary>
+        /// The local player associated with this viewport.
+        /// Usually player 1 unless the game supports multiple players.
+        /// </summary>
         public LocalPlayerController? AssociatedPlayer
         {
             get => _associatedPlayer;
@@ -80,7 +86,14 @@ namespace XREngine.Rendering
             }
         }
 
+        /// <summary>
+        /// The world instance to render.
+        /// This must be set when no camera component is set, and will take precedence over the camera component's world instance if both are set.
+        /// </summary>
         public XRWorldInstance? WorldInstanceOverride { get; set; } = null;
+        /// <summary>
+        /// The world instance that will be rendered to this viewport.
+        /// </summary>
         public XRWorldInstance? World => WorldInstanceOverride ?? CameraComponent?.SceneNode?.World;
 
         public void Destroy()
@@ -295,6 +308,7 @@ namespace XREngine.Rendering
         private bool _automaticallyCollectVisible = true;
         private bool _automaticallySwapBuffers = true;
         private bool _allowUIRender = true;
+        private int _index = 0;
 
         public bool SetRenderPipelineFromCamera
         {

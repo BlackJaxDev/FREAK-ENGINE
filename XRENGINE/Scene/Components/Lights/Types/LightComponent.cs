@@ -1,6 +1,5 @@
 ﻿using System.Numerics;
 using XREngine.Data.Colors;
-using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
 using XREngine.Rendering;
 using XREngine.Rendering.Info;
@@ -13,11 +12,10 @@ namespace XREngine.Components.Lights
         protected ColorF3 _color = new(1.0f, 1.0f, 1.0f);
         protected float _diffuseIntensity = 1.0f;
         private XRMaterialFrameBuffer? _shadowMap = null;
-        protected BoundingRectangle _shadowMapRenderRegion = new(1024, 1024);
         private ELightType _type = ELightType.Dynamic;
         private bool _castsShadows = true;
-        private float _shadowMaxBias = 0.1f;
-        private float _shadowMinBias = 0.00001f;
+        private float _shadowMaxBias = 0.4f;
+        private float _shadowMinBias = 0.0001f;
         private float _shadowExponent = 1.0f;
         private float _shadowExponentBase = 0.04f;
         private Matrix4x4 _lightMatrix = Matrix4x4.Identity;
@@ -41,7 +39,7 @@ namespace XREngine.Components.Lights
             {
                 case nameof(CastsShadows):
                     if (CastsShadows)
-                        SetShadowMapResolution((uint)_shadowMapRenderRegion.Width, (uint)_shadowMapRenderRegion.Height);
+                        SetShadowMapResolution(ShadowMapResolutionWidth, ShadowMapResolutionHeight);
                     else
                     {
                         ShadowMap?.Destroy();
@@ -51,8 +49,19 @@ namespace XREngine.Components.Lights
                 case nameof(MeshCenterAdjustMatrix):
                     _lightMatrix = MeshCenterAdjustMatrix * Transform.WorldMatrix;
                     break;
+                case nameof(ShadowMap):
+                    if (ShadowMap?.Material is not null)
+                        ShadowMap.Material.SettingUniforms += SetShadowMapUniforms;
+                    break;
             }
         }
+
+        /// <summary>
+        /// Override this method to set any additional uniforms needed for the shadow map material.
+        /// </summary>
+        /// <param name="base"></param>
+        /// <param name="program"></param>
+        protected virtual void SetShadowMapUniforms(XRMaterialBase @base, XRRenderProgram program) { }
 
         public LightComponent() : base()
         {
@@ -65,7 +74,6 @@ namespace XREngine.Components.Lights
             RenderInfo.IsVisible = Engine.Rendering.Settings.VisualizeDirectionalLightVolumes;
             RenderInfo.VisibleInLightingProbes = false;
             RenderedObjects = [RenderInfo];
-            ShadowRenderPipeline = new ShadowRenderPipeline();
         }
 
         protected abstract XRMesh GetWireframeMesh();
@@ -113,16 +121,17 @@ namespace XREngine.Components.Lights
             set => SetField(ref _shadowMaxBias, value);
         }
 
+        private uint _shadowMapResolutionWidth = 1024u;
         public uint ShadowMapResolutionWidth
         {
-            get => (uint)_shadowMapRenderRegion.Width;
-            set => SetShadowMapResolution(value, (uint)_shadowMapRenderRegion.Height);
+            get => _shadowMapResolutionWidth;
+            set => SetShadowMapResolution(value, ShadowMapResolutionHeight);
         }
-
+        private uint _shadowMapResolutionHeight = 1024u;
         public uint ShadowMapResolutionHeight
         {
-            get => (uint)_shadowMapRenderRegion.Height;
-            set => SetShadowMapResolution((uint)_shadowMapRenderRegion.Width, value);
+            get => _shadowMapResolutionHeight;
+            set => SetShadowMapResolution(ShadowMapResolutionWidth, value);
         }
 
         public ColorF3 Color
@@ -148,13 +157,19 @@ namespace XREngine.Components.Lights
 
         public virtual void SetShadowMapResolution(uint width, uint height)
         {
-            _shadowMapRenderRegion.Width = (int)width;
-            _shadowMapRenderRegion.Height = (int)height;
+            SetField(ref _shadowMapResolutionWidth, width, nameof(ShadowMapResolutionWidth));
+            SetField(ref _shadowMapResolutionHeight, height, nameof(ShadowMapResolutionHeight));
 
             if (ShadowMap is null)
                 ShadowMap = new XRMaterialFrameBuffer(GetShadowMapMaterial(width, height));
             else
                 ShadowMap.Resize(width, height);
+        }
+
+        protected internal override void OnComponentDeactivated()
+        {
+            base.OnComponentDeactivated();
+            ShadowMap?.Destroy();
         }
 
         public virtual void SetUniforms(XRRenderProgram program, string? targetStructName = null)
@@ -167,18 +182,9 @@ namespace XREngine.Components.Lights
 
         public abstract XRMaterial GetShadowMapMaterial(uint width, uint height, EDepthPrecision precision = EDepthPrecision.Flt32);
 
-        protected readonly XRRenderPipelineInstance _shadowRenderPipeline = new();
-        public RenderPipeline? ShadowRenderPipeline
-        {
-            get => _shadowRenderPipeline.Pipeline;
-            set => _shadowRenderPipeline.Pipeline = value;
-        }
-
-        public void SwapBuffers()
-            => _shadowRenderPipeline.MeshRenderCommands.SwapBuffers(true);
-
-        public abstract void CollectVisibleItems(XRWorldInstance scene);
-        public abstract void RenderShadowMap(XRWorldInstance scene, bool collectVisibleNow = false);
+        public abstract void SwapBuffers();
+        public abstract void CollectVisibleItems();
+        public abstract void RenderShadowMap(bool collectVisibleNow = false);
 
         public static EPixelInternalFormat GetShadowDepthMapFormat(EDepthPrecision precision)
             => precision switch

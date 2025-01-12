@@ -53,7 +53,7 @@ namespace XREngine
                 private bool _renderTransformLines = true;
                 private bool _renderTransformPoints = true;
                 private bool _renderTransformCapsules = false;
-                private bool _visualizeDirectionalLightVolumes = true;
+                private bool _visualizeDirectionalLightVolumes = false;
 
                 /// <summary>
                 /// The default luminance used for calculation of exposure, etc.

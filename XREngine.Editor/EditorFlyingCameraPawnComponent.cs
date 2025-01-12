@@ -147,11 +147,13 @@ public partial class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent
         DepthHitNormalizedViewportPoint = depth is not null && depth.Value > 0.0f && depth.Value < 1.0f ? new Vector3(p.X, p.Y, depth.Value) : null;
 
         //_lastRaycastSegment = vp.GetWorldSegment(p);
-        lock (_raycastLock)
-            if (vp.PickScene(p, false, true, true, _lastOctreePickResults, _lastPhysicsPickResults))
-            {
-                //Debug.Out(Name + " picked something!");
-            }
+
+        //lock (_raycastLock)
+        //    if (vp.PickScene(p, false, true, true, _lastOctreePickResults, _lastPhysicsPickResults))
+        //    {
+        //        //Debug.Out(Name + " picked something!");
+        //    }
+
         //Task.Run(() => SetRaycastResult(orderedResults));
 
         //if (RenderRaycast)

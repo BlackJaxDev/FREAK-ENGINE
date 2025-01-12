@@ -82,6 +82,8 @@ namespace XREngine.Rendering
                 {
                     Parent = parent,
                     Rotation = rotations[i].ToQuaternion(),
+                    Translation = Vector3.Zero,
+                    Scale = Vector3.One
                 };
                 tfm.RecalcLocal();
                 tfm.RecalcWorld(false);

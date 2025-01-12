@@ -1,7 +1,7 @@
 #version 450
 
 layout (location = 0) out vec3 OutColor;
-layout (location = 0) in vec3 FragPos;
+layout (location = 20) in vec3 FragPosLocal;
 
 uniform sampler2D Texture0;
 
@@ -9,7 +9,7 @@ const float PI = 3.14159265359f;
 
 void main()
 {
-    vec3 N = normalize(FragPos);
+    vec3 N = normalize(FragPosLocal);
 
     vec3 irradiance = vec3(0.0f);
 

@@ -9,12 +9,19 @@ using static XREngine.Data.Core.XRMath;
 
 namespace XREngine.Components.Lights
 {
-    public class SpotLightComponent(float distance, float outerCutoffDeg, float innerCutoffDeg, float brightness, float exponent) : LightComponent()
+    public class SpotLightComponent(float distance, float outerCutoffDeg, float innerCutoffDeg, float brightness, float exponent) : OneViewLightComponent()
     {
+        protected override XRPerspectiveCameraParameters GetCameraParameters() => new(
+            Math.Max(OuterCutoffAngleDegrees, InnerCutoffAngleDegrees) * 2.0f,
+            1.0f, 1.0f,
+            _distance);
+
         private float 
             _outerCutoff = (float)Math.Cos(DegToRad(outerCutoffDeg)),
             _innerCutoff = (float)Math.Cos(DegToRad(innerCutoffDeg)),
-            _distance = distance;
+            _distance = distance,
+            _exponent = exponent,
+            _brightness = brightness;
 
         private Cone _outerCone = new(
             Vector3.Zero,
@@ -28,33 +35,27 @@ namespace XREngine.Components.Lights
             MathF.Tan(DegToRad(innerCutoffDeg)) * distance,
             distance);
 
-        private float _exponent = exponent;
-        private float _brightness = brightness;
 
         public float Distance
         {
             get => _distance;
             set => SetField(ref _distance, value);
         }
-
         public float Exponent
         {
             get => _exponent;
             set => SetField(ref _exponent, value);
         }
-
         public float Brightness
         {
             get => _brightness;
             set => SetField(ref _brightness, value);
         }
-
         public float OuterCutoffAngleDegrees
         {
             get => RadToDeg((float)Math.Acos(_outerCutoff));
             set => SetCutoffs(InnerCutoffAngleDegrees, value, true);
         }
-
         public float InnerCutoffAngleDegrees
         {
             get => RadToDeg((float)Math.Acos(_innerCutoff));
@@ -72,31 +73,16 @@ namespace XREngine.Components.Lights
         public SpotLightComponent()
             : this(100.0f, 60.0f, 30.0f, 1.0f, 1.0f) { }
 
-        protected override void OnTransformWorldMatrixChanged(TransformBase transform)
-        {
-            UpdateCones();
-            base.OnTransformWorldMatrixChanged(transform);
-        }
-
         protected internal override void OnComponentActivated()
         {
             base.OnComponentActivated();
-
-            if (Type != ELightType.Dynamic)
-                return;
-
-            World?.Lights.SpotLights.Add(this);
-            if (CastsShadows && ShadowMap is null)
-                SetShadowMapResolution(1024u, 1024u);
+            if (Type == ELightType.Dynamic)
+                World?.Lights.DynamicSpotLights.Add(this);
         }
-
         protected internal override void OnComponentDeactivated()
         {
-            ShadowMap?.Destroy();
-
             if (Type == ELightType.Dynamic)
-                World?.Lights.SpotLights.Remove(this);
-
+                World?.Lights.DynamicSpotLights.Remove(this);
             base.OnComponentDeactivated();
         }
 
@@ -106,17 +92,19 @@ namespace XREngine.Components.Lights
 
             targetStructName = $"{targetStructName ?? Engine.Rendering.Constants.LightsStructName}.";
 
-            program.Uniform($"{targetStructName}Direction", Transform.WorldForward);
-            program.Uniform($"{targetStructName}OuterCutoff", _outerCutoff);
-            program.Uniform($"{targetStructName}InnerCutoff", _innerCutoff);
-            program.Uniform($"{targetStructName}Position", Transform.WorldTranslation);
-            program.Uniform($"{targetStructName}Radius", _distance);
-            program.Uniform($"{targetStructName}Brightness", Brightness);
-            program.Uniform($"{targetStructName}Exponent", Exponent);
             program.Uniform($"{targetStructName}Color", _color);
             program.Uniform($"{targetStructName}DiffuseIntensity", _diffuseIntensity);
             program.Uniform($"{targetStructName}WorldToLightProjMatrix", ShadowCamera?.ProjectionMatrix ?? Matrix4x4.Identity);
             program.Uniform($"{targetStructName}WorldToLightInvViewMatrix", ShadowCamera?.Transform.WorldMatrix ?? Matrix4x4.Identity);
+
+            program.Uniform($"{targetStructName}Position", Transform.WorldTranslation);
+            program.Uniform($"{targetStructName}Direction", Transform.WorldForward);
+            program.Uniform($"{targetStructName}Radius", Distance);
+            program.Uniform($"{targetStructName}Brightness", Brightness);
+            program.Uniform($"{targetStructName}Exponent", Exponent);
+
+            program.Uniform($"{targetStructName}InnerCutoff", _innerCutoff);
+            program.Uniform($"{targetStructName}OuterCutoff", _outerCutoff);
 
             var mat = ShadowMap?.Material;
             if (mat is null || mat.Textures.Count < 2)
@@ -126,12 +114,6 @@ namespace XREngine.Components.Lights
             if (tex is not null)
                 program.Sampler("ShadowMap", tex, 4);
         }
-
-        protected XRCamera GetShadowCamera()
-            => new(Transform, new XRPerspectiveCameraParameters(Math.Max(OuterCutoffAngleDegrees, InnerCutoffAngleDegrees) * 2.0f, 1.0f, 1.0f, _distance));
-
-        private XRCamera? _shadowCamera;
-        private XRCamera ShadowCamera => _shadowCamera ??= GetShadowCamera();
 
         public override void SetShadowMapResolution(uint width, uint height)
         {
@@ -169,30 +151,9 @@ namespace XREngine.Components.Lights
 
             //No culling so if a light exists inside of a mesh it will shadow everything.
             mat.RenderOptions.CullMode = ECullMode.None;
+            mat.RenderOptions.RequiredEngineUniforms = EUniformRequirements.Camera;
 
             return mat;
-        }
-
-        public override void CollectVisibleItems(XRWorldInstance world)
-        {
-            if (!CastsShadows)
-                return;
-
-            world.VisualScene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, ShadowCamera.WorldFrustum(), ShadowCamera, true);
-        }
-
-        public override void RenderShadowMap(XRWorldInstance world, bool collectVisibleNow = false)
-        {
-            if (!CastsShadows || ShadowMap?.Material is null)
-                return;
-
-            if (collectVisibleNow)
-            {
-                world.VisualScene.CollectRenderedItems(_shadowRenderPipeline.MeshRenderCommands, ShadowCamera.WorldFrustum(), ShadowCamera, true);
-                _shadowRenderPipeline.MeshRenderCommands.SwapBuffers(true);
-            }
-
-            _shadowRenderPipeline.Render(world.VisualScene, ShadowCamera, null, ShadowMap, null, true, ShadowMap.Material);
         }
 
         protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
@@ -200,8 +161,15 @@ namespace XREngine.Components.Lights
             base.OnPropertyChanged(propName, prev, field);
             switch (propName)
             {
+                case nameof(Transform):
                 case nameof(Distance):
                     UpdateCones();
+                    break;
+                case nameof(Type):
+                    if (Type == ELightType.Dynamic)
+                        World?.Lights.DynamicSpotLights.Add(this);
+                    else
+                        World?.Lights.DynamicSpotLights.Remove(this);
                     break;
             }
         }
@@ -210,7 +178,6 @@ namespace XREngine.Components.Lights
         {
             innerDegrees = innerDegrees.Clamp(0.0f, 90.0f);
             outerDegrees = outerDegrees.Clamp(0.0f, 90.0f);
-
             if (outerDegrees < innerDegrees)
             {
                 float bias = 0.0001f;
@@ -220,13 +187,19 @@ namespace XREngine.Components.Lights
                     outerDegrees = innerDegrees + bias;
             }
 
-            SetField(ref _outerCutoff, MathF.Cos(DegToRad(outerDegrees)));
-            SetField(ref _innerCutoff, MathF.Cos(DegToRad(innerDegrees)));
+            SetField(ref _outerCutoff, MathF.Cos(DegToRad(outerDegrees)), nameof(OuterCutoffAngleDegrees));
+            SetField(ref _innerCutoff, MathF.Cos(DegToRad(innerDegrees)), nameof(InnerCutoffAngleDegrees));
 
             if (ShadowCamera != null && ShadowCamera.Parameters is XRPerspectiveCameraParameters p)
                 p.VerticalFieldOfView = Math.Max(outerDegrees, innerDegrees) * 2.0f;
 
             UpdateCones();
+        }
+
+        protected override void OnTransformWorldMatrixChanged(TransformBase transform)
+        {
+            UpdateCones();
+            base.OnTransformWorldMatrixChanged(transform);
         }
 
         private void UpdateCones()

@@ -176,7 +176,7 @@ in vec3 F0)
 
 	float shadow = ReadShadowMap2D(
 		fragPosWS, N, NoL,
-		inverse(LightData.WorldToLightInvViewMatrix) * LightData.WorldToLightProjMatrix);
+		LightData.WorldToLightProjMatrix * inverse(LightData.WorldToLightInvViewMatrix));
 
 	return color * shadow;
 }
