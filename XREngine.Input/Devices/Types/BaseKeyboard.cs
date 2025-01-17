@@ -189,7 +189,7 @@
         BracketRight    = 123,
         RBracket        = 123,
         Semicolon       = 124,
-        Apostrophe           = 125,
+        Apostrophe      = 125,
         Comma           = 126,
         Period          = 127,
         Slash           = 128,

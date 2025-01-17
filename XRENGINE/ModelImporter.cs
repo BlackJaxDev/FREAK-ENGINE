@@ -61,7 +61,7 @@ namespace XREngine
             bool zUp = false)
         {
             using var importer = new ModelImporter(path, async, onCompleted, materialFactory);
-            var node = importer.Import(options, scaleConversion, zUp);
+            var node = importer.Import(options, true, false, scaleConversion, zUp, true);
             materials = importer._materials;
             meshes = importer._meshes;
             if (parent != null && node != null)
@@ -89,7 +89,13 @@ namespace XREngine
 
         private readonly ConcurrentBag<Action> _meshProcessActions = [];
 
-        private unsafe SceneNode? Import(PostProcessSteps options = PostProcessSteps.None, float scaleConversion = 1.0f, bool zUp = false)
+        private unsafe SceneNode? Import(
+            PostProcessSteps options = PostProcessSteps.None,
+            bool preservePivots = true,
+            bool removeAssimpFBXNodes = true,
+            float scaleConversion = 1.0f,
+            bool zUp = false,
+            bool multiThread = true)
         {
 #if DEBUG
             Debug.Out($"Importing model: {SourceFilePath} with options: {options}");
@@ -97,14 +103,11 @@ namespace XREngine
             sw.Start();
 #endif
             float rotate = zUp ? -90.0f : 0.0f;
-            bool removeAssimpFBXNodes = true;
-            bool preservePivots = true;
-
             _assimp.SetConfig(new BooleanPropertyConfig(AiConfigs.AI_CONFIG_IMPORT_FBX_PRESERVE_PIVOTS, preservePivots));
             //_assimp.SetConfig(new BooleanPropertyConfig(AiConfigs.AI_CONFIG_IMPORT_FBX_READ_ALL_MATERIALS, true));
             _assimp.SetConfig(new BooleanPropertyConfig(AiConfigs.AI_CONFIG_IMPORT_FBX_READ_MATERIALS, true));
             _assimp.SetConfig(new BooleanPropertyConfig(AiConfigs.AI_CONFIG_IMPORT_FBX_READ_TEXTURES, true));
-            _assimp.SetConfig(new BooleanPropertyConfig(AiConfigs.AI_CONFIG_GLOB_MULTITHREADING, true));
+            _assimp.SetConfig(new BooleanPropertyConfig(AiConfigs.AI_CONFIG_GLOB_MULTITHREADING, multiThread));
 
             _assimp.Scale = scaleConversion;
             _assimp.XAxisRotation = rotate;
@@ -112,7 +115,8 @@ namespace XREngine
 
             if (scene is null || scene.SceneFlags == SceneFlags.Incomplete || scene.RootNode is null)
                 return null;
-            
+
+            Debug.Out($"Loaded scene in {sw.ElapsedMilliseconds / 1000.0f} sec from {SourceFilePath} with options: {options}");
             SceneNode rootNode = new(Path.GetFileNameWithoutExtension(SourceFilePath));
             ProcessNode(true, scene.RootNode, scene, rootNode, Matrix4x4.Identity, null, null, removeAssimpFBXNodes);
             //Debug.Out(rootNode.PrintTree());
@@ -236,8 +240,8 @@ namespace XREngine
 
             SceneNode sceneNode = new(parentSceneNode, name);
             sceneNode.Transform.DeriveLocalMatrix(localTransform);
-            sceneNode.Transform.RecalcLocal();
-            sceneNode.Transform.RecalcWorld(false);
+            //sceneNode.Transform.RecalcLocal();
+            //sceneNode.Transform.RecalcWorld(false);
 
             if (_nodeCache.TryGetValue(name, out List<SceneNode>? nodes))
                 nodes.Add(sceneNode);

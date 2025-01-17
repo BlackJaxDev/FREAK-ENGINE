@@ -1,6 +1,7 @@
 ﻿using System.Numerics;
 using XREngine.Core.Attributes;
 using XREngine.Data.Core;
+using XREngine.Input.Devices;
 using XREngine.Rendering.Info;
 using XREngine.Scene.Transforms;
 
@@ -239,6 +240,11 @@ namespace XREngine.Rendering.UI
         public virtual void MouseMoved(Vector2 lastPosLocal, Vector2 posLocal)
         {
             OnMouseMove(posLocal.X, posLocal.Y);
+        }
+
+        public virtual void RegisterInput(InputInterface input)
+        {
+
         }
     }
 }

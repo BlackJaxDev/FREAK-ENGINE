@@ -80,8 +80,9 @@ namespace XREngine.Rendering
         public event Action<string, XRTexture, int>? SamplerRequested = null;
         public event Action<int, XRTexture, int>? SamplerRequestedByLocation = null;
 
-        public event Action<int, XRTexture>? BindImageTextureRequested = null;
-        
+        public event Action<uint, XRTexture, int, bool, int, EImageAccess, EImageFormat>? BindImageTextureRequested = null;
+        public event Action<uint, uint, uint, IEnumerable<(uint unit, XRTexture texture, int level, int? layer, EImageAccess access, EImageFormat format)>?>? DispatchComputeRequested = null;
+
         /// <summary>
         /// Mask of the shader types included in the program.
         /// </summary>
@@ -436,7 +437,61 @@ namespace XREngine.Rendering
         public void Sampler(int location, XRTexture texture, int textureUnit)
             => SamplerRequestedByLocation?.Invoke(location, texture, textureUnit);
 
-        public void BindImageTexture(int bindingIndex, XRTexture texture)
-            => BindImageTextureRequested?.Invoke(bindingIndex, texture);
+        public enum EImageAccess
+        {
+            ReadOnly,
+            WriteOnly,
+            ReadWrite
+        }
+
+        public enum EImageFormat
+        {
+            R8,
+            R16,
+            R16F,
+            R32F,
+            RG8,
+            RG16,
+            RG16F,
+            RG32F,
+            RGB8,
+            RGB16,
+            RGB16F,
+            RGB32F,
+            RGBA8,
+            RGBA16,
+            RGBA16F,
+            RGBA32F,
+            R8I,
+            R8UI,
+            R16I,
+            R16UI,
+            R32I,
+            R32UI,
+            RG8I,
+            RG8UI,
+            RG16I,
+            RG16UI,
+            RG32I,
+            RG32UI,
+            RGB8I,
+            RGB8UI,
+            RGB16I,
+            RGB16UI,
+            RGB32I,
+            RGB32UI,
+            RGBA8I,
+            RGBA8UI,
+            RGBA16I,
+            RGBA16UI,
+            RGBA32I,
+            RGBA32UI
+        }
+
+        public void BindImageTexture(uint unit, XRTexture texture, int level, bool layered, int layer, EImageAccess access, EImageFormat format)
+            => BindImageTextureRequested?.Invoke(unit, texture, level, layered, layer, access, format);
+
+        public void DispatchCompute(uint x, uint y, uint z, IEnumerable<(uint unit, XRTexture texture, int level, int? layer, EImageAccess access, EImageFormat format)>? textures = null)
+            => DispatchComputeRequested?.Invoke(x, y, z, textures);
     }
 }

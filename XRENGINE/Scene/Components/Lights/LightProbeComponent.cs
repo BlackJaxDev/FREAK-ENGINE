@@ -322,6 +322,11 @@ namespace XREngine.Components.Lights
         {
             base.OnComponentActivated();
             World?.Lights.LightProbes.Add(this);
+            if (!RealtimeCapture)
+            {
+                ProgressiveRenderEnabled = false;
+                FullCapture(128, false);
+            }
         }
 
         protected internal override void OnComponentDeactivated()

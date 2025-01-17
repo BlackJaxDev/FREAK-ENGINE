@@ -117,9 +117,9 @@ public partial class UIToolbarComponent : UIComponent
             var textTfm = text.BoundableTransform;
             textTfm.Margins = new Vector4(10.0f, Margin, 10.0f, Margin);
 
-            text.FontSize = 16;
+            text.FontSize = 14;
             text.Text = menuItem.Text;
-            text.Color = ColorF4.Gray;
+            text.Color = ColorF4.LightGray;
 
             if (menuItem.ChildOptions.Count <= 0)
                 continue;

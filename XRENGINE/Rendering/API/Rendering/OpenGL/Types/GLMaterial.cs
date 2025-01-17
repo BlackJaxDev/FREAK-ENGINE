@@ -1,4 +1,5 @@
 ﻿using Extensions;
+using System.Numerics;
 using XREngine.Data.Rendering;
 using XREngine.Rendering.Models.Materials;
 
@@ -84,13 +85,16 @@ namespace XREngine.Rendering.OpenGL
                 }
 
                 if (reqs.HasFlag(EUniformRequirements.RenderTime))
-                {
-                    program?.Uniform(nameof(EUniformRequirements.RenderTime), SecondsLive);
-                }
+                    program.Uniform(nameof(EUniformRequirements.RenderTime), SecondsLive);
+                
                 if (reqs.HasFlag(EUniformRequirements.ViewportDimensions))
                 {
-                    //Program?.Uniform(nameof(EUniformRequirements.ViewportDimensions), viewportDimensions);
+                    var area = Engine.Rendering.State.RenderArea;
+                    program.Uniform(EEngineUniform.ScreenWidth.ToString(), (float)area.Width);
+                    program.Uniform(EEngineUniform.ScreenHeight.ToString(), (float)area.Height);
+                    program.Uniform(EEngineUniform.ScreenOrigin.ToString(), new Vector2(0.0f, 0.0f));
                 }
+
                 if (reqs.HasFlag(EUniformRequirements.MousePosition))
                 {
                     //Program?.Uniform(nameof(EUniformRequirements.MousePosition), mousePosition);

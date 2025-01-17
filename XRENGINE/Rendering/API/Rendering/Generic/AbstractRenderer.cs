@@ -1,4 +1,5 @@
 ﻿using ImageMagick;
+using Silk.NET.Core.Attributes;
 using Silk.NET.Core.Native;
 using Silk.NET.Windowing;
 using System.Collections.Concurrent;
@@ -154,7 +155,9 @@ namespace XREngine.Rendering
         public abstract void ClearColor(ColorF4 color);
         public abstract void SetReadBuffer(EReadBufferMode mode);
         public abstract void SetReadBuffer(XRFrameBuffer? fbo, EReadBufferMode mode);
-        public abstract float GetDepth(float x, float y);
+        public abstract float GetDepth(int x, int y);
+        public abstract void GetPixelAsync(int x, int y, bool withTransparency, Action<ColorF4> colorCallback);
+        public abstract void GetDepthAsync(XRFrameBuffer fbo, int x, int y, Action<float> depthCallback);
         public abstract byte GetStencilIndex(float x, float y);
         public abstract void EnableDepthTest(bool enable);
         public abstract void StencilMask(uint mask);
@@ -383,6 +386,30 @@ namespace XREngine.Rendering
             EReadBufferMode readBufferMode,
             bool colorBit, bool depthBit, bool stencilBit,
             bool linearFilter);
+
+        public abstract void MemoryBarrier(EMemoryBarrierMask mask);
+    }
+    [Flags]
+    public enum EMemoryBarrierMask : int
+    {
+        None = 0,
+        VertexAttribArray = 0x1,
+        ElementArray = 0x2,
+        Uniform = 0x4,
+        TextureFetch = 0x8,
+        ShaderGlobalAccess = 0x10,
+        ShaderImageAccess = 0x20,
+        Command = 0x40,
+        PixelBuffer = 0x80,
+        TextureUpdate = 0x100,
+        BufferUpdate = 0x200,
+        Framebuffer = 0x400,
+        TransformFeedback = 0x800,
+        AtomicCounter = 0x1000,
+        ShaderStorage = 0x2000,
+        ClientMappedBuffer = 0x4000,
+        QueryBuffer = 0x8000,
+        All = unchecked((int)0xFFFFFFFF),
     }
     public abstract unsafe partial class AbstractRenderer<TAPI>(XRWindow window, bool shouldLinkWindow = true) : AbstractRenderer(window, shouldLinkWindow) where TAPI : NativeAPI
     {

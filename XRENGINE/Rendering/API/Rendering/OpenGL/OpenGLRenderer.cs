@@ -80,6 +80,52 @@ namespace XREngine.Rendering.OpenGL
             SetupDebug(api);
         }
 
+        public override void MemoryBarrier(EMemoryBarrierMask mask)
+        {
+            Api.MemoryBarrier(ToGLMask(mask));
+        }
+
+        private uint ToGLMask(EMemoryBarrierMask mask)
+        {
+            if (mask.HasFlag(EMemoryBarrierMask.All))
+                return uint.MaxValue;
+
+            uint glMask = 0;
+            if (mask.HasFlag(EMemoryBarrierMask.VertexAttribArray))
+                glMask |= (uint)MemoryBarrierMask.VertexAttribArrayBarrierBit;
+            if (mask.HasFlag(EMemoryBarrierMask.ElementArray))
+                glMask |= (uint)MemoryBarrierMask.ElementArrayBarrierBit;
+            if (mask.HasFlag(EMemoryBarrierMask.Uniform))
+                glMask |= (uint)MemoryBarrierMask.UniformBarrierBit;
+            if (mask.HasFlag(EMemoryBarrierMask.TextureFetch))
+                glMask |= (uint)MemoryBarrierMask.TextureFetchBarrierBit;
+            if (mask.HasFlag(EMemoryBarrierMask.ShaderGlobalAccess))
+                glMask |= (uint)MemoryBarrierMask.ShaderGlobalAccessBarrierBitNV;
+            if (mask.HasFlag(EMemoryBarrierMask.ShaderImageAccess))
+                glMask |= (uint)MemoryBarrierMask.ShaderImageAccessBarrierBit;
+            if (mask.HasFlag(EMemoryBarrierMask.Command))
+                glMask |= (uint)MemoryBarrierMask.CommandBarrierBit;
+            if (mask.HasFlag(EMemoryBarrierMask.PixelBuffer))
+                glMask |= (uint)MemoryBarrierMask.PixelBufferBarrierBit;
+            if (mask.HasFlag(EMemoryBarrierMask.TextureUpdate))
+                glMask |= (uint)MemoryBarrierMask.TextureUpdateBarrierBit;
+            if (mask.HasFlag(EMemoryBarrierMask.BufferUpdate))
+                glMask |= (uint)MemoryBarrierMask.BufferUpdateBarrierBit;
+            if (mask.HasFlag(EMemoryBarrierMask.Framebuffer))
+                glMask |= (uint)MemoryBarrierMask.FramebufferBarrierBit;
+            if (mask.HasFlag(EMemoryBarrierMask.TransformFeedback))
+                glMask |= (uint)MemoryBarrierMask.TransformFeedbackBarrierBit;
+            if (mask.HasFlag(EMemoryBarrierMask.AtomicCounter))
+                glMask |= (uint)MemoryBarrierMask.AtomicCounterBarrierBit;
+            if (mask.HasFlag(EMemoryBarrierMask.ShaderStorage))
+                glMask |= (uint)MemoryBarrierMask.ShaderStorageBarrierBit;
+            if (mask.HasFlag(EMemoryBarrierMask.ClientMappedBuffer))
+                glMask |= (uint)MemoryBarrierMask.ClientMappedBufferBarrierBit;
+            if (mask.HasFlag(EMemoryBarrierMask.QueryBuffer))
+                glMask |= (uint)MemoryBarrierMask.QueryBufferBarrierBit;
+            return glMask;
+        }
+
         private unsafe static void SetupDebug(GL api)
         {
             api.Enable(EnableCap.DebugOutput);
@@ -99,6 +145,7 @@ namespace XREngine.Rendering.OpenGL
             //131216,
             131218,
             131076,
+            131139, //Rasterization quality warning: A non-fullscreen clear caused a fallback from CSAA to MSAA.
             //1282,
             //0,
             //9,
@@ -308,12 +355,6 @@ namespace XREngine.Rendering.OpenGL
                 Api.Enable(EnableCap.DepthTest);
             else
                 Api.Disable(EnableCap.DepthTest);
-        }
-        public override unsafe float GetDepth(float x, float y)
-        {
-            float depth = 0.0f;
-            Api.ReadPixels((int)x, (int)y, 1, 1, PixelFormat.DepthComponent, PixelType.Float, &depth);
-            return depth;
         }
         public override unsafe byte GetStencilIndex(float x, float y)
         {
@@ -595,7 +636,7 @@ namespace XREngine.Rendering.OpenGL
             Api.ReadBuffer(ReadBufferMode.Front);
 
             nuint size = (uint)data.Length;
-            uint pbo = ReadToPBO(region, w, h, format, pixelType, size, out IntPtr sync);
+            uint pbo = ReadToPBO(region, format, pixelType, size, out IntPtr sync);
             void FenceCheck()
             {
                 if (GetData(size, data, sync, pbo))
@@ -613,13 +654,82 @@ namespace XREngine.Rendering.OpenGL
             }
             Engine.EnqueueMainThreadTask(FenceCheck);
         }
+        public override void GetPixelAsync(int x, int y, bool withTransparency, Action<ColorF4> pixelCallback)
+        {
+            //TODO: render to an FBO with the desired render size and capture from that, instead of using the window size.
 
-        private unsafe uint ReadToPBO(BoundingRectangle region, uint w, uint h, EPixelFormat format, EPixelType type, nuint size, out IntPtr sync)
+            //TODO: multi-glcontext readback.
+            //This method is async on the CPU, but still executes synchronously on the GPU.
+            //https://developer.download.nvidia.com/GTC/PDF/GTC2012/PresentationPDF/S0356-GTC2012-Texture-Transfers.pdf
+
+            EPixelFormat format = withTransparency ? EPixelFormat.Bgra : EPixelFormat.Bgr;
+            EPixelType pixelType = EPixelType.UnsignedByte;
+            var data = XRTexture.AllocateBytes(1, 1, format, pixelType);
+
+            Api.BindFramebuffer(FramebufferTarget.ReadFramebuffer, 0);
+            Api.ReadBuffer(ReadBufferMode.Front);
+
+            nuint size = (uint)data.Length;
+            uint pbo = ReadToPBO(new BoundingRectangle(x, y, 1, 1), format, pixelType, size, out IntPtr sync);
+            void FenceCheck()
+            {
+                if (GetData(size, data, sync, pbo))
+                {
+                    Api.DeleteSync(sync);
+                    Api.DeleteBuffer(pbo);
+                    ColorF4 color = new(data[0] / 255.0f, data[1] / 255.0f, data[2] / 255.0f, data[3] / 255.0f);
+                    Task.Run(() => pixelCallback(color));
+                }
+                else
+                {
+                    Engine.EnqueueMainThreadTask(FenceCheck);
+                }
+            }
+            Engine.EnqueueMainThreadTask(FenceCheck);
+        }
+        public override unsafe void GetDepthAsync(XRFrameBuffer fbo, int x, int y, Action<float> depthCallback)
+        {
+            //TODO: render to an FBO with the desired render size and capture from that, instead of using the window size.
+
+            //TODO: multi-glcontext readback.
+            //This method is async on the CPU, but still executes synchronously on the GPU.
+            //https://developer.download.nvidia.com/GTC/PDF/GTC2012/PresentationPDF/S0356-GTC2012-Texture-Transfers.pdf
+
+            EPixelFormat format = EPixelFormat.DepthComponent;
+            EPixelType pixelType = EPixelType.Float;
+            var data = XRTexture.AllocateBytes(1, 1, format, pixelType);
+
+            using var t = fbo.BindForReadingState();
+            Api.ReadBuffer(ReadBufferMode.None);
+
+            nuint size = (uint)data.Length;
+            uint pbo = ReadToPBO(new BoundingRectangle(x, y, 1, 1), format, pixelType, size, out IntPtr sync);
+            void FenceCheck()
+            {
+                if (GetData(size, data, sync, pbo))
+                {
+                    Api.DeleteSync(sync);
+                    Api.DeleteBuffer(pbo);
+                    fixed (byte* ptr = data)
+                    {
+                        float depth = *(float*)ptr;
+                        Task.Run(() => depthCallback(depth));
+                    }
+                }
+                else
+                {
+                    Engine.EnqueueMainThreadTask(FenceCheck);
+                }
+            }
+            Engine.EnqueueMainThreadTask(FenceCheck);
+        }
+
+        private unsafe uint ReadToPBO(BoundingRectangle region, EPixelFormat format, EPixelType type, nuint size, out IntPtr sync)
         {
             uint pbo = Api.GenBuffer();
             Api.BindBuffer(BufferTargetARB.PixelPackBuffer, pbo);
             Api.BufferData(GLEnum.PixelPackBuffer, size, null, GLEnum.StreamRead);
-            Api.ReadPixels(region.X, region.Y, w, h, GLObjectBase.ToGLEnum(format), GLObjectBase.ToGLEnum(type), null);
+            Api.ReadPixels(region.X, region.Y, (uint)region.Width, (uint)region.Height, GLObjectBase.ToGLEnum(format), GLObjectBase.ToGLEnum(type), null);
             sync = Api.FenceSync(GLEnum.SyncGpuCommandsComplete, 0u);
             Api.BindBuffer(BufferTargetARB.PixelPackBuffer, 0);
             return pbo;
@@ -639,6 +749,13 @@ namespace XREngine.Rendering.OpenGL
             Api.BindBuffer(BufferTargetARB.PixelPackBuffer, 0);
 
             return true;
+        }
+
+        public override unsafe float GetDepth(int x, int y)
+        {
+            float depth = 0.0f;
+            Api.ReadPixels(x, y, 1, 1, PixelFormat.DepthComponent, PixelType.Float, &depth);
+            return depth;
         }
 
         public void DeleteObjects<T>(params T[] objs) where T : GLObjectBase

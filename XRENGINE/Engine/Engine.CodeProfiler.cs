@@ -41,7 +41,6 @@ namespace XREngine
             private void LogForFrame(string? name, float elapsedMs)
                 => FrameLog.Enqueue((Environment.CurrentManagedThreadId, name ?? string.Empty, elapsedMs));
 
-            private readonly ResourcePool<StateObject> _statePool = new(() => new StateObject(null));
             private readonly ResourcePool<CodeProfilerTimer> _timerPool = new(() => new CodeProfilerTimer());
             private readonly ConcurrentDictionary<Guid, CodeProfilerTimer> _asyncTimers = [];
 
@@ -54,7 +53,7 @@ namespace XREngine
             /// <returns></returns>
             public StateObject Start(DelTimerCallback? callback = null, bool printDebugIfNoCallback = true, [CallerMemberName] string? methodName = null)
             {
-                var state = _statePool.Take();
+                var state = StateObject.New();
                 if (!EnableFrameLogging)
                     return state;
 
@@ -71,7 +70,7 @@ namespace XREngine
             /// <param name="callback"></param>
             private void Stop(StateObject state, CodeProfilerTimer entry, DelTimerCallback? callback, bool printDebugIfNoCallback = true)
             {
-                _statePool.Release(state);
+                state.Dispose();
                 _timerPool.Release(entry);
                 if (callback is null)
                 {

@@ -79,6 +79,7 @@ void main()
 	vec3 diffuse = irradianceColor * albedoColor;
 	vec3 prefilteredColor = textureLod(Prefilter, R, roughness * MAX_REFLECTION_LOD).rgb;
 	vec3 specular = prefilteredColor * (kS * brdfValue.x + brdfValue.y);
+	vec3 ambient = (kD * diffuse + specular) * ao;
 
-	OutLo = (kD * diffuse + specular) * ao + InLo * ao;
+	OutLo = ambient + InLo;
 }

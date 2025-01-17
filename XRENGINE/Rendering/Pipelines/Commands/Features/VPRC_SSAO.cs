@@ -17,7 +17,7 @@ namespace XREngine.Rendering.Pipelines.Commands
         public string SSAOBlurFBOName { get; set; } = "SSAOBlurFBO";
         public string GBufferFBOFBOName { get; set; } = "GBufferFBO";
 
-        const int DefaultSamples = 64;
+        const int DefaultSamples = 128;
         const uint DefaultNoiseWidth = 4u, DefaultNoiseHeight = 4u;
         const float DefaultMinSampleDist = 0.1f, DefaultMaxSampleDist = 1.0f;
 

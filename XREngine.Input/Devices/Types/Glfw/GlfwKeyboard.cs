@@ -37,7 +37,17 @@ namespace XREngine.Input.Devices.Glfw
         public override void TickStates(float delta)
         {
             foreach (ButtonManager? m in _buttonStates)
-                m?.Tick(_keyboard.IsKeyPressed(Conv((EKey)m.Index)), delta);
+            {
+                if (m is null)
+                    continue;
+
+                var key = Conv((EKey)m.Index);
+                if (key == Key.Unknown)
+                    continue;
+
+                if (_keyboard.SupportedKeys.Contains(key))
+                    m?.Tick(_keyboard.IsKeyPressed(key), delta);
+            }
         }
 
         public static EKey Conv(Key key) => key switch
@@ -284,6 +294,7 @@ namespace XREngine.Input.Devices.Glfw
             EKey.Pause => Key.Pause,
             EKey.KeypadDivide => Key.KeypadDivide,
             EKey.KeypadMultiply => Key.KeypadMultiply,
+            EKey.NonUSBackSlash => Key.Unknown,
             EKey.Unknown => Key.Unknown,
             _ => Key.Unknown,
         };

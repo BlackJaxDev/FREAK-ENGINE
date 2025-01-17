@@ -36,12 +36,12 @@ namespace XREngine
                 public static StateObject PushRenderingPipeline(XRRenderPipelineInstance pipeline)
                 {
                     RenderingPipelineStack.Push(pipeline);
-                    return new StateObject(PopRenderingPipeline);
+                    return StateObject.New(PopRenderingPipeline);
                 }
                 //public static StateObject PushCollectingVisiblePipeline(XRRenderPipelineInstance pipeline)
                 //{
                 //    CollectingVisiblePipelineStack.Push(pipeline);
-                //    return new StateObject(PopCollectingVisiblePipeline);
+                //    return StateObject.New(PopCollectingVisiblePipeline);
                 //}
 
                 public static void PopRenderingPipeline()
@@ -104,8 +104,24 @@ namespace XREngine
                 public static void SetReadBuffer(XRFrameBuffer? fbo, EReadBufferMode mode)
                     => AbstractRenderer.Current?.SetReadBuffer(fbo, mode);
 
-                public static float GetDepth(float x, float y)
+                public static float GetDepth(int x, int y)
                     => AbstractRenderer.Current?.GetDepth(x, y) ?? 0.0f;
+                public static unsafe Task<float> GetDepthAsync(XRFrameBuffer fbo, int x, int y)
+                {
+                    var tcs = new TaskCompletionSource<float>();
+                    void callback(float depth)
+                        => tcs.SetResult(depth);
+                    AbstractRenderer.Current?.GetDepthAsync(fbo, x, y, callback);
+                    return tcs.Task;
+                }
+                public static unsafe Task<ColorF4> GetPixelAsync(int x, int y, bool withTransparency)
+                {
+                    var tcs = new TaskCompletionSource<ColorF4>();
+                    void callback(ColorF4 pixel)
+                        => tcs.SetResult(pixel);
+                    AbstractRenderer.Current?.GetPixelAsync(x, y, withTransparency, callback);
+                    return tcs.Task;
+                }
 
                 public static byte GetStencilIndex(float x, float y)
                     => AbstractRenderer.Current?.GetStencilIndex(x, y) ?? 0;

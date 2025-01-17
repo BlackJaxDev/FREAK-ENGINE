@@ -41,7 +41,7 @@ internal class Program
 {
     public const bool VisualizeOctree = false;
     public const bool VisualizeQuadtree = false;
-    public const bool Physics = false;
+    public const bool Physics = true;
     public const bool DirLight = true;
     public const bool SpotLight = false;
     public const bool DirLight2 = false;
@@ -50,10 +50,10 @@ internal class Program
     public const bool LightProbe = true;
     public const bool Skybox = true;
     public const bool Spline = false;
-    public const bool DeferredDecal = false;
-    public const bool StaticModel = true;
+    public const bool DeferredDecal = true;
+    public const bool StaticModel = false;
     public const bool AnimatedModel = false;
-    public const bool AddEditorUI = false;
+    public const bool AddEditorUI = true;
 
     /// <summary>
     /// This project serves as a hardcoded game client for development purposes.
@@ -152,10 +152,10 @@ internal class Program
         if (VisualizeOctree)
             rootNode.AddComponent<DebugVisualizeOctreeComponent>();
 
-        SceneNode cameraNode = CreateCamera(rootNode, out var camComp);
-        var pawn = CreateDesktopViewerPawn(cameraNode);
-        CreateUserInterface(rootNode, camComp, pawn);
-        //SceneNode cameraNode = CreateDesktopCharacterPawn(rootNode);
+        //SceneNode cameraNode = CreateCamera(rootNode, out var camComp);
+        //var pawn = CreateDesktopViewerPawn(cameraNode);
+        //CreateUserInterface(rootNode, camComp, pawn);
+        SceneNode cameraNode = CreateDesktopCharacterPawn(rootNode);
         //CreateVRPawn(rootNode);
 
         if (DirLight)
@@ -290,7 +290,7 @@ internal class Program
         return [
             new("File", [Key.ControlLeft, Key.F],
             [
-                new("Save", SaveAll),
+                new("Save All", SaveAll),
                 new("Open", [
                     new ToolbarButton("Project", LoadProject),
                     ])
@@ -299,7 +299,7 @@ internal class Program
             new("Assets"),
             new("Tools", [Key.ControlLeft, Key.T],
             [
-                new("Take_Screenshot", TakeScreenshot),
+                new("Take Screenshot", TakeScreenshot),
             ]),
             new("View"),
             new("Window"),
@@ -332,9 +332,37 @@ internal class Program
         rightControllerModel.LeftHand = false;
     }
 
+    private static SceneNode CreateDesktopCharacterPawn(SceneNode rootNode)
+    {
+        SceneNode characterNode = new(rootNode) { Name = "TestPlayerNode" };
+        var characterTfm = characterNode.SetTransform<RigidBodyTransform>();
+        characterTfm.InterpolationMode = EInterpolationMode.Interpolate;
+
+        //create node to translate camera up half the height of the character
+        SceneNode cameraOffsetNode = new(characterNode) { Name = "TestCameraOffsetNode" };
+        var cameraOffsetTfm = cameraOffsetNode.SetTransform<Transform>();
+        cameraOffsetTfm.Translation = new Vector3(0.0f, 1.0f, 0.0f);
+
+        SceneNode cameraNode = CreateCamera(cameraOffsetNode, out CameraComponent? camComp, false);
+        cameraNode.AddComponent<AudioListenerComponent>();
+
+        var characterComp = characterNode.AddComponent<CharacterComponent>();
+        characterComp!.CameraComponent = camComp;
+        var movementComp = characterNode.AddComponent<CharacterMovement3DComponent>();
+        movementComp!.StandingHeight = 1.89f;
+        movementComp!.SpawnPosition = new Vector3(0.0f, 10.0f, 0.0f);
+        movementComp.Velocity = new Vector3(0.0f, 0.0f, 0.0f);
+        movementComp.JumpSpeed = 3.0f;
+        //movementComp.GravityOverride = new Vector3(0.0f, -0.1f, 0.0f);
+        movementComp.InputLerpSpeed = 0.5f;
+        characterComp!.Name = "TestPawn";
+        characterComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
+        return cameraNode;
+    }
+
     private static void AddPhysics(SceneNode rootNode)
     {
-        float ballRadius = 1.0f;
+        float ballRadius = 0.5f;
 
         var floor = new SceneNode(rootNode) { Name = "Floor" };
         var floorTfm = floor.SetTransform<RigidBodyTransform>();
@@ -345,8 +373,16 @@ internal class Program
 
         var floorBody = PhysxStaticRigidBody.CreatePlane(Globals.Up, 0.0f, floorPhysMat);
             //new PhysxStaticRigidBody(floorMat, new PhysxGeometry.Box(new Vector3(100.0f, 2.0f, 100.0f)));
-        floorBody.SetTransform(new Vector3(0.0f, -10.0f, 0.0f), Quaternion.CreateFromAxisAngle(Globals.Backward, XRMath.DegToRad(90.0f)), true);
+        floorBody.SetTransform(new Vector3(0.0f, 0.0f, 0.0f), Quaternion.CreateFromAxisAngle(Globals.Backward, XRMath.DegToRad(90.0f)), true);
+        //floorBody.CollisionGroup = 1;
+        //floorBody.GroupsMask = new MagicPhysX.PxGroupsMask() { bits0 = 0, bits1 = 0, bits2 = 0, bits3 = 1 };
         floorComp.RigidBody = floorBody;
+        //floorBody.AddedToScene += x =>
+        //{
+        //    var shapes = floorBody.GetShapes();
+        //    var shape = shapes[0];
+        //    //shape.QueryFilterData = new MagicPhysX.PxFilterData() { word0 = 0, word1 = 0, word2 = 0, word3 = 1 };
+        //};
 
         //var floorShader = ShaderHelper.LoadEngineShader("Misc\\TestFloor.frag");
         //ShaderVar[] floorUniforms =
@@ -447,7 +483,7 @@ internal class Program
         {
             cameraComp!.Name = "TestCamera";
             cameraComp.Camera.Parameters = new XRPerspectiveCameraParameters(60.0f, null, 0.1f, 100000.0f);
-            cameraComp.CullWithFrustum = false;
+            cameraComp.CullWithFrustum = true;
             camComp = cameraComp;
         }
         else
@@ -484,26 +520,6 @@ internal class Program
         pawnComp!.Name = "TestPawn";
         pawnComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
         return pawnComp;
-    }
-
-    private static SceneNode CreateDesktopCharacterPawn(SceneNode rootNode)
-    {
-        SceneNode characterNode = new(rootNode) { Name = "TestPlayerNode" };
-        var characterTfm = characterNode.SetTransform<RigidBodyTransform>();
-        characterTfm.InterpolationMode = EInterpolationMode.Interpolate;
-
-        SceneNode cameraNode = CreateCamera(characterNode, out CameraComponent? camComp);
-        cameraNode.AddComponent<AudioListenerComponent>();
-
-        var characterComp = characterNode.AddComponent<CharacterComponent>();
-        characterComp!.CameraComponent = camComp;
-        var movementComp = characterNode.AddComponent<CharacterMovement3DComponent>();
-        movementComp!.StandingHeight = 1.89f;
-        movementComp!.SpawnPosition = new Vector3(0.0f, 5.0f, 0.0f);
-        movementComp.Velocity = new Vector3(0.0f, 0.1f, 0.0f);
-        characterComp!.Name = "TestPawn";
-        characterComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
-        return cameraNode;
     }
 
     private static void AddDirLight(SceneNode rootNode)
@@ -613,10 +629,10 @@ internal class Program
         //Engine.EnqueueMainThreadTask(probeComp.GenerateIrradianceMap);
         //Engine.EnqueueMainThreadTask(probeComp.GeneratePrefilterMap);
 
-        probeComp.SetCaptureResolution(256, false);
+        probeComp.SetCaptureResolution(128, false);
         probeComp.RealtimeCapture = true;
         probeComp.PreviewDisplay = LightProbeComponent.ERenderPreview.Prefilter;
-        probeComp.RealTimeCaptureUpdateInterval = TimeSpan.FromSeconds(1.0f);
+        probeComp.RealTimeCaptureUpdateInterval = TimeSpan.FromSeconds(2.0f);
 
         //Task.Run(async () =>
         //{
@@ -625,7 +641,7 @@ internal class Program
         //});
     }
 
-    private static void ImportModels(string desktopDir, SceneNode rootNode)
+    private static async void ImportModels(string desktopDir, SceneNode rootNode)
     {
         var importedModelsNode = new SceneNode(rootNode) { Name = "TestImportedModelsNode" };
         //importedModelsNode.GetTransformAs<Transform>()?.ApplyScale(new Vector3(0.1f));
@@ -638,19 +654,29 @@ internal class Program
         string fbxPathDesktop = Path.Combine(desktopDir, "misc", "test.fbx");
 
         var flags =
-            PostProcessSteps.Triangulate |
-            PostProcessSteps.JoinIdenticalVertices |
-            PostProcessSteps.CalculateTangentSpace |
-            PostProcessSteps.OptimizeGraph |
-            PostProcessSteps.OptimizeMeshes |
-            PostProcessSteps.SortByPrimitiveType |
-            PostProcessSteps.ImproveCacheLocality |
-            PostProcessSteps.RemoveRedundantMaterials;
+        PostProcessSteps.Triangulate |
+        PostProcessSteps.JoinIdenticalVertices |
+        PostProcessSteps.CalculateTangentSpace |
+        PostProcessSteps.OptimizeGraph |
+        PostProcessSteps.OptimizeMeshes |
+        PostProcessSteps.SortByPrimitiveType |
+        PostProcessSteps.ImproveCacheLocality |
+        PostProcessSteps.RemoveRedundantMaterials;
 
         if (AnimatedModel)
             ModelImporter.ImportAsync(fbxPathDesktop, flags, null, MaterialFactory, importedModelsNode, 1, true).ContinueWith(OnFinishedAvatar);
         if (StaticModel)
-            ModelImporter.ImportAsync(Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj"), flags, null, MaterialFactory, importedModelsNode, 1, false).ContinueWith(OnFinishedWorld);
+        {
+            //string path = Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj");
+          
+            string path2 = Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "main1_sponza", "NewSponza_Main_Yup_003.fbx");
+            var task2 = ModelImporter.ImportAsync(path2, flags, null, MaterialFactory, importedModelsNode, 1, false).ContinueWith(OnFinishedWorld);
+
+            string path = Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "pkg_a_curtains", "NewSponza_Curtains_FBX_YUp.fbx");
+            var task1 = ModelImporter.ImportAsync(path, flags, null, MaterialFactory, importedModelsNode, 1, false).ContinueWith(OnFinishedWorld);
+
+            //await Task.WhenAll(task1, task2);
+        }
     }
 
     private static void AddSkybox(SceneNode rootNode, XRTexture2D skyEquirect)
@@ -735,10 +761,11 @@ internal class Program
                     mat.Textures[i] = tex;
             }
 
-            bool transp = false;
+            bool transp = textures.Any(x => (x.Flags & 0x2) != 0 || x.TextureType == TextureType.Opacity);
+            bool normal = textures.Any(x => x.TextureType == TextureType.Normals);
             if (textureList.Length > 0)
             {
-                if (textures.Any(x => (x.Flags & 0x2) != 0 || x.TextureType == TextureType.Opacity) || textureList.Any(x => x is not null && x.HasAlphaChannel))
+                if (transp || textureList.Any(x => x is not null && x.HasAlphaChannel))
                 {
                     transp = true;
                     mat.Shaders.Add(ShaderHelper.UnlitTextureFragForward()!);
@@ -758,6 +785,7 @@ internal class Program
             }
             else
             {
+                //Show the material as magenta if no textures are present
                 mat.Shaders.Add(ShaderHelper.LitColorFragDeferred()!);
                 mat.Parameters =
                 [

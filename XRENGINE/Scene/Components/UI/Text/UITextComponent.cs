@@ -156,6 +156,14 @@ namespace XREngine.Rendering.UI
             }
         }
 
+        public static float MeasureWidth(string name, FontGlyphSet font, float fontSize)
+        {
+            List<(Vector4 transform, Vector4 uvs)> glyphs = [];
+            font.GetQuads(name, glyphs, fontSize, float.MaxValue, float.MaxValue, false, 5.0f);
+            var (transform, _) = glyphs[^1];
+            return transform.X + transform.Z;
+        }
+
         //TODO: return and cache max width and height when calculating glyphs instead
         private float CalcAutoWidth(UIBoundableTransform transform)
         {
@@ -278,9 +286,8 @@ namespace XREngine.Rendering.UI
             };
             for (int i = 0; i < _glyphs.Count; i++)
             {
-                (Vector4 transform, Vector4 uvs) glyph = _glyphs[i];
-                glyph.transform = new(glyph.transform.X + offset, glyph.transform.Y, glyph.transform.Z, glyph.transform.W);
-                _glyphs[i] = glyph;
+                (Vector4 transform, Vector4 uvs) = _glyphs[i];
+                _glyphs[i] = (new(transform.X + offset, transform.Y, transform.Z, transform.W), uvs);
             }
         }
 
@@ -297,9 +304,8 @@ namespace XREngine.Rendering.UI
             };
             for (int i = 0; i < _glyphs.Count; i++)
             {
-                (Vector4 transform, Vector4 uvs) glyph = _glyphs[i];
-                glyph.transform = new(glyph.transform.X, glyph.transform.Y + offset, glyph.transform.Z, glyph.transform.W);
-                _glyphs[i] = glyph;
+                (Vector4 transform, Vector4 uvs) = _glyphs[i];
+                _glyphs[i] = (new(transform.X, transform.Y + offset, transform.Z, transform.W), uvs);
             }
         }
 

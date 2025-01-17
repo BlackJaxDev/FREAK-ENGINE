@@ -57,14 +57,14 @@ namespace XREngine.Rendering.Shaders.Generator
             _inBlock = true;
             Line($"layout(std430, binding = {binding}) buffer {bufferName}");
             OpenBracket();
-            return new StateObject(EndBufferBlock);
+            return StateObject.New(EndBufferBlock);
         }
         public StateObject StartUniformBufferBlock(string bufferName, int binding)
         {
             _inBlock = true;
             Line($"layout(binding = {binding}) uniform {bufferName}");
             OpenBracket();
-            return new StateObject(EndBufferBlock);
+            return StateObject.New(EndBufferBlock);
         }
         public void EndBufferBlock()
         {
@@ -78,7 +78,7 @@ namespace XREngine.Rendering.Shaders.Generator
             _inBlock = true;
             Line($"uniform {structName}");
             OpenBracket();
-            return new StateObject(() => EndUniformBlock(variableName));
+            return StateObject.New(() => EndUniformBlock(variableName));
         }
         public void StartUniformBlock(string structName)
         {
@@ -303,7 +303,7 @@ namespace XREngine.Rendering.Shaders.Generator
         public StateObject OpenBracketState(string? closeBracketName = null, bool closeBracketIncludeSemicolon = false)
         {
             Line("{");
-            return new StateObject(() => CloseBracket(closeBracketName, closeBracketIncludeSemicolon));
+            return StateObject.New(() => CloseBracket(closeBracketName, closeBracketIncludeSemicolon));
         }
         public void CloseBracket(string? name = null, bool includeSemicolon = false)
         {

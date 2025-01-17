@@ -134,10 +134,6 @@ namespace XREngine.Rendering.Vulkan
         {
             throw new NotImplementedException();
         }
-        public override float GetDepth(float x, float y)
-        {
-            throw new NotImplementedException();
-        }
         public override byte GetStencilIndex(float x, float y)
         {
             throw new NotImplementedException();

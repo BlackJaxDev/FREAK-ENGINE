@@ -437,15 +437,15 @@ public class PhysicsChainComponent : XRComponent, IRenderable
             return;
 
         int loop = 1;
-        float timeVar = 1;
+        float timeVar = 1.0f;
         float dt = _deltaTime;
 
         if (_updateMode == EUpdateMode.Default)
         {
-            if (_updateRate > 0)
+            if (_updateRate > 0.0f)
                 timeVar = dt * _updateRate;
         }
-        else if (_updateRate > 0)
+        else if (_updateRate > 0.0f)
         {
             float frameTime = 1.0f / _updateRate;
             _time += dt;
@@ -749,8 +749,8 @@ public class PhysicsChainComponent : XRComponent, IRenderable
                 {
                     d = restPos - p._position;
                     float len = d.Length();
-                    float maxlen = restLen * (1 - stiffness) * 2;
-                    if (len > maxlen)
+                    float maxlen = restLen * (1.0f - stiffness) * 2.0f;
+                    if (len > maxlen && len > 0.0f)
                         p._position += d * ((len - maxlen) / len);
                 }
             }

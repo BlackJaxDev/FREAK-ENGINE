@@ -1781,7 +1781,7 @@ namespace XREngine.Rendering
             verticesBuffer.BindingName = "Vertices";
             XRDataBuffer indicesBuffer = GetIndexBuffer(EPrimitiveType.Triangles, out _, EBufferTarget.ShaderStorageBuffer)!;
             indicesBuffer.BindingName = "Indices";
-            program.BindImageTexture(0, SignedDistanceField);
+            program.BindImageTexture(0, SignedDistanceField, 0, false, 0, XRRenderProgram.EImageAccess.ReadWrite, XRRenderProgram.EImageFormat.RGB8);
             program.Uniform("sdfMinBounds", Bounds.Min);
             program.Uniform("sdfMaxBounds", Bounds.Max);
             program.Uniform("sdfResolution", resolution);

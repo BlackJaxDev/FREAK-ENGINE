@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using XREngine.Core.Attributes;
+using XREngine.Data.Core;
 using XREngine.Data.Rendering;
 using XREngine.Rendering.Commands;
 using XREngine.Rendering.Info;
@@ -14,6 +15,9 @@ namespace XREngine.Rendering.UI
     [RequiresTransform(typeof(UIBoundableTransform))]
     public abstract class UIRenderableComponent : UIComponent, IRenderable
     {
+        public const string UIWidthUniformName = "UIWidth";
+        public const string UIHeightUniformName = "UIHeight";
+
         public UIBoundableTransform BoundableTransform => TransformAs<UIBoundableTransform>(true)!;
         public UIRenderableComponent()
         {
@@ -56,18 +60,13 @@ namespace XREngine.Rendering.UI
         /// <summary>
         /// The material used to render this UI component.
         /// </summary>
+        private XRMaterial? _material;
         public XRMaterial? Material
         {
-            get => Mesh?.Material;
-            set
-            {
-                var m = Mesh;
-                if (m is null)
-                    return;
-
-                m.Material = value;
-            }
+            get => _material;
+            set => SetField(ref _material, value);
         }
+
         public int RenderPass
         {
             get => RenderCommand3D.RenderPass;
@@ -89,7 +88,73 @@ namespace XREngine.Rendering.UI
             {
                 RenderCommand3D.Mesh = value;
                 RenderCommand2D.Mesh = value;
+                Material = value?.Material;
             }
+        }
+
+        protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
+        {
+            bool change = base.OnPropertyChanging(propName, field, @new);
+            if (change)
+            {
+                switch (propName)
+                {
+                    case nameof(Material):
+                        if (Material is not null)
+                            Material.SettingUniforms -= OnMaterialSettingUniforms;
+                        break;
+                }
+            }
+            return change;
+        }
+        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+        {
+            base.OnPropertyChanged(propName, prev, field);
+            switch (propName)
+            {
+                case nameof(Material):
+                    var m = Mesh;
+                    if (m is not null)
+                        m.Material = Material;
+                    if (Material is not null)
+                        Material.SettingUniforms += OnMaterialSettingUniforms;
+                    break;
+            }
+        }
+
+        private void OnMaterialSettingUniforms(XRMaterialBase material, XRRenderProgram program)
+        {
+            var m = Material;
+            if (m is null)
+                return;
+
+            var tfm = BoundableTransform;
+            var w = tfm.ActualWidth;
+            var h = tfm.ActualHeight;
+
+            program.Uniform(UIWidthUniformName, w);
+            program.Uniform(UIHeightUniformName, h);
+        }
+
+        protected override void UITransformPropertyChanged(object? sender, IXRPropertyChangedEventArgs e)
+        {
+            base.UITransformPropertyChanged(sender, e);
+            switch (e.PropertyName)
+            {
+                //case nameof(UIBoundableTransform.ActualWidth):
+                //case nameof(UIBoundableTransform.ActualHeight):
+                case nameof(ClipToBounds):
+                case nameof(UIBoundableTransform.AxisAlignedRegion):
+                    RenderCommand2D.WorldCropRegion = ClipToBounds ? BoundableTransform.AxisAlignedRegion.AsBoundingRectangle() : null;
+                    break;
+            }
+        }
+
+        private bool _clipToBounds = false;
+        public bool ClipToBounds
+        {
+            get => _clipToBounds;
+            set => SetField(ref _clipToBounds, value);
         }
     }
 }

@@ -61,7 +61,7 @@ public sealed partial class XRRenderPipelineInstance
             if (SceneCamera is not null)
                 _renderingCameras.Push(SceneCamera);
 
-            return new StateObject(PopMainAttributes);
+            return StateObject.New(PopMainAttributes);
         }
 
         public void PopMainAttributes()
@@ -90,7 +90,7 @@ public sealed partial class XRRenderPipelineInstance
         public StateObject PushRenderingCamera(XRCamera? camera)
         {
             _renderingCameras.Push(camera);
-            return new StateObject(PopRenderingCamera);
+            return StateObject.New(PopRenderingCamera);
         }
         public void PopRenderingCamera()
             => _renderingCameras.Pop();
@@ -106,7 +106,7 @@ public sealed partial class XRRenderPipelineInstance
         {
             _renderRegionStack.Push(region);
             AbstractRenderer.Current?.SetRenderArea(region);
-            return new StateObject(PopRenderArea);
+            return StateObject.New(PopRenderArea);
         }
         public void PopRenderArea()
         {
@@ -130,7 +130,7 @@ public sealed partial class XRRenderPipelineInstance
             _cropRegionStack.Push(region);
             AbstractRenderer.Current?.SetCroppingEnabled(true);
             AbstractRenderer.Current?.CropRenderArea(region);
-            return new StateObject(PopCropArea);
+            return StateObject.New(PopCropArea);
         }
         public void PopCropArea()
         {
@@ -152,7 +152,7 @@ public sealed partial class XRRenderPipelineInstance
         public StateObject PushOverrideMaterial(XRMaterial material)
         {
             _overrideMaterials.Push(material);
-            return new StateObject(PopOverrideMaterial);
+            return StateObject.New(PopOverrideMaterial);
         }
         public void PopOverrideMaterial()
             => _overrideMaterials.Pop();
@@ -166,7 +166,7 @@ public sealed partial class XRRenderPipelineInstance
         {
             _renderingViewports.Push(viewport);
             PushRenderArea(viewport.Region);
-            return new StateObject(PopViewport);
+            return StateObject.New(PopViewport);
         }
         public void PopViewport()
         {
@@ -181,7 +181,7 @@ public sealed partial class XRRenderPipelineInstance
         public StateObject PushRenderingScene(VisualScene scene)
         {
             _renderingScenes.Push(scene);
-            return new StateObject(PopRenderingScene);
+            return StateObject.New(PopRenderingScene);
         }
         public void PopRenderingScene()
             => _renderingScenes.Pop();

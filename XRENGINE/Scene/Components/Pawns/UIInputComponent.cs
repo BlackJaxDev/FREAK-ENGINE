@@ -89,10 +89,20 @@ namespace XREngine.Components
                     {
                         _focusedComponent.IsFocused = true;
                         _focusedComponent.PropertyChanged += FocusedComponentPropertyChanged;
+                        var input = _owningPawn!.LocalPlayerController!.Input;
+                        if (_focusedComponent.RegisterInputsOnFocus)
+                            _focusedComponent.RegisterInput(input);
                     }
                     if (prev is UIInteractableComponent prevInteractable)
                     {
                         prevInteractable.IsFocused = false;
+                        var input = _owningPawn!.LocalPlayerController!.Input;
+                        if (prevInteractable.RegisterInputsOnFocus)
+                        {
+                            input.Unregister = true;
+                            prevInteractable.RegisterInput(input);
+                            input.Unregister = false;
+                        }
                         //prevInteractable.PropertyChanged -= FocusedComponentPropertyChanged;
                     }
                     break;
@@ -101,8 +111,27 @@ namespace XREngine.Components
 
         private void FocusedComponentPropertyChanged(object? sender, IXRPropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(UIInteractableComponent.IsFocused) && !(_focusedComponent?.IsFocused ?? false))
-                FocusedComponent = null;
+            switch (e.PropertyName)
+            {
+                case nameof(UIInteractableComponent.IsFocused):
+                    if (!(_focusedComponent?.IsFocused ?? false))
+                        FocusedComponent = null;
+                    break;
+                case nameof(UIInteractableComponent.RegisterInputsOnFocus):
+                    if (_focusedComponent is null)
+                        break;
+                    
+                    var input = _owningPawn!.LocalPlayerController!.Input;
+                    if (_focusedComponent.RegisterInputsOnFocus)
+                        _focusedComponent.RegisterInput(input);
+                    else
+                    {
+                        input.Unregister = true;
+                        _focusedComponent.RegisterInput(input);
+                        input.Unregister = false;
+                    }
+                    break;
+            }
         }
 
         private void UnlinkOwningPawn()
@@ -149,6 +178,8 @@ namespace XREngine.Components
             var input = _owningPawn!.LocalPlayerController!.Input;
             input.TryUnregisterInput();
             input.InputRegistration += RegisterInput;
+            if (FocusedComponent is not null && FocusedComponent.RegisterInputsOnFocus)
+                input.InputRegistration += FocusedComponent.RegisterInput;
             input.TryRegisterInput();
         }
 
@@ -158,6 +189,8 @@ namespace XREngine.Components
             var input = _owningPawn!.LocalPlayerController!.Input;
             input.TryUnregisterInput();
             input.InputRegistration -= RegisterInput;
+            if (FocusedComponent is not null && FocusedComponent.RegisterInputsOnFocus)
+                input.InputRegistration -= FocusedComponent.RegisterInput;
             input.TryRegisterInput();
         }
 

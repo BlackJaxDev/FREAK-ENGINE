@@ -7,19 +7,53 @@ namespace XREngine.Rendering
     public class RenderCommandMesh2D : RenderCommand2D
     {
         private XRMeshRenderer? _mesh;
+        private Matrix4x4 _worldMatrix = Matrix4x4.Identity;
+        private XRMaterial? _materialOverride;
+        private uint _instances = 1;
+        private BoundingRectangle? _worldCropRegion = null;
+
+        /// <summary>
+        /// The mesh to render.
+        /// </summary>
         public XRMeshRenderer? Mesh
         {
             get => _mesh;
-            set
-            {
-                _mesh?.Destroy();
-                _mesh = value;
-            }
+            set => SetField(ref _mesh, value);
         }
-        public Matrix4x4 WorldMatrix { get; set; } = Matrix4x4.Identity;
-        public XRMaterial? MaterialOverride { get; set; }
-        public uint Instances { get; set; } = 1;
-        public BoundingRectangle? CropRegion { get; set; } = null;
+        /// <summary>
+        /// The transformation of the mesh in world space.
+        /// Formally known as the 'model' matrix in the graphics pipeline.
+        /// </summary>
+        public Matrix4x4 WorldMatrix
+        {
+            get => _worldMatrix;
+            set => SetField(ref _worldMatrix, value);
+        }
+        /// <summary>
+        /// If not null, the material to use for rendering instead of the mesh's default material.
+        /// </summary>
+        public XRMaterial? MaterialOverride
+        {
+            get => _materialOverride;
+            set => SetField(ref _materialOverride, value);
+        }
+        /// <summary>
+        /// The number of instances to tell the GPU to render.
+        /// </summary>
+        public uint Instances
+        {
+            get => _instances;
+            set => SetField(ref _instances, value);
+        }
+        /// <summary>
+        /// If not null, the mesh will be cropped to this region before rendering.
+        /// Region is in the UI's world space, with the origin at the bottom-left corner of the screen.
+        /// </summary>
+        public BoundingRectangle? WorldCropRegion
+        {
+            get => _worldCropRegion;
+            set => SetField(ref _worldCropRegion, value);
+        }
 
         public RenderCommandMesh2D() : base() { }
         public RenderCommandMesh2D(int renderPass) : base(renderPass) { }
@@ -41,19 +75,26 @@ namespace XREngine.Rendering
             if (Mesh is null)
                 return;
 
-            var rend = AbstractRenderer.Current;
-            if (rend is not null)
-            {
-                if (CropRegion is null)
-                    rend.SetCroppingEnabled(false);
-                else
-                {
-                    rend.SetCroppingEnabled(true);
-                    rend.CropRenderArea(CropRegion.Value);
-                }
-            }
+            BeginCrop(WorldCropRegion);
             Mesh.Render(WorldMatrix, MaterialOverride, Instances);
-            rend?.SetCroppingEnabled(false);
+            EndCrop();
         }
+
+        private static void BeginCrop(BoundingRectangle? cropRegion)
+        {
+            var rend = AbstractRenderer.Current;
+            if (rend is null)
+                return;
+            
+            if (cropRegion is null)
+                rend.SetCroppingEnabled(false);
+            else
+            {
+                rend.SetCroppingEnabled(true);
+                rend.CropRenderArea(cropRegion.Value);
+            }
+        }
+        private static void EndCrop()
+            => AbstractRenderer.Current?.SetCroppingEnabled(false);
     }
 }

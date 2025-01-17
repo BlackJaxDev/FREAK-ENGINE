@@ -105,22 +105,22 @@ namespace XREngine.Rendering.Physics.Physx
             sceneDesc.gravity = DefaultGravity;
             sceneDesc.cpuDispatcher = _dispatcher = (PxCpuDispatcher*)phys_PxDefaultCpuDispatcherCreate(4, null, PxDefaultCpuDispatcherWaitForWorkMode.WaitForWork, 0);
 
-            var simEventCallback = new SimulationEventCallbackInfo
-            {
-                collision_callback = (delegate* unmanaged[Cdecl]<void*, PxContactPairHeader*, PxContactPair*, uint, void>)Marshal.GetFunctionPointerForDelegate(OnContactDelegateInstance).ToPointer()
-            };
-            sceneDesc.simulationEventCallback = create_simulation_event_callbacks(&simEventCallback);
+            //var simEventCallback = new SimulationEventCallbackInfo
+            //{
+            //    collision_callback = (delegate* unmanaged[Cdecl]<void*, PxContactPairHeader*, PxContactPair*, uint, void>)Marshal.GetFunctionPointerForDelegate(OnContactDelegateInstance).ToPointer()
+            //};
+            //sceneDesc.simulationEventCallback = create_simulation_event_callbacks(&simEventCallback);
 
-            //sceneDesc.filterShader = get_default_simulation_filter_shader();
-            var filterShaderCallback = (delegate* unmanaged[Cdecl]<FilterShaderCallbackInfo*, PxFilterFlags>)Marshal.GetFunctionPointerForDelegate(CustomFilterShaderInstance).ToPointer();
-            enable_custom_filter_shader(&sceneDesc, filterShaderCallback, 1u);
+            sceneDesc.filterShader = get_default_simulation_filter_shader();
+            //var filterShaderCallback = (delegate* unmanaged[Cdecl]<FilterShaderCallbackInfo*, PxFilterFlags>)Marshal.GetFunctionPointerForDelegate(CustomFilterShaderInstance).ToPointer();
+            //enable_custom_filter_shader(&sceneDesc, filterShaderCallback, 1u);
 
-            //sceneDesc.flags |= PxSceneFlags.EnableCcd | PxSceneFlags.EnableGpuDynamics;
-            //sceneDesc.broadPhaseType = PxBroadPhaseType.Gpu;
-            sceneDesc.gpuDynamicsConfig = new PxgDynamicsMemoryConfig()
-            {
-
-            };
+            sceneDesc.flags |= PxSceneFlags.EnableCcd | PxSceneFlags.EnableGpuDynamics;
+            sceneDesc.broadPhaseType = PxBroadPhaseType.Gpu;
+            //sceneDesc.gpuDynamicsConfig = new PxgDynamicsMemoryConfig()
+            //{
+                
+            //};
             _scene = _physicsPtr->CreateSceneMut(&sceneDesc);
             Scenes.Add((nint)_scene, this);
 
@@ -372,6 +372,7 @@ namespace XREngine.Rendering.Physics.Physx
         public void AddActor(PhysxActor actor)
         {
             _scene->AddActorMut(actor.ActorPtr, null);
+            actor.OnAddedToScene(this);
         }
         public void AddActors(PhysxActor[] actors)
         {
@@ -379,10 +380,13 @@ namespace XREngine.Rendering.Physics.Physx
             for (int i = 0; i < actors.Length; i++)
                 ptrs[i] = actors[i].ActorPtr;
             _scene->AddActorsMut(ptrs, (uint)actors.Length);
+            foreach (var actor in actors)
+                actor.OnAddedToScene(this);
         }
         public void RemoveActor(PhysxActor actor, bool wakeOnLostTouch = false)
         {
             _scene->RemoveActorMut(actor.ActorPtr, wakeOnLostTouch);
+            actor.OnRemovedFromScene(this);
         }
         public void RemoveActors(PhysxActor[] actors, bool wakeOnLostTouch = false)
         {
@@ -390,6 +394,8 @@ namespace XREngine.Rendering.Physics.Physx
             for (int i = 0; i < actors.Length; i++)
                 ptrs[i] = actors[i].ActorPtr;
             _scene->RemoveActorsMut(ptrs, (uint)actors.Length, wakeOnLostTouch);
+            foreach (var actor in actors)
+                actor.OnRemovedFromScene(this);
         }
 
         public Dictionary<nint, PhysxShape> Shapes { get; } = [];

@@ -40,13 +40,13 @@ namespace XREngine.Rendering.Physics.Physx
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         delegate void DelDestructor();
 
-        private readonly DelOnControllerHit OnControllerHitInstance;
-        private readonly DelOnShapeHit OnShapeHitInstance;
-        private readonly DelOnObstacleHit OnObstacleHitInstance;
+        private readonly DelOnControllerHit? OnControllerHitInstance;
+        private readonly DelOnShapeHit? OnShapeHitInstance;
+        private readonly DelOnObstacleHit? OnObstacleHitInstance;
 
-        private readonly DelGetBehaviorFlagsShape GetBehaviorFlagsShapeInstance;
-        private readonly DelGetBehaviorFlagsObstacle GetBehaviorFlagsObstacleInstance;
-        private readonly DelGetBehaviorFlagsController GetBehaviorFlagsControllerInstance;
+        private readonly DelGetBehaviorFlagsShape? GetBehaviorFlagsShapeInstance;
+        private readonly DelGetBehaviorFlagsObstacle? GetBehaviorFlagsObstacleInstance;
+        private readonly DelGetBehaviorFlagsController? GetBehaviorFlagsControllerInstance;
 
         private readonly DelDestructor DestructorInstance;
 
@@ -161,19 +161,35 @@ namespace XREngine.Rendering.Physics.Physx
 
         public PhysxDynamicRigidBody Actor => PhysxDynamicRigidBody.AllDynamic[(nint)ControllerPtr->GetActor()];
 
-        public bool CollidingSides { get; private set; }
-        public bool CollidingUp { get; private set; }
-        public bool CollidingDown { get; private set; }
+        public bool CollidingSides
+        {
+            get => _collidingSides;
+            private set => SetField(ref _collidingSides, value);
+        }
+        public bool CollidingUp
+        {
+            get => _collidingUp;
+            private set => SetField(ref _collidingUp, value);
+        }
+        public bool CollidingDown
+        {
+            get => _collidingDown;
+            private set => SetField(ref _collidingDown, value);
+        }
 
         public void Move(Vector3 delta, float minDist, float elapsedTime, PxControllerFilters* filters, PxObstacleContext* obstacles)
         {
-            PxVec3 d = delta;
+            PxVec3 d = PxVec3_new_3(delta.X, delta.Y, delta.Z);
             PxControllerCollisionFlags flags = ControllerPtr->MoveMut(&d, minDist, elapsedTime, filters, null);
             CollidingSides = (flags & PxControllerCollisionFlags.CollisionSides) != 0;
             CollidingUp = (flags & PxControllerCollisionFlags.CollisionUp) != 0;
             CollidingDown = (flags & PxControllerCollisionFlags.CollisionDown) != 0;
-            if (CollidingDown || CollidingSides || CollidingUp)
-                Debug.Out("Colliding");
+            //if (CollidingDown)
+            //    Debug.Out("Colliding Down");
+            //if (CollidingUp)
+            //    Debug.Out("Colliding Up");
+            //if (CollidingSides)
+            //    Debug.Out("Colliding Sides");
         }
 
         public void Resize(float height)
@@ -211,7 +227,10 @@ namespace XREngine.Rendering.Physics.Physx
         public DelGetBehaviorFlagsController2? BehaviorCallbackController;
         public DelGetBehaviorFlagsObstacle2? BehaviorCallbackObstacle;
         public DelGetBehaviorFlagsShape2? BehaviorCallbackShape;
-        
+        private bool _collidingSides;
+        private bool _collidingUp;
+        private bool _collidingDown;
+
         internal void OnControllerHit(PxControllersHit* hit)
             => ControllerHit?.Invoke(this, hit);
         internal void OnShapeHit(PxControllerShapeHit* hit)

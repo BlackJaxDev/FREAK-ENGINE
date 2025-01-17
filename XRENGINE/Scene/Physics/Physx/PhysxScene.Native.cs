@@ -20,6 +20,7 @@ namespace XREngine.Rendering.Physics.Physx
                     };
                     Marshal.WriteIntPtr(offset, funcPtr);
                 }
+                GC.KeepAlive(d1);
                 return (void*)vtblPtr;
             }
             public static void* CreateVTable<T1, T2>(T1? d1, T2? d2) where T1 : Delegate where T2 : Delegate
@@ -37,6 +38,8 @@ namespace XREngine.Rendering.Physics.Physx
                     };
                     Marshal.WriteIntPtr(offset, funcPtr);
                 }
+                GC.KeepAlive(d1);
+                GC.KeepAlive(d2);
                 return (void*)vtblPtr;
             }
             public static void* CreateVTable<T1, T2, T3>(T1? d1, T2? d2, T3? d3) where T1 : Delegate where T2 : Delegate where T3 : Delegate
@@ -55,6 +58,9 @@ namespace XREngine.Rendering.Physics.Physx
                     };
                     Marshal.WriteIntPtr(offset, funcPtr);
                 }
+                GC.KeepAlive(d1);
+                GC.KeepAlive(d2);
+                GC.KeepAlive(d3);
                 return (void*)vtblPtr;
             }
             public static void* CreateVTable<T1, T2, T3, T4>(T1? d1, T2? d2, T3? d3, T4? d4) where T1 : Delegate where T2 : Delegate where T3 : Delegate where T4 : Delegate
@@ -74,6 +80,10 @@ namespace XREngine.Rendering.Physics.Physx
                     };
                     Marshal.WriteIntPtr(offset, funcPtr);
                 }
+                GC.KeepAlive(d1);
+                GC.KeepAlive(d2);
+                GC.KeepAlive(d3);
+                GC.KeepAlive(d4);
                 return (void*)vtblPtr;
             }
             public static void* CreateVTable<T1, T2, T3, T4, T5>(T1? d1, T2? d2, T3? d3, T4? d4, T5? d5) where T1 : Delegate where T2 : Delegate where T3 : Delegate where T4 : Delegate where T5 : Delegate
@@ -94,6 +104,11 @@ namespace XREngine.Rendering.Physics.Physx
                     };
                     Marshal.WriteIntPtr(offset, funcPtr);
                 }
+                GC.KeepAlive(d1);
+                GC.KeepAlive(d2);
+                GC.KeepAlive(d3);
+                GC.KeepAlive(d4);
+                GC.KeepAlive(d5);
                 return (void*)vtblPtr;
             }
             public static void* CreateVTable<T1, T2, T3, T4, T5, T6>(T1? d1, T2? d2, T3? d3, T4? d4, T5? d5, T6? d6) where T1 : Delegate where T2 : Delegate where T3 : Delegate where T4 : Delegate where T5 : Delegate where T6 : Delegate
@@ -115,6 +130,12 @@ namespace XREngine.Rendering.Physics.Physx
                     };
                     Marshal.WriteIntPtr(offset, funcPtr);
                 }
+                GC.KeepAlive(d1);
+                GC.KeepAlive(d2);
+                GC.KeepAlive(d3);
+                GC.KeepAlive(d4);
+                GC.KeepAlive(d5);
+                GC.KeepAlive(d6);
                 return (void*)vtblPtr;
             }
             public static void* CreateVTable<T1, T2, T3, T4, T5, T6, T7>(T1? d1, T2? d2, T3? d3, T4? d4, T5? d5, T6? d6, T7? d7) where T1 : Delegate where T2 : Delegate where T3 : Delegate where T4 : Delegate where T5 : Delegate where T6 : Delegate where T7 : Delegate
@@ -137,6 +158,13 @@ namespace XREngine.Rendering.Physics.Physx
                     };
                     Marshal.WriteIntPtr(offset, funcPtr);
                 }
+                GC.KeepAlive(d1);
+                GC.KeepAlive(d2);
+                GC.KeepAlive(d3);
+                GC.KeepAlive(d4);
+                GC.KeepAlive(d5);
+                GC.KeepAlive(d6);
+                GC.KeepAlive(d7);
                 return (void*)vtblPtr;
             }
 

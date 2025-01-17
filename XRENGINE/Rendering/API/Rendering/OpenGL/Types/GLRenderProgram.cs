@@ -4,6 +4,7 @@ using System.Collections;
 using System.Collections.Concurrent;
 using System.Numerics;
 using XREngine.Data.Vectors;
+using static XREngine.Rendering.XRRenderProgram;
 
 namespace XREngine.Rendering.OpenGL
 {
@@ -189,11 +190,87 @@ namespace XREngine.Rendering.OpenGL
 
                 Data.SamplerRequested += Sampler;
                 Data.SamplerRequestedByLocation += Sampler;
+                Data.BindImageTextureRequested += BindImageTexture;
+                Data.DispatchComputeRequested += DispatchCompute;
 
                 foreach (XRShader shader in Data.Shaders)
                     ShaderAdded(shader);
                 Data.Shaders.PostAnythingAdded += ShaderAdded;
                 Data.Shaders.PostAnythingRemoved += ShaderRemoved;
+            }
+
+            private void BindImageTexture(uint unit, XRTexture texture, int level, bool layered, int layer, EImageAccess access, EImageFormat format)
+            {
+                var glObj = Renderer.GetOrCreateAPIRenderObject(texture);
+                if (glObj is not IGLTexture glTex)
+                    return;
+                Api.BindImageTexture(unit, glTex.BindingId, level, layered, layer, ToGLEnum(access), ToGLEnum(format));
+            }
+
+            private static GLEnum ToGLEnum(EImageFormat format) => format switch
+            {
+                EImageFormat.R8 => GLEnum.R8,
+                EImageFormat.R16 => GLEnum.R16,
+                EImageFormat.R16F => GLEnum.R16f,
+                EImageFormat.R32F => GLEnum.R32f,
+                EImageFormat.RG8 => GLEnum.RG8,
+                EImageFormat.RG16 => GLEnum.RG16,
+                EImageFormat.RG16F => GLEnum.RG16f,
+                EImageFormat.RG32F => GLEnum.RG32f,
+                EImageFormat.RGB8 => GLEnum.Rgb8,
+                EImageFormat.RGB16 => GLEnum.Rgb16,
+                EImageFormat.RGB16F => GLEnum.Rgb16f,
+                EImageFormat.RGB32F => GLEnum.Rgb32f,
+                EImageFormat.RGBA8 => GLEnum.Rgba8,
+                EImageFormat.RGBA16 => GLEnum.Rgba16,
+                EImageFormat.RGBA16F => GLEnum.Rgba16f,
+                EImageFormat.RGBA32F => GLEnum.Rgba32f,
+                EImageFormat.R8I => GLEnum.R8i,
+                EImageFormat.R8UI => GLEnum.R8ui,
+                EImageFormat.R16I => GLEnum.R16i,
+                EImageFormat.R16UI => GLEnum.R16ui,
+                EImageFormat.R32I => GLEnum.R32i,
+                EImageFormat.R32UI => GLEnum.R32ui,
+                EImageFormat.RG8I => GLEnum.RG8i,
+                EImageFormat.RG8UI => GLEnum.RG8ui,
+                EImageFormat.RG16I => GLEnum.RG16i,
+                EImageFormat.RG16UI => GLEnum.RG16ui,
+                EImageFormat.RG32I => GLEnum.RG32i,
+                EImageFormat.RG32UI => GLEnum.RG32ui,
+                EImageFormat.RGB8I => GLEnum.Rgb8i,
+                EImageFormat.RGB8UI => GLEnum.Rgb8ui,
+                EImageFormat.RGB16I => GLEnum.Rgb16i,
+                EImageFormat.RGB16UI => GLEnum.Rgb16ui,
+                EImageFormat.RGB32I => GLEnum.Rgb32i,
+                EImageFormat.RGB32UI => GLEnum.Rgb32ui,
+                EImageFormat.RGBA8I => GLEnum.Rgba8i,
+                EImageFormat.RGBA8UI => GLEnum.Rgba8ui,
+                EImageFormat.RGBA16I => GLEnum.Rgba16i,
+                EImageFormat.RGBA16UI => GLEnum.Rgba16ui,
+                EImageFormat.RGBA32I => GLEnum.Rgba32i,
+                EImageFormat.RGBA32UI => GLEnum.Rgba32ui,
+                _ => GLEnum.Rgba32f,
+            };
+
+            private static GLEnum ToGLEnum(EImageAccess access) => access switch
+            {
+                EImageAccess.ReadOnly => GLEnum.ReadOnly,
+                EImageAccess.WriteOnly => GLEnum.WriteOnly,
+                EImageAccess.ReadWrite => GLEnum.ReadWrite,
+                _ => GLEnum.ReadWrite,
+            };
+
+            private void DispatchCompute(
+                uint x,
+                uint y,
+                uint z,
+                IEnumerable<(uint unit, XRTexture texture, int level, int? layer, EImageAccess access, EImageFormat format)>? textures = null)
+            {
+                Api.UseProgram(BindingId);
+                if (textures is not null)
+                    foreach (var (unit, texture, level, layer, access, format) in textures)
+                        BindImageTexture(unit, texture, level, layer.HasValue, layer ?? 0, access, format);
+                Api.DispatchCompute(x, y, z);
             }
 
             protected override void UnlinkData()
@@ -232,6 +309,8 @@ namespace XREngine.Rendering.OpenGL
 
                 Data.SamplerRequested -= Sampler;
                 Data.SamplerRequestedByLocation -= Sampler;
+                Data.BindImageTextureRequested -= BindImageTexture;
+                Data.DispatchComputeRequested -= DispatchCompute;
 
                 Data.Shaders.PostAnythingAdded -= ShaderAdded;
                 Data.Shaders.PostAnythingRemoved -= ShaderRemoved;

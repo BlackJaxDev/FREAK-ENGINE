@@ -206,6 +206,9 @@ namespace XREngine.Rendering
                 EPixelFormat.Rgba or EPixelFormat.Bgra => 4,
                 EPixelFormat.Rgb or EPixelFormat.Bgr => 3,
                 EPixelFormat.Red or EPixelFormat.Green or EPixelFormat.Blue or EPixelFormat.Alpha => 1,
+                EPixelFormat.DepthComponent => 1,
+                EPixelFormat.StencilIndex => 1,
+                EPixelFormat.Luminance => 1,
                 _ => 4,
             };
 

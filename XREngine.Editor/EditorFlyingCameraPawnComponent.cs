@@ -7,6 +7,7 @@ using XREngine.Data.Core;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
 using XREngine.Data.Trees;
+using XREngine.Data.Vectors;
 using XREngine.Input.Devices;
 using XREngine.Rendering;
 using XREngine.Rendering.Commands;
@@ -107,7 +108,7 @@ public partial class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent
     private readonly SortedDictionary<float, List<(XRComponent item, object? data)>> _lastPhysicsPickResults = [];
     private readonly SortedDictionary<float, List<(RenderInfo3D item, object? data)>> _lastOctreePickResults = [];
 
-    private void PostRender(bool shadowPass)
+    private async void PostRender(bool shadowPass)
     {
         var rend = AbstractRenderer.Current;
         if (rend is null)
@@ -140,9 +141,7 @@ public partial class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent
         p = vp.ScreenToViewportCoordinate(p);
         p = vp.ViewportToInternalCoordinate(p);
 
-        var fbo = vp.RenderPipelineInstance?.GetFBO<XRFrameBuffer>(DefaultRenderPipeline.ForwardPassFBOName);
-        float? depth = vp.GetDepth(fbo!, p);
-
+        float? depth = GetDepth(vp, p);
         p = vp.NormalizeInternalCoordinate(p);
         DepthHitNormalizedViewportPoint = depth is not null && depth.Value > 0.0f && depth.Value < 1.0f ? new Vector3(p.X, p.Y, depth.Value) : null;
 
@@ -166,46 +165,64 @@ public partial class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent
         ApplyTransformations(vp);
     }
 
+    private static float? GetDepth(XRViewport vp, Vector2 p)
+    {
+        //TODO: severe framerate drop using synchronous depth read - async pbo is better but needs to be optimized
+        var fbo = vp.RenderPipelineInstance?.GetFBO<XRFrameBuffer>(DefaultRenderPipeline.ForwardPassFBOName);
+        if (fbo is null)
+            return null;
+
+        float? depth = vp.GetDepth(fbo, (IVector2)p);
+        //Debug.Out($"Depth: {depth}");
+        return depth;
+    }
+
     private void ApplyTransformations(XRViewport vp)
     {
         var tfm = TransformAs<Transform>();
         if (tfm is null)
             return;
 
-        if (_lastScrollDelta.HasValue && DepthHitNormalizedViewportPoint.HasValue)
+        var scroll = _lastScrollDelta;
+        _lastScrollDelta = null;
+
+        var trans = _lastMouseTranslationDelta;
+        _lastMouseTranslationDelta = null;
+
+        var rot = _lastRotateDelta;
+        _lastRotateDelta = null;
+
+        if (scroll.HasValue && DepthHitNormalizedViewportPoint.HasValue)
         {
             //Zoom towards the hit point
-            float scrollSpeed = _lastScrollDelta.Value;
-            _lastScrollDelta = null;
+            float scrollSpeed = scroll.Value;
             Vector3 worldCoord = vp.NormalizedViewportToWorldCoordinate(DepthHitNormalizedViewportPoint.Value);
             float dist = Transform.WorldTranslation.Distance(worldCoord);
             tfm.Translation = Segment.PointAtLineDistance(Transform.WorldTranslation, worldCoord, scrollSpeed * dist * 0.1f * ScrollSpeed);
         }
-        if (_lastMouseTranslationDelta.HasValue && WorldDragPoint.HasValue && NormalizedViewportDragPoint.HasValue)
+        if (trans.HasValue && WorldDragPoint.HasValue && NormalizedViewportDragPoint.HasValue)
         {
             Vector3 normCoord = NormalizedViewportDragPoint.Value;
             Vector3 worldCoord = vp.NormalizedViewportToWorldCoordinate(normCoord);
             Vector2 screenCoord = vp.DenormalizeViewportCoordinate(normCoord.XY());
-            Vector2 newScreenCoord = screenCoord + _lastMouseTranslationDelta.Value;
-            _lastMouseTranslationDelta = null;
+            Vector2 newScreenCoord = screenCoord + trans.Value;
             Vector3 newNormCoord = new(vp.NormalizeViewportCoordinate(newScreenCoord), normCoord.Z);
             Vector3 worldDelta = vp.NormalizedViewportToWorldCoordinate(newNormCoord) - worldCoord;
             tfm.ApplyTranslation(worldDelta);
         }
-        if (_lastRotateDelta.HasValue)
+        if (rot.HasValue)
         {
             if (_lastRotatePoint.HasValue)
             {
-                float x = _lastRotateDelta.Value.X;
-                float y = _lastRotateDelta.Value.Y;
+                float x = rot.Value.X;
+                float y = rot.Value.Y;
                 ArcBallRotate(y, x, _lastRotatePoint.Value);
-                _lastRotateDelta = null;
             }
             else if (WorldDragPoint.HasValue)
             {
                 Vector3 worldCoord = WorldDragPoint.Value;
-                float x = _lastRotateDelta.Value.X;
-                float y = _lastRotateDelta.Value.Y;
+                float x = rot.Value.X;
+                float y = rot.Value.Y;
                 ArcBallRotate(y, x, worldCoord);
                 _lastRotateDelta = null;
             }

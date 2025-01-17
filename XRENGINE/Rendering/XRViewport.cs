@@ -4,6 +4,7 @@ using XREngine.Components;
 using XREngine.Data.Core;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
+using XREngine.Data.Vectors;
 using XREngine.Input;
 using XREngine.Rendering.Info;
 using XREngine.Rendering.UI;
@@ -477,7 +478,7 @@ namespace XREngine.Rendering
         #endregion
 
         #region Picking
-        public float GetDepth(Vector2 viewportPoint)
+        public float GetDepth(IVector2 viewportPoint)
         {
             State.UnbindFrameBuffers(EFramebufferTarget.ReadFramebuffer);
             State.SetReadBuffer(EReadBufferMode.None);
@@ -489,11 +490,15 @@ namespace XREngine.Rendering
             State.SetReadBuffer(EReadBufferMode.None);
             return State.GetStencilIndex(viewportPoint.X, viewportPoint.Y);
         }
-        public float GetDepth(XRFrameBuffer fbo, Vector2 viewportPoint)
+        public float GetDepth(XRFrameBuffer fbo, IVector2 viewportPoint)
         {
             using var t = fbo.BindForReadingState();
             State.SetReadBuffer(EReadBufferMode.None);
             return State.GetDepth(viewportPoint.X, viewportPoint.Y);
+        }
+        public async Task<float> GetDepthAsync(XRFrameBuffer fbo, IVector2 viewportPoint)
+        {
+            return await State.GetDepthAsync(fbo, viewportPoint.X, viewportPoint.Y);
         }
         public byte GetStencil(XRFrameBuffer fbo, Vector2 viewportPoint)
         {

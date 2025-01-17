@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel;
 using System.Drawing;
 using System.Numerics;
+using XREngine.Data.Vectors;
 
 namespace XREngine.Data.Geometry
 {
@@ -440,5 +441,8 @@ Bottom left point of this rectangle is Position - LocalOrigin.")]
 
         public readonly bool IsEmpty()
             => IntHeight == 0 || IntWidth == 0;
+
+        public readonly BoundingRectangle AsBoundingRectangle()
+            => new((IVector2)_translation, (IVector2)_bounds, _localOriginPercentage);
     }
 }

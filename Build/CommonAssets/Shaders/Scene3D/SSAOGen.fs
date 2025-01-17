@@ -10,7 +10,7 @@ uniform sampler2D Texture0; //Normal
 uniform sampler2D Texture1; //SSAO Noise
 uniform sampler2D Texture2; //Depth
 
-uniform vec3 Samples[64];
+uniform vec3 Samples[128];
 uniform float Radius = 0.75f;
 uniform float Power = 4.0f;
 uniform vec2 NoiseScale;
@@ -44,7 +44,7 @@ void main()
     vec3 viewBitangent = cross(viewNormal, viewTangent);
     mat3 TBN = mat3(viewTangent, viewBitangent, viewNormal);
 
-    int kernelSize = 64;
+    int kernelSize = 128;
     float bias = 0.025f;
 
     vec3 noiseSample;

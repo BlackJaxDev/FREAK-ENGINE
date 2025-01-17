@@ -166,7 +166,7 @@ namespace XREngine.Rendering
         public StateObject BindForReadingState()
         {
             BindForReading();
-            return new StateObject(UnbindFromReading);
+            return StateObject.New(UnbindFromReading);
         }
         public void UnbindFromReading()
         {
@@ -198,7 +198,7 @@ namespace XREngine.Rendering
         public StateObject BindForWritingState()
         {
             BindForWriting();
-            return new StateObject(UnbindFromWriting);
+            return StateObject.New(UnbindFromWriting);
         }
         public void UnbindFromWriting()
         {
@@ -231,7 +231,7 @@ namespace XREngine.Rendering
         public StateObject BindState()
         {
             Bind();
-            return new StateObject(Unbind);
+            return StateObject.New(Unbind);
         }
 
         public void Unbind()

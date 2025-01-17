@@ -108,5 +108,13 @@ namespace XREngine.Rendering.Physics.Physx
             Scene?.RemoveActor(this, wakeOnLostTouch);
             Release();
         }
+
+        public event Action<PhysxScene>? AddedToScene;
+        public event Action<PhysxScene>? RemovedFromScene;
+
+        public void OnAddedToScene(PhysxScene physxScene)
+            => AddedToScene?.Invoke(physxScene);
+        public void OnRemovedFromScene(PhysxScene physxScene)
+            => RemovedFromScene?.Invoke(physxScene);
     }
 }

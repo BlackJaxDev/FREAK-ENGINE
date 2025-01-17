@@ -1,9 +1,9 @@
-﻿using System.Numerics;
+﻿using Extensions;
+using System.Numerics;
 using XREngine.Core.Attributes;
 using XREngine.Data.Transforms.Rotations;
 using XREngine.Input.Devices;
 using XREngine.Scene.Transforms;
-using XREngine.Timers;
 
 namespace XREngine.Components
 {
@@ -106,8 +106,30 @@ namespace XREngine.Components
         }
         protected virtual void TickMovementInput()
         {
-            Vector3 forward = Transform.WorldForward;
-            Vector3 right = Transform.WorldRight;
+            var cam = GetCamera();
+
+            Vector3 forward, right;
+            if (cam is not null)
+            {
+                forward = cam.Transform.WorldForward;
+                float dot = forward.Dot(Globals.Up);
+                if (Math.Abs(dot) >= 0.99f)
+                {
+                    //if dot is 1, looking straight up. need to use camera down for forward
+                    //if dot is -1, looking straight down. need to use camera up for forward
+                    forward = dot > 0.0f
+                        ? -cam.Transform.WorldUp
+                        : cam.Transform.WorldUp;
+                }
+                forward.Y = 0.0f;
+                forward = Vector3.Normalize(forward);
+                right = cam.Transform.WorldRight;
+            }
+            else
+            {
+                forward = Transform.WorldForward;
+                right = Transform.WorldRight;
+            }
 
             bool keyboardMovement = _keyboardMovementInput.X != 0.0f || _keyboardMovementInput.Y != 0.0f;
             bool gamepadMovement = _gamepadMovementInput.X != 0.0f || _gamepadMovementInput.Y != 0.0f;
@@ -127,7 +149,6 @@ namespace XREngine.Components
             //if (gamepadMovement || keyboardMovement)
             //    _meshComp.Rotation.Yaw = _movement.TargetFrameInputDirection.LookatAngles().Yaw + 180.0f;
 
-            var cam = GetCamera();
             if (cam is not null)
                 cam.SceneNode.GetTransformAs<Transform>(true)!.Rotator = _viewRotation;
         }

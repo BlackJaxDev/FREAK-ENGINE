@@ -9,6 +9,23 @@ namespace XREngine.Rendering.Vulkan
 {
     public unsafe partial class VulkanRenderer
     {
+        public override float GetDepth(int x, int y)
+        {
+            throw new NotImplementedException();
+        }
+        public override void GetDepthAsync(XRFrameBuffer fbo, int x, int y, Action<float> depthCallback)
+        {
+            throw new NotImplementedException();
+        }
+        public override void GetPixelAsync(int x, int y, bool withTransparency, Action<ColorF4> colorCallback)
+        {
+            throw new NotImplementedException();
+        }
+        public override void MemoryBarrier(EMemoryBarrierMask mask)
+        {
+            throw new NotImplementedException();
+        }
+
         public override void Blit(
             XRFrameBuffer inFBO,
             XRFrameBuffer outFBO,

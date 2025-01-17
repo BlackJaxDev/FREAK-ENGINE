@@ -112,18 +112,18 @@ namespace XREngine.Rendering
                 Color = SKColors.White,
                 Style = style,
                 StrokeWidth = strokeWidth,
-                IsDither = true,
-                BlendMode = SKBlendMode.SrcOver,
-                IsAntialias = true,
+                //IsDither = true,
+                //BlendMode = SKBlendMode.SrcOver,
+                //IsAntialias = true,
             };
 
             using SKFont font = new(typeface, textSize);
-            font.BaselineSnap = true;
-            font.Edging = SKFontEdging.SubpixelAntialias;
-            font.ForceAutoHinting = true;
-            font.Subpixel = true;
+            //font.BaselineSnap = true;
+            //font.Edging = SKFontEdging.SubpixelAntialias;
+            //font.ForceAutoHinting = true;
+            //font.Subpixel = true;
             font.Embolden = embolden;
-            font.Hinting = SKFontHinting.Full;
+            //font.Hinting = SKFontHinting.Full;
 
             // Process each character
             foreach (string character in characters)
@@ -422,12 +422,20 @@ namespace XREngine.Rendering
             float xOffset = offset.X;
             float yOffset = offset.Y;
             float lineHeight = 0.0f;
+            float spaceWidth = 30.0f;
 
             for (int i = 0; i < str.Length; i++)
             {
                 bool last = i == str.Length - 1;
+                bool first = i == 0;
+
                 char ch = str[i];
                 string character = ch.ToString();
+                if (character == " ")
+                {
+                    xOffset += spaceWidth;
+                    continue;
+                }
                 if (!glyphs.ContainsKey(character))
                 {
                     // Handle missing glyphs (e.g., skip or substitute)
@@ -437,6 +445,11 @@ namespace XREngine.Rendering
                 Glyph glyph = glyphs[character];
                 float scale = (fontSize ?? 1.0f) / FontDrawSize;
                 float translateX = (xOffset + glyph.Bearing.X) * scale;
+                if (first)
+                {
+                    xOffset -= translateX;
+                    translateX = 0.0f;
+                }
                 float translateY = (yOffset + glyph.Bearing.Y) * scale;
                 float scaleX = glyph.Size.X * scale;
                 float scaleY = -glyph.Size.Y * scale;

@@ -1,9 +1,7 @@
 ﻿using Extensions;
-using Silk.NET.GLFW;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
-using Silk.NET.Windowing.Glfw;
 using XREngine.Core;
 using XREngine.Data.Core;
 using XREngine.Input;

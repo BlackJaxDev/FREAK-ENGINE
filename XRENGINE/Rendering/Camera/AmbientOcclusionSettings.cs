@@ -6,7 +6,7 @@ namespace XREngine.Rendering
     public class AmbientOcclusionSettings : XRBase
     {
         private bool _enabled = true;
-        private EType _type = EType.MultiScaleVolumetricObscurance;
+        private EType _type = EType.ScreenSpace;
         private float _resolutionScale;
         private float _samplesPerPixel;
         private float _distance;
@@ -17,7 +17,7 @@ namespace XREngine.Rendering
         private float _thickness;
         private int _iterations;
         private float _radius = 0.9f;
-        private float _power = 6.0f;
+        private float _power = 1.4f;
         private float _rings;
         private float _lumaPhi;
         private float _depthPhi;

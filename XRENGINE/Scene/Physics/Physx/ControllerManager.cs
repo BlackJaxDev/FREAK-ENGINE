@@ -1,8 +1,5 @@
-﻿using JoltPhysicsSharp;
-using MagicPhysX;
-using SharpFont;
+﻿using MagicPhysX;
 using System.Numerics;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using XREngine.Data;
 using XREngine.Data.Core;
@@ -19,10 +16,12 @@ namespace XREngine.Rendering.Physics.Physx
         public PxControllerFilterCallback* ControllerFilterCallback => _controllerFilterCallbackSource.ToStructPtr<PxControllerFilterCallback>();
         public PxQueryFilterCallback* QueryFilterCallback => _queryFilterCallbackSource.ToStructPtr<PxQueryFilterCallback>();
         public PxControllerFilters* ControllerFilters => _controllerFiltersSource.ToStructPtr<PxControllerFilters>();
+        public PxFilterData* FilterData => _filterDataSource.ToStructPtr<PxFilterData>();
 
         private readonly DataSource _controllerFilterCallbackSource;
         private readonly DataSource _queryFilterCallbackSource;
         private readonly DataSource _controllerFiltersSource;
+        private readonly DataSource _filterDataSource;
 
         private void Destructor() { }
 
@@ -68,9 +67,11 @@ namespace XREngine.Rendering.Physics.Physx
 
             CreateObstacleContext();
 
-            PxFilterData filterData = PxFilterData_new(PxEMPTY.PxEmpty);
-            var filter = PxControllerFilters_new(&filterData, QueryFilterCallback, ControllerFilterCallback);
-            //filter.mFilterFlags = PxQueryFlags.Static | PxQueryFlags.Dynamic;
+            PxFilterData filterData = PxFilterData_new_2(0, 0, 0, 0);
+            _filterDataSource = DataSource.FromStruct(filterData);
+
+            var filter = PxControllerFilters_new(FilterData, QueryFilterCallback, ControllerFilterCallback);
+            filter.mFilterFlags = PxQueryFlags.Static | PxQueryFlags.Dynamic | PxQueryFlags.Prefilter | PxQueryFlags.Postfilter;
             _controllerFiltersSource = DataSource.FromStruct(filter);
 
             //SetTessellation(true, 1.0f);
@@ -131,7 +132,7 @@ namespace XREngine.Rendering.Physics.Physx
                 scaleCoeff,
                 volumeGrowth,
                 controller.UserControllerHitReport,
-                controller.ControllerBehaviorCallback,
+                null,//controller.ControllerBehaviorCallback, //TODO: doesn't work right now, access violation
                 nonWalkableMode,
                 material,
                 clientID,
@@ -169,7 +170,7 @@ namespace XREngine.Rendering.Physics.Physx
             var controller = new CapsuleController();
 
             PxCapsuleControllerDesc* desc = PxCapsuleControllerDesc_new_alloc();
-            //desc->SetToDefaultMut();
+            desc->SetToDefaultMut();
             desc->radius = radius;
             desc->height = height;
             desc->climbingMode = climbingMode;
@@ -187,7 +188,7 @@ namespace XREngine.Rendering.Physics.Physx
                 scaleCoeff,
                 volumeGrowth,
                 controller.UserControllerHitReport,
-                controller.ControllerBehaviorCallback,
+                null,//controller.ControllerBehaviorCallback, //TODO: doesn't work right now, access violation
                 nonWalkableMode,
                 material,
                 clientID,
@@ -349,7 +350,7 @@ namespace XREngine.Rendering.Physics.Physx
         /// <returns></returns>
         internal bool FilterControllerCollision(PxController* a, PxController* b)
         {
-            return true;
+            return false;
         }
     }
 }

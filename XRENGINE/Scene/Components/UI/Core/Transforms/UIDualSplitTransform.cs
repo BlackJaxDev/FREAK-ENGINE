@@ -17,11 +17,11 @@ namespace XREngine.Rendering.UI
             set => SetField(ref _verticalSplit, value);
         }
 
-        private float _fixedSize = 0.0f;
+        private float? _fixedSize = null;
         /// <summary>
         /// The fixed size of the top or bottom region, depending on TopFixed.
         /// </summary>
-        public float FixedSize
+        public float? FixedSize
         {
             get => _fixedSize;
             set => SetField(ref _fixedSize, value);
@@ -30,8 +30,8 @@ namespace XREngine.Rendering.UI
         private bool? _topFixed = null;
         /// <summary>
         /// If null, both regions scale by parent size.
-        /// If true, the top region uses FixedSize.
-        /// If false, the bottom region uses FixedSize.
+        /// If true, the top region uses FixedSize and the bottom region scales to fill the remaining space.
+        /// If false, the bottom region uses FixedSize and the top region scales to fill the remaining space.
         /// </summary>
         public bool? FirstFixedSize
         {
@@ -83,13 +83,15 @@ namespace XREngine.Rendering.UI
                 {
                     if (FirstFixedSize.Value)
                     {
-                        topSize = FixedSize;
-                        bottomSize = parentRegion.Height - FixedSize;
+                        float fixedSize = GetFixedSize(true);
+                        topSize = fixedSize;
+                        bottomSize = parentRegion.Height - fixedSize;
                     }
                     else
                     {
-                        topSize = parentRegion.Height - FixedSize;
-                        bottomSize = FixedSize;
+                        float fixedSize = GetFixedSize(false);
+                        topSize = parentRegion.Height - fixedSize;
+                        bottomSize = fixedSize;
                     }
                 }
                 else
@@ -115,13 +117,15 @@ namespace XREngine.Rendering.UI
                 {
                     if (FirstFixedSize.Value)
                     {
-                        leftSize = FixedSize;
-                        rightSize = parentRegion.Width - FixedSize;
+                        float fixedSize = GetFixedSize(true);
+                        leftSize = fixedSize;
+                        rightSize = parentRegion.Width - fixedSize;
                     }
                     else
                     {
-                        leftSize = parentRegion.Width - FixedSize;
-                        rightSize = FixedSize;
+                        float fixedSize = GetFixedSize(false);
+                        leftSize = parentRegion.Width - fixedSize;
+                        rightSize = fixedSize;
                     }
                 }
                 else
@@ -140,6 +144,24 @@ namespace XREngine.Rendering.UI
                 b.FitLayout(new(parentRegion.X + leftSize + SplitterSize, parentRegion.Y, rightSize, parentRegion.Height));
             }
         }
+
+        private float GetFixedSize(bool firstChild)
+        {
+            if (FixedSize.HasValue)
+                return FixedSize.Value;
+
+            if (firstChild)
+            {
+                var a = First;
+                return a is null ? 0 : (VerticalSplit ? a.GetHeight() : a.GetWidth());
+            }
+            else
+            {
+                var b = Second;
+                return b is null ? 0 : (VerticalSplit ? b.GetHeight() : b.GetWidth());
+            }
+        }
+
         public override void VerifyPlacementInfo(UITransform childTransform, ref UIChildPlacementInfo? placementInfo)
         {
             if (placementInfo is not UISplitChildPlacementInfo)

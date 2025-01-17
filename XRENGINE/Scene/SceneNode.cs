@@ -399,8 +399,12 @@ namespace XREngine.Scene
             var comp = XRComponent.New<T>(this);
             comp.World = World;
 
-            if (!VerifyComponentAttributesOnAdd(comp))
-                return null;
+            if (!VerifyComponentAttributesOnAdd(comp, out XRComponent? existingComponent))
+            {
+                comp.World = null;
+                comp.Destroy();
+                return existingComponent as T;
+            }
 
             AddComponent(comp);
             return comp;
@@ -457,8 +461,10 @@ namespace XREngine.Scene
         /// <param name="type"></param>
         public XRComponent? AddComponent(Type type)
         {
-            if (XRComponent.New(this, type) is not XRComponent comp || !VerifyComponentAttributesOnAdd(comp))
-                return null;
+            XRComponent? existingComponent = null;
+
+            if (XRComponent.New(this, type) is not XRComponent comp || !VerifyComponentAttributesOnAdd(comp, out existingComponent))
+                return existingComponent;
 
             AddComponent(comp);
             return comp;
@@ -500,8 +506,10 @@ namespace XREngine.Scene
         /// <typeparam name="T"></typeparam>
         /// <param name="comp"></param>
         /// <returns></returns>
-        private bool VerifyComponentAttributesOnAdd<T>(T comp) where T : XRComponent
+        private bool VerifyComponentAttributesOnAdd<T>(T comp, out XRComponent? existingComponent) where T : XRComponent
         {
+            existingComponent = GetComponent<T>();
+
             var attribs = comp.GetType().GetCustomAttributes(true);
             if (attribs.Length == 0)
                 return true;

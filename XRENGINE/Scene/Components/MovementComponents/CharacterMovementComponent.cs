@@ -1,6 +1,4 @@
-﻿using Assimp;
-using MagicPhysX;
-using SharpFont.Cache;
+﻿using MagicPhysX;
 using System.Numerics;
 using XREngine.Core.Attributes;
 using XREngine.Data.Core;
@@ -10,33 +8,39 @@ using XREngine.Scene.Transforms;
 
 namespace XREngine.Components
 {
+    [OneComponentAllowed]
     [RequiresTransform(typeof(RigidBodyTransform))]
     public class CharacterMovement3DComponent : PlayerMovementComponentBase
     {
-        public RigidBodyTransform RigidBodyTransform => SceneNode.GetTransformAs<RigidBodyTransform>(true)!;
+        public RigidBodyTransform RigidBodyTransform
+            => SceneNode.GetTransformAs<RigidBodyTransform>(true)!;
+        //public Transform ControllerTransform
+        //    => SceneNode.GetTransformAs<Transform>(true)!;
 
-        private float _stepOffset = 0.5f;
-        private float _slopeLimitCosine = 0.0f;
-        private float _walkingMovementSpeed = 1000.0f;
-        private float _jumpSpeed = 8000.0f;
+        private float _stepOffset = 0.0f;
+        private float _slopeLimitCosine = 0.707f;
+        private float _walkingMovementSpeed = 0.1f;
+        private float _jumpSpeed = 20.0f;
         private Func<Vector3, Vector3>? _subUpdateTick;
         private ECrouchState _crouchState = ECrouchState.Standing;
         private float _invisibleWallHeight = 0.0f;
-        private float _density = 1.0f;
+        private float _density = 10.0f;
         private float _scaleCoeff = 0.8f;
         private float _volumeGrowth = 1.5f;
         private bool _slideOnSteepSlopes = true;
-        private PhysxMaterial _material = new(0.1f, 0.1f, 0.1f);
-        private float _radius = 2.0f;
-        private float _standingHeight = 1.0f;
-        private float _crouchedHeight = 0.4f;
-        private float _proneHeight = 0.2f;
+        private PhysxMaterial _material = new(0.9f, 0.9f, 0.1f);
+        private float _radius = 0.1f;
+        private float _standingHeight = 0.5f;
+        private float _crouchedHeight = 0.2f;
+        private float _proneHeight = 0.1f;
         private bool _constrainedClimbing = false;
         private CapsuleController? _controller;
         private float _minMoveDistance = 0.001f;
-        private float _contactOffset = 0.1f;
+        private float _contactOffset = 0.01f;
         private Vector3 _upDirection = Globals.Up;
         private Vector3 _spawnPosition = Vector3.Zero;
+        private Vector3 _velocity = Vector3.Zero;
+        private Vector3? _gravityOverride = null;
 
         public Vector3 FootPosition
         {
@@ -111,7 +115,8 @@ namespace XREngine.Components
         }
         /// <summary>
         /// The contact offset used by the controller.
-        /// Specifies a skin around the object within which contacts will be generated.Use it to avoid numerical precision issues.
+        /// Specifies a skin around the object within which contacts will be generated.
+        /// Use it to avoid numerical precision issues.
         /// This is dependant on the scale of the users world, but should be a small, positive non zero value.
         /// </summary>
         public float ContactOffset
@@ -383,7 +388,9 @@ namespace XREngine.Components
 
             //Wrap the hidden actor and apply to the transform
             //The constructor automatically caches the actor
-            RigidBodyTransform.RigidBody = new PhysxDynamicRigidBody(Controller.ControllerPtr->GetActor());
+            var rb = new PhysxDynamicRigidBody(Controller.ControllerPtr->GetActor());
+            RigidBodyTransform.RigidBody = rb;
+            //World.PhysicsScene.AddActor(rb);
         }
 
         protected internal override void OnComponentDeactivated()
@@ -409,14 +416,37 @@ namespace XREngine.Components
                 return;
 
             //Move this to tick in world instance
-            manager.ComputeInteractions(Engine.Delta);
+            //manager.ComputeInteractions(Engine.Delta);
 
             var delta = _subUpdateTick?.Invoke(ConsumeInput()) ?? Vector3.Zero;
-            if (delta.LengthSquared() > float.Epsilon)
-                Controller.Move(delta, MinMoveDistance, Engine.Delta, manager.ControllerFilters, manager.GetObstacleContext(0u).ContextPtr);
+
+            //if (delta.LengthSquared() > float.Epsilon)
+                Controller.Move(delta, MinMoveDistance, Engine.Delta, manager.ControllerFilters, null);
+            //var pos = Controller.FootPosition;
+            //if (float.IsNaN(pos.X) || float.IsNaN(pos.Y) || float.IsNaN(pos.Z))
+            //    Controller.Position = pos = Vector3.Zero;
+            //Debug.Out("CONTROLLER POS: " + pos.ToString());
+            //ControllerTransform.Translation = pos;
         }
 
-        public Vector3 Velocity { get; set; } = Vector3.Zero;
+        public Vector3 Velocity
+        {
+            get => _velocity;
+            set => SetField(ref _velocity, value);
+        }
+        public Vector3? GravityOverride
+        {
+            get => _gravityOverride;
+            set => SetField(ref _gravityOverride, value);
+        }
+
+        public void AddForce(Vector3 force)
+        {
+            //Calculate acceleration from force
+            float mass = RigidBody?.Mass ?? 0.0f;
+            if (mass > 0.0f)
+                Velocity += force / mass;
+        }
 
         protected virtual unsafe Vector3 GroundMovementTick(Vector3 movementInput)
         {
@@ -429,7 +459,7 @@ namespace XREngine.Components
             Vector3 delta = movementInput * WalkingMovementSpeed;
             if (!Controller.CollidingDown)
             {
-                Vector3 gravAccel = scene.Gravity * Engine.Delta * 0.01f;
+                Vector3 gravAccel = (GravityOverride ?? scene.Gravity) * Engine.Delta;
                 Velocity += gravAccel;
                 delta += Velocity;
             }
@@ -437,16 +467,19 @@ namespace XREngine.Components
             {
                 Velocity = Vector3.Zero;
             }
+            //Debug.Out(delta.ToString());
             return delta;
         }
 
         public void Jump()
         {
-            if (Controller is null)
-                return;
+            //if (Controller is null)
+            //    return;
 
-            //if (Controller.CollidingDown)
-                Velocity = UpDirection * JumpSpeed;
+            //if (!Controller.CollidingDown)
+            //    return;
+
+            Velocity = new Vector3(Velocity.X, JumpSpeed, Velocity.Z);
         }
     }
 }
