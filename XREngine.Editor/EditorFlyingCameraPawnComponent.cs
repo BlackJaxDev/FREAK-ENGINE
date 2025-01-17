@@ -108,7 +108,7 @@ public partial class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent
     private readonly SortedDictionary<float, List<(XRComponent item, object? data)>> _lastPhysicsPickResults = [];
     private readonly SortedDictionary<float, List<(RenderInfo3D item, object? data)>> _lastOctreePickResults = [];
 
-    private async void PostRender(bool shadowPass)
+    private void PostRender(bool shadowPass)
     {
         var rend = AbstractRenderer.Current;
         if (rend is null)

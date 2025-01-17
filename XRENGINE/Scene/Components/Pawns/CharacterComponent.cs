@@ -18,12 +18,12 @@ namespace XREngine.Components
         
         //private readonly GameTimer _respawnTimer = new();
         private Rotator _viewRotation = Rotator.GetZero(ERotationOrder.YPR);
-        private float _gamePadMovementInputMultiplier = 51.0f;
+        private float _gamePadMovementInputMultiplier = 200.0f;
         private float _keyboardMovementInputMultiplier = 200.0f;
         private float _mouseXLookInputMultiplier = 0.3f;
         private float _mouseYLookInputMultiplier = 0.3f;
-        private float _gamePadXLookInputMultiplier = 1.0f;
-        private float _gamePadYLookInputMultiplier = 1.0f;
+        private float _gamePadXLookInputMultiplier = 2.0f;
+        private float _gamePadYLookInputMultiplier = 2.0f;
 
         //5'8" in m = 1.72f
         //characterHeight = new FeetInches(5, 8.0f).ToMeters();

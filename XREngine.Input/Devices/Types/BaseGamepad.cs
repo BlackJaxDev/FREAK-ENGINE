@@ -61,7 +61,7 @@ namespace XREngine.Input.Devices
         {
             int index = (int)button;
             if (_buttonStates[index] is null && ButtonExists(button))
-                _buttonStates[index] = MakeButtonManager(button.ToString(), index);
+                _buttonStates[index] = MakeButtonManager(button, index);
             return _buttonStates[index];
         }
 
@@ -69,7 +69,7 @@ namespace XREngine.Input.Devices
         {
             int index = (int)axis;
             if (_axisStates[index] is null && AxisExists(axis))
-                _axisStates[index] = MakeAxisManager(axis.ToString(), index);
+                _axisStates[index] = MakeAxisManager(axis, index);
             return _axisStates[index];
         }
 

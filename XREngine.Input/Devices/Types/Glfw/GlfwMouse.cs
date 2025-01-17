@@ -16,8 +16,8 @@ namespace XREngine.Input.Devices.Glfw
         }
         public override bool HideCursor
         {
-            get => _mouse.Cursor.CursorMode == CursorMode.Raw;
-            set => _mouse.Cursor.CursorMode = value ? CursorMode.Raw : CursorMode.Normal;
+            get => _mouse.Cursor.CursorMode == CursorMode.Disabled;
+            set => _mouse.Cursor.CursorMode = value ? CursorMode.Disabled : CursorMode.Normal;
         }
 
         private float _lastScroll = 0.0f;

@@ -311,7 +311,7 @@ internal class Program
     {
         SceneNode vrPlayspaceNode = new(rootNode) { Name = "VRPlayspaceNode" };
         var playspaceTfm = vrPlayspaceNode.SetTransform<Transform>();
-        playspaceTfm.ApplyScale(new Vector3(10.0f));
+        //playspaceTfm.ApplyScale(new Vector3(10.0f));
 
         SceneNode vrHeadsetNode = new(vrPlayspaceNode) { Name = "VRHeadsetNode" };
         var hmdTfm = vrHeadsetNode.SetTransform<VRHeadsetTransform>();

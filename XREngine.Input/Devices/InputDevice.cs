@@ -58,17 +58,33 @@
             m?.Register(func, type, unregister);
         }
 
-        protected ButtonManager MakeButtonManager(string name, int index)
+        protected virtual ButtonManager? MakeMouseButtonManager(EMouseButton name, int index)
         {
-            var man = new ButtonManager(index, name);
+            var man = new ButtonManager(index, name.ToString());
             man.ActionExecuted += SendButtonAction;
             man.StatePressed += SendButtonPressedState;
             return man;
         }
 
-        protected AxisManager MakeAxisManager(string name, int index)
+        protected virtual ButtonManager? MakeKeyManager(EKey name, int index)
         {
-            var man = new AxisManager(index, name);
+            var man = new ButtonManager(index, name.ToString());
+            man.ActionExecuted += SendButtonAction;
+            man.StatePressed += SendButtonPressedState;
+            return man;
+        }
+
+        protected virtual ButtonManager? MakeButtonManager(EGamePadButton name, int index)
+        {
+            var man = new ButtonManager(index, name.ToString());
+            man.ActionExecuted += SendButtonAction;
+            man.StatePressed += SendButtonPressedState;
+            return man;
+        }
+
+        protected virtual AxisManager? MakeAxisManager(EGamePadAxis name, int index)
+        {
+            var man = new AxisManager(index, name.ToString());
             man.ActionExecuted += SendButtonAction;
             man.StatePressed += SendButtonPressedState;
             man.ListExecuted += SendAxisValue;

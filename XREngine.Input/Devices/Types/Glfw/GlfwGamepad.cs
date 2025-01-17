@@ -1,23 +1,25 @@
-﻿using Silk.NET.Input;
+﻿using DXNET.XInput;
+using Silk.NET.Input;
+using System.Diagnostics;
 
 namespace XREngine.Input.Devices.Glfw
 {
     public class GlfwGamepad : BaseGamePad
     {
-        private readonly IGamepad _gamepad;
+        private readonly IGamepad _controller;
 
         public GlfwGamepad(IGamepad gamepad) : base(gamepad.Index)
         {
-            _gamepad = gamepad;
-            _gamepad.ButtonDown += ButtonDown;
-            _gamepad.ButtonUp += ButtonUp;
-            _gamepad.ThumbstickMoved += ThumbstickMoved;
-            _gamepad.TriggerMoved += TriggerMoved;
+            _controller = gamepad;
+            _controller.ButtonDown += ButtonDown;
+            _controller.ButtonUp += ButtonUp;
+            _controller.ThumbstickMoved += ThumbstickMoved;
+            _controller.TriggerMoved += TriggerMoved;
         }
 
         private void TriggerMoved(IGamepad gamepad, Trigger trigger)
         {
-            
+
         }
 
         private void ThumbstickMoved(IGamepad gamepad, Thumbstick thumbstick)
@@ -37,15 +39,15 @@ namespace XREngine.Input.Devices.Glfw
 
         public override void Vibrate(float lowFreq, float highFreq)
         {
-            if (_gamepad.VibrationMotors.Count <= 0)
+            if (_controller.VibrationMotors.Count <= 0)
                 return;
 
-            _gamepad.VibrationMotors[0].Speed = lowFreq;
+            _controller.VibrationMotors[0].Speed = lowFreq;
 
-            if (_gamepad.VibrationMotors.Count <= 1)
+            if (_controller.VibrationMotors.Count <= 1)
                 return;
 
-            _gamepad.VibrationMotors[1].Speed = highFreq;
+            _controller.VibrationMotors[1].Speed = highFreq;
         }
 
         protected override List<bool> AxesExist(IEnumerable<EGamePadAxis> axes)
@@ -58,31 +60,48 @@ namespace XREngine.Input.Devices.Glfw
 
         protected override bool AxisExists(EGamePadAxis axis) => axis switch
         {
-            EGamePadAxis.LeftTrigger => _gamepad.Triggers.Count > 0,
-            EGamePadAxis.RightTrigger => _gamepad.Triggers.Count > 1,
-            EGamePadAxis.LeftThumbstickX or EGamePadAxis.LeftThumbstickY => _gamepad.Thumbsticks.Count > 0,
-            EGamePadAxis.RightThumbstickX or EGamePadAxis.RightThumbstickY => _gamepad.Thumbsticks.Count > 1,
+            EGamePadAxis.LeftTrigger => _controller.Triggers.Count > 0,
+            EGamePadAxis.RightTrigger => _controller.Triggers.Count > 1,
+            EGamePadAxis.LeftThumbstickX or EGamePadAxis.LeftThumbstickY => _controller.Thumbsticks.Count > 0,
+            EGamePadAxis.RightThumbstickX or EGamePadAxis.RightThumbstickY => _controller.Thumbsticks.Count > 1,
             _ => false,
         };
 
-        protected override bool ButtonExists(EGamePadButton button) => button switch
+        private readonly Dictionary<EGamePadButton, int> _buttonRemap = [];
+
+        protected override bool ButtonExists(EGamePadButton button)
         {
-            EGamePadButton.DPadUp => _gamepad.Buttons.Any(x => x.Name == ButtonName.DPadUp),
-            EGamePadButton.DPadDown => _gamepad.Buttons.Any(x => x.Name == ButtonName.DPadDown),
-            EGamePadButton.DPadLeft => _gamepad.Buttons.Any(x => x.Name == ButtonName.DPadLeft),
-            EGamePadButton.DPadRight => _gamepad.Buttons.Any(x => x.Name == ButtonName.DPadRight),
-            EGamePadButton.FaceUp => _gamepad.Buttons.Any(x => x.Name == ButtonName.Y),
-            EGamePadButton.FaceDown => _gamepad.Buttons.Any(x => x.Name == ButtonName.A),
-            EGamePadButton.FaceLeft => _gamepad.Buttons.Any(x => x.Name == ButtonName.X),
-            EGamePadButton.FaceRight => _gamepad.Buttons.Any(x => x.Name == ButtonName.B),
-            EGamePadButton.LeftStick => _gamepad.Buttons.Any(x => x.Name == ButtonName.LeftStick),
-            EGamePadButton.RightStick => _gamepad.Buttons.Any(x => x.Name == ButtonName.RightStick),
-            EGamePadButton.SpecialLeft => _gamepad.Buttons.Any(x => x.Name == ButtonName.Home),
-            EGamePadButton.SpecialRight => _gamepad.Buttons.Any(x => x.Name == ButtonName.Start),
-            EGamePadButton.LeftBumper => _gamepad.Buttons.Any(x => x.Name == ButtonName.LeftBumper),
-            EGamePadButton.RightBumper => _gamepad.Buttons.Any(x => x.Name == ButtonName.RightBumper),
-            _ => false,
-        };
+            int index = button switch
+            {
+                EGamePadButton.DPadUp => FindIndex(_controller.Buttons, x => x.Name == ButtonName.DPadUp),
+                EGamePadButton.DPadDown => FindIndex(_controller.Buttons, x => x.Name == ButtonName.DPadDown),
+                EGamePadButton.DPadLeft => FindIndex(_controller.Buttons, x => x.Name == ButtonName.DPadLeft),
+                EGamePadButton.DPadRight => FindIndex(_controller.Buttons, x => x.Name == ButtonName.DPadRight),
+                EGamePadButton.FaceUp => FindIndex(_controller.Buttons, x => x.Name == ButtonName.Y),
+                EGamePadButton.FaceDown => FindIndex(_controller.Buttons, x => x.Name == ButtonName.A),
+                EGamePadButton.FaceLeft => FindIndex(_controller.Buttons, x => x.Name == ButtonName.X),
+                EGamePadButton.FaceRight => FindIndex(_controller.Buttons, x => x.Name == ButtonName.B),
+                EGamePadButton.LeftStick => FindIndex(_controller.Buttons, x => x.Name == ButtonName.LeftStick),
+                EGamePadButton.RightStick => FindIndex(_controller.Buttons, x => x.Name == ButtonName.RightStick),
+                EGamePadButton.SpecialLeft => FindIndex(_controller.Buttons, x => x.Name == ButtonName.Home),
+                EGamePadButton.SpecialRight => FindIndex(_controller.Buttons, x => x.Name == ButtonName.Start),
+                EGamePadButton.LeftBumper => FindIndex(_controller.Buttons, x => x.Name == ButtonName.LeftBumper),
+                EGamePadButton.RightBumper => FindIndex(_controller.Buttons, x => x.Name == ButtonName.RightBumper),
+                _ => -1,
+            };
+            if (index == -1)
+                return false;
+            _buttonRemap[button] = index;
+            return true;
+        }
+
+        private static int FindIndex(IReadOnlyList<Button> buttons, Predicate<Button> match)
+        {
+            for (int i = 0; i < buttons.Count; ++i)
+                if (match(buttons[i]))
+                    return i;
+            return -1;
+        }
 
         protected override List<bool> ButtonsExist(IEnumerable<EGamePadButton> buttons)
         {
@@ -92,9 +111,74 @@ namespace XREngine.Input.Devices.Glfw
             return exists;
         }
 
+        private class GlfwAxisManager(int index, string name, Func<float> valueFactory) : AxisManager(index, name)
+        {
+            public float GetGlfwValue() => valueFactory();
+        }
+        private class GlfwButtonManager(int index, string name, Func<bool> pressedFactory) : ButtonManager(index, name)
+        {
+            public bool GetGlfwPressed() => pressedFactory();
+        }
+
+        //TODO: maybe don't capture 'name' here
+        private Func<bool> GetGlfwButtonFactory(EGamePadButton name)
+            => () => _controller.Buttons[_buttonRemap[name]].Pressed;
+
+        protected override ButtonManager? MakeButtonManager(EGamePadButton name, int index)
+        {
+            var man = new GlfwButtonManager(index, name.ToString(), GetGlfwButtonFactory(name));
+            man.ActionExecuted += SendButtonAction;
+            man.StatePressed += SendButtonPressedState;
+            return man;
+        }
+
+        protected override AxisManager? MakeAxisManager(EGamePadAxis name, int index)
+        {
+            GlfwAxisManager man;
+            switch (name)
+            {
+                case EGamePadAxis.LeftTrigger:
+                    man = new GlfwAxisManager(index, name.ToString(), () => _controller.Triggers[0].Position);
+                    break;
+                case EGamePadAxis.RightTrigger:
+                    man = new GlfwAxisManager(index, name.ToString(), () => _controller.Triggers[1].Position);
+                    break;
+
+                case EGamePadAxis.LeftThumbstickX:
+                    man = new GlfwAxisManager(index, name.ToString(), () => _controller.Thumbsticks[0].X);
+                    break;
+                case EGamePadAxis.LeftThumbstickY:
+                    man = new GlfwAxisManager(index, name.ToString(), () => -_controller.Thumbsticks[0].Y);
+                    break;
+
+                case EGamePadAxis.RightThumbstickX:
+                    man = new GlfwAxisManager(index, name.ToString(), () => _controller.Thumbsticks[1].X);
+                    break;
+                case EGamePadAxis.RightThumbstickY:
+                    man = new GlfwAxisManager(index, name.ToString(), () => -_controller.Thumbsticks[1].Y);
+                    break;
+
+                default:
+                    return null;
+            }
+            man.ActionExecuted += SendButtonAction;
+            man.StatePressed += SendButtonPressedState;
+            man.ListExecuted += SendAxisValue;
+            return man;
+        }
+
         public override void TickStates(float delta)
         {
+            if (!UpdateConnected(_controller.IsConnected))
+                return;
 
+            for (int i = 0; i < 14; ++i)
+                if (_buttonStates[i] is GlfwButtonManager glfwState)
+                    glfwState.Tick(glfwState.GetGlfwPressed(), delta);
+            
+            for (int i = 0; i < 6; ++i)
+                if (_axisStates[i] is GlfwAxisManager glfwState)
+                    glfwState.Tick(glfwState.GetGlfwValue(), delta);
         }
     }
 }

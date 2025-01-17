@@ -14,7 +14,7 @@
             int index = (int)key;
             if (_buttonStates[index] is null)
             {
-                _buttonStates[index] = MakeButtonManager(key.ToString(), index);
+                _buttonStates[index] = MakeKeyManager(key, index);
                 _registeredKeys.Add(key);
             }
             return _buttonStates[index];

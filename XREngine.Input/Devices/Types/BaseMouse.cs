@@ -26,7 +26,7 @@ namespace XREngine.Input.Devices
         private ButtonManager? FindOrCacheButton(EMouseButton button)
         {
             int index = (int)button;
-            return _buttonStates[index] ??= MakeButtonManager(button.ToString(), index);
+            return _buttonStates[index] ??= MakeMouseButtonManager(button, index);
         }
         public void RegisterButtonPressed(EMouseButton button, DelButtonState func, bool unregister)
         {

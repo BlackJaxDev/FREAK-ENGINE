@@ -226,5 +226,16 @@ namespace XREngine.Input.Devices
                 Mouse?.InputInterfaces.Remove(this);
             }
         }
+
+        /// <summary>
+        /// Updates the state of all input devices.
+        /// </summary>
+        /// <param name="delta"></param>
+        public void TickStates(float delta)
+        {
+            Gamepad?.TickStates(delta);
+            Keyboard?.TickStates(delta);
+            Mouse?.TickStates(delta);
+        }
     }
 }

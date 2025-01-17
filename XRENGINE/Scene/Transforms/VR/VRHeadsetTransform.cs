@@ -19,7 +19,7 @@ namespace XREngine.Scene.Transforms
                 return Matrix4x4.Identity;
 
             MarkLocalModified();
-            return headset.RenderDeviceToAbsoluteTrackingMatrix;
+            return headset.DeviceToAbsoluteTrackingMatrix;
         }
     }
 }
