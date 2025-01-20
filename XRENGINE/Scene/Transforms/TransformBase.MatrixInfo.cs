@@ -1,4 +1,6 @@
 ﻿using Extensions;
+using System.Collections.Concurrent;
+using System.IO.Compression;
 using System.Numerics;
 
 namespace XREngine.Scene.Transforms
@@ -20,9 +22,11 @@ namespace XREngine.Scene.Transforms
         public float TimeSinceLastKeyframeReplicated => _timeSinceLastKeyframe;
 
         private float _timeSinceLastKeyframe = 0;
+
+        private Matrix4x4 _lastReplicatedMatrix = Matrix4x4.Identity;
         public byte[] EncodeToBytes()
         {
-            _timeSinceLastKeyframe += Engine.Time.Timer.Collect.Delta;
+            _timeSinceLastKeyframe += Engine.Time.Timer.Update.Delta;
             if (_timeSinceLastKeyframe > ReplicationKeyframeIntervalSec)
             {
                 _timeSinceLastKeyframe = 0;
@@ -33,11 +37,69 @@ namespace XREngine.Scene.Transforms
         }
         public virtual byte[] EncodeToBytes(bool delta)
         {
-            return [];
+            using var memoryStream = new MemoryStream();
+            using (var gzipStream = new GZipStream(memoryStream, CompressionLevel.Optimal))
+            {
+                var deltaBytes = BitConverter.GetBytes(delta);
+                gzipStream.Write(deltaBytes, 0, deltaBytes.Length);
+                if (delta)
+                {
+                    // Encode only the difference between the current and last replicated transform
+                    var deltaMatrix = _localMatrix.Matrix - _lastReplicatedMatrix;
+                    var matrixBytes = MatrixToBytes(deltaMatrix);
+                    gzipStream.Write(matrixBytes, 0, matrixBytes.Length);
+                }
+                else
+                {
+                    var matrixBytes = MatrixToBytes(_localMatrix.Matrix);
+                    gzipStream.Write(matrixBytes, 0, matrixBytes.Length);
+                    _lastReplicatedMatrix = _localMatrix.Matrix;
+                }
+            }
+            return memoryStream.ToArray();
         }
+
+        private static byte[] MatrixToBytes(Matrix4x4 matrix)
+        {
+            var bytes = new byte[16 * sizeof(float)];
+            Buffer.BlockCopy(new[]
+            {
+                matrix.M11, matrix.M12, matrix.M13, matrix.M14,
+                matrix.M21, matrix.M22, matrix.M23, matrix.M24,
+                matrix.M31, matrix.M32, matrix.M33, matrix.M34,
+                matrix.M41, matrix.M42, matrix.M43, matrix.M44
+            }, 0, bytes, 0, bytes.Length);
+            return bytes;
+        }
+
         public virtual void DecodeFromBytes(byte[] arr)
         {
-            
+            using var memoryStream = new MemoryStream(arr);
+            using var gzipStream = new GZipStream(memoryStream, CompressionMode.Decompress);
+            var deltaBytes = new byte[sizeof(bool)];
+            gzipStream.Read(deltaBytes, 0, deltaBytes.Length);
+            bool delta = BitConverter.ToBoolean(deltaBytes, 0);
+
+            var matrixBytes = new byte[16 * sizeof(float)];
+            gzipStream.Read(matrixBytes, 0, matrixBytes.Length);
+            var matrix = BytesToMatrix(matrixBytes);
+
+            if (delta)
+                _localMatrix.Matrix += matrix;
+            else
+                _localMatrix.Matrix = matrix;
+        }
+
+        private static Matrix4x4 BytesToMatrix(byte[] bytes)
+        {
+            var values = new float[16];
+            Buffer.BlockCopy(bytes, 0, values, 0, bytes.Length);
+            return new Matrix4x4(
+                values[0], values[1], values[2], values[3],
+                values[4], values[5], values[6], values[7],
+                values[8], values[9], values[10], values[11],
+                values[12], values[13], values[14], values[15]
+            );
         }
 
         public Vector3 InverseTransformPoint(Vector3 worldPosition)
@@ -52,13 +114,42 @@ namespace XREngine.Scene.Transforms
 
         public TransformBase? FirstChild()
         {
-            lock (Children)
-                return Children.FirstOrDefault();
+            lock (_children)
+                return _children.FirstOrDefault();
         }
         public TransformBase? LastChild()
         {
-            lock (Children)
-                return Children.LastOrDefault();
+            lock (_children)
+                return _children.LastOrDefault();
+        }
+
+        private static readonly ConcurrentBag<(TransformBase child, TransformBase? newParent)> _parentsToReassign = [];
+        internal static void ProcessParentReassignments()
+        {
+            foreach (var (child, newParent) in _parentsToReassign)
+            {
+                if (child.Parent == newParent)
+                    continue;
+                child.Parent?.RemoveChild(child, true);
+                newParent?.AddChild(child, true);
+            }
+            _parentsToReassign.Clear();
+        }
+
+        public void RemoveChild(TransformBase child, bool now = false)
+        {
+            if (now)
+                _children.Remove(child);
+            else
+                _parentsToReassign.Add((child, null));
+        }
+
+        public void AddChild(TransformBase child, bool now = false)
+        {
+            if (now)
+                _children.Add(child);
+            else
+                _parentsToReassign.Add((child, this));
         }
 
         private class MatrixInfo

@@ -65,12 +65,7 @@ namespace XREngine
             materials = importer._materials;
             meshes = importer._meshes;
             if (parent != null && node != null)
-            {
-                lock (parent.Transform.Children)
-                {
-                    parent.Transform.Children.Add(node.Transform);
-                }
-            }
+                parent.Transform.AddChild(node.Transform);
             return node;
         }
         public static async Task<(SceneNode? rootNode, IReadOnlyCollection<XRMaterial> materials, IReadOnlyCollection<XRMesh> meshes)> ImportAsync(

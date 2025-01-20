@@ -50,7 +50,7 @@ namespace XREngine.Rendering.Physics.Physx
         public PxScene* ScenePtr => _scene;
         public PxCpuDispatcher* DispatcherPtr => _dispatcher;
 
-        public Vector3 Gravity
+        public override Vector3 Gravity
         {
             get => _scene->GetGravity();
             set

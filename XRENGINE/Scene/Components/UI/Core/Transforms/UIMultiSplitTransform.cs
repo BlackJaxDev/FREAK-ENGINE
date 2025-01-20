@@ -57,7 +57,7 @@ namespace XREngine.Rendering.UI
                 }
                 while (SceneNode.Transform.Children.Count > 4)
                 {
-                    SceneNode.Transform.Children.RemoveAt(SceneNode.Transform.Children.Count - 1);
+                    //SceneNode.Transform.Children.RemoveAt(SceneNode.Transform.Children.Count - 1);
                 }
             }
 

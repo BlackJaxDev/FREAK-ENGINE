@@ -2,7 +2,6 @@
 using XREngine.Components;
 using XREngine.Data.Core;
 using XREngine.Data.Geometry;
-using XREngine.Data.Trees;
 using XREngine.Physics.ShapeTracing;
 
 namespace XREngine.Scene
@@ -18,6 +17,8 @@ namespace XREngine.Scene
         public ManualResetEventSlim PostSimulationWorkRunning { get; } = new ManualResetEventSlim(false);
         public ManualResetEventSlim DebugRendering { get; } = new ManualResetEventSlim(false);
         public ManualResetEventSlim SwappingDebug { get; } = new ManualResetEventSlim(false);
+
+        public abstract Vector3 Gravity { get; set; }
 
         public abstract void Initialize();
         public abstract void Destroy();

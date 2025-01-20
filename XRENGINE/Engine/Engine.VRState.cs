@@ -14,6 +14,8 @@ using XREngine.Data.Rendering;
 using XREngine.Rendering;
 using XREngine.Rendering.Models.Materials;
 using XREngine.Rendering.OpenGL;
+using XREngine.Rendering.UI;
+using XREngine.Scene.Transforms;
 using ETextureType = Valve.VR.ETextureType;
 
 namespace XREngine
@@ -108,25 +110,25 @@ namespace XREngine
                 //},
                 //ShaderHelper.UnlitTextureFragForward()!));
 
-                VRLeftEyeRenderTarget = new XRMaterialFrameBuffer(new XRMaterial(new[]
-                {
+                VRLeftEyeRenderTarget = new XRMaterialFrameBuffer(new XRMaterial(
+                [
                     VRLeftEyeViewTexture = XRTexture2D.CreateFrameBufferTexture(
                         rW, rH,
                         EPixelInternalFormat.Rgba8,
                         EPixelFormat.Rgba,
                         EPixelType.UnsignedByte,
                         EFrameBufferAttachment.ColorAttachment0),
-                }, ShaderHelper.UnlitTextureFragForward()!));
+                ], ShaderHelper.UnlitTextureFragForward()!));
 
-                VRRightEyeRenderTarget = new XRMaterialFrameBuffer(new XRMaterial(new[]
-                {
+                VRRightEyeRenderTarget = new XRMaterialFrameBuffer(new XRMaterial(
+                [
                     VRRightEyeViewTexture = XRTexture2D.CreateFrameBufferTexture(
                         rW, rH,
                         EPixelInternalFormat.Rgba8,
                         EPixelFormat.Rgba,
                         EPixelType.UnsignedByte,
                         EFrameBufferAttachment.ColorAttachment0),
-                }, ShaderHelper.UnlitTextureFragForward()!));
+                ], ShaderHelper.UnlitTextureFragForward()!));
 
                 VRLeftEyeViewTexture.Resizable = false;
                 VRLeftEyeViewTexture.SizedInternalFormat = ESizedInternalFormat.Rgba8;
@@ -217,15 +219,29 @@ namespace XREngine
                 Api.UpdateInput();
                 Api.Update();
             }
+            private static readonly Queue<float> _fpsAvg = new();
+            private static void TickFPS()
+            {
+                _fpsAvg.Enqueue(1.0f / Time.Timer.Render.SmoothedDelta);
+                if (_fpsAvg.Count > 60)
+                    _fpsAvg.Dequeue();
+                Debug.Out($"{MathF.Round(_fpsAvg.Sum() / _fpsAvg.Count)}hz");
+            }
+            /// <summary>
+            /// VR-related transforms must subscribe to this event to recalculate their matrices directly before drawing.
+            /// </summary>
+            public static event Action? RecalcMatrixOnDraw;
             private static void Render()
             {
                 var drawContext = Api.UpdateDraw(Origin);
+                RecalcMatrixOnDraw?.Invoke();
                 LeftEyeViewport?.Render(VRLeftEyeRenderTarget);
                 RightEyeViewport?.Render(VRRightEyeRenderTarget);
                 nint? leftHandle = VRLeftEyeViewTexture?.APIWrappers?.FirstOrDefault()?.GetHandle();
                 nint? rightHandle = VRRightEyeViewTexture?.APIWrappers?.FirstOrDefault()?.GetHandle();
                 if (leftHandle is not null && rightHandle is not null)
                     SubmitRenders(leftHandle.Value, rightHandle.Value);
+                //TickFPS();
             }
 
             public static XRViewport? LeftEyeViewport { get; private set; }
@@ -268,7 +284,7 @@ namespace XREngine
                 IntPtr leftEyeHandle,
                 IntPtr rightEyeHandle,
                 ETextureType apiType = ETextureType.OpenGL,
-                EColorSpace colorSpace = EColorSpace.Auto,
+                EColorSpace colorSpace = EColorSpace.Linear,
                 EVRSubmitFlags flags = EVRSubmitFlags.Submit_Default)
             {
                 _eyeTex.eColorSpace = colorSpace;
@@ -282,7 +298,7 @@ namespace XREngine
                 _eyeTex.handle = rightEyeHandle;
                 CheckError(comp.Submit(EVREye.Eye_Right, ref _eyeTex, ref _singleTexBounds, flags));
 
-                comp.PostPresentHandoff();
+                //comp.PostPresentHandoff();
             }
 
             public static void SubmitRender(
@@ -299,7 +315,7 @@ namespace XREngine
                 CheckError(comp.Submit(EVREye.Eye_Left, ref _eyeTex, ref _leftEyeTexBounds, flags));
                 CheckError(comp.Submit(EVREye.Eye_Right, ref _eyeTex, ref _rightEyeTexBounds, flags));
 
-                comp.PostPresentHandoff();
+                //comp.PostPresentHandoff();
             }
 
             //enum EVRSubmitFlags

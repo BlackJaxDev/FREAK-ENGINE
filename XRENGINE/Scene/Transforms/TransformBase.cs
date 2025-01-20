@@ -126,7 +126,12 @@ namespace XREngine.Scene.Transforms
             set => SetField(ref _sceneNode, value);
         }
 
-        public int Depth { get; private set; } = 0;
+        private int _depth = 0;
+        public int Depth 
+        {
+            get => _depth;
+            private set => SetField(ref _depth, value);
+        }
 
         private TransformBase? _parent;
         /// <summary>
@@ -159,11 +164,7 @@ namespace XREngine.Scene.Transforms
                 switch (propName)
                 {
                     case nameof(Parent):
-                        if (_parent is not null)
-                        {
-                            lock (_parent.Children)
-                                _parent.Children.Remove(this);
-                        }
+                        _parent?.RemoveChild(this, true);
                         break;
                 }
             }
@@ -178,12 +179,7 @@ namespace XREngine.Scene.Transforms
                     if (_parent is not null)
                     {
                         Depth = _parent.Depth + 1;
-
-                        lock (_parent.Children)
-                        {
-                            if (!_parent.Children.Contains(this))
-                                _parent.Children.Add(this);
-                        }
+                        _parent.AddChild(this, true);
                     }
                     else
                         Depth = 0;
@@ -240,18 +236,17 @@ namespace XREngine.Scene.Transforms
                 bool wasAdded = false;
                 foreach (TransformBase child in Children)
                 {
-                    child._worldMatrix.NeedsRecalc = true;
-                    World.AddDirtyTransform(child, out bool wasDepthAdded, true);
-                    wasAdded |= wasDepthAdded;
+                    child.ParallelDepthRecalculate();
+                    //child._worldMatrix.NeedsRecalc = true;
+                    //World.AddDirtyTransform(child, out bool wasDepthAdded, true);
+                    //wasAdded |= wasDepthAdded;
                 }
                 return wasAdded;
             }
         }
 
         private readonly EventList<TransformBase> _children;
-
-        //TODO: thread-safe event list class
-        public EventList<TransformBase> Children => _children;
+        public IEventListReadOnly<TransformBase> Children => _children;
 
         public TransformBase? FindChild(string name, StringComparison comp = StringComparison.Ordinal)
         {

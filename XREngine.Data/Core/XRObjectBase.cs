@@ -78,9 +78,25 @@ namespace XREngine.Data.Core
         [YamlIgnore]
         public bool IsDestroyed { get; private set; } = false;
 
-        public virtual void Destroy()
+        private static readonly ConcurrentQueue<XRObjectBase> _objectsToDestroy = new();
+        public static void ProcessPendingDestructions()
         {
-            if (IsDestroyed || !Destroying.Invoke(this))
+            while (_objectsToDestroy.TryDequeue(out XRObjectBase? obj))
+                obj.Destroy(true);
+        }
+
+        public virtual void Destroy(bool now = false)
+        {
+            if (IsDestroyed)
+                return;
+
+            if (!now)
+            {
+                _objectsToDestroy.Enqueue(this);
+                return;
+            }
+
+            if (!Destroying.Invoke(this))
                 return;
 
             OnDestroying();

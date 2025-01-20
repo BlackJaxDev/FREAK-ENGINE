@@ -119,6 +119,7 @@ namespace XREngine.Rendering
             Time.Timer.FixedUpdate += FixedUpdate;
             Time.Timer.SwapBuffers += GlobalSwapBuffers;
             Time.Timer.CollectVisible += GlobalCollectVisible;
+            Time.Timer.PostUpdateFrame += ProcessTransformQueue;
         }
 
         private void UnlinkTimeCallbacks()
@@ -127,12 +128,12 @@ namespace XREngine.Rendering
             Time.Timer.FixedUpdate -= FixedUpdate;
             Time.Timer.SwapBuffers -= GlobalSwapBuffers;
             Time.Timer.CollectVisible -= GlobalCollectVisible;
+            Time.Timer.PostUpdateFrame -= ProcessTransformQueue;
         }
 
         public void GlobalCollectVisible()
         {
             //using var d = Profiler.Start();
-            ProcessTransformQueue();
             VisualScene.GlobalCollectVisible();
             PhysicsScene.DebugRenderCollect();
             Lights.CollectVisibleItems();

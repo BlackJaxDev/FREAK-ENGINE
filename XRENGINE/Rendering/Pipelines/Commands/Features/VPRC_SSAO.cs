@@ -127,7 +127,7 @@ namespace XREngine.Rendering.Pipelines.Commands
 
         private void RegenerateFBOs(XRTexture2D normalTex, XRTexture2DView depthViewTex, XRTexture2D albedoTex, XRTexture2D rmsiTex, XRTexture2D depthStencilTex, int width, int height)
         {
-            Debug.Out($"SSAO: Regenerating FBOs for {width}x{height}");
+            //Debug.Out($"SSAO: Regenerating FBOs for {width}x{height}");
             _lastWidth = width;
             _lastHeight = height;
 
@@ -147,6 +147,8 @@ namespace XREngine.Rendering.Pipelines.Commands
             ssaoTex.Name = SSAOIntensityTextureName;
             ssaoTex.MinFilter = ETexMinFilter.Nearest;
             ssaoTex.MagFilter = ETexMagFilter.Nearest;
+            ssaoTex.UWrap = ETexWrapMode.ClampToEdge;
+            ssaoTex.VWrap = ETexWrapMode.ClampToEdge;
             Pipeline.SetTexture(ssaoTex);
 
             RenderingParameters renderParams = new()

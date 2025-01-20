@@ -1,4 +1,5 @@
 ﻿using XREngine.Components;
+using XREngine.Core.Attributes;
 using XREngine.Data.Rendering;
 using XREngine.Rendering;
 using XREngine.Rendering.Commands;
@@ -7,6 +8,7 @@ using XREngine.Scene.Transforms;
 
 namespace XREngine.Data.Components.Scene
 {
+    [RequireComponents(typeof(VRHeadsetTransform))]
     public class VRHeadsetComponent : XRComponent, IRenderable
     {
         protected VRHeadsetComponent() : base()
@@ -40,12 +42,12 @@ namespace XREngine.Data.Components.Scene
 
         private readonly Lazy<XRCamera> _leftEyeCamera;
         private readonly Lazy<XRCamera> _rightEyeCamera;
-        private readonly XROVRCameraParameters _leftEyeParams = new(true, 0.01f, 10000.0f);
-        private readonly XROVRCameraParameters _rightEyeParams = new(false, 0.01f, 10000.0f);
+        private readonly XROVRCameraParameters _leftEyeParams = new(true, 0.1f, 100000.0f);
+        private readonly XROVRCameraParameters _rightEyeParams = new(false, 0.1f, 100000.0f);
         private readonly VREyeTransform _leftEyeTransform;
         private readonly VREyeTransform _rightEyeTransform;
-        private float _near = 0.01f;
-        private float _far = 10000.0f;
+        private float _near = 0.1f;
+        private float _far = 100000.0f;
 
         public XRCamera LeftEyeCamera => _leftEyeCamera.Value;
         public XRCamera RightEyeCamera => _rightEyeCamera.Value;

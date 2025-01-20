@@ -4,8 +4,10 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net;
 using XREngine.Audio;
+using XREngine.Data.Core;
 using XREngine.Rendering;
 using XREngine.Scene;
+using XREngine.Scene.Transforms;
 
 namespace XREngine
 {
@@ -24,6 +26,13 @@ namespace XREngine
         {
             UserSettings = new UserSettings();
             GameSettings = new GameStartupSettings();
+            Time.Timer.PostUpdateFrame += Timer_PostUpdateFrame;
+        }
+
+        private static void Timer_PostUpdateFrame()
+        {
+            XRObjectBase.ProcessPendingDestructions();
+            TransformBase.ProcessParentReassignments();
         }
 
         private static readonly ConcurrentQueue<Action> _asyncTaskQueue = new();

@@ -71,16 +71,16 @@ namespace XREngine.Rendering
                     wrapper.Generate();
             }
         }
-        public override void Destroy()
+        public override void Destroy(bool now = false)
         {
-            //using var timer = Engine.Profiler.Start();
-
-            base.Destroy();
-
-            lock (_apiWrappers)
+            base.Destroy(now);
+            if (now)
             {
-                foreach (var wrapper in APIWrappers)
-                    wrapper.Destroy();
+                lock (_apiWrappers)
+                {
+                    foreach (var wrapper in APIWrappers)
+                        wrapper.Destroy();
+                }
             }
         }
 

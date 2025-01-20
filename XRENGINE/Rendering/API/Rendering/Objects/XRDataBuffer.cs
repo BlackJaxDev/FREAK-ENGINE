@@ -1,4 +1,5 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using Silk.NET.SDL;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using XREngine.Data;
@@ -108,6 +109,8 @@ namespace XREngine.Rendering
         public event DelSetBlockName? SetBlockNameRequested;
         public event DelSetBlockIndex? SetBlockIndexRequested;
         public event Action<VoidPtr>? DataPointerSet;
+        public event Action? BindRequested;
+        public event Action? UnbindRequested;
 
         public XRDataBuffer() { }
         public XRDataBuffer(
@@ -364,6 +367,11 @@ namespace XREngine.Rendering
             => SetBlockNameRequested?.Invoke(program, blockName);
         public void SetBlockIndex(uint blockIndex)
             => SetBlockIndexRequested?.Invoke(blockIndex);
+
+        public void Bind()
+            => BindRequested?.Invoke();
+        public void Unbind()
+            => UnbindRequested?.Invoke();
 
         /// <summary>
         /// Reads the struct value at the given offset into the buffer.

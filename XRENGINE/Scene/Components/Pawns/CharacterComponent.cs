@@ -20,10 +20,12 @@ namespace XREngine.Components
         private Rotator _viewRotation = Rotator.GetZero(ERotationOrder.YPR);
         private float _gamePadMovementInputMultiplier = 200.0f;
         private float _keyboardMovementInputMultiplier = 200.0f;
-        private float _mouseXLookInputMultiplier = 0.3f;
-        private float _mouseYLookInputMultiplier = 0.3f;
-        private float _gamePadXLookInputMultiplier = 2.0f;
-        private float _gamePadYLookInputMultiplier = 2.0f;
+        private float _keyboardLookXInputMultiplier = 200.0f;
+        private float _keyboardLookYInputMultiplier = 200.0f;
+        private float _mouseXLookInputMultiplier = 10.0f;
+        private float _mouseYLookInputMultiplier = 10.0f;
+        private float _gamePadXLookInputMultiplier = 200.0f;
+        private float _gamePadYLookInputMultiplier = 200.0f;
 
         //5'8" in m = 1.72f
         //characterHeight = new FeetInches(5, 8.0f).ToMeters();
@@ -44,11 +46,22 @@ namespace XREngine.Components
 
         protected Vector2 _keyboardMovementInput = Vector2.Zero;
         protected Vector2 _gamepadMovementInput = Vector2.Zero;
+        protected Vector2 _keyboardLookInput = Vector2.Zero;
 
         public float KeyboardMovementInputMultiplier
         {
             get => _keyboardMovementInputMultiplier;
             set => SetField(ref _keyboardMovementInputMultiplier, value);
+        }
+        public float KeyboardLookXInputMultiplier
+        {
+            get => _keyboardLookXInputMultiplier;
+            set => SetField(ref _keyboardLookXInputMultiplier, value);
+        }
+        public float KeyboardLookYInputMultiplier
+        {
+            get => _keyboardLookYInputMultiplier;
+            set => SetField(ref _keyboardLookYInputMultiplier, value);
         }
         public float GamePadMovementInputMultiplier
         {
@@ -76,29 +89,6 @@ namespace XREngine.Components
             set => SetField(ref _gamePadYLookInputMultiplier, value);
         }
 
-        //public virtual void Kill(PawnComponent instigator, PawnComponent killer)
-        //{
-
-        //}
-
-        //public void QueueRespawn(float respawnTimeInSeconds = 0)
-        //    => _respawnTimer.StartSingleFire(WantsRespawn, respawnTimeInSeconds);
-        //protected virtual void WantsRespawn()
-        //    => _respawnTimer.StartMultiFire(AttemptSpawn, 0.1f);
-        private void AttemptSpawn(float totalElapsed, int fireNumber)
-        {
-            //ICharacterGameMode mode = World?.GameMode as ICharacterGameMode;
-            //if (!mode.FindSpawnPoint(Controller, out Matrix4 transform))
-            //    return;
-
-            //_respawnTimer.Stop();
-
-            //if (IsSpawned)
-            //    Engine.World.DespawnActor(this);
-
-            //RootComponent.WorldMatrix.Value = transform;
-            //Engine.World.SpawnActor(this);
-        }
         protected internal override void OnComponentActivated()
         {
             base.OnComponentActivated();
@@ -107,29 +97,9 @@ namespace XREngine.Components
         protected virtual void TickMovementInput()
         {
             var cam = GetCamera();
+            var viewTransform = cam?.Transform ?? Transform;
 
-            Vector3 forward, right;
-            if (cam is not null)
-            {
-                forward = cam.Transform.WorldForward;
-                float dot = forward.Dot(Globals.Up);
-                if (Math.Abs(dot) >= 0.99f)
-                {
-                    //if dot is 1, looking straight up. need to use camera down for forward
-                    //if dot is -1, looking straight down. need to use camera up for forward
-                    forward = dot > 0.0f
-                        ? -cam.Transform.WorldUp
-                        : cam.Transform.WorldUp;
-                }
-                forward.Y = 0.0f;
-                forward = Vector3.Normalize(forward);
-                right = cam.Transform.WorldRight;
-            }
-            else
-            {
-                forward = Transform.WorldForward;
-                right = Transform.WorldRight;
-            }
+            GetDirectionalVectorsFromView(viewTransform, out Vector3 forward, out Vector3 right);
 
             bool keyboardMovement = _keyboardMovementInput.X != 0.0f || _keyboardMovementInput.Y != 0.0f;
             bool gamepadMovement = _gamepadMovementInput.X != 0.0f || _gamepadMovementInput.Y != 0.0f;
@@ -146,17 +116,39 @@ namespace XREngine.Components
                 Movement.AddMovementInput(Engine.Delta * GamePadMovementInputMultiplier * Vector3.Normalize(input));
             }
 
-            //if (gamepadMovement || keyboardMovement)
-            //    _meshComp.Rotation.Yaw = _movement.TargetFrameInputDirection.LookatAngles().Yaw + 180.0f;
+            if (_keyboardLookInput != Vector2.Zero)
+                KeyboardLook(_keyboardLookInput.X, _keyboardLookInput.Y);
 
             if (cam is not null)
-                cam.SceneNode.GetTransformAs<Transform>(true)!.Rotator = _viewRotation;
+            {
+                var tfm = cam.SceneNode.GetTransformAs<Transform>(false);
+                if (tfm != null)
+                    tfm.Rotator = _viewRotation;
+            }
         }
+
+        private static void GetDirectionalVectorsFromView(TransformBase viewTransform, out Vector3 forward, out Vector3 right)
+        {
+            forward = viewTransform.WorldForward;
+            float dot = forward.Dot(Globals.Up);
+            if (Math.Abs(dot) >= 0.99f)
+            {
+                //if dot is 1, looking straight up. need to use camera down for forward
+                //if dot is -1, looking straight down. need to use camera up for forward
+                forward = dot > 0.0f
+                    ? -viewTransform.WorldUp
+                    : viewTransform.WorldUp;
+            }
+            forward.Y = 0.0f;
+            forward = Vector3.Normalize(forward);
+            right = viewTransform.WorldRight;
+        }
+
         public override void RegisterInput(InputInterface input)
         {
             input.HideCursor = !input.Unregister;
 
-            input.RegisterMouseMove(Look, EMouseMoveType.Relative);
+            input.RegisterMouseMove(MouseLook, EMouseMoveType.Relative);
 
             input.RegisterAxisUpdate(EGamePadAxis.LeftThumbstickX, MoveRight, true);
             input.RegisterAxisUpdate(EGamePadAxis.LeftThumbstickY, MoveForward, true);
@@ -170,6 +162,11 @@ namespace XREngine.Components
             input.RegisterKeyStateChange(EKey.A, MoveLeft);
             input.RegisterKeyStateChange(EKey.S, MoveBackward);
             input.RegisterKeyStateChange(EKey.D, MoveRight);
+
+            input.RegisterKeyStateChange(EKey.Right, LookRight);
+            input.RegisterKeyStateChange(EKey.Left, LookLeft);
+            input.RegisterKeyStateChange(EKey.Up, LookUp);
+            input.RegisterKeyStateChange(EKey.Down, LookDown);
 
             input.RegisterKeyEvent(EKey.Space, EButtonInputType.Pressed, Jump);
             input.RegisterKeyEvent(EKey.C, EButtonInputType.Pressed, ToggleCrouch);
@@ -187,8 +184,30 @@ namespace XREngine.Components
             LocalInput.HideCursor = !LocalInput.HideCursor;
         }
 
-        private void Quit()
+        protected virtual void Quit()
             => Engine.ShutDown();
+
+        protected virtual void Jump()
+            => Movement.Jump();
+
+        protected virtual void ToggleCrouch()
+            => Movement.CrouchState = Movement.CrouchState == CharacterMovement3DComponent.ECrouchState.Crouched
+                ? CharacterMovement3DComponent.ECrouchState.Standing
+                : CharacterMovement3DComponent.ECrouchState.Crouched;
+
+        protected virtual void ToggleProne()
+            => Movement.CrouchState = Movement.CrouchState == CharacterMovement3DComponent.ECrouchState.Prone
+                ? CharacterMovement3DComponent.ECrouchState.Standing
+                : CharacterMovement3DComponent.ECrouchState.Prone;
+
+        private void LookLeft(bool pressed)
+            => _keyboardLookInput.X += pressed ? -1.0f : 1.0f;
+        private void LookRight(bool pressed)
+            => _keyboardLookInput.X += pressed ? 1.0f : -1.0f;
+        private void LookDown(bool pressed)
+            => _keyboardLookInput.Y += pressed ? -1.0f : 1.0f;
+        private void LookUp(bool pressed)
+            => _keyboardLookInput.Y += pressed ? 1.0f : -1.0f;
 
         protected virtual void MoveForward(bool pressed)
             => _keyboardMovementInput.Y += pressed ? 1.0f : -1.0f;
@@ -199,41 +218,37 @@ namespace XREngine.Components
         protected virtual void MoveBackward(bool pressed)
             => _keyboardMovementInput.Y += pressed ? -1.0f : 1.0f;
 
-        protected virtual void Jump()
-            => Movement.Jump();
-
-        protected virtual void ToggleCrouch()
-            => Movement.CrouchState = Movement.CrouchState == CharacterMovement3DComponent.ECrouchState.Crouched 
-                ? CharacterMovement3DComponent.ECrouchState.Standing
-                : CharacterMovement3DComponent.ECrouchState.Crouched;
-
-        protected virtual void ToggleProne()
-            => Movement.CrouchState = Movement.CrouchState == CharacterMovement3DComponent.ECrouchState.Prone
-                ? CharacterMovement3DComponent.ECrouchState.Standing
-                : CharacterMovement3DComponent.ECrouchState.Prone;
-
         protected virtual void MoveRight(float value)
             => _gamepadMovementInput.X = value;
         protected virtual void MoveForward(float value)
             => _gamepadMovementInput.Y = value;
 
-        protected virtual void Look(float x, float y)
+        protected virtual void MouseLook(float x, float y)
         {
-            _viewRotation.Pitch += y * MouseYLookInputMultiplier;
-            _viewRotation.Yaw -= x * MouseXLookInputMultiplier;
+            _viewRotation.Pitch += Engine.Delta * y * MouseYLookInputMultiplier;
+            _viewRotation.Yaw -= Engine.Delta * x * MouseXLookInputMultiplier;
             ClampPitch();
             RemapYaw();
         }
+        protected virtual void KeyboardLook(float x, float y)
+        {
+            _viewRotation.Pitch += Engine.Delta * y * KeyboardLookYInputMultiplier;
+            _viewRotation.Yaw -= Engine.Delta * x * KeyboardLookXInputMultiplier;
+            ClampPitch();
+            RemapYaw();
+        }
+
         protected virtual void LookRight(float value)
         {
-            _viewRotation.Yaw -= value * GamePadXLookInputMultiplier;
+            _viewRotation.Yaw -= Engine.Delta * value * GamePadXLookInputMultiplier;
             RemapYaw();
         }
         protected virtual void LookUp(float value)
         {
-            _viewRotation.Pitch += value * GamePadYLookInputMultiplier;
+            _viewRotation.Pitch += Engine.Delta * value * GamePadYLookInputMultiplier;
             ClampPitch();
         }
+
         private void ClampPitch()
         {
             if (_viewRotation.Pitch > 89.0f)
@@ -249,5 +264,26 @@ namespace XREngine.Components
             else if (_viewRotation.Yaw < -180.0f)
                 _viewRotation.Yaw += 360.0f;
         }
+
+        //public virtual void Kill(PawnComponent instigator, PawnComponent killer) { }
+        //public void QueueRespawn(float respawnTimeInSeconds = 0)
+        //    => _respawnTimer.StartSingleFire(WantsRespawn, respawnTimeInSeconds);
+        //protected virtual void WantsRespawn()
+        //    => _respawnTimer.StartMultiFire(AttemptSpawn, 0.1f);
+
+        //private void AttemptSpawn(float totalElapsed, int fireNumber)
+        //{
+        //    ICharacterGameMode mode = World?.GameMode as ICharacterGameMode;
+        //    if (!mode.FindSpawnPoint(Controller, out Matrix4 transform))
+        //        return;
+
+        //    _respawnTimer.Stop();
+
+        //    if (IsSpawned)
+        //        Engine.World.DespawnActor(this);
+
+        //    RootComponent.WorldMatrix.Value = transform;
+        //    World.SpawnActor(this);
+        //}
     }
 }

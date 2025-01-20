@@ -14,6 +14,8 @@ namespace XREngine.Rendering.OpenGL
                 Data.PushSubDataRequested -= PushSubData;
                 Data.SetBlockNameRequested -= SetUniformBlockName;
                 Data.SetBlockIndexRequested -= SetBlockIndex;
+                Data.BindRequested -= Bind;
+                Data.UnbindRequested -= Unbind;
             }
             protected override void LinkData()
             {
@@ -21,6 +23,8 @@ namespace XREngine.Rendering.OpenGL
                 Data.PushSubDataRequested += PushSubData;
                 Data.SetBlockNameRequested += SetUniformBlockName;
                 Data.SetBlockIndexRequested += SetBlockIndex;
+                Data.BindRequested += Bind;
+                Data.UnbindRequested += Unbind;
             }
 
             public override GLObjectType Type => GLObjectType.Buffer;

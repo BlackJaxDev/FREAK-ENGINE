@@ -40,41 +40,12 @@ namespace XREngine.Rendering.Pipelines.Commands
         private uint _lastWidth = 0u;
         private uint _lastHeight = 0u;
 
-        private void ResizeFBOs(uint width, uint height)
-        {
-            width = Math.Max(1u, width);
-            height = Math.Max(1u, height);
-
-            Debug.Out($"Resizing bloom pass FBOs to {width} x {height}.");
-
-            _lastWidth = width;
-            _lastHeight = height;
-
-            BloomRect16.Width = (int)(width * 0.0625f);
-            BloomRect16.Height = (int)(height * 0.0625f);
-            BloomRect8.Width = (int)(width * 0.125f);
-            BloomRect8.Height = (int)(height * 0.125f);
-            BloomRect4.Width = (int)(width * 0.25f);
-            BloomRect4.Height = (int)(height * 0.25f);
-            BloomRect2.Width = (int)(width * 0.5f);
-            BloomRect2.Height = (int)(height * 0.5f);
-
-            var outputTexture = Pipeline.GetTexture<XRTexture2D>(BloomOutputTextureName);
-            if (outputTexture is null)
-            {
-                Debug.Out($"Failed to resize bloom pass FBOs. Output texture not found.");
-                return;
-            }
-
-            outputTexture.Resize(width, height);
-        }
-
         private void RegenerateFBOs(uint width, uint height)
         {
             width = Math.Max(1u, width);
             height = Math.Max(1u, height);
 
-            Debug.Out($"Regenerating bloom pass FBOs at {width} x {height}.");
+            //Debug.Out($"Regenerating bloom pass FBOs at {width} x {height}.");
 
             _lastWidth = width;
             _lastHeight = height;
@@ -197,8 +168,12 @@ namespace XREngine.Rendering.Pipelines.Commands
         }
         private static void BloomBlur(XRQuadFrameBuffer fbo, int mipmap, float dir)
         {
-            fbo.Material.Parameter<ShaderFloat>(0)!.Value = dir;
-            fbo.Material.Parameter<ShaderInt>(1)!.Value = mipmap;
+            var mat = fbo.Material;
+            if (mat is not null)
+            {
+                mat.SetFloat(0, dir);
+                mat.SetInt(1, mipmap);
+            }
             fbo.Render();
         }
     }

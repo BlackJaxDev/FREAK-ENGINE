@@ -24,10 +24,12 @@ namespace XREngine.Timers
         private const float MaxFrequency = 1000.0f; // Frequency cap for Update/RenderFrame events
 
         //Events to subscribe to
+        public event Action? PreUpdateFrame;
         /// <summary>
         /// Subscribe to this event for game logic updates.
         /// </summary>
         public event Action? UpdateFrame;
+        public event Action? PostUpdateFrame;
         /// <summary>
         /// Subscribe to this event to execute logic on the render thread right before buffers are swapped.
         /// </summary>
@@ -271,7 +273,10 @@ namespace XREngine.Timers
             {
                 Update.Delta = elapsed;
                 Update.LastTimestamp = timestamp;
+
+                PreUpdateFrame?.Invoke();
                 UpdateFrame?.Invoke();
+                PostUpdateFrame?.Invoke();
 
                 timestamp = Time();
                 Update.ElapsedTime = timestamp - Update.LastTimestamp;

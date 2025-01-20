@@ -24,7 +24,7 @@ namespace XREngine.Components
         private Func<Vector3, Vector3>? _subUpdateTick;
         private ECrouchState _crouchState = ECrouchState.Standing;
         private float _invisibleWallHeight = 0.0f;
-        private float _density = 10.0f;
+        private float _density = 0.5f;
         private float _scaleCoeff = 0.8f;
         private float _volumeGrowth = 1.5f;
         private bool _slideOnSteepSlopes = true;

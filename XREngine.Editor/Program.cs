@@ -53,7 +53,9 @@ internal class Program
     public const bool DeferredDecal = true;
     public const bool StaticModel = false;
     public const bool AnimatedModel = false;
-    public const bool AddEditorUI = true;
+    public const bool AddEditorUI = false;
+    public const bool VRPawn = true;
+    public const bool CharacterPawn = true;
 
     /// <summary>
     /// This project serves as a hardcoded game client for development purposes.
@@ -96,7 +98,7 @@ internal class Program
         int primaryX = NativeMethods.GetSystemMetrics(0);
         int primaryY = NativeMethods.GetSystemMetrics(1);
 
-        return new VRGameStartupSettings<EVRActionCategory, EVRGameAction>()
+        var settings = new VRGameStartupSettings<EVRActionCategory, EVRGameAction>()
         {
             StartupWindows =
             [
@@ -119,18 +121,22 @@ internal class Program
             },
             TargetUpdatesPerSecond = updateHz,
             FixedFramesPerSecond = fixedHz,
-            //ActionManifest = new ActionManifest<EVRActionCategory, EVRGameAction>()
-            //{
-            //    Actions = GetActions(),
-            //},
-            //VRManifest = new VrManifest()
-            //{
-            //    AppKey = "XRE.VR.Test",
-            //    IsDashboardOverlay = false,
-            //    WindowsPath = Environment.ProcessPath,
-            //    WindowsArguments = "",
-            //},
         };
+        if (VRPawn)
+        {
+            settings.ActionManifest = new ActionManifest<EVRActionCategory, EVRGameAction>()
+            {
+                Actions = GetActions(),
+            };
+            settings.VRManifest = new VrManifest()
+            {
+                AppKey = "XRE.VR.Test",
+                IsDashboardOverlay = false,
+                WindowsPath = Environment.ProcessPath,
+                WindowsArguments = "",
+            };
+        }
+        return settings;
     }
 
     static XRWorld CreateTestWorld()
@@ -152,11 +158,21 @@ internal class Program
         if (VisualizeOctree)
             rootNode.AddComponent<DebugVisualizeOctreeComponent>();
 
-        //SceneNode cameraNode = CreateCamera(rootNode, out var camComp);
-        //var pawn = CreateDesktopViewerPawn(cameraNode);
-        //CreateUserInterface(rootNode, camComp, pawn);
-        SceneNode cameraNode = CreateDesktopCharacterPawn(rootNode);
-        //CreateVRPawn(rootNode);
+        if (VRPawn)
+        {
+            if (CharacterPawn)
+                CreateCharacterVRPawn(rootNode);
+            else
+                CreateFlyingVRPawn(rootNode);
+        }
+        else if (CharacterPawn)
+            CreateDesktopCharacterPawn(rootNode);
+        else
+        {
+            SceneNode cameraNode = CreateCamera(rootNode, out var camComp);
+            var pawn = CreateDesktopViewerPawn(cameraNode);
+            CreateUserInterface(rootNode, camComp, pawn);
+        }
 
         if (DirLight)
             AddDirLight(rootNode);
@@ -175,7 +191,7 @@ internal class Program
             XRTexture2D skyEquirect = Engine.Assets.LoadEngineAsset<XRTexture2D>("Textures", $"{names[r.Next(0, names.Length - 1)]}.exr");
 
             if (LightProbe)
-                AddLightProbe(rootNode, skyEquirect);
+                AddLightProbe(rootNode);
             if (Skybox)
                 AddSkybox(rootNode, skyEquirect);
         }
@@ -187,6 +203,84 @@ internal class Program
             AddDeferredDecal(rootNode);
         ImportModels(desktopDir, rootNode);
         return world;
+    }
+
+    private static void CreateCharacterVRPawn(SceneNode rootNode)
+    {
+        SceneNode vrPlayspaceNode = new(rootNode) { Name = "VRPlayspaceNode" };
+        var characterTfm = vrPlayspaceNode.SetTransform<RigidBodyTransform>();
+        characterTfm.InterpolationMode = EInterpolationMode.Interpolate;
+
+        var characterComp = vrPlayspaceNode.AddComponent<CharacterComponent>();
+        var movementComp = vrPlayspaceNode.AddComponent<CharacterMovement3DComponent>();
+        movementComp!.StandingHeight = 1.89f;
+        movementComp!.SpawnPosition = new Vector3(0.0f, 10.0f, 0.0f);
+        movementComp.Velocity = new Vector3(0.0f, 0.0f, 0.0f);
+        movementComp.JumpSpeed = 3.0f;
+        //movementComp.GravityOverride = new Vector3(0.0f, -0.1f, 0.0f);
+        movementComp.InputLerpSpeed = 0.5f;
+        characterComp!.Name = "TestPawn";
+        characterComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
+
+        AddHeadsetNode(vrPlayspaceNode);
+        AddHandControllerNode(vrPlayspaceNode, true);
+        AddHandControllerNode(vrPlayspaceNode, false);
+    }
+
+    private static void AddHandControllerNode(SceneNode parentNode, bool left)
+    {
+        SceneNode leftControllerNode = new(parentNode) { Name = "VRLeftControllerNode" };
+        var leftControllerTfm = leftControllerNode.SetTransform<VRControllerTransform>();
+        leftControllerTfm.LeftHand = left;
+        var leftControllerModel = leftControllerNode.AddComponent<VRControllerModelComponent>()!;
+        leftControllerModel.LeftHand = left;
+    }
+
+    private static void CreateFlyingVRPawn(SceneNode rootNode)
+    {
+        SceneNode vrPlayspaceNode = new(rootNode) { Name = "VRPlayspaceNode" };
+        var playspaceTfm = vrPlayspaceNode.SetTransform<Transform>();
+        //playspaceTfm.ApplyScale(new Vector3(10.0f));
+
+        AddHeadsetNode(vrPlayspaceNode);
+        AddHandControllerNode(vrPlayspaceNode, true);
+        AddHandControllerNode(vrPlayspaceNode, false);
+    }
+
+    private static void AddHeadsetNode(SceneNode parentNode)
+    {
+        SceneNode vrHeadsetNode = new(parentNode) { Name = "VRHeadsetNode" };
+        vrHeadsetNode.AddComponent<AudioListenerComponent>();
+        var hmdTfm = vrHeadsetNode.SetTransform<VRHeadsetTransform>();
+        var hmdComp = vrHeadsetNode.AddComponent<VRHeadsetComponent>()!;
+    }
+
+    private static SceneNode CreateDesktopCharacterPawn(SceneNode rootNode)
+    {
+        SceneNode characterNode = new(rootNode) { Name = "TestPlayerNode" };
+        var characterTfm = characterNode.SetTransform<RigidBodyTransform>();
+        characterTfm.InterpolationMode = EInterpolationMode.Interpolate;
+
+        //create node to translate camera up half the height of the character
+        SceneNode cameraOffsetNode = new(characterNode) { Name = "TestCameraOffsetNode" };
+        var cameraOffsetTfm = cameraOffsetNode.SetTransform<Transform>();
+        cameraOffsetTfm.Translation = new Vector3(0.0f, 1.0f, 0.0f);
+
+        SceneNode cameraNode = CreateCamera(cameraOffsetNode, out CameraComponent? camComp, false);
+        cameraNode.AddComponent<AudioListenerComponent>();
+
+        var characterComp = characterNode.AddComponent<CharacterComponent>();
+        characterComp!.CameraComponent = camComp;
+        var movementComp = characterNode.AddComponent<CharacterMovement3DComponent>();
+        movementComp!.StandingHeight = 1.89f;
+        movementComp!.SpawnPosition = new Vector3(0.0f, 10.0f, 0.0f);
+        movementComp.Velocity = new Vector3(0.0f, 0.0f, 0.0f);
+        movementComp.JumpSpeed = 0.5f;
+        movementComp.GravityOverride = new Vector3(0.0f, -1.0f, 0.0f);
+        movementComp.InputLerpSpeed = 0.2f;
+        characterComp!.Name = "TestPawn";
+        characterComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
+        return cameraNode;
     }
 
     private static void AddDeferredDecal(SceneNode rootNode)
@@ -305,59 +399,6 @@ internal class Program
             new("Window"),
             new("Help"),
         ];
-    }
-
-    private static void CreateVRPawn(SceneNode rootNode)
-    {
-        SceneNode vrPlayspaceNode = new(rootNode) { Name = "VRPlayspaceNode" };
-        var playspaceTfm = vrPlayspaceNode.SetTransform<Transform>();
-        //playspaceTfm.ApplyScale(new Vector3(10.0f));
-
-        SceneNode vrHeadsetNode = new(vrPlayspaceNode) { Name = "VRHeadsetNode" };
-        var hmdTfm = vrHeadsetNode.SetTransform<VRHeadsetTransform>();
-        var hmdComp = vrHeadsetNode.AddComponent<VRHeadsetComponent>()!;
-
-        SceneNode leftControllerNode = new(vrPlayspaceNode) { Name = "VRLeftControllerNode" };
-        var leftControllerTfm = leftControllerNode.SetTransform<VRControllerTransform>();
-        leftControllerTfm.LeftHand = true;
-        //Add debug sphere to left controller
-        var leftControllerModel = leftControllerNode.AddComponent<VRControllerModelComponent>()!;
-        leftControllerModel.LeftHand = true;
-
-        SceneNode rightControllerNode = new(vrPlayspaceNode) { Name = "VRRightControllerNode" };
-        var rightControllerTfm = rightControllerNode.SetTransform<VRControllerTransform>();
-        rightControllerTfm.LeftHand = false;
-        //Add debug sphere to right controller
-        var rightControllerModel = rightControllerNode.AddComponent<VRControllerModelComponent>()!;
-        rightControllerModel.LeftHand = false;
-    }
-
-    private static SceneNode CreateDesktopCharacterPawn(SceneNode rootNode)
-    {
-        SceneNode characterNode = new(rootNode) { Name = "TestPlayerNode" };
-        var characterTfm = characterNode.SetTransform<RigidBodyTransform>();
-        characterTfm.InterpolationMode = EInterpolationMode.Interpolate;
-
-        //create node to translate camera up half the height of the character
-        SceneNode cameraOffsetNode = new(characterNode) { Name = "TestCameraOffsetNode" };
-        var cameraOffsetTfm = cameraOffsetNode.SetTransform<Transform>();
-        cameraOffsetTfm.Translation = new Vector3(0.0f, 1.0f, 0.0f);
-
-        SceneNode cameraNode = CreateCamera(cameraOffsetNode, out CameraComponent? camComp, false);
-        cameraNode.AddComponent<AudioListenerComponent>();
-
-        var characterComp = characterNode.AddComponent<CharacterComponent>();
-        characterComp!.CameraComponent = camComp;
-        var movementComp = characterNode.AddComponent<CharacterMovement3DComponent>();
-        movementComp!.StandingHeight = 1.89f;
-        movementComp!.SpawnPosition = new Vector3(0.0f, 10.0f, 0.0f);
-        movementComp.Velocity = new Vector3(0.0f, 0.0f, 0.0f);
-        movementComp.JumpSpeed = 3.0f;
-        //movementComp.GravityOverride = new Vector3(0.0f, -0.1f, 0.0f);
-        movementComp.InputLerpSpeed = 0.5f;
-        characterComp!.Name = "TestPawn";
-        characterComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
-        return cameraNode;
     }
 
     private static void AddPhysics(SceneNode rootNode)
@@ -596,8 +637,8 @@ internal class Program
     private static void AddSoundNode(SceneNode rootNode)
     {
         var sound = new SceneNode(rootNode) { Name = "TestSoundNode" };
-        var soundTransform = sound.SetTransform<Transform>();
-        soundTransform.Translation = new Vector3(0.0f, 0.0f, 0.0f);
+        //var soundTransform = sound.SetTransform<Transform>();
+        //soundTransform.Translation = new Vector3(0.0f, 0.0f, 0.0f);
         if (!sound.TryAddComponent<AudioSourceComponent>(out var soundComp))
             return;
         
@@ -608,14 +649,14 @@ internal class Program
         soundComp.ReferenceDistance = 1.0f;
         soundComp.MaxDistance = 100.0f;
         soundComp.RolloffFactor = 1.0f;
-        soundComp.Gain = 0.5f;
+        soundComp.Gain = 1.0f;
         soundComp.Loop = true;
         soundComp.Type = ESourceType.Static;
         soundComp.StaticBuffer = data;
         soundComp.PlayOnActivate = true;
     }
 
-    private static void AddLightProbe(SceneNode rootNode, XRTexture2D skyEquirect)
+    private static void AddLightProbe(SceneNode rootNode)
     {
         var probe = new SceneNode(rootNode) { Name = "TestLightProbeNode" };
         var probeTransform = probe.SetTransform<Transform>();
@@ -624,21 +665,10 @@ internal class Program
             return;
         
         probeComp!.Name = "TestLightProbe";
-        //probeComp.ColorResolution = 512;
-        //probeComp.EnvironmentTextureEquirect = skyEquirect;
-        //Engine.EnqueueMainThreadTask(probeComp.GenerateIrradianceMap);
-        //Engine.EnqueueMainThreadTask(probeComp.GeneratePrefilterMap);
-
         probeComp.SetCaptureResolution(128, false);
         probeComp.RealtimeCapture = true;
-        probeComp.PreviewDisplay = LightProbeComponent.ERenderPreview.Prefilter;
-        probeComp.RealTimeCaptureUpdateInterval = TimeSpan.FromSeconds(2.0f);
-
-        //Task.Run(async () =>
-        //{
-        //    await Task.Delay(2000);
-        //    Engine.EnqueueMainThreadTask(probeComp.Capture);
-        //});
+        probeComp.PreviewDisplay = LightProbeComponent.ERenderPreview.Irradiance;
+        probeComp.RealTimeCaptureUpdateInterval = TimeSpan.FromSeconds(1.0f);
     }
 
     private static async void ImportModels(string desktopDir, SceneNode rootNode)

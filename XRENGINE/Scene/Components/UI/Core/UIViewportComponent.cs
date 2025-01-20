@@ -1,4 +1,7 @@
-﻿using XREngine.Data.Rendering;
+﻿using Extensions;
+using XREngine.Data.Core;
+using XREngine.Data.Geometry;
+using XREngine.Data.Rendering;
 
 namespace XREngine.Rendering.UI
 {
@@ -12,7 +15,7 @@ namespace XREngine.Rendering.UI
         private readonly XRMaterialFrameBuffer _fbo;
 
         //These bools are to prevent infinite pre-rendering recursion
-        private bool _updating = false;
+        private bool _collecting = false;
         private bool _swapping = false;
         private bool _rendering = false;
 
@@ -22,10 +25,6 @@ namespace XREngine.Rendering.UI
 
             if (RenderCommand3D.Mesh is not null)
                 RenderCommand3D.Mesh.SettingUniforms += SetUniforms;
-
-            Engine.Time.Timer.SwapBuffers += SwapBuffers;
-            //Engine.Time.Timer.UpdateFrame += Update;
-            Engine.Time.Timer.RenderFrame += Render;
         }
 
         private static XRMaterial GetViewportMaterial()
@@ -40,26 +39,60 @@ namespace XREngine.Rendering.UI
             => SettingUniforms?.Invoke(materialProgram);
 
         public XRViewport Viewport { get; private set; } = new XRViewport(null, 1, 1);
-        //protected override void OnResizeLayout(BoundingRectangle parentRegion)
-        //{
-        //    base.OnResizeLayout(parentRegion);
 
-        //    int
-        //        w = (int)ActualWidth.ClampMin(1.0f),
-        //        h = (int)ActualHeight.ClampMin(1.0f);
-
-        //    Viewport.Resize(w, h);
-        //    _fbo.Resize(w, h);
-        //}
-
-        public void Update(XRCamera camera)
+        protected override void UITransformPropertyChanged(object? sender, IXRPropertyChangedEventArgs e)
         {
-            if (!IsActive || _updating)
+            base.UITransformPropertyChanged(sender, e);
+            switch (e.PropertyName)
+            {
+                case nameof(UIBoundableTransform.AxisAlignedRegion):
+                    UpdateSize();
+                    break;
+            }
+        }
+
+        protected internal override void OnComponentActivated()
+        {
+            base.OnComponentActivated();
+
+            Engine.Time.Timer.SwapBuffers += SwapBuffers;
+            Engine.Time.Timer.CollectVisible += CollectVisible;
+            Engine.Time.Timer.RenderFrame += Render;
+        }
+        protected internal override void OnComponentDeactivated()
+        {
+            base.OnComponentDeactivated();
+
+            Engine.Time.Timer.SwapBuffers -= SwapBuffers;
+            Engine.Time.Timer.CollectVisible -= CollectVisible;
+            Engine.Time.Timer.RenderFrame -= Render;
+        }
+
+        protected override void OnTransformChanged()
+        {
+            base.OnTransformChanged();
+            UpdateSize();
+        }
+
+        private void UpdateSize()
+        {
+            var tfm = BoundableTransform;
+            uint w = (uint)tfm.AxisAlignedRegion.Width;
+            uint h = (uint)tfm.AxisAlignedRegion.Height;
+            w = w.ClampMin(1u);
+            h = h.ClampMin(1u);
+            Viewport.Resize(w, h);
+            _fbo.Resize(w, h);
+        }
+
+        public void CollectVisible()
+        {
+            if (!IsActive || _collecting)
                 return;
 
-            _updating = true;
-            //Viewport.PreRenderUpdate();
-            _updating = false;
+            _collecting = true;
+            Viewport.CollectVisible(null, null, false);
+            _collecting = false;
         }
         public void SwapBuffers()
         {
@@ -67,7 +100,7 @@ namespace XREngine.Rendering.UI
                 return;
 
             _swapping = true;
-            //Viewport.PreRenderSwap();
+            Viewport.SwapBuffers(false);
             _swapping = false;
         }
         public void Render()
@@ -76,7 +109,7 @@ namespace XREngine.Rendering.UI
                 return;
 
             _rendering = true;
-            //Viewport.Render(_fbo);
+            Viewport.Render(_fbo, null, null, false);
             _rendering = false;
         }
     }

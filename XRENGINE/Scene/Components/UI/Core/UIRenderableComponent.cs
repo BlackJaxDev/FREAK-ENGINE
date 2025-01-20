@@ -122,7 +122,7 @@ namespace XREngine.Rendering.UI
             }
         }
 
-        private void OnMaterialSettingUniforms(XRMaterialBase material, XRRenderProgram program)
+        protected virtual void OnMaterialSettingUniforms(XRMaterialBase material, XRRenderProgram program)
         {
             var m = Material;
             if (m is null)
@@ -141,16 +141,23 @@ namespace XREngine.Rendering.UI
             base.UITransformPropertyChanged(sender, e);
             switch (e.PropertyName)
             {
-                //case nameof(UIBoundableTransform.ActualWidth):
-                //case nameof(UIBoundableTransform.ActualHeight):
                 case nameof(ClipToBounds):
-                case nameof(UIBoundableTransform.AxisAlignedRegion):
+                    //Toggle setting the region here
                     RenderCommand2D.WorldCropRegion = ClipToBounds ? BoundableTransform.AxisAlignedRegion.AsBoundingRectangle() : null;
+                    break;
+                case nameof(UIBoundableTransform.AxisAlignedRegion):
+                    //But only update the crop region if we're clipping to bounds
+                    if (ClipToBounds)
+                        RenderCommand2D.WorldCropRegion = BoundableTransform.AxisAlignedRegion.AsBoundingRectangle();
                     break;
             }
         }
 
         private bool _clipToBounds = false;
+        /// <summary>
+        /// If true, this UI component will be scissor-tested (cropped) to its bounds.
+        /// Any pixels outside of the bounds will not be rendered, which is useful for things like text or scrolling regions.
+        /// </summary>
         public bool ClipToBounds
         {
             get => _clipToBounds;

@@ -6,11 +6,9 @@ using XREngine.Data.Rendering;
 
 namespace XREngine.Rendering.UI
 {
-    /// <summary>
-    /// Houses a viewport that renders a scene from a designated camera.
-    /// </summary>
     public unsafe class UIVideoComponent : UIMaterialComponent
     {
+        //Optional AudioSourceComponent for audio streaming
         public AudioSourceComponent? AudioSource => GetSiblingComponent<AudioSourceComponent>();
 
         private readonly XRMaterialFrameBuffer _fbo;
@@ -268,10 +266,7 @@ namespace XREngine.Rendering.UI
 
             mip.Invalidate();
 
-            // Free the AVFrame.
             ffmpeg.av_frame_free(&rgbFrame);
-
-            // Free the SwsContext.
             ffmpeg.sws_freeContext(swsContext);
         }
 
@@ -286,8 +281,6 @@ namespace XREngine.Rendering.UI
         {
             // Bind the PBO
             XRDataBuffer pbo = _pboBuffers[_currentPboIndex];
-
-            //TODO: move double PBO uploading into XRTexture2D for easy PBO usage anywhere
 
             //pbo.Bind();
             pbo.MapBufferData();

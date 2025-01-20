@@ -47,7 +47,7 @@ namespace XREngine.Rendering
         /// This is the program that represents this material.
         /// Will only be set if the renderer is using shader pipelines, so it can be combined later.
         /// May contain all kinds of shaders, including vertex, fragment, geometry, compute, etc.
-        /// If contains a vertex shader, the default generated vertex shader will not be used.
+        /// If it contains a vertex shader, the default generated vertex shader will not be used.
         /// </summary>
         public XRRenderProgram? ShaderPipelineProgram
         {
@@ -199,57 +199,5 @@ namespace XREngine.Rendering
             if (param is not null)
                 param.Value = value;
         }
-
-        public Dictionary<string, XRFrameBuffer> GrabPasses { get; } = [];
-
-        //public void AddGrabPass(string name, uint w, uint h)
-        //{
-        //    XRTexture2D t = XRTexture2D.CreateFrameBufferTexture(w, h, EPixelInternalFormat.Rgba8, EPixelFormat.Rgba, EPixelType.UnsignedByte);
-        //    //t.SizedInternalFormat = ESizedInternalFormat.Rgba8;
-        //    //t.Resizable = true;
-        //    t.MinFilter = ETexMinFilter.Linear;
-        //    t.MagFilter = ETexMagFilter.Linear;
-        //    t.UWrap = ETexWrapMode.ClampToEdge;
-        //    t.VWrap = ETexWrapMode.ClampToEdge;
-        //    t.Name = name;
-        //    var fbo = new XRFrameBuffer((t, EFrameBufferAttachment.ColorAttachment0, 0, -1));
-        //    GrabPasses[name] = fbo;
-        //}
-        //public void DestroyGrabPass(string name)
-        //{
-        //    if (!GrabPasses.TryGetValue(name, out var fbo))
-        //        return;
-            
-        //    fbo.Destroy();
-        //    GrabPasses.Remove(name);
-        //}
-        //public void DestroyAllGrabPasses()
-        //{
-        //    foreach (var fbo in GrabPasses.Values)
-        //        fbo.Destroy();
-        //    GrabPasses.Clear();
-        //}
-
-        //public XRTexture2D? GrabPass(
-        //    XRFrameBuffer inFBO,
-        //    string name,
-        //    EReadBufferMode readBuffer = EReadBufferMode.ColorAttachment0,
-        //    bool colorBit = true,
-        //    bool depthBit = false,
-        //    bool stencilBit = false,
-        //    bool linearFilter = true,
-        //    bool resizeToFit = true)
-        //{
-        //    var rend = AbstractRenderer.Current;
-        //    if (rend is null || inFBO is null || !GrabPasses.TryGetValue(name, out var outFBO))
-        //        return null;
-        //    if (resizeToFit && (inFBO.Width != outFBO.Width || inFBO.Height != outFBO.Height))
-        //        outFBO.Resize(inFBO.Width, inFBO.Height);
-        //    rend.BlitFBO(inFBO, outFBO, readBuffer, colorBit, depthBit, stencilBit, linearFilter);
-        //    return outFBO.Targets?[0].Target as XRTexture2D;
-        //}
-
-        //public XRFrameBuffer? GetGrabPassResult(string name)
-        //    => GrabPasses.TryGetValue(name, out var fbo) ? fbo : null;
     }
 }

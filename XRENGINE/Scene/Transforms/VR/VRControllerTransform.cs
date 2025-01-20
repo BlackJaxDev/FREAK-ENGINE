@@ -10,9 +10,21 @@ namespace XREngine.Data.Components.Scene
     /// <param name="parent"></param>
     public class VRControllerTransform : TransformBase
     {
-        public VRControllerTransform() { MarkLocalModified(); }
+        public VRControllerTransform()
+        { 
+            Engine.VRState.RecalcMatrixOnDraw += VRState_RecalcMatrixOnDraw;
+        }
+
         public VRControllerTransform(TransformBase parent)
-            : base(parent) { MarkLocalModified(); }
+            : base(parent)
+        {
+            Engine.VRState.RecalcMatrixOnDraw += VRState_RecalcMatrixOnDraw;
+        }
+
+        private void VRState_RecalcMatrixOnDraw()
+        {
+            ParallelDepthRecalculate();
+        }
 
         private bool _leftHand;
         public bool LeftHand
@@ -27,11 +39,11 @@ namespace XREngine.Data.Components.Scene
 
         protected override Matrix4x4 CreateLocalMatrix()
         {
-            MarkLocalModified();
+            //MarkLocalModified();
             var controller = Controller;
             return controller is null
                 ? Matrix4x4.Identity
-                : Matrix4x4.CreateFromQuaternion(controller.Rotation) * Matrix4x4.CreateTranslation(controller.Position);
+                : controller.RenderDeviceToAbsoluteTrackingMatrix;
         }
 
     }
