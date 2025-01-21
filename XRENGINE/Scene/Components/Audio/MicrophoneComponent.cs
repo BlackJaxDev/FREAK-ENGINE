@@ -128,7 +128,7 @@ namespace XREngine.Components.Scene
             }
 
             if (buffersQueued)
-                BroadcastProperyUpdated(nameof(BufferQueue), BufferQueue, true);
+                EnqueuePropertyReplication(nameof(BufferQueue), BufferQueue, true);
         }
 
         private void Queue()

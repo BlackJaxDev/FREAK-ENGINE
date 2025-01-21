@@ -65,7 +65,7 @@ namespace XREngine
             materials = importer._materials;
             meshes = importer._meshes;
             if (parent != null && node != null)
-                parent.Transform.AddChild(node.Transform);
+                parent.Transform.AddChild(node.Transform, false, false);
             return node;
         }
         public static async Task<(SceneNode? rootNode, IReadOnlyCollection<XRMaterial> materials, IReadOnlyCollection<XRMesh> meshes)> ImportAsync(
@@ -113,6 +113,7 @@ namespace XREngine
 
             Debug.Out($"Loaded scene in {sw.ElapsedMilliseconds / 1000.0f} sec from {SourceFilePath} with options: {options}");
             SceneNode rootNode = new(Path.GetFileNameWithoutExtension(SourceFilePath));
+
             ProcessNode(true, scene.RootNode, scene, rootNode, Matrix4x4.Identity, null, null, removeAssimpFBXNodes);
             //Debug.Out(rootNode.PrintTree());
 
@@ -135,11 +136,11 @@ namespace XREngine
 #endif
                     _onCompleted?.Invoke();
                 }
-                Task.Run(ProcessMeshesSequential).ContinueWith(Complete);
+                Task.Run(ProcessMeshesParallel).ContinueWith(Complete);
             }
             else
             {
-                ProcessMeshesSequential();
+                ProcessMeshesParallel();
 #if DEBUG
                 sw.Stop();
                 Debug.Out($"Model imported synchronously in {sw.ElapsedMilliseconds / 1000.0f} sec.");
@@ -235,8 +236,8 @@ namespace XREngine
 
             SceneNode sceneNode = new(parentSceneNode, name);
             sceneNode.Transform.DeriveLocalMatrix(localTransform);
-            //sceneNode.Transform.RecalcLocal();
-            //sceneNode.Transform.RecalcWorld(false);
+            sceneNode.Transform.RecalcLocal();
+            sceneNode.Transform.RecalcWorld(false);
 
             if (_nodeCache.TryGetValue(name, out List<SceneNode>? nodes))
                 nodes.Add(sceneNode);

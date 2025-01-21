@@ -1,18 +1,31 @@
-﻿using System.Reflection;
+﻿using System.Collections.Concurrent;
+using System.Reflection;
 using XREngine.Components;
 using XREngine.Data.Core;
 using XREngine.Rendering;
 
 namespace XREngine
 {
+    /// <summary>
+    /// Indicates that this property should be replicated to the network on every tick.
+    /// Use for properties that change frequently - UDP protocol will be used.
+    /// The SetField method is not required to change the property value.
+    /// </summary>
+    /// <param name="udp"></param>
     [AttributeUsage(AttributeTargets.Property)]
-    public class ReplicateOnTickAttribute(bool udp) : Attribute 
+    public class ReplicateOnTickAttribute : Attribute 
     {
-        public bool UDP { get; } = udp;
+
     }
 
+    /// <summary>
+    /// Indicates that this property should be replicated to the network when it changes.
+    /// Use for properties that change infrequently - UDP or TCP protocol can be used.
+    /// MUST use the SetField method to change the property value.
+    /// </summary>
+    /// <param name="udp"></param>
     [AttributeUsage(AttributeTargets.Property)]
-    public class ReplicateOnChangeAttribute(bool udp) : Attribute
+    public class ReplicateOnChangeAttribute(bool udp = true) : Attribute
     {
         public bool UDP { get; } = udp;
     }
@@ -23,30 +36,78 @@ namespace XREngine
     /// </summary>
     public abstract class XRWorldObjectBase : XRObjectBase
     {
-        private static readonly Dictionary<string, (PropertyInfo prop, bool udp)> _replicateOnChangeProperties = [];
-        private static readonly Dictionary<string, (PropertyInfo prop, bool udp)> _replicateOnTickProperties = [];
+        private static readonly ConcurrentDictionary<Type, ReplicationInfo> _replicatedTypes = [];
+        public class ReplicationInfo
+        {
+            internal readonly Dictionary<string, (PropertyInfo prop, bool udp)> _replicateOnChangeProperties = [];
+            internal readonly Dictionary<string, PropertyInfo> _replicateOnTickProperties = [];
 
+            public IReadOnlyDictionary<string, (PropertyInfo prop, bool udp)> ReplicateOnChangeProperties => _replicateOnChangeProperties;
+            public IReadOnlyDictionary<string, PropertyInfo> ReplicateOnTickProperties => _replicateOnTickProperties;
+        }
+
+        public ReplicationInfo? GetReplicationInfo()
+            => _replicatedTypes.TryGetValue(GetType(), out var repl) ? repl : null;
+
+        public bool IsReplicateOnChangeProperty(string propName)
+            => _replicatedTypes.TryGetValue(GetType(), out var repl) && repl.ReplicateOnChangeProperties.ContainsKey(propName);
+        public bool IsReplicateOnTickProperty(string propName)
+            => _replicatedTypes.TryGetValue(GetType(), out var repl) && repl.ReplicateOnTickProperties.ContainsKey(propName);
+
+        private bool _hasNetworkAuthority = true;
         /// <summary>
         /// If true, this object has authority over its properties and will replicate them to the network.
         /// If false, this object will not replicate its properties to the network and will only receive updates.
         /// </summary>
-        public bool HasAuthority { get; internal set; } = true;
+        public bool HasNetworkAuthority 
+        {
+            get => _hasNetworkAuthority;
+            internal set => SetField(ref _hasNetworkAuthority, value);
+        }
 
         static XRWorldObjectBase()
         {
-            //Collect all properties with replicate attributes
-            foreach (var prop in typeof(XRWorldObjectBase).GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
-            {
-                if (prop.GetCustomAttribute(typeof(ReplicateOnChangeAttribute), true) is ReplicateOnChangeAttribute changeAttr)
-                    _replicateOnChangeProperties.Add(prop.Name, (prop, changeAttr.UDP));
-                if (prop.GetCustomAttribute(typeof(ReplicateOnTickAttribute), true) is ReplicateOnTickAttribute tickAttr)
-                    _replicateOnTickProperties.Add(prop.Name, (prop, tickAttr.UDP));
-            }
+            CollectReplicableProperties();
         }
-        public XRWorldObjectBase()
+
+        private static void CollectReplicableProperties()
         {
-            if (_replicateOnTickProperties.Count > 0)
-                RegisterTick(ETickGroup.Normal, ETickOrder.Logic, BroadcastTickedProperties);
+            _replicatedTypes.Clear();
+            BindingFlags replicableFlags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+
+            //Get all types deriving from XRWorldObjectBase
+            var baseType = typeof(XRWorldObjectBase);
+            var allTypes = AppDomain.CurrentDomain.GetAssemblies().SelectMany(a => a.GetTypes());
+            //var derivedTypes = allTypes.Where(t => t.IsAssignableTo(baseType));
+            //var allProperties = derivedTypes.SelectMany(t => t.GetProperties(replicableFlags));
+            void TestType(Type t)
+            {
+                if (!t.IsAssignableTo(baseType))
+                    return;
+
+                var props = t.GetProperties(replicableFlags);
+                if (props.Length == 0)
+                    return;
+
+                ReplicationInfo? repl = null;
+                foreach (var prop in props)
+                {
+                    if (prop.GetCustomAttribute(typeof(ReplicateOnChangeAttribute), true) is ReplicateOnChangeAttribute changeAttr)
+                    {
+                        repl ??= new ReplicationInfo();
+                        repl._replicateOnChangeProperties.Add(prop.Name, (prop, changeAttr.UDP));
+                    }
+                    if (prop.GetCustomAttribute(typeof(ReplicateOnTickAttribute), true) is ReplicateOnTickAttribute)
+                    {
+                        repl ??= new ReplicationInfo();
+                        repl._replicateOnTickProperties.Add(prop.Name, prop);
+                    }
+                }
+
+                if (repl is not null)
+                    _replicatedTypes.AddOrUpdate(t, repl, (k, v) => repl);
+            }
+            Parallel.ForEach(allTypes, TestType);
         }
 
         internal XRWorldInstance? _world = null;
@@ -70,14 +131,23 @@ namespace XREngine
                     }
                     break;
             }
-            if (propName is not null && _replicateOnChangeProperties.TryGetValue(propName, out var pair))
-                BroadcastProperyUpdated(propName, field, pair.udp);
+
+            var repl = GetReplicationInfo();
+            if (repl is null)
+                return;
+
+            if (propName is not null && repl.ReplicateOnChangeProperties.TryGetValue(propName, out var pair))
+                EnqueuePropertyReplication(propName, field, pair.udp);
         }
 
         private void BroadcastTickedProperties()
         {
-            foreach (var (prop, udp) in _replicateOnTickProperties.Values)
-                BroadcastProperyUpdated(prop.Name, prop.GetValue(this), udp);
+            var repl = GetReplicationInfo();
+            if (repl is null)
+                return;
+
+            foreach (var prop in repl.ReplicateOnTickProperties.Values)
+                EnqueuePropertyReplication(prop.Name, prop.GetValue(this), true);
         }
 
         protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
@@ -132,11 +202,28 @@ namespace XREngine
         public void RegisterAnimationTick<T>(Action<T> tick, ETickGroup group = ETickGroup.Normal) where T : XRWorldObjectBase
             => RegisterTick(group, ETickOrder.Animation, () => tick((T)this));
 
-        public void BroadcastSelf(bool udp)
+        /// <summary>
+        /// Tells the engine to replicate this object to the network.
+        /// </summary>
+        /// <param name="udp"></param>
+        public void EnqueueSelfReplication(bool udp)
             => Engine.Networking.Broadcast(this, udp);
-        public void BroadcastProperyUpdated<T>(string? propName, T value, bool udp)
+        /// <summary>
+        /// Tells the engine to replicate a specific property to the network.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="propName"></param>
+        /// <param name="value"></param>
+        /// <param name="udp"></param>
+        public void EnqueuePropertyReplication<T>(string? propName, T value, bool udp)
             => Engine.Networking.BroadcastPropertyUpdated(this, propName, value, udp);
-        public void BroadcastData(string id, object data, bool udp)
+        /// <summary>
+        /// Tells the engine to replicate some data to the network.
+        /// </summary>
+        /// <param name="id"></param>
+        /// <param name="data"></param>
+        /// <param name="udp"></param>
+        public void EnqueueDataReplication(string id, object data, bool udp)
             => Engine.Networking.BroadcastData(this, data, id, udp);
 
         /// <summary>
@@ -165,11 +252,17 @@ namespace XREngine
         /// <param name="value"></param>
         public void SetReplicatedProperty(string propName, object value)
         {
-            if (_replicateOnChangeProperties.TryGetValue(propName, out var pair) && pair.prop.PropertyType.IsAssignableFrom(value.GetType()))
+            var repl = GetReplicationInfo();
+            if (repl is null)
+                return;
+
+            if (repl.ReplicateOnChangeProperties.TryGetValue(propName, out var pair) && 
+                pair.prop.PropertyType.IsAssignableFrom(value.GetType()))
                 pair.prop.SetValue(this, value);
             
-            if (_replicateOnTickProperties.TryGetValue(propName, out var pair2) && pair2.prop.PropertyType.IsAssignableFrom(value.GetType()))
-                pair2.prop.SetValue(this, value);
+            if (repl.ReplicateOnTickProperties.TryGetValue(propName, out var prop) && 
+                prop.PropertyType.IsAssignableFrom(value.GetType()))
+                prop.SetValue(this, value);
         }
     }
 }

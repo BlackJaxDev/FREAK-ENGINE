@@ -133,7 +133,6 @@ namespace XREngine.Rendering
 
         public void GlobalCollectVisible()
         {
-            //using var d = Profiler.Start();
             VisualScene.GlobalCollectVisible();
             PhysicsScene.DebugRenderCollect();
             Lights.CollectVisibleItems();
@@ -141,7 +140,6 @@ namespace XREngine.Rendering
 
         private void GlobalSwapBuffers()
         {
-            SwapTransformQueues();
             VisualScene.GlobalSwapBuffers();
             PhysicsScene.SwapDebugBuffers();
             Lights.SwapBuffers();
@@ -152,7 +150,6 @@ namespace XREngine.Rendering
         /// </summary>
         public void GlobalPreRender()
         {
-            //using var d = Profiler.Start();
             VisualScene.GlobalPreRender();
             Lights.RenderShadowMaps(false);
         }
@@ -177,6 +174,7 @@ namespace XREngine.Rendering
 
         private void ProcessTransformQueue()
         {
+            SwapTransformQueues();
             //using var d = Profiler.Start();
 
             //This method updates transforms in breadth-first order of appearance in the scene.
@@ -191,39 +189,58 @@ namespace XREngine.Rendering
                 if (!_transformBucketsByDepthRendering.TryGetValue(depth, out var bag))
                     continue;
 
-                //This is good in theory for processing large amounts of nodes but the overhead of parallel initialization is too high for it to be worth the cost.
-                //Parallel.ForEach(bag, transform =>
-                //{
-                //    if (!transform.ParallelDepthRecalculate())
-                //        return;
-
-                //    lock (depthKeys)
-                //        depthKeys.Add(transform.Depth + 1);
-                //});
-
-                //Also good in theory but still has overhead issues.
-                //void Calc(TransformBase tfm)
-                //{
-                //    if (!tfm.ParallelDepthRecalculate())
-                //        return;
-
-                //    int depthPlusOne = tfm.Depth + 1;
-                //    lock (depthKeys)
-                //    {
-                //        if (!depthKeys.Contains(depthPlusOne))
-                //            depthKeys.Add(depthPlusOne);
-                //    }
-                //}
-                //Task.WaitAll([.. bag.Select(x => Task.Run(() => Calc(x)))]);
-
-                foreach (var transform in bag)
-                    if (transform.ParallelDepthRecalculate())
-                    {
-                        int depthPlusOne = transform.Depth + 1;
-                        if (!depthKeys.Contains(depthPlusOne))
-                            depthKeys.Add(depthPlusOne);
-                    }
+                //RecalcTransformsParallel(depthKeys, bag);
+                RecalcTransformsParallelTasks(depthKeys, bag);
+                //RecalcTransformsSequential(depthKeys, bag);
             }
+        }
+
+        private static void RecalcTransformsSequential(List<int> depthKeys, ConcurrentBag<TransformBase> bag)
+        {
+            foreach (var transform in bag)
+                if (transform.RecalculateMatrices())
+                {
+                    int depthPlusOne = transform.Depth + 1;
+                    if (!depthKeys.Contains(depthPlusOne))
+                        depthKeys.Add(depthPlusOne);
+                }
+        }
+
+        private static void RecalcTransformsParallel(List<int> depthKeys, ConcurrentBag<TransformBase> bag)
+        {
+            Parallel.ForEach(bag, transform =>
+            {
+                if (!transform.RecalculateMatrices())
+                    return;
+
+                lock (depthKeys)
+                    depthKeys.Add(transform.Depth + 1);
+            });
+        }
+
+        private static void RecalcTransformsParallelTasks(List<int> depthKeys, ConcurrentBag<TransformBase> bag)
+        {
+            void Calc(TransformBase tfm)
+            {
+                if (!tfm.RecalculateMatrices())
+                    return;
+
+                int depthPlusOne = tfm.Depth + 1;
+                lock (depthKeys)
+                {
+                    if (!depthKeys.Contains(depthPlusOne))
+                        depthKeys.Add(depthPlusOne);
+                }
+            }
+
+            Task SelectTransformTask(TransformBase tfm)
+            {
+                void AsyncCalc()
+                    => Calc(tfm);
+                return Task.Run(AsyncCalc);
+            }
+
+            Task.WaitAll([.. bag.Select(SelectTransformTask)]);
         }
 
         private ConcurrentDictionary<int, ConcurrentBag<TransformBase>> _transformBucketsByDepthUpdating = new();
@@ -238,8 +255,7 @@ namespace XREngine.Rendering
                 added = true;
                 return [];
             });
-            if (!bag.Contains(transform))
-                bag.Add(transform);
+            bag.Add(transform);
             wasDepthAdded = added;
         }
 

@@ -18,7 +18,6 @@ namespace XREngine.Rendering.Commands
 
         public void UpdateRenderDistance(Vector3 thisWorldPosition, XRCamera camera)
             => RenderDistance = (camera.Transform.WorldTranslation - thisWorldPosition).LengthSquared();
-
         public override int CompareTo(RenderCommand? other)
             => RenderDistance < ((other as RenderCommand3D)?.RenderDistance ?? 0.0f) ? -1 : 1;
 

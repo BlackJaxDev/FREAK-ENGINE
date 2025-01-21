@@ -89,7 +89,7 @@ namespace XREngine.Data.Components.Scene
 
             if (leftEye is null || rightEye is null)
             {
-                Debug.LogWarning("VRHeadsetComponent requires the game to initailize with VR.");
+                Debug.LogWarning("VRHeadsetComponent requires the game to initialize with VR.");
                 return;
             }
 

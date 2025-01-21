@@ -36,9 +36,19 @@ namespace XREngine.Rendering.Commands
 
         public abstract void Render(bool shadowPass);
 
+        /// <summary>
+        /// Called in the collect visible thread.
+        /// </summary>
+        /// <param name="camera"></param>
+        /// <param name="shadowPass"></param>
         public virtual void PreRender(XRCamera? camera, bool shadowPass)
             => OnPreRender?.Invoke(this, camera, shadowPass);
-        public void SwapBuffers(bool shadowPass)
+
+        /// <summary>
+        /// Called when the engine is swapping buffers - both the collect and render threads are waiting.
+        /// </summary>
+        /// <param name="shadowPass"></param>
+        public virtual void SwapBuffers(bool shadowPass)
             => OnSwapBuffers?.Invoke(this, shadowPass);
     }
 }

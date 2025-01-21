@@ -142,7 +142,12 @@ namespace XREngine.Scene
                         OnSceneNodeDeactivated();
                     break;
                 case nameof(World):
-                    SetWorldToChildNodes(World);
+                    Transform.World = World;
+                    lock (Components)
+                    {
+                        foreach (var component in Components)
+                            component.World = World;
+                    }
                     break;
                 case nameof(Transform):
                     if (_transform != null)
@@ -201,6 +206,9 @@ namespace XREngine.Scene
             {
                 case nameof(TransformBase.Parent):
                     OnParentChanged();
+                    break;
+                case nameof(TransformBase.World):
+                    World = Transform.World;
                     break;
             }
         }
@@ -308,7 +316,7 @@ namespace XREngine.Scene
                 transform.Clear();
 
             if (flags.HasFlag(ETransformSetFlags.RetainCurrentParent))
-                transform.SetParent(_transform?.Parent, flags.HasFlag(ETransformSetFlags.RetainWorldTransform));
+                transform.SetParent(_transform?.Parent, flags.HasFlag(ETransformSetFlags.RetainWorldTransform), true);
 
             if (flags.HasFlag(ETransformSetFlags.RetainCurrentChildren))
             {
@@ -348,28 +356,6 @@ namespace XREngine.Scene
             {
                 if (_transform is not null)
                     _transform.Parent = value?.Transform;
-            }
-        }
-
-        // TODO: set and unset world to transform and components when enabled and disabled
-        private void SetWorldToChildNodes(XRWorldInstance? value)
-        {
-            Transform.World = World;
-
-            lock (Components)
-            {
-                foreach (var component in Components)
-                    component.World = value;
-            }
-
-            lock (Transform.Children)
-            {
-                for (int i = 0; i < Transform.Children.Count; i++)
-                {
-                    var child = Transform.Children[i];
-                    if (child?.SceneNode is SceneNode node)
-                        node.World = value;
-                }
             }
         }
 

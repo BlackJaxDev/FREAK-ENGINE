@@ -23,7 +23,7 @@ namespace XREngine.Data.Components.Scene
 
         private void VRState_RecalcMatrixOnDraw()
         {
-            ParallelDepthRecalculate();
+            RecalculateMatrices();
         }
 
         private bool _leftHand;

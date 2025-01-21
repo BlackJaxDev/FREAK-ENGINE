@@ -1,4 +1,5 @@
 ﻿using Extensions;
+using MathNet.Numerics.Distributions;
 using System.Collections.Concurrent;
 using System.IO.Compression;
 using System.Numerics;
@@ -121,35 +122,6 @@ namespace XREngine.Scene.Transforms
         {
             lock (_children)
                 return _children.LastOrDefault();
-        }
-
-        private static readonly ConcurrentBag<(TransformBase child, TransformBase? newParent)> _parentsToReassign = [];
-        internal static void ProcessParentReassignments()
-        {
-            foreach (var (child, newParent) in _parentsToReassign)
-            {
-                if (child.Parent == newParent)
-                    continue;
-                child.Parent?.RemoveChild(child, true);
-                newParent?.AddChild(child, true);
-            }
-            _parentsToReassign.Clear();
-        }
-
-        public void RemoveChild(TransformBase child, bool now = false)
-        {
-            if (now)
-                _children.Remove(child);
-            else
-                _parentsToReassign.Add((child, null));
-        }
-
-        public void AddChild(TransformBase child, bool now = false)
-        {
-            if (now)
-                _children.Add(child);
-            else
-                _parentsToReassign.Add((child, this));
         }
 
         private class MatrixInfo

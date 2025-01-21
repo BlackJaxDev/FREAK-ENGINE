@@ -51,7 +51,7 @@ namespace XREngine.Scene.Transforms
             RenderedObjects = GetDebugRenderInfo();
             DebugRender = Engine.Rendering.Settings.RenderTransformDebugInfo;
 
-            Parent = parent;
+            SetParent(parent, false, true);
         }
 
         private void MakeCapsule()
@@ -144,16 +144,36 @@ namespace XREngine.Scene.Transforms
             set => SetField(ref _parent, value);
         }
 
-        public virtual void SetParent(TransformBase? newParent, bool retainWorldTransform)
+        public void AddChild(TransformBase child, bool childPreservesWorldTransform, bool now)
         {
-            if (retainWorldTransform)
+            if (child is null || child.Parent == this)
+                return;
+            child.SetParent(this, childPreservesWorldTransform, now);
+        }
+
+        public void RemoveChild(TransformBase child, bool now)
+        {
+            if (child is null || child.Parent != this)
+                return;
+            child.SetParent(null, false, now);
+        }
+
+        //TODO: multi-threaded deferred parent set doesn't work
+        public void SetParent(TransformBase? newParent, bool preserveWorldTransform, bool now = false)
+        {
+            if (now)
             {
-                Matrix4x4 world = WorldMatrix;
-                Parent = newParent;
-                DeriveWorldMatrix(world);
+                if (preserveWorldTransform)
+                {
+                    var worldMatrix = WorldMatrix;
+                    Parent = newParent;
+                    DeriveWorldMatrix(worldMatrix);
+                }
+                else
+                    Parent = newParent;
             }
             else
-                Parent = newParent;
+                _parentsToReassign.Enqueue((this, newParent, preserveWorldTransform));
         }
 
         protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
@@ -164,7 +184,7 @@ namespace XREngine.Scene.Transforms
                 switch (propName)
                 {
                     case nameof(Parent):
-                        _parent?.RemoveChild(this, true);
+                        _parent?._children.Remove(this);
                         break;
                 }
             }
@@ -179,7 +199,7 @@ namespace XREngine.Scene.Transforms
                     if (_parent is not null)
                     {
                         Depth = _parent.Depth + 1;
-                        _parent.AddChild(this, true);
+                        _parent._children.Add(this);
                     }
                     else
                         Depth = 0;
@@ -188,13 +208,32 @@ namespace XREngine.Scene.Transforms
                     MarkWorldModified();
                     break;
                 case nameof(SceneNode):
-                    World = SceneNode?.World;
+                    var w = SceneNode?.World;
+                    if (w is not null)
+                        World = w;
                     break;
                 case nameof(World):
                     foreach (var obj in RenderedObjects)
                         obj.WorldInstance = World;
+                    World?.AddDirtyTransform(this, out _, false);
+                    if (SceneNode is not null)
+                        SceneNode.World = World;
+                    lock (_children)
+                    {
+                        foreach (var child in _children)
+                            if (child is not null)
+                                child.World = World;
+                    }
                     break;
             }
+        }
+
+        private static readonly Queue<(TransformBase child, TransformBase? newParent, bool preserveWorldTransform)> _parentsToReassign = [];
+        internal static void ProcessParentReassignments()
+        {
+            while (_parentsToReassign.TryDequeue(out (TransformBase child, TransformBase? newParent, bool preserveWorldTransform) t))
+                if (t.child is not null && t.child.Parent != t.newParent)
+                    t.child.SetParent(t.newParent, t.preserveWorldTransform, true);
         }
 
         public interface IBoneTransformDependent
@@ -211,7 +250,7 @@ namespace XREngine.Scene.Transforms
         /// <summary>
         /// 
         /// </summary>
-        internal protected virtual bool ParallelDepthRecalculate()
+        internal protected virtual bool RecalculateMatrices()
         {
             //bool recalcWorld = false;
             //if (_localMatrix.NeedsRecalc)
@@ -221,7 +260,7 @@ namespace XREngine.Scene.Transforms
                 //We have to use a local bool here because the world matrix can be recalculated elsewhere before we get to it here
                 //_worldMatrix.NeedsRecalc = true;
                 //recalcWorld = true;
-                Engine.Networking.ReplicateTransform(this);
+                //Engine.Networking.ReplicateTransform(this);
             //}
 
             //if (recalcWorld)
@@ -231,18 +270,15 @@ namespace XREngine.Scene.Transforms
             if (World is null)
                 return false;
 
-            lock (Children)
+            bool wasAdded = false;
+            foreach (TransformBase child in _children)
             {
-                bool wasAdded = false;
-                foreach (TransformBase child in Children)
-                {
-                    child.ParallelDepthRecalculate();
-                    //child._worldMatrix.NeedsRecalc = true;
-                    //World.AddDirtyTransform(child, out bool wasDepthAdded, true);
-                    //wasAdded |= wasDepthAdded;
-                }
-                return wasAdded;
+                child._worldMatrix.NeedsRecalc = true;
+                World.AddDirtyTransform(child, out bool wasDepthAdded, true);
+                wasAdded |= wasDepthAdded;
             }
+            return wasAdded;
+            
         }
 
         private readonly EventList<TransformBase> _children;
@@ -367,7 +403,7 @@ namespace XREngine.Scene.Transforms
         {
             get
             {
-                VerifyLocalMatrix();
+                //VerifyLocalMatrix();
                 return _localMatrix.Matrix;
             }
         }
@@ -377,15 +413,15 @@ namespace XREngine.Scene.Transforms
         /// If this is not called after values are changed and the matrix is invalidated,
         /// the matrix will not be recalculated until swap buffers is called or the matrix is specifically requested.
         /// </summary>
-        public void VerifyLocalMatrix()
-        {
-            if (!_localMatrix.NeedsRecalc)
-                return;
+        //public void VerifyLocalMatrix()
+        //{
+        //    if (!_localMatrix.NeedsRecalc)
+        //        return;
 
-            World?.AddDirtyTransform(this, out _, false);
-            //_localMatrix.NeedsRecalc = false;
-            //RecalcLocal();
-        }
+        //    World?.AddDirtyTransform(this, out _, false);
+        //    //_localMatrix.NeedsRecalc = false;
+        //    //RecalcLocal();
+        //}
 
         internal void RecalcLocal()
         {
@@ -407,7 +443,7 @@ namespace XREngine.Scene.Transforms
         {
             get
             {
-                VerifyWorldMatrix();
+                //VerifyWorldMatrix();
                 return _worldMatrix.Matrix;
             }
         }
@@ -417,21 +453,21 @@ namespace XREngine.Scene.Transforms
         /// If this is not called after values are changed and the matrix is invalidated,
         /// the matrix will not be recalculated until swap buffers is called or the matrix is specifically requested.
         /// </summary>
-        public void VerifyWorldMatrix()
-        {
-            if (!_worldMatrix.NeedsRecalc)
-                return;
+        //public void VerifyWorldMatrix()
+        //{
+        //    if (!_worldMatrix.NeedsRecalc)
+        //        return;
 
-            World?.AddDirtyTransform(this, out _, false);
-            //_worldMatrix.NeedsRecalc = false;
-            //RecalcWorld(false);
-        }
+        //    World?.AddDirtyTransform(this, out _, false);
+        //    //_worldMatrix.NeedsRecalc = false;
+        //    //RecalcWorld(false);
+        //}
 
         internal void RecalcWorld(bool allowSetLocal)
         {
             _worldMatrix.Matrix = CreateWorldMatrix();
             _inverseWorldMatrix.NeedsRecalc = true;
-            if (allowSetLocal && !_localMatrix.NeedsRecalc)
+            if (allowSetLocal/* && !_localMatrix.NeedsRecalc*/)
             {
                 _localMatrix.Matrix = GenerateLocalMatrixFromWorld();
                 _inverseLocalMatrix.NeedsRecalc = true;
@@ -472,7 +508,7 @@ namespace XREngine.Scene.Transforms
 
         private void VerifyLocalInv()
         {
-            VerifyLocalMatrix();
+            //VerifyLocalMatrix();
 
             if (!_inverseLocalMatrix.NeedsRecalc)
                 return;
@@ -512,7 +548,7 @@ namespace XREngine.Scene.Transforms
 
         private void VerifyWorldInv()
         {
-            VerifyWorldMatrix();
+            //VerifyWorldMatrix();
 
             if (!_inverseWorldMatrix.NeedsRecalc)
                 return;
@@ -561,7 +597,7 @@ namespace XREngine.Scene.Transforms
         {
             _localMatrix.NeedsRecalc = true;
             MarkWorldModified();
-            World?.AddDirtyTransform(this, out _, false);
+            //World?.AddDirtyTransform(this, out _, false);
             HasChanged = true;
         }
 

@@ -31,25 +31,25 @@ public partial class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent
     }
 
     //These two drag points diverge if the camera moves, so they're both stored initially at mouse down
-    public Vector3? NormalizedViewportDragPoint { get; set; } = null;
+    //public Vector3? NormalizedViewportDragPoint { get; set; } = null;
     public Vector3? WorldDragPoint { get; set; } = null;
 
-    protected override void OnRightClick(bool pressed)
-    {
-        base.OnRightClick(pressed);
-        if (pressed)
-        {
-            NormalizedViewportDragPoint = DepthHitNormalizedViewportPoint;
-            WorldDragPoint = DepthHitNormalizedViewportPoint.HasValue
-                ? Viewport?.NormalizedViewportToWorldCoordinate(DepthHitNormalizedViewportPoint.Value)
-                : null;
-        }
-        else
-        {
-            NormalizedViewportDragPoint = null;
-            WorldDragPoint = null;
-        }
-    }
+    //protected override void OnRightClick(bool pressed)
+    //{
+    //    base.OnRightClick(pressed);
+    //    if (pressed)
+    //    {
+    //        //NormalizedViewportDragPoint = DepthHitNormalizedViewportPoint;
+    //        WorldDragPoint = DepthHitNormalizedViewportPoint.HasValue
+    //            ? Viewport?.NormalizedViewportToWorldCoordinate(DepthHitNormalizedViewportPoint.Value)
+    //            : null;
+    //    }
+    //    else
+    //    {
+    //        //NormalizedViewportDragPoint = null;
+    //        WorldDragPoint = null;
+    //    }
+    //}
 
     private void RenderHighlight(bool shadowPass)
     {
@@ -141,9 +141,8 @@ public partial class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent
         p = vp.ScreenToViewportCoordinate(p);
         p = vp.ViewportToInternalCoordinate(p);
 
-        float? depth = GetDepth(vp, p);
-        p = vp.NormalizeInternalCoordinate(p);
-        DepthHitNormalizedViewportPoint = depth is not null && depth.Value > 0.0f && depth.Value < 1.0f ? new Vector3(p.X, p.Y, depth.Value) : null;
+        if (NeedsDepthHit())
+            GetDepthHit(vp, p);
 
         //_lastRaycastSegment = vp.GetWorldSegment(p);
 
@@ -165,16 +164,50 @@ public partial class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent
         ApplyTransformations(vp);
     }
 
-    private static float? GetDepth(XRViewport vp, Vector2 p)
+    private void GetDepthHit(XRViewport vp, Vector2 p)
+    {
+        _queryDepth = false;
+        float? depth = GetDepth(vp, p);
+        p = vp.NormalizeInternalCoordinate(p);
+        bool validDepth = depth is not null && depth.Value > 0.0f && depth.Value < 1.0f;
+        if (validDepth)
+        {
+            DepthHitNormalizedViewportPoint = new Vector3(p.X, p.Y, depth!.Value);
+            WorldDragPoint = Viewport?.NormalizedViewportToWorldCoordinate(DepthHitNormalizedViewportPoint!.Value);
+        }
+        else
+        {
+            DepthHitNormalizedViewportPoint = null;
+            WorldDragPoint = null;
+        }
+    }
+
+    private static float? GetDepth(XRViewport vp, Vector2 internalSizeCoordinate)
     {
         //TODO: severe framerate drop using synchronous depth read - async pbo is better but needs to be optimized
         var fbo = vp.RenderPipelineInstance?.GetFBO<XRFrameBuffer>(DefaultRenderPipeline.ForwardPassFBOName);
         if (fbo is null)
             return null;
 
-        float? depth = vp.GetDepth(fbo, (IVector2)p);
+        float? depth = vp.GetDepth(fbo, (IVector2)internalSizeCoordinate);
         //Debug.Out($"Depth: {depth}");
         return depth;
+    }
+
+    private bool _queryDepth = false;
+    private bool NeedsDepthHit()
+        => _lastScrollDelta.HasValue || _lastMouseTranslationDelta.HasValue || _lastRotateDelta.HasValue || _queryDepth;
+
+    protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+    {
+        base.OnPropertyChanged(propName, prev, field);
+        switch (propName)
+        {
+            case nameof(RightClickPressed):
+                if (RightClickPressed)
+                    _queryDepth = true;
+                break;
+        }
     }
 
     private void ApplyTransformations(XRViewport vp)
@@ -192,17 +225,24 @@ public partial class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent
         var rot = _lastRotateDelta;
         _lastRotateDelta = null;
 
-        if (scroll.HasValue && DepthHitNormalizedViewportPoint.HasValue)
+        if (scroll.HasValue)
         {
             //Zoom towards the hit point
             float scrollSpeed = scroll.Value;
-            Vector3 worldCoord = vp.NormalizedViewportToWorldCoordinate(DepthHitNormalizedViewportPoint.Value);
-            float dist = Transform.WorldTranslation.Distance(worldCoord);
-            tfm.Translation = Segment.PointAtLineDistance(Transform.WorldTranslation, worldCoord, scrollSpeed * dist * 0.1f * ScrollSpeed);
+            if (DepthHitNormalizedViewportPoint.HasValue)
+            {
+                if (ShiftPressed)
+                    scrollSpeed *= ShiftSpeedModifier;
+                Vector3 worldCoord = vp.NormalizedViewportToWorldCoordinate(DepthHitNormalizedViewportPoint.Value);
+                float dist = Transform.WorldTranslation.Distance(worldCoord);
+                tfm.Translation = Segment.PointAtLineDistance(Transform.WorldTranslation, worldCoord, scrollSpeed * dist * 0.1f * ScrollSpeed);
+            }
+            else
+                base.OnScrolled(scrollSpeed);
         }
-        if (trans.HasValue && WorldDragPoint.HasValue && NormalizedViewportDragPoint.HasValue)
+        if (trans.HasValue && WorldDragPoint.HasValue && DepthHitNormalizedViewportPoint.HasValue)
         {
-            Vector3 normCoord = NormalizedViewportDragPoint.Value;
+            Vector3 normCoord = DepthHitNormalizedViewportPoint.Value;
             Vector3 worldCoord = vp.NormalizedViewportToWorldCoordinate(normCoord);
             Vector2 screenCoord = vp.DenormalizeViewportCoordinate(normCoord.XY());
             Vector2 newScreenCoord = screenCoord + trans.Value;
@@ -284,10 +324,7 @@ public partial class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent
     private float? _lastScrollDelta = null;
     protected override void OnScrolled(float diff)
     {
-        if (DepthHitNormalizedViewportPoint is not null)
-            _lastScrollDelta = diff;
-        else
-            base.OnScrolled(diff);
+        _lastScrollDelta = diff;
     }
 
     protected override void Tick()

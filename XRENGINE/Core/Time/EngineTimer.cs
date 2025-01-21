@@ -67,7 +67,7 @@ namespace XREngine.Timers
         private CancellationTokenSource? _cancelRenderTokenSource = null;
 
         private Task? UpdateTask = null;
-        private Task? PreRenderTask = null;
+        private Task? CollectVisibleTask = null;
         private Task? RenderTask = null;
         private Task? SingleTask = null;
         private Task? FixedUpdateTask = null;
@@ -97,7 +97,7 @@ namespace XREngine.Timers
             _collectVisibleDone = new ManualResetEventSlim(true);
 
             UpdateTask = Task.Run(UpdateThread);
-            PreRenderTask = Task.Run(CollectVisibleThread);
+            CollectVisibleTask = Task.Run(CollectVisibleThread);
             FixedUpdateTask = Task.Run(FixedUpdateThread);
             //There are 4 main threads: Update, PreRender, Render, and FixedUpdate.
             //Update runs as fast as requested without fences.
@@ -197,8 +197,8 @@ namespace XREngine.Timers
             UpdateTask?.Wait();
             UpdateTask = null;
 
-            PreRenderTask?.Wait();
-            PreRenderTask = null;
+            CollectVisibleTask?.Wait();
+            CollectVisibleTask = null;
 
             RenderTask?.Wait();
             RenderTask = null;
@@ -218,93 +218,106 @@ namespace XREngine.Timers
 
         private bool DispatchRender()
         {
-            //using var t = Engine.Profiler.Start();
-
-            float timestamp = Time();
-            float elapsed = (timestamp - Render.LastTimestamp).Clamp(0.0f, 1.0f);
-            bool dispatch = elapsed > 0.0f && elapsed >= TargetRenderPeriod;
-            if (dispatch)
+            try
             {
-                //Debug.Out("Dispatching render.");
+                float timestamp = Time();
+                float elapsed = (timestamp - Render.LastTimestamp).Clamp(0.0f, 1.0f);
+                bool dispatch = elapsed > 0.0f && elapsed >= TargetRenderPeriod;
+                if (dispatch)
+                {
+                    //Debug.Out("Dispatching render.");
 
-                Render.Delta = elapsed;
-                Render.LastTimestamp = timestamp;
-                RenderFrame?.Invoke();
+                    Render.Delta = elapsed;
+                    Render.LastTimestamp = timestamp;
+                    RenderFrame?.Invoke();
 
-                timestamp = Time();
-                Render.ElapsedTime = timestamp - Render.LastTimestamp;
+                    timestamp = Time();
+                    Render.ElapsedTime = timestamp - Render.LastTimestamp;
+                }
+                return dispatch;
             }
-            return dispatch;
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+                return false;
+            }
         }
 
         private void DispatchCollectVisible()
         {
-            //using var t = Engine.Profiler.Start();
-
-            float timestamp = Time();
-            float elapsed = (timestamp - Collect.LastTimestamp).Clamp(0.0f, 1.0f);
-            Collect.Delta = elapsed;
-            Collect.LastTimestamp = timestamp;
-            CollectVisible?.Invoke();
-            timestamp = Time();
-            Collect.ElapsedTime = timestamp - Collect.LastTimestamp;
+            try
+            {
+                float timestamp = Time();
+                float elapsed = (timestamp - Collect.LastTimestamp).Clamp(0.0f, 1.0f);
+                Collect.Delta = elapsed;
+                Collect.LastTimestamp = timestamp;
+                CollectVisible?.Invoke();
+                timestamp = Time();
+                Collect.ElapsedTime = timestamp - Collect.LastTimestamp;
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+            }
         }
 
         private void DispatchSwapBuffers()
-        {
-            //using var t = Engine.Profiler.Start();
-
-            //Debug.Out("Swapping buffers.");
-            SwapBuffers?.Invoke();
-        }
+            => SwapBuffers?.Invoke();
 
         private void DispatchFixedUpdate()
             => FixedUpdate?.Invoke();
 
         private void DispatchUpdate()
         {
-            int runningSlowlyRetries = 4;
-
-            float timestamp = Time();
-            float elapsed = (timestamp - Update.LastTimestamp).Clamp(0.0f, 1.0f);
-
-            //Raise UpdateFrame events until we catch up with the target update period
-            while (IsRunning && elapsed > 0.0f && elapsed + _updateTimeDiff >= TargetUpdatePeriod)
+            try
             {
-                Update.Delta = elapsed;
-                Update.LastTimestamp = timestamp;
+                int runningSlowlyRetries = 4;
 
-                PreUpdateFrame?.Invoke();
-                UpdateFrame?.Invoke();
-                PostUpdateFrame?.Invoke();
+                float timestamp = Time();
+                float elapsed = (timestamp - Update.LastTimestamp).Clamp(0.0f, 1.0f);
 
-                timestamp = Time();
-                Update.ElapsedTime = timestamp - Update.LastTimestamp;
-
-                // Calculate difference (positive or negative) between
-                // actual elapsed time and target elapsed time. We must
-                // compensate for this difference.
-                _updateTimeDiff += elapsed - TargetUpdatePeriod;
-
-                if (TargetUpdatePeriod <= double.Epsilon)
+                //Raise UpdateFrame events until we catch up with the target update period
+                while (IsRunning && elapsed > 0.0f && elapsed + _updateTimeDiff >= TargetUpdatePeriod)
                 {
-                    // According to the TargetUpdatePeriod documentation,
-                    // a TargetUpdatePeriod of zero means we will raise
-                    // UpdateFrame events as fast as possible (one event
-                    // per ProcessEvents() call)
-                    break;
-                }
+                    Update.Delta = elapsed;
+                    Update.LastTimestamp = timestamp;
 
-                _isRunningSlowly = _updateTimeDiff >= TargetUpdatePeriod;
-                if (_isRunningSlowly && --runningSlowlyRetries == 0)
-                {
-                    // If UpdateFrame consistently takes longer than TargetUpdateFrame
-                    // stop raising events to avoid hanging inside the UpdateFrame loop.
-                    break;
-                }
+                    PreUpdateFrame?.Invoke();
+                    UpdateFrame?.Invoke();
+                    PostUpdateFrame?.Invoke();
 
-                // Prepare for next loop
-                elapsed = (timestamp - Update.LastTimestamp).Clamp(0.0f, 1.0f);
+                    timestamp = Time();
+                    Update.ElapsedTime = timestamp - Update.LastTimestamp;
+
+                    // Calculate difference (positive or negative) between
+                    // actual elapsed time and target elapsed time. We must
+                    // compensate for this difference.
+                    _updateTimeDiff += elapsed - TargetUpdatePeriod;
+
+                    if (TargetUpdatePeriod <= double.Epsilon)
+                    {
+                        // According to the TargetUpdatePeriod documentation,
+                        // a TargetUpdatePeriod of zero means we will raise
+                        // UpdateFrame events as fast as possible (one event
+                        // per ProcessEvents() call)
+                        break;
+                    }
+
+                    _isRunningSlowly = _updateTimeDiff >= TargetUpdatePeriod;
+                    if (_isRunningSlowly && --runningSlowlyRetries == 0)
+                    {
+                        // If UpdateFrame consistently takes longer than TargetUpdateFrame
+                        // stop raising events to avoid hanging inside the UpdateFrame loop.
+                        break;
+                    }
+
+                    // Prepare for next loop
+                    elapsed = (timestamp - Update.LastTimestamp).Clamp(0.0f, 1.0f);
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
             }
         }
 

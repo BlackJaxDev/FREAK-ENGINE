@@ -79,6 +79,11 @@ namespace XREngine.Data.Core
         public bool IsDestroyed { get; private set; } = false;
 
         private static readonly ConcurrentQueue<XRObjectBase> _objectsToDestroy = new();
+
+        /// <summary>
+        /// Processes all objects that have been requested to be destroyed.
+        /// Must be called by the engine repeatedly at some interval.
+        /// </summary>
         public static void ProcessPendingDestructions()
         {
             while (_objectsToDestroy.TryDequeue(out XRObjectBase? obj))

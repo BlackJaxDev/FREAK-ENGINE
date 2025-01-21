@@ -251,8 +251,17 @@ namespace XREngine.Components.Scene.Mesh
             bool hasSkinning = CurrentLOD?.Value?.Renderer?.Mesh?.HasSkinning ?? false;
             if (hasSkinning)
                 return;
+
+            if (component is null)
+                return;
             
-            RenderInfo.CullingOffsetMatrix = _rc.WorldMatrix = component.WorldMatrix;
+            var mtx = component.WorldMatrix;
+
+            if (_rc is not null)
+                _rc.WorldMatrix = mtx;
+
+            if (RenderInfo is not null)
+                RenderInfo.CullingOffsetMatrix = mtx;
         }
     }
 }

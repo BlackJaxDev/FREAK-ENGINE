@@ -4,6 +4,7 @@ using Silk.NET.Input;
 using System.Collections.Concurrent;
 using System.Numerics;
 using XREngine;
+using XREngine.Actors.Types;
 using XREngine.Animation;
 using XREngine.Components;
 using XREngine.Components.Lights;
@@ -52,9 +53,9 @@ internal class Program
     public const bool Spline = false;
     public const bool DeferredDecal = true;
     public const bool StaticModel = false;
-    public const bool AnimatedModel = false;
+    public const bool AnimatedModel = true;
     public const bool AddEditorUI = false;
-    public const bool VRPawn = true;
+    public const bool VRPawn = false;
     public const bool CharacterPawn = true;
 
     /// <summary>
@@ -758,21 +759,24 @@ internal class Program
         var comp = rootNode.AddComponent<HumanoidComponent>()!;
         //comp.IsActive = false;
 
-        //TransformTool3D.GetInstance(comp.Transform, ETransformType.Translate);
+        TransformTool3D.GetInstance(comp.Transform, ETransformType.Translate);
 
-        //var knee = comp!.Right.Knee?.Node?.Transform;
-        //var leg = comp!.Right.Leg?.Node?.Transform;
+        var knee = comp!.Right.Knee?.Node?.Transform;
+        var leg = comp!.Right.Leg?.Node?.Transform;
 
-        //leg?.RegisterAnimationTick<Transform>(t => t.Rotation = Quaternion.CreateFromAxisAngle(Globals.Right, XRMath.DegToRad(180 - 90.0f * (MathF.Cos(Engine.ElapsedTime) * 0.5f + 0.5f))));
-        //knee?.RegisterAnimationTick<Transform>(t => t.Rotation = Quaternion.CreateFromAxisAngle(Globals.Right, XRMath.DegToRad(90.0f * (MathF.Cos(Engine.ElapsedTime) * 0.5f + 0.5f))));
+        leg?.RegisterAnimationTick<Transform>(t => t.Rotation = Quaternion.CreateFromAxisAngle(Globals.Right, XRMath.DegToRad(180 - 90.0f * (MathF.Cos(Engine.ElapsedTime) * 0.5f + 0.5f))));
+        knee?.RegisterAnimationTick<Transform>(t => t.Rotation = Quaternion.CreateFromAxisAngle(Globals.Right, XRMath.DegToRad(90.0f * (MathF.Cos(Engine.ElapsedTime) * 0.5f + 0.5f))));
 
         var chest = comp!.Chest?.Node?.Transform;
         //Find breast bone
-        var breast = chest!.FindChild(x =>
-        (x.Name?.Contains("breast", StringComparison.InvariantCultureIgnoreCase) ?? false) ||
-        (x.Name?.Contains("boob", StringComparison.InvariantCultureIgnoreCase) ?? false));
-        if (breast?.SceneNode is not null)
-            breast.SceneNode.AddComponent<PhysicsChainComponent>();
+        if (chest is not null)
+        {
+            var breast = chest.FindChild(x =>
+                (x.Name?.Contains("breast", StringComparison.InvariantCultureIgnoreCase) ?? false) ||
+                (x.Name?.Contains("boob", StringComparison.InvariantCultureIgnoreCase) ?? false));
+                if (breast?.SceneNode is not null)
+                    breast.SceneNode.AddComponent<PhysicsChainComponent>();
+        }
     }
     private static readonly ConcurrentDictionary<string, XRTexture2D> _textureCache = new();
 
@@ -867,7 +871,7 @@ internal class Program
             var tex = Engine.Assets.Load<XRTexture2D>(path);
             if (tex is null)
             {
-                Debug.Out($"Failed to load texture: {path}");
+                //Debug.Out($"Failed to load texture: {path}");
                 tex = new XRTexture2D()
                 {
                     Name = Path.GetFileNameWithoutExtension(path),

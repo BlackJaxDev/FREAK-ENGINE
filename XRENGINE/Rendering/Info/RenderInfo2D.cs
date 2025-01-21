@@ -113,7 +113,7 @@ namespace XREngine.Rendering.Info
                         UserInterfaceCanvas?.VisualScene2D?.RemoveRenderable(this);
                     break;
                 case nameof(CullingVolume):
-                    QuadtreeNode?.HandleMovedItem(this);
+                    QuadtreeNode?.QueueItemMoved(this);
                     break;
             }
         }

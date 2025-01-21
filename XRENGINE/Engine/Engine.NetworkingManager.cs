@@ -315,7 +315,7 @@ namespace XREngine
 
             public void Broadcast(XRWorldObjectBase obj, bool udp, bool compress = true)
             {
-                if (!obj.HasAuthority)
+                if (!obj.HasNetworkAuthority)
                     return;
 
                 bool connected = udp ? UDPServerConnectionEstablished : TCPConnectionEstablished;
@@ -331,7 +331,7 @@ namespace XREngine
 
             public void BroadcastData(XRWorldObjectBase obj, object value, string idStr, bool udp, bool compress = true)
             {
-                if (!obj.HasAuthority)
+                if (!obj.HasNetworkAuthority)
                     return;
 
                 bool connected = udp ? UDPServerConnectionEstablished : TCPConnectionEstablished;
@@ -347,7 +347,7 @@ namespace XREngine
 
             public void BroadcastPropertyUpdated<T>(XRWorldObjectBase obj, string? propName, T? value, bool udp, bool compress = true)
             {
-                if (!obj.HasAuthority)
+                if (!obj.HasNetworkAuthority)
                     return;
 
                 bool connected = udp ? UDPServerConnectionEstablished : TCPConnectionEstablished;
@@ -446,38 +446,38 @@ namespace XREngine
                 while (inBufOffset >= 8)
                 {
                     int dataLength = BitConverter.ToInt32(inBuf, offset) & 0x00FFFFFF;
-                    if (inBufOffset >= dataLength + 8)
+                    if (inBufOffset < dataLength + 8)
+                        continue;
+                    
+                    //We can parse the full packet now
+                    byte flag = inBuf[offset];
+                    bool compressed = (flag & 1) == 1;
+                    EBroadcastType type = (EBroadcastType)((flag >> 1) & 3);
+                    offset += 4;
+                    float elapsed = BitConverter.ToSingle(inBuf, offset);
+                    offset += 4;
+
+                    if (compressed)
                     {
-                        //We can parse the full packet now
-                        byte flag = inBuf[offset];
-                        bool compressed = (flag & 1) == 1;
-                        EBroadcastType type = (EBroadcastType)((flag >> 1) & 3);
-                        offset += 4;
-                        float elapsed = BitConverter.ToSingle(inBuf, offset);
-                        offset += 4;
-
-                        if (compressed)
-                        {
-                            int decompLen = Compression.Decompress(inBuf, offset, dataLength, decompBuffer, 0);
-                            Propogate(
-                                new Guid(decompBuffer.Take(16).ToArray()),
-                                type,
-                                decompBuffer,
-                                16,
-                                decompLen - 16);
-                        }
-                        else
-                        {
-                            Propogate(
-                                new Guid(inBuf.Take(16).ToArray()),
-                                type,
-                                inBuf,
-                                offset + 16,
-                                dataLength - 16);
-                        }
-
-                        inBufOffset -= dataLength + 8;
+                        int decompLen = Compression.Decompress(inBuf, offset, dataLength, decompBuffer, 0);
+                        Propogate(
+                            new Guid(decompBuffer.Take(16).ToArray()),
+                            type,
+                            decompBuffer,
+                            16,
+                            decompLen - 16);
                     }
+                    else
+                    {
+                        Propogate(
+                            new Guid(inBuf.Take(16).ToArray()),
+                            type,
+                            inBuf,
+                            offset + 16,
+                            dataLength - 16);
+                    }
+
+                    inBufOffset -= dataLength + 8;
                 }
             }
 

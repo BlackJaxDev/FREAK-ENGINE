@@ -12,6 +12,12 @@ namespace XREngine.Data.Rendering
         private uint _instances = 1;
         private bool _worldMatrixIsModelMatrix = true;
 
+        private XRMeshRenderer? _renderMesh;
+        private Matrix4x4 _renderWorldMatrix;
+        private XRMaterial? _renderMaterialOverride;
+        private uint _renderInstances;
+        private bool _renderWorldMatrixIsModelMatrix;
+
         public XRMeshRenderer? Mesh
         {
             get => _mesh;
@@ -53,13 +59,25 @@ namespace XREngine.Data.Rendering
         }
 
         public override void Render(bool shadowPass)
-            => Mesh?.Render(WorldMatrixIsModelMatrix ? WorldMatrix : Matrix4x4.Identity, MaterialOverride, Instances);
+            => _renderMesh?.Render(_renderWorldMatrixIsModelMatrix ? _renderWorldMatrix : Matrix4x4.Identity, _renderMaterialOverride, _renderInstances);
 
         public override void PreRender(XRCamera? camera, bool shadowPass)
         {
             base.PreRender(camera, shadowPass);
+            // Update render distance for proper sorting.
+            // This is done in the collect visible thread - doesn't need to be thread safe.
             if (camera != null)
-                UpdateRenderDistance(WorldMatrix.Translation, camera);
+                UpdateRenderDistance(_renderWorldMatrix.Translation, camera);
+        }
+
+        public override void SwapBuffers(bool shadowPass)
+        {
+            base.SwapBuffers(shadowPass);
+            _renderMesh = Mesh;
+            _renderWorldMatrix = WorldMatrix;
+            _renderMaterialOverride = MaterialOverride;
+            _renderInstances = Instances;
+            _renderWorldMatrixIsModelMatrix = WorldMatrixIsModelMatrix;
         }
     }
 }

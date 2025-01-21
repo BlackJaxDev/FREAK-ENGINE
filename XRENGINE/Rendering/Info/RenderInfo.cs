@@ -17,7 +17,7 @@ namespace XREngine.Rendering.Info
     public abstract class RenderInfo : XRBase, ITreeItem
     {
         public abstract ITreeNode? TreeNode { get; }
-        public IRenderable? Owner { get; }
+        public IRenderable Owner { get; }
 
         public override string ToString()
             => $"{Owner?.ToString() ?? "Unknown"}";
