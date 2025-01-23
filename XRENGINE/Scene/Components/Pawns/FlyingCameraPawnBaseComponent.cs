@@ -80,7 +80,7 @@ namespace XREngine.Components
         public float MouseTranslateSpeed { get; set; } = 0.01f;
 
         [Category("Movement")]
-        public float GamepadRotateSpeed { get; set; } = 150.0f;
+        public float GamepadRotateSpeed { get; set; } = 2.0f;
 
         [Category("Movement")]
         public float GamepadTranslateSpeed { get; set; } = 30.0f;

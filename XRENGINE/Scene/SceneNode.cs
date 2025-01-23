@@ -169,7 +169,7 @@ namespace XREngine.Scene
                 return;
 
             if (IsActiveInHierarchy)
-                _transform.OnSceneNodeDeactivated();
+                DeactivateTransform();
             _transform.PropertyChanged -= TransformPropertyChanged;
             _transform.PropertyChanging -= TransformPropertyChanging;
             _transform.SceneNode = null;
@@ -187,7 +187,7 @@ namespace XREngine.Scene
             _transform.PropertyChanged += TransformPropertyChanged;
             _transform.PropertyChanging += TransformPropertyChanging;
             if (IsActiveInHierarchy)
-                _transform.OnSceneNodeActivated();
+                ActivateTransform();
         }
 
         private void TransformPropertyChanging(object? sender, IXRPropertyChangingEventArgs e)
@@ -677,18 +677,29 @@ namespace XREngine.Scene
         /// </summary>
         public void OnSceneNodeActivated()
         {
-            Transform.OnSceneNodeActivated();
+            ActivateTransform();
+            ActivateComponents();
+        }
 
+        private void ActivateComponents()
+        {
             foreach (XRComponent component in Components)
                 if (component.IsActive)
                 {
                     component.VerifyInterfacesOnStart();
                     component.OnComponentActivated();
                 }
+        }
 
-            lock (Transform.Children)
+        private void ActivateTransform()
+        {
+            if (_transform is null)
+                return;
+
+            _transform.OnSceneNodeActivated();
+            lock (_transform.Children)
             {
-                foreach (var child in Transform.Children)
+                foreach (var child in _transform.Children)
                 {
                     var node = child?.SceneNode;
                     if (node is null)
@@ -699,13 +710,18 @@ namespace XREngine.Scene
                 }
             }
         }
+
         /// <summary>
         /// Called when the scene node is removed from a world or deactivated.
         /// </summary>
         public void OnSceneNodeDeactivated()
         {
-            Transform.OnSceneNodeDeactivated();
+            DeactivateComponents();
+            DeactivateTransform();
+        }
 
+        private void DeactivateComponents()
+        {
             foreach (XRComponent component in Components)
                 if (component.IsActive)
                 {
@@ -714,10 +730,18 @@ namespace XREngine.Scene
                     if (component.UnregisterTicksOnStop)
                         ClearTicks();
                 }
+        }
 
-            lock (Transform.Children)
+        private void DeactivateTransform()
+        {
+            if (_transform is null)
+                return;
+
+            _transform.OnSceneNodeDeactivated();
+            _transform.ClearTicks();
+            lock (_transform.Children)
             {
-                foreach (var child in Transform.Children)
+                foreach (var child in _transform.Children)
                 {
                     var node = child?.SceneNode;
                     if (node is null)

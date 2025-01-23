@@ -30,8 +30,19 @@ namespace XREngine.Scene.Transforms
         public event Action<TransformBase>? WorldMatrixChanged;
         public event Action<TransformBase>? InverseWorldMatrixChanged;
 
-        public float SelectionRadius { get; set; } = 0.01f;
-        public Capsule Capsule { get; set; } = new(Vector3.Zero, Vector3.UnitY, 0.015f, 0.5f);
+        private float _selectionRadius = 0.01f;
+        public float SelectionRadius
+        {
+            get => _selectionRadius;
+            set => SetField(ref _selectionRadius, value);
+        }
+
+        private Capsule _capsule = new(Vector3.Zero, Vector3.UnitY, 0.015f, 0.5f);
+        public Capsule Capsule
+        {
+            get => _capsule;
+            set => SetField(ref _capsule, value);
+        }
 
         protected TransformBase() : this(null) { }
         protected TransformBase(TransformBase? parent)
@@ -215,7 +226,7 @@ namespace XREngine.Scene.Transforms
                 case nameof(World):
                     foreach (var obj in RenderedObjects)
                         obj.WorldInstance = World;
-                    World?.AddDirtyTransform(this, out _, false);
+                    World?.AddDirtyTransform(this, false);
                     if (SceneNode is not null)
                         SceneNode.World = World;
                     lock (_children)
@@ -248,9 +259,13 @@ namespace XREngine.Scene.Transforms
         public EventList<IBoneTransformDependent> Dependencies { get; } = [];
 
         /// <summary>
-        /// 
+        /// Recalculates the local and world matrices for this transform and all children.
+        /// If recalcChildrenNow is true, all children will be recalculated immediately.
+        /// If false, they will be marked as dirty and recalculated at the end of the update.
         /// </summary>
-        internal protected virtual bool RecalculateMatrices()
+        /// <param name="recalcChildrenNow"></param>
+        /// <returns></returns>
+        internal protected virtual bool RecalculateMatrices(bool recalcChildrenNow)
         {
             //bool recalcWorld = false;
             //if (_localMatrix.NeedsRecalc)
@@ -270,14 +285,19 @@ namespace XREngine.Scene.Transforms
             if (World is null)
                 return false;
 
-            bool wasAdded = false;
-            foreach (TransformBase child in _children)
-            {
-                child._worldMatrix.NeedsRecalc = true;
-                World.AddDirtyTransform(child, out bool wasDepthAdded, true);
-                wasAdded |= wasDepthAdded;
-            }
-            return wasAdded;
+            bool wasDepthAdded = false;
+
+            Task[] tasks = recalcChildrenNow
+                ? _children.Select(child => Task.Run(() => child.RecalculateMatrices(recalcChildrenNow))).ToArray()
+                : _children.Select(child => Task.Run(() =>
+                {
+                    child._worldMatrix.NeedsRecalc = true;
+                    World.AddDirtyTransform(child, ref wasDepthAdded, true);
+                })).ToArray();
+
+            Task.WaitAll(tasks);
+
+            return wasDepthAdded;
             
         }
 
@@ -610,7 +630,7 @@ namespace XREngine.Scene.Transforms
             //lock (_children)
             //    foreach (TransformBase child in _children)
             //        child.MarkWorldModified();
-            World?.AddDirtyTransform(this, out _, false);
+            World?.AddDirtyTransform(this, false);
             HasChanged = true;
         }
 
@@ -646,18 +666,24 @@ namespace XREngine.Scene.Transforms
         //    All = 0xF,
         //}
 
+        /// <summary>
+        /// Called when the scene node this transform is attached to is activated in the scene.
+        /// </summary>
         protected internal virtual void OnSceneNodeActivated()
         {
-            lock (Children)
-                foreach (TransformBase child in Children)
-                    child.OnSceneNodeActivated();
+            //lock (Children)
+            //    foreach (TransformBase child in Children)
+            //        child.OnSceneNodeActivated();
         }
+        /// <summary>
+        /// Called when the scene node this transform is attached to is deactivated in the scene.
+        /// </summary>
         protected internal virtual void OnSceneNodeDeactivated()
         {
-            lock (Children)
-                foreach (TransformBase child in Children)
-                    child.OnSceneNodeDeactivated();
-            ClearTicks();
+            //lock (Children)
+            //    foreach (TransformBase child in Children)
+            //        child.OnSceneNodeDeactivated();
+            //ClearTicks();
         }
 
         #region Interfaces

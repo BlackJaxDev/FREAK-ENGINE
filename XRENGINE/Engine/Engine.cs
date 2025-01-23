@@ -160,10 +160,10 @@ namespace XREngine
 
             if (startupSettings is IVRGameStartupSettings vrSettings && vrSettings.VRManifest is not null && vrSettings.ActionManifest is not null)
             {
-                if (startupSettings.AppType == GameStartupSettings.EAppType.LocalVRClient)
-                    VRState.IninitializeClient(vrSettings.ActionManifest, vrSettings.VRManifest);
-                else
+                if (startupSettings.AppType == GameStartupSettings.EAppType.Local)
                     VRState.InitializeLocal(vrSettings.ActionManifest, vrSettings.VRManifest, _windows[0]);
+                else
+                    VRState.IninitializeClient(vrSettings.ActionManifest, vrSettings.VRManifest);
             }
 
             Time.Timer.SwapBuffers += SwapBuffers;

@@ -8,6 +8,17 @@
     public class VPRC_BindOutputFBO : ViewportStateRenderCommand<VPRC_UnbindFBO>
     {
         public bool Write { get; set; } = true;
+        public bool ClearColor { get; set; } = true;
+        public bool ClearDepth { get; set; } = true;
+        public bool ClearStencil { get; set; } = true;
+
+        public void SetOptions(bool write = true, bool clearColor = true, bool clearDepth = true, bool clearStencil = true)
+        {
+            Write = write;
+            ClearColor = clearColor;
+            ClearDepth = clearDepth;
+            ClearStencil = clearStencil;
+        }
 
         protected override void Execute()
         {
@@ -22,6 +33,9 @@
 
             PopCommand.FrameBuffer = fbo;
             PopCommand.Write = Write;
+
+            if (ClearColor || ClearDepth || ClearStencil)
+                Engine.Rendering.State.ClearByBoundFBO(ClearColor, ClearDepth, ClearStencil);
         }
     }
 }

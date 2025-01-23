@@ -85,6 +85,22 @@ namespace XREngine.Components
             _camera = new(CameraFactory, true);
         }
 
+        /// <summary>
+        /// Helper method to set this camera as the view of the player with the given index.
+        /// Creates a new pawn component and uses this camera as the view via being a sibling component.
+        /// </summary>
+        /// <param name="playerIndex"></param>
+        public void SetAsPlayerView(ELocalPlayerIndex playerIndex)
+            => SceneNode.AddComponent<PawnComponent>()?.EnqueuePossessionByLocalPlayer(playerIndex);
+        /// <summary>
+        /// Helper method to set this camera as the view of the player with the given index.
+        /// Creates a new pawn component of the given type and uses this camera as the view via being a sibling component.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="playerIndex"></param>
+        public void SetAsPlayerView<T>(ELocalPlayerIndex playerIndex) where T : PawnComponent
+            => SceneNode.AddComponent<T>()?.EnqueuePossessionByLocalPlayer(playerIndex);
+
         protected override void OnTransformChanged()
         {
             base.OnTransformChanged();

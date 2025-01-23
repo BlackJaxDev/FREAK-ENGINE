@@ -24,7 +24,7 @@ namespace XREngine.Rendering.Physics.Physx
         //    transform.Rotation = rotation;
         //}
 
-        public void ApplyTransformTo(Transform transform)
+        public void ApplyTransformTo(TransformBase transform)
         {
             GetTransform(out var position, out var rotation);
             transform.DeriveWorldMatrix(Matrix4x4.CreateFromQuaternion(rotation) * Matrix4x4.CreateTranslation(position));

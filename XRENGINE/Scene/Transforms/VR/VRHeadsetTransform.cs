@@ -20,7 +20,7 @@ namespace XREngine.Scene.Transforms
 
         private void VRState_RecalcMatrixOnDraw()
         {
-            RecalculateMatrices();
+            RecalculateMatrices(true);
         }
 
         protected override Matrix4x4 CreateLocalMatrix()

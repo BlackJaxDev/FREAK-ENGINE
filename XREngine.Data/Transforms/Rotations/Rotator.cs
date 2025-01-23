@@ -120,11 +120,11 @@ namespace XREngine.Data.Transforms.Rotations
             => Vector3.Transform(vector, GetMatrix());
 
         public readonly Matrix4x4 GetYawMatrix()
-            => Matrix4x4.CreateRotationY(Yaw);
+            => Matrix4x4.CreateRotationY(float.DegreesToRadians(Yaw));
         public readonly Matrix4x4 GetPitchMatrix()
-            => Matrix4x4.CreateRotationX(Pitch);
+            => Matrix4x4.CreateRotationX(float.DegreesToRadians(Pitch));
         public readonly Matrix4x4 GetRollMatrix()
-            => Matrix4x4.CreateRotationZ(Roll);
+            => Matrix4x4.CreateRotationZ(float.DegreesToRadians(Roll));
 
         public readonly Quaternion GetYawQuaternion()
             => Quaternion.CreateFromAxisAngle(Vector3.UnitY, XRMath.DegToRad(Yaw));
@@ -529,7 +529,7 @@ namespace XREngine.Data.Transforms.Rotations
         public static Rotator FromQuaternion(Quaternion rotation)
         {
             Vector3 euler = XRMath.QuaternionToEuler(rotation);
-            return new Rotator(euler.X, euler.Y, euler.Z, ERotationOrder.YPR);
+            return new Rotator(float.RadiansToDegrees(euler.X), float.RadiansToDegrees(euler.Y), float.RadiansToDegrees(euler.Z), ERotationOrder.YPR);
         }
         public static Quaternion ToQuaternion(Vector3 euler)
         {

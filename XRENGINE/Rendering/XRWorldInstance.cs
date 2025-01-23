@@ -198,7 +198,7 @@ namespace XREngine.Rendering
         private static void RecalcTransformsSequential(List<int> depthKeys, ConcurrentBag<TransformBase> bag)
         {
             foreach (var transform in bag)
-                if (transform.RecalculateMatrices())
+                if (transform.RecalculateMatrices(false))
                 {
                     int depthPlusOne = transform.Depth + 1;
                     if (!depthKeys.Contains(depthPlusOne))
@@ -210,7 +210,7 @@ namespace XREngine.Rendering
         {
             Parallel.ForEach(bag, transform =>
             {
-                if (!transform.RecalculateMatrices())
+                if (!transform.RecalculateMatrices(false))
                     return;
 
                 lock (depthKeys)
@@ -222,7 +222,7 @@ namespace XREngine.Rendering
         {
             void Calc(TransformBase tfm)
             {
-                if (!tfm.RecalculateMatrices())
+                if (!tfm.RecalculateMatrices(false))
                     return;
 
                 int depthPlusOne = tfm.Depth + 1;
@@ -245,19 +245,34 @@ namespace XREngine.Rendering
 
         private ConcurrentDictionary<int, ConcurrentBag<TransformBase>> _transformBucketsByDepthUpdating = new();
         private ConcurrentDictionary<int, ConcurrentBag<TransformBase>> _transformBucketsByDepthRendering = new();
-        
-        public void AddDirtyTransform(TransformBase transform, out bool wasDepthAdded, bool directToRender)
+
+        /// <summary>
+        /// Enqueues a transform to be recalculated at the end of the update after user code has been executed.
+        /// </summary>
+        /// <param name="transform"></param>
+        /// <param name="wasDepthAdded"></param>
+        /// <param name="directToRender"></param>
+        public void AddDirtyTransform(TransformBase transform, ref bool wasDepthAdded, bool directToRender)
         {
             bool added = false;
-            ConcurrentDictionary<int, ConcurrentBag<TransformBase>> dict = directToRender ? _transformBucketsByDepthRendering : _transformBucketsByDepthUpdating;
-            var bag = dict.GetOrAdd(transform.Depth, x =>
+            ConcurrentDictionary<int, ConcurrentBag<TransformBase>> dict = directToRender 
+                ? _transformBucketsByDepthRendering 
+                : _transformBucketsByDepthUpdating;
+            dict.GetOrAdd(transform.Depth, x =>
             {
                 added = true;
                 return [];
-            });
-            bag.Add(transform);
-            wasDepthAdded = added;
+            }).Add(transform);
+            wasDepthAdded |= added;
         }
+
+        /// <summary>
+        /// Enqueues a transform to be recalculated at the end of the update after user code has been executed.
+        /// </summary>
+        /// <param name="transform"></param>
+        /// <param name="directToRender"></param>
+        public void AddDirtyTransform(TransformBase transform, bool directToRender)
+            => (directToRender ? _transformBucketsByDepthRendering : _transformBucketsByDepthUpdating).GetOrAdd(transform.Depth, static x => []).Add(transform);
 
         private XRWorld? _targetWorld;
         /// <summary>

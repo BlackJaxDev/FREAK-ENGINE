@@ -1085,6 +1085,12 @@ namespace XREngine.Data.Core
         public static Vector3 BaryCentric(Vector3 a, Vector3 b, Vector3 c, float u, float v)
             => a + u * (b - a) + v * (c - a);
 
+        /// <summary>
+        /// Returns pitch, yaw, and roll angles from a quaternion in that order.
+        /// Angles are in radians.
+        /// </summary>
+        /// <param name="rotation"></param>
+        /// <returns></returns>
         public static Vector3 QuaternionToEuler(Quaternion rotation)
         {
             Vector3 euler = new();
@@ -1097,24 +1103,24 @@ namespace XREngine.Data.Core
             if (test > 0.499f * unit)
             { 
                 // singularity at north pole
-                euler.Y = RadToDeg(2.0f * MathF.Atan2(rotation.X, rotation.W));
-                euler.Z = RadToDeg(MathF.PI / 2.0f);
+                euler.Y = 2.0f * MathF.Atan2(rotation.X, rotation.W);
+                euler.Z = MathF.PI / 2.0f;
                 euler.X = 0;
             }
             if (test < -0.499f * unit)
             {
                 // singularity at south pole
-                euler.Y = RadToDeg(-2.0f * MathF.Atan2(rotation.X, rotation.W));
-                euler.Z = RadToDeg(-MathF.PI / 2.0f);
+                euler.Y = -2.0f * MathF.Atan2(rotation.X, rotation.W);
+                euler.Z = -MathF.PI / 2.0f;
                 euler.X = 0;
             }
             else
             {
-                euler.Y = RadToDeg(MathF.Atan2(2 * rotation.Y * rotation.W - 2 * rotation.X * rotation.Z, sqx - sqy - sqz + sqw));
-                euler.Z = RadToDeg(MathF.Asin(2 * test / unit));
-                euler.X = RadToDeg(MathF.Atan2(2 * rotation.X * rotation.W - 2 * rotation.Y * rotation.Z, -sqx + sqy - sqz + sqw));
+                euler.Y = MathF.Atan2(2 * rotation.Y * rotation.W - 2 * rotation.X * rotation.Z, sqx - sqy - sqz + sqw);
+                euler.Z = MathF.Asin(2 * test / unit);
+                euler.X = MathF.Atan2(2 * rotation.X * rotation.W - 2 * rotation.Y * rotation.Z, -sqx + sqy - sqz + sqw);
             }
-            return NormalizeDegrees(euler);
+            return euler;
         }
 
         private static Vector3 NormalizeDegrees(Vector3 euler)

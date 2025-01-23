@@ -79,19 +79,19 @@ namespace XREngine
 
                 public static void Clear(bool color, bool depth, bool stencil)
                     => AbstractRenderer.Current?.Clear(color, depth, stencil);
-                public static void ClearByBoundFBO()
+                public static void ClearByBoundFBO(bool color = true, bool depth = true, bool stencil = true)
                 {
                     var boundFBO = XRFrameBuffer.BoundForWriting;
                     if (boundFBO is not null)
                     {
                         var textureTypes = boundFBO.TextureTypes;
                         Clear(
-                            textureTypes.HasFlag(EFrameBufferTextureTypeFlags.Color),
-                            textureTypes.HasFlag(EFrameBufferTextureTypeFlags.Depth),
-                            textureTypes.HasFlag(EFrameBufferTextureTypeFlags.Stencil));
+                            textureTypes.HasFlag(EFrameBufferTextureTypeFlags.Color) && color,
+                            textureTypes.HasFlag(EFrameBufferTextureTypeFlags.Depth) && depth,
+                            textureTypes.HasFlag(EFrameBufferTextureTypeFlags.Stencil) && stencil);
                     }
                     else
-                        Clear(true, true, true);
+                        Clear(color, depth, stencil);
                 }
 
                 public static void UnbindFrameBuffers(EFramebufferTarget target)

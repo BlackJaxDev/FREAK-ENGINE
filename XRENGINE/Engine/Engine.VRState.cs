@@ -284,7 +284,7 @@ namespace XREngine
                 IntPtr leftEyeHandle,
                 IntPtr rightEyeHandle,
                 ETextureType apiType = ETextureType.OpenGL,
-                EColorSpace colorSpace = EColorSpace.Linear,
+                EColorSpace colorSpace = EColorSpace.Auto,
                 EVRSubmitFlags flags = EVRSubmitFlags.Submit_Default)
             {
                 _eyeTex.eColorSpace = colorSpace;

@@ -43,6 +43,6 @@ namespace XREngine
             get => _actionManifest;
             set => SetField(ref _actionManifest, value);
         }
-        IActionManifest IVRGameStartupSettings.ActionManifest { get; } = new ActionManifest<TCategory, TAction>();
+        IActionManifest? IVRGameStartupSettings.ActionManifest => ActionManifest;
     }
 }

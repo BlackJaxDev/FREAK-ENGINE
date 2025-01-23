@@ -5,7 +5,7 @@ namespace XREngine
 {
     public class GameStartupSettings : XRAsset
     {
-        private EAppType _appType = EAppType.Client;
+        private EAppType _appType = EAppType.Local;
         private List<GameWindowStartupSettings> _startupWindows = [];
         private ETwoPlayerPreference _twoPlayerViewportPreference;
         private EThreePlayerPreference _threePlayerViewportPreference;
@@ -62,7 +62,7 @@ namespace XREngine
             Server,
             Client,
             P2PClient,
-            LocalVRClient,
+            Local,
         }
         public EAppType AppType
         {

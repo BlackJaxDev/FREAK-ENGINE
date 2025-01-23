@@ -89,7 +89,7 @@ namespace XREngine.Scene.Transforms
             set => SetField(ref _rotation, value);
         }
 
-        private EOrder _order;
+        private EOrder _order = EOrder.TRS;
         public EOrder Order
         {
             get => _order;

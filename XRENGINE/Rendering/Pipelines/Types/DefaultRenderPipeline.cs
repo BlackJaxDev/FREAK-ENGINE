@@ -129,11 +129,9 @@ public class DefaultRenderPipeline : RenderPipeline
                 AmbientOcclusionBlurFBOName,
                 GBufferFBOName);
 
-            using (c.AddUsing<VPRC_BindFBOByName>(x => x.FrameBufferName = AmbientOcclusionFBOName))
+            using (c.AddUsing<VPRC_BindFBOByName>(x => x.SetOptions(AmbientOcclusionFBOName)))
             {
                 c.Add<VPRC_StencilMask>().Set(~0u);
-                c.Add<VPRC_ClearByBoundFBO>();
-
                 c.Add<VPRC_DepthTest>().Enable = true;
                 c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.OpaqueDeferredLit;
                 c.Add<VPRC_RenderMeshesPass>().RenderPass = (int)EDefaultRenderPass.DeferredDecals;
@@ -150,11 +148,9 @@ public class DefaultRenderPipeline : RenderPipeline
                 GetDesiredFBOSizeInternal);
 
             //Render the GBuffer fbo to the LightCombine fbo
-            using (c.AddUsing<VPRC_BindFBOByName>(x => x.FrameBufferName = LightCombineFBOName))
+            using (c.AddUsing<VPRC_BindFBOByName>(x => x.SetOptions(LightCombineFBOName)))
             {
                 c.Add<VPRC_StencilMask>().Set(~0u);
-                c.Add<VPRC_ClearByBoundFBO>();
-
                 c.Add<VPRC_LightCombinePass>().SetOptions(
                     AlbedoOpacityTextureName,
                     NormalTextureName,
@@ -169,7 +165,7 @@ public class DefaultRenderPipeline : RenderPipeline
                 GetDesiredFBOSizeInternal);
 
             //Render forward pass - GBuffer results + forward lit meshes + debug data
-            using (c.AddUsing<VPRC_BindFBOByName>(x => x.FrameBufferName = ForwardPassFBOName))
+            using (c.AddUsing<VPRC_BindFBOByName>(x => x.SetOptions(ForwardPassFBOName, true, false, false,false)))
             {
                 //Render the deferred pass lighting result, no depth testing
                 c.Add<VPRC_DepthTest>().Enable = false;
@@ -213,12 +209,6 @@ public class DefaultRenderPipeline : RenderPipeline
         {
             using (c.AddUsing<VPRC_BindOutputFBO>())
             {
-                //c.Add<VPRC_StencilMask>().Set(~0u);
-                c.Add<VPRC_ClearByBoundFBO>();
-
-                //c.Add<VPRC_DepthFunc>().Comp = EComparison.Always;
-                //c.Add<VPRC_DepthWrite>().Allow = false;
-
                 c.Add<VPRC_RenderQuadFBO>().FrameBufferName = PostProcessFBOName;
                 c.Add<VPRC_RenderScreenSpaceUI>();
             }
