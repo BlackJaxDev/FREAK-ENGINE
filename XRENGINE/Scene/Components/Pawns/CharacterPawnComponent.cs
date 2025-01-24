@@ -12,7 +12,7 @@ namespace XREngine.Components
     /// Converts inputs into kinematic rigid body movements and provides inputs for a camera view.
     /// </summary>
     [RequireComponents(typeof(CharacterMovement3DComponent))]
-    public class CharacterComponent : PawnComponent
+    public class CharacterPawnComponent : PawnComponent
     {
         private CharacterMovement3DComponent Movement => GetSiblingComponent<CharacterMovement3DComponent>(true)!;
         

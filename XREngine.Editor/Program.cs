@@ -56,7 +56,7 @@ internal class Program
     public const bool StaticModel = true;
     public const bool AnimatedModel = false;
     public const bool AddEditorUI = false;
-    public const bool VRPawn = false;
+    public const bool VRPawn = true;
     public const bool CharacterPawn = true;
 
     /// <summary>
@@ -249,7 +249,7 @@ internal class Program
         var characterTfm = vrPlayspaceNode.SetTransform<RigidBodyTransform>();
         characterTfm.InterpolationMode = EInterpolationMode.Interpolate;
 
-        var characterComp = vrPlayspaceNode.AddComponent<CharacterComponent>();
+        var characterComp = vrPlayspaceNode.AddComponent<CharacterPawnComponent>();
         var movementComp = vrPlayspaceNode.AddComponent<CharacterMovement3DComponent>();
         movementComp!.StandingHeight = 1.89f;
         movementComp!.SpawnPosition = new Vector3(0.0f, 10.0f, 0.0f);
@@ -260,7 +260,7 @@ internal class Program
         characterComp!.Name = "TestPawn";
         characterComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
 
-        AddHeadsetNode(vrPlayspaceNode);
+        AddHeadsetNode(vrPlayspaceNode, characterComp);
         AddHandControllerNode(vrPlayspaceNode, true);
         AddHandControllerNode(vrPlayspaceNode, false);
     }
@@ -283,7 +283,7 @@ internal class Program
         AddHandControllerNode(vrPlayspaceNode, false);
     }
 
-    private static void AddHeadsetNode(SceneNode parentNode)
+    private static void AddHeadsetNode(SceneNode parentNode, PawnComponent? pawn = null)
     {
         SceneNode vrHeadsetNode = new(parentNode) { Name = "VRHeadsetNode" };
         vrHeadsetNode.AddComponent<AudioListenerComponent>();
@@ -292,7 +292,7 @@ internal class Program
 
         SceneNode firstPersonViewNode = new(vrHeadsetNode) { Name = "FirstPersonViewNode" };
         var firstPersonViewTfm = firstPersonViewNode.SetTransform<SmoothedParentConstraintTransform>();
-        firstPersonViewTfm.TranslationInterpolationSpeed = 1.0f;
+        firstPersonViewTfm.TranslationInterpolationSpeed = 3.0f;
         firstPersonViewTfm.YawInterpolationSpeed = 1.0f;
         firstPersonViewTfm.PitchInterpolationSpeed = 1.0f;
         firstPersonViewTfm.ScaleInterpolationSpeed = 1.0f;
@@ -300,9 +300,12 @@ internal class Program
         firstPersonViewTfm.IgnoreRoll = true;
         firstPersonViewTfm.UseLookAtYawPitch = true;
         var firstPersonCam = firstPersonViewNode.AddComponent<CameraComponent>()!;
-        firstPersonCam.Camera.Parameters = new XRPerspectiveCameraParameters(70.0f, null, 0.1f, 100000.0f);
         firstPersonCam.CullWithFrustum = true;
-        firstPersonCam.SetAsPlayerView(ELocalPlayerIndex.One);
+        if (pawn is null)
+            firstPersonCam.SetAsPlayerView(ELocalPlayerIndex.One);
+        else
+            pawn.CameraComponent = firstPersonCam;
+        CreateUserInterface(vrHeadsetNode, firstPersonCam);
     }
 
     private static SceneNode CreateDesktopCharacterPawn(SceneNode rootNode)
@@ -319,7 +322,7 @@ internal class Program
         SceneNode cameraNode = CreateCamera(cameraOffsetNode, out CameraComponent? camComp, false);
         cameraNode.AddComponent<AudioListenerComponent>();
 
-        var characterComp = characterNode.AddComponent<CharacterComponent>();
+        var characterComp = characterNode.AddComponent<CharacterPawnComponent>();
         characterComp!.CameraComponent = camComp;
         var movementComp = characterNode.AddComponent<CharacterMovement3DComponent>();
         movementComp!.StandingHeight = 1.89f;
@@ -330,6 +333,8 @@ internal class Program
         movementComp.InputLerpSpeed = 0.2f;
         characterComp!.Name = "TestPawn";
         characterComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
+        if (camComp is not null)
+            CreateUserInterface(characterNode, camComp);
         return cameraNode;
     }
 
@@ -371,7 +376,7 @@ internal class Program
     //    orb1Model.Model = new Model([new SubMesh(XRMesh.Shapes.SolidSphere(Vector3.Zero, radius, 32), mat)]);
     //}
 
-    private static void CreateUserInterface(SceneNode parent, CameraComponent? camComp, EditorFlyingCameraPawnComponent pawn)
+    private static void CreateUserInterface(SceneNode parent, CameraComponent camComp, PawnComponent? pawnForInput = null)
     {
         var rootCanvasNode = new SceneNode(parent) { Name = "TestUINode" };
         var canvas = rootCanvasNode.AddComponent<UICanvasComponent>()!;
@@ -390,12 +395,12 @@ internal class Program
 
         AddFPSText(null, rootCanvasNode);
 
-        //Add input handler
-        var input = rootCanvasNode.AddComponent<UIInputComponent>()!;
-        input.OwningPawn = pawn;
-
         if (AddEditorUI)
         {
+            //Add input handler
+            var input = rootCanvasNode.AddComponent<UIInputComponent>()!;
+            input.OwningPawn = pawnForInput;
+
             //This will take care of editor UI arrangement operations for us
             var mainUINode = rootCanvasNode.NewChild<UIEditorComponent>(out var editorComp);
             editorComp.MenuOptions = GenerateRootMenu();
