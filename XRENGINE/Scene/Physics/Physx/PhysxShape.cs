@@ -191,7 +191,7 @@ namespace XREngine.Rendering.Physics.Physx
         public unsafe bool Overlap(PhysxRigidActor actor, IAbstractPhysicsGeometry otherGeom, (Vector3 position, Quaternion rotation) otherGeomPose)
         {
             var tfm = PhysxScene.MakeTransform(otherGeomPose.position, otherGeomPose.rotation);
-            var structObj = otherGeom.GetStruct();
+            var structObj = otherGeom.GetPhysxStruct();
             return ShapePtr->ExtOverlap(actor.RigidActorPtr, structObj.Address.As<PxGeometry>(), &tfm);
         }
 
@@ -200,7 +200,7 @@ namespace XREngine.Rendering.Physics.Physx
             var tfm = PhysxScene.MakeTransform(otherGeomPose.position, otherGeomPose.rotation);
             PxSweepHit h;
             PxVec3 ud = unitDir;
-            var structObj = otherGeom.GetStruct();
+            var structObj = otherGeom.GetPhysxStruct();
             bool result = ShapePtr->ExtSweep(actor.RigidActorPtr, &ud, distance, structObj.Address.As<PxGeometry>(), &tfm, &h, hitFlags);
             sweepHit = h;
             return result;

@@ -93,6 +93,10 @@ namespace XREngine.Rendering
 
         public override uint MaxDimension => Math.Max(Width, Height);
 
+        public XRTexture2D(Task<Image<Rgba32>?> loadTask)
+        {
+            Mipmaps = [new Mipmap2D(loadTask)];
+        }
         public XRTexture2D(uint width, uint height, ColorF4 color)
         {
             Mipmaps = [new Mipmap2D(width, height, EPixelInternalFormat.Rgba8, EPixelFormat.Rgba, EPixelType.UnsignedByte, true)

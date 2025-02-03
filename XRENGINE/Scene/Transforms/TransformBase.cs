@@ -282,7 +282,8 @@ namespace XREngine.Scene.Transforms
             _worldMatrix.NeedsRecalc = false;
             RecalcWorld(false);
 
-            if (World is null)
+            var world = World;
+            if (world is null)
                 return false;
 
             bool wasDepthAdded = false;
@@ -292,7 +293,7 @@ namespace XREngine.Scene.Transforms
                 : _children.Select(child => Task.Run(() =>
                 {
                     child._worldMatrix.NeedsRecalc = true;
-                    World.AddDirtyTransform(child, ref wasDepthAdded, true);
+                    world.AddDirtyTransform(child, ref wasDepthAdded, true);
                 })).ToArray();
 
             Task.WaitAll(tasks);

@@ -14,8 +14,6 @@ using XREngine.Data.Rendering;
 using XREngine.Rendering;
 using XREngine.Rendering.Models.Materials;
 using XREngine.Rendering.OpenGL;
-using XREngine.Rendering.UI;
-using XREngine.Scene.Transforms;
 using ETextureType = Valve.VR.ETextureType;
 
 namespace XREngine
@@ -219,29 +217,30 @@ namespace XREngine
                 Api.UpdateInput();
                 Api.Update();
             }
-            private static readonly Queue<float> _fpsAvg = new();
-            private static void TickFPS()
-            {
-                _fpsAvg.Enqueue(1.0f / Time.Timer.Render.SmoothedDelta);
-                if (_fpsAvg.Count > 60)
-                    _fpsAvg.Dequeue();
-                Debug.Out($"{MathF.Round(_fpsAvg.Sum() / _fpsAvg.Count)}hz");
-            }
+
             /// <summary>
             /// VR-related transforms must subscribe to this event to recalculate their matrices directly before drawing.
             /// </summary>
             public static event Action? RecalcMatrixOnDraw;
+
             private static void Render()
             {
+                //Begin drawing to the headset
                 var drawContext = Api.UpdateDraw(Origin);
+
+                //Update VR-related transforms
                 RecalcMatrixOnDraw?.Invoke();
+
+                //Render the scene to left and right eyes
+                //TODO: stereoscopic rendering, OR parallel buffer rendering (I believe that can be done in Vulkan only?)
                 LeftEyeViewport?.Render(VRLeftEyeRenderTarget);
                 RightEyeViewport?.Render(VRRightEyeRenderTarget);
+
+                //Submit the rendered frames to the headset
                 nint? leftHandle = VRLeftEyeViewTexture?.APIWrappers?.FirstOrDefault()?.GetHandle();
                 nint? rightHandle = VRRightEyeViewTexture?.APIWrappers?.FirstOrDefault()?.GetHandle();
                 if (leftHandle is not null && rightHandle is not null)
                     SubmitRenders(leftHandle.Value, rightHandle.Value);
-                //TickFPS();
             }
 
             public static XRViewport? LeftEyeViewport { get; private set; }

@@ -6,10 +6,9 @@ namespace XREngine.Rendering.Physics.Physx
 {
     public unsafe abstract class PhysxBase : XRBase
     {
-        private XRComponent? _owningComponent;
-
         public abstract PxBase* BasePtr { get; }
 
+        private XRComponent? _owningComponent;
         public XRComponent? OwningComponent
         {
             get => _owningComponent;

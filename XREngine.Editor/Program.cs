@@ -4,7 +4,6 @@ using Silk.NET.Input;
 using System.Collections.Concurrent;
 using System.Numerics;
 using XREngine;
-using XREngine.Actors.Types;
 using XREngine.Animation;
 using XREngine.Components;
 using XREngine.Components.Lights;
@@ -31,6 +30,7 @@ using XREngine.Rendering.UI;
 using XREngine.Scene;
 using XREngine.Scene.Components.Animation;
 using XREngine.Scene.Components.Physics;
+using XREngine.Scene.Components.VR;
 using XREngine.Scene.Transforms;
 using XREngine.VRClient;
 using static XREngine.Audio.AudioSource;
@@ -52,12 +52,12 @@ internal class Program
     public const bool LightProbe = true;
     public const bool Skybox = true;
     public const bool Spline = false;
-    public const bool DeferredDecal = true;
-    public const bool StaticModel = true;
-    public const bool AnimatedModel = false;
-    public const bool AddEditorUI = false;
-    public const bool VRPawn = true;
-    public const bool CharacterPawn = true;
+    public const bool DeferredDecal = false;
+    public const bool StaticModel = false;
+    public const bool AnimatedModel = true;
+    public const bool AddEditorUI = true;
+    public const bool VRPawn = false;
+    public const bool CharacterPawn = false;
 
     /// <summary>
     /// This project serves as a hardcoded game client for development purposes.
@@ -209,7 +209,7 @@ internal class Program
         {
             SceneNode cameraNode = CreateCamera(rootNode, out var camComp);
             var pawn = CreateDesktopViewerPawn(cameraNode);
-            CreateUserInterface(rootNode, camComp, pawn);
+            CreateUserInterface(rootNode, camComp!, pawn);
         }
 
         if (DirLight)
@@ -224,7 +224,7 @@ internal class Program
             AddSoundNode(rootNode);
         if (LightProbe || Skybox)
         {
-            string[] names = ["warm_restaurant_4k", "overcast_soil_puresky_4k", "studio_small_09_4k", "klippad_sunrise_2_4k", "satara_night_4k"];
+            string[] names = [/*"warm_restaurant_4k",*/ "overcast_soil_puresky_4k", /*"studio_small_09_4k",*/ "klippad_sunrise_2_4k", "satara_night_4k"];
             Random r = new();
             XRTexture2D skyEquirect = Engine.Assets.LoadEngineAsset<XRTexture2D>("Textures", $"{names[r.Next(0, names.Length - 1)]}.exr");
 
@@ -263,6 +263,7 @@ internal class Program
         AddHeadsetNode(vrPlayspaceNode, characterComp);
         AddHandControllerNode(vrPlayspaceNode, true);
         AddHandControllerNode(vrPlayspaceNode, false);
+        AddTrackerCollectionNode(vrPlayspaceNode);
     }
 
     private static void AddHandControllerNode(SceneNode parentNode, bool left)
@@ -281,6 +282,13 @@ internal class Program
         AddHeadsetNode(vrPlayspaceNode);
         AddHandControllerNode(vrPlayspaceNode, true);
         AddHandControllerNode(vrPlayspaceNode, false);
+        AddTrackerCollectionNode(vrPlayspaceNode);
+    }
+
+    private static void AddTrackerCollectionNode(SceneNode vrPlayspaceNode)
+    {
+        SceneNode trackerNode = new(vrPlayspaceNode) { Name = "VRTrackerNode" };
+        trackerNode.AddComponent<VRTrackerCollectionComponent>();
     }
 
     private static void AddHeadsetNode(SceneNode parentNode, PawnComponent? pawn = null)
@@ -384,7 +392,7 @@ internal class Program
         canvasTfm.DrawSpace = ECanvasDrawSpace.Screen;
         canvasTfm.Width = 1920.0f;
         canvasTfm.Height = 1080.0f;
-        canvasTfm.CameraDrawSpaceDistance = 100.0f;
+        canvasTfm.CameraDrawSpaceDistance = 10.0f;
         canvasTfm.Padding = new Vector4(0.0f);
 
         if (VisualizeQuadtree)
@@ -404,16 +412,14 @@ internal class Program
             //This will take care of editor UI arrangement operations for us
             var mainUINode = rootCanvasNode.NewChild<UIEditorComponent>(out var editorComp);
             editorComp.MenuOptions = GenerateRootMenu();
-            var tfm = editorComp.UITransform as UIBoundableTransform;
-            if (tfm is not null)
-            {
-                tfm.MinAnchor = new Vector2(0.0f, 0.0f);
-                tfm.MaxAnchor = new Vector2(1.0f, 1.0f);
-                tfm.NormalizedPivot = new Vector2(0.0f, 0.0f);
-                tfm.Translation = new Vector2(0.0f, 0.0f);
-                tfm.Width = null;
-                tfm.Height = null;
-            }
+            if (editorComp.UITransform is not UIBoundableTransform tfm)
+                return;
+            tfm.MinAnchor = new Vector2(0.0f, 0.0f);
+            tfm.MaxAnchor = new Vector2(1.0f, 1.0f);
+            tfm.NormalizedPivot = new Vector2(0.0f, 0.0f);
+            tfm.Translation = new Vector2(0.0f, 0.0f);
+            tfm.Width = null;
+            tfm.Height = null;
         }
     }
 
@@ -506,7 +512,7 @@ internal class Program
 
     private static void AddBall(SceneNode rootNode, PhysxMaterial ballPhysMat, float ballRadius, Random random)
     {
-        var ballBody = new PhysxDynamicRigidBody(ballPhysMat, new PhysxGeometry.Sphere(ballRadius), 1.0f)
+        var ballBody = new PhysxDynamicRigidBody(ballPhysMat, new IAbstractPhysicsGeometry.Sphere(ballRadius), 1.0f)
         {
             Transform = (new Vector3(
                 random.NextSingle() * 100.0f,
@@ -813,7 +819,7 @@ internal class Program
         var comp = rootNode.AddComponent<HumanoidComponent>()!;
         //comp.IsActive = false;
 
-        TransformTool3D.GetInstance(comp.Transform, ETransformType.Translate);
+        //TransformTool3D.GetInstance(comp.Transform, ETransformType.Translate);
 
         var knee = comp!.Right.Knee?.Node?.Transform;
         var leg = comp!.Right.Leg?.Node?.Transform;

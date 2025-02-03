@@ -1,27 +1,16 @@
 ﻿using OpenVR.NET.Devices;
 using System.Numerics;
 using Valve.VR;
+using XREngine.Components.Scene.Mesh;
 using XREngine.Data.Colors;
 using XREngine.Data.Rendering;
 using XREngine.Rendering;
 using XREngine.Rendering.Models;
 
-namespace XREngine.Components.Scene.Mesh
+namespace XREngine.Scene.Components.VR
 {
-    public class VRControllerModelComponent : ModelComponent
+    public abstract class VRDeviceModelComponent : ModelComponent
     {
-        public VRControllerModelComponent()
-        {
-
-        }
-
-        private bool _leftHand = false;
-        public bool LeftHand
-        {
-            get => _leftHand;
-            set => SetField(ref _leftHand, value);
-        }
-
         public bool IsLoaded => Model is not null;
 
         protected internal override void OnComponentActivated()
@@ -31,39 +20,50 @@ namespace XREngine.Components.Scene.Mesh
             if (IsLoaded)
                 return;
 
-            Engine.VRState.Api.DeviceDetected += Api_DeviceDetected;
-            Task.Run(LoadModelAsync);
+            Engine.VRState.Api.DeviceDetected += DeviceDetected;
+            VerifyDevices();
+        }
+        protected internal override void OnComponentDeactivated()
+        {
+            base.OnComponentDeactivated();
+            Engine.VRState.Api.DeviceDetected -= DeviceDetected;
         }
 
-        private void Api_DeviceDetected(VrDevice device)
-        {
-            if (IsLoaded)
-                return;
+        private void DeviceDetected(VrDevice device)
+            => VerifyDevices();
 
-            Task.Run(LoadModelAsync);
+        private void VerifyDevices()
+        {
+            if (!IsLoaded)
+                Task.Run(LoadModelAsync);
         }
 
         private async Task LoadModelAsync()
         {
-            var model = LeftHand
-                ? Engine.VRState.Api.LeftController?.Model
-                : Engine.VRState.Api.RightController?.Model;
+            DeviceModel? model = GetRenderModel();
             if (model is null)
                 return;
 
-            var comps = model.Components;
             Model m = new();
+            Model = m;
+
+            await LoadDeviceAsync(model, m);
+        }
+
+        protected abstract DeviceModel? GetRenderModel();
+
+        protected async Task LoadDeviceAsync(DeviceModel deviceModel, Model model)
+        {
+            var comps = deviceModel.Components;
             foreach (var comp in comps)
             {
                 var subMesh = await LoadComponentAsync(comp);
                 if (subMesh is not null)
-                    m.Meshes.Add(subMesh);
+                    model.Meshes.Add(subMesh);
             }
-            Model = m;
-            Engine.VRState.Api.DeviceDetected -= Api_DeviceDetected;
         }
 
-        private async Task<SubMesh?> LoadComponentAsync(ComponentModel comp)
+        protected async Task<SubMesh?> LoadComponentAsync(ComponentModel comp)
         {
             if (!comp.ModelName.EndsWith(".obj"))
                 return null;
@@ -80,13 +80,9 @@ namespace XREngine.Components.Scene.Mesh
             {
 
             }
-            async void AddTexture(ComponentModel.Texture texture)
+            void AddTexture(ComponentModel.Texture texture)
             {
-                var image = await texture.LoadImage(true);
-                if (image is null)
-                    return;
-
-                textures.Add(new XRTexture2D(image));
+                textures.Add(new XRTexture2D(texture.LoadImage(true)));
             }
             void AddTriangle(short index0, short index1, short index2)
             {
@@ -114,7 +110,7 @@ namespace XREngine.Components.Scene.Mesh
                     mat = XRMaterial.CreateLitTextureMaterial(textures[0]);
                 else
                     mat = XRMaterial.CreateLitColorMaterial(ColorF4.Magenta);
-                m = new (new SubMeshLOD(mat, mesh, 0.0f));
+                m = new(new SubMeshLOD(mat, mesh, 0.0f));
             }
             bool Begin(ComponentModel.ComponentType type)
             {
@@ -124,9 +120,21 @@ namespace XREngine.Components.Scene.Mesh
             return m;
         }
 
-        protected internal override void OnComponentDeactivated()
+        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
         {
-            base.OnComponentDeactivated();
+            base.OnPropertyChanged(propName, prev, field);
+            switch (propName)
+            {
+                case nameof(Model):
+                    if (IsActive)
+                    {
+                        if (Model is not null)
+                            Engine.VRState.Api.DeviceDetected -= DeviceDetected;
+                        else
+                            Engine.VRState.Api.DeviceDetected += DeviceDetected;
+                    }
+                    break;
+            }
         }
     }
 }

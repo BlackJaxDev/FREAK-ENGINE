@@ -1,11 +1,11 @@
 ﻿using Extensions;
+using OpenVR.NET.Devices;
 using System.Numerics;
 using XREngine.Components;
 using XREngine.Data.Colors;
 using XREngine.Data.Core;
 using XREngine.Data.Rendering;
 using XREngine.Data.Transforms.Rotations;
-using XREngine.Rendering.Commands;
 using XREngine.Rendering.Info;
 using XREngine.Scene.Transforms;
 
@@ -16,13 +16,44 @@ namespace XREngine.Scene.Components.Animation
         protected internal override void OnComponentActivated()
         {
             base.OnComponentActivated();
-            RegisterTick(ETickGroup.PrePhysics, ETickOrder.Scene, SolveFullBodyIK);
+            if (SolveIK)
+                RegisterTick(ETickGroup.PrePhysics, ETickOrder.Scene, SolveFullBodyIK);
+        }
+        protected internal override void OnComponentDeactivated()
+        {
+            base.OnComponentDeactivated();
+            if (SolveIK)
+                UnregisterTick(ETickGroup.PrePhysics, ETickOrder.Scene, SolveFullBodyIK);
+        }
+
+        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+        {
+            base.OnPropertyChanged(propName, prev, field);
+            switch (propName)
+            {
+                case nameof(SolveIK):
+                    if (IsActive)
+                    {
+                        if (SolveIK)
+                            RegisterTick(ETickGroup.PrePhysics, ETickOrder.Scene, SolveFullBodyIK);
+                        else
+                            UnregisterTick(ETickGroup.PrePhysics, ETickOrder.Scene, SolveFullBodyIK);
+                    }
+                    break;
+            }
         }
 
         protected internal override void AddedToSceneNode(SceneNode sceneNode)
         {
             base.AddedToSceneNode(sceneNode);
             SetFromNode();
+        }
+
+        private bool _solveIK = true;
+        public bool SolveIK
+        {
+            get => _solveIK;
+            set => SetField(ref _solveIK, value);
         }
 
         public HumanoidComponent() 
@@ -188,20 +219,22 @@ namespace XREngine.Scene.Components.Animation
         public BoneChainItem[] GetRightShoulderToWristChain()
             => _rightShoulderToWristChain ??= Link([Right.Shoulder, Right.Arm, Right.Elbow, Right.Wrist]);
 
-        public TransformBase? HeadTarget => Head.Node?.Transform;
-        public TransformBase? HipsTarget => Hips.Node?.Transform;
+        public (TransformBase? tfm, Matrix4x4 offset) HeadTarget { get; set; } = (null, Matrix4x4.Identity);
+        public (TransformBase? tfm, Matrix4x4 offset) HipsTarget { get; set; } = (null, Matrix4x4.Identity);
 
-        public TransformBase? LeftHandTarget => Left.Wrist.Node?.Transform;
-        public TransformBase? RightHandTarget => Right.Wrist.Node?.Transform;
+        public (TransformBase? tfm, Matrix4x4 offset) LeftHandTarget { get; set; } = (null, Matrix4x4.Identity);
+        public (TransformBase? tfm, Matrix4x4 offset) RightHandTarget { get; set; } = (null, Matrix4x4.Identity);
 
-        public TransformBase? LeftFootTarget => Left.Wrist.Node?.Transform;
-        public TransformBase? RightFootTarget => Right.Wrist.Node?.Transform;
+        public (TransformBase? tfm, Matrix4x4 offset) LeftFootTarget { get; set; } = (null, Matrix4x4.Identity);
+        public (TransformBase? tfm, Matrix4x4 offset) RightFootTarget { get; set; } = (null, Matrix4x4.Identity);
 
-        public TransformBase? LeftElbowTarget => Left.Wrist.Node?.Transform;
-        public TransformBase? RightElbowTarget => Right.Wrist.Node?.Transform;
+        public (TransformBase? tfm, Matrix4x4 offset) LeftElbowTarget { get; set; } = (null, Matrix4x4.Identity);
+        public (TransformBase? tfm, Matrix4x4 offset) RightElbowTarget { get; set; } = (null, Matrix4x4.Identity);
 
-        public TransformBase? LeftKneeTarget => Left.Wrist.Node?.Transform;
-        public TransformBase? RightKneeTarget => Right.Wrist.Node?.Transform;
+        public (TransformBase? tfm, Matrix4x4 offset) LeftKneeTarget { get; set; } = (null, Matrix4x4.Identity);
+        public (TransformBase? tfm, Matrix4x4 offset) RightKneeTarget { get; set; } = (null, Matrix4x4.Identity);
+
+        public (TransformBase? tfm, Matrix4x4 offset) ChestTarget { get; set; } = (null, Matrix4x4.Identity);
 
         public RenderInfo[] RenderedObjects { get; }
 
@@ -212,31 +245,31 @@ namespace XREngine.Scene.Components.Animation
             int maxIterations = 10;
             for (int i = 0; i < maxIterations; i++)
             {
-                //if (HeadTarget is not null && HipsTarget is not null)
-                //    SolveFABRIKWithFixedEnds(
-                //        GetHipToHeadChain(),
-                //        HipsTarget?.WorldTranslation ?? Vector3.Zero,
-                //        HeadTarget?.WorldTranslation ?? Vector3.Zero);
+                if (HeadTarget.tfm is not null && HipsTarget.tfm is not null)
+                    SolveWithFixedEnds(
+                        GetHipToHeadChain(),
+                        HipsTarget.offset * HipsTarget.tfm.WorldMatrix,
+                        HeadTarget.offset * HeadTarget.tfm.WorldMatrix);
 
-                if (LeftHandTarget is not null)
-                    SolveFABRIK(
+                if (LeftHandTarget.tfm is not null)
+                    Solve(
                         GetLeftShoulderToWristChain(),
-                        LeftHandTarget.WorldTranslation);
+                        LeftHandTarget.offset * LeftHandTarget.tfm.WorldMatrix);
 
-                //if (RightHandTarget is not null)
-                //    SolveFABRIK(
-                //        GetRightShoulderToWristChain(),
-                //        RightHandTarget.WorldTranslation);
+                if (RightHandTarget.tfm is not null)
+                    Solve(
+                        GetRightShoulderToWristChain(),
+                        RightHandTarget.offset * RightHandTarget.tfm.WorldMatrix);
 
-                //if (LeftFootTarget is not null)
-                //    SolveFABRIK(
-                //        GetLeftLegToAnkleChain(),
-                //        LeftFootTarget.WorldTranslation);
+                if (LeftFootTarget.tfm is not null)
+                    Solve(
+                        GetLeftLegToAnkleChain(),
+                        LeftFootTarget.offset * LeftFootTarget.tfm.WorldMatrix);
 
-                //if (RightFootTarget is not null)
-                //    SolveFABRIK(
-                //        GetRightLegToAnkleChain(),
-                //        RightFootTarget.WorldTranslation);
+                if (RightFootTarget.tfm is not null)
+                    Solve(
+                        GetRightLegToAnkleChain(),
+                        RightFootTarget.offset * RightFootTarget.tfm.WorldMatrix);
             }
         }
 
@@ -257,6 +290,7 @@ namespace XREngine.Scene.Components.Animation
             private BoneDef _def = def;
             private Vector3 _worldAxis;
             private Vector3 _worldPosition = Vector3.Zero;
+            private float _length;
 
             public BoneChainItem? ParentPrev
             {
@@ -334,7 +368,11 @@ namespace XREngine.Scene.Components.Animation
             /// <summary>
             /// Distance to the next child bone in the chain.
             /// </summary>
-            public float Length { get; set; }
+            public float Length
+            {
+                get => _length;
+                set => SetField(ref _length, value);
+            }
             public Transform? Transform => SceneNode?.GetTransformAs<Transform>(true);
             public SceneNode? SceneNode => Def.Node;
             public Vector3 WorldAxis
@@ -343,9 +381,9 @@ namespace XREngine.Scene.Components.Animation
                 set => SetField(ref _worldAxis, value);
             }
         }
-        public static void SolveFABRIK(
+        public static void Solve(
             BoneChainItem[] chain,
-            Vector3 targetPosition,
+            Matrix4x4 target,
             float tolerance = 0.001f,
             int maxIterations = 10)
         {
@@ -358,7 +396,7 @@ namespace XREngine.Scene.Components.Animation
             float totalLength = Init(chain);
             bool hasMovableRoot = chain[0].Def.IsMovable;
             Vector3 originalRootPosition = chain[0].WorldPosition;
-            float distanceToTarget = Vector3.Distance(originalRootPosition, targetPosition);
+            float distanceToTarget = Vector3.Distance(originalRootPosition, target);
 
             //if (distanceToTarget > totalLength)
             //{
@@ -366,14 +404,14 @@ namespace XREngine.Scene.Components.Animation
             //}
 
             int iterations = 0;
-            float diff = Vector3.Distance(chain[^1].WorldPosition, targetPosition);
+            float diff = Vector3.Distance(chain[^1].WorldPosition, target);
 
             while (diff > tolerance && iterations < maxIterations)
             {
                 // **Forward Reaching Phase**
 
                 // Move end effector to the target
-                chain[^1].WorldPosition = targetPosition;
+                chain[^1].WorldPosition = target;
 
                 // Iterate backwards through the chain
                 for (int i = chain.Length - 2; i >= 0; i--)
@@ -402,7 +440,7 @@ namespace XREngine.Scene.Components.Animation
                     child.WorldPosition = parent.WorldPosition + DirFromTo(parent.WorldPosition, child.WorldPosition) * parent.Length;
                 }
 
-                diff = Vector3.Distance(chain[^1].WorldPosition, targetPosition);
+                diff = Vector3.Distance(chain[^1].WorldPosition, target);
                 iterations++;
             }
 
@@ -443,10 +481,10 @@ namespace XREngine.Scene.Components.Animation
             return totalLength;
         }
 
-        public static void SolveFABRIKWithFixedEnds(
+        public static void SolveWithFixedEnds(
             BoneChainItem[] chain,
-            Vector3 startPosition,
-            Vector3 endPosition,
+            Matrix4x4 startPosition,
+            Matrix4x4 endPosition,
             float tolerance = 0.001f,
             int maxIterations = 10)
         {
@@ -748,6 +786,21 @@ namespace XREngine.Scene.Components.Animation
             foreach ((BoneDef def, var func) in values)
                 if (func(node))
                     def.Node = node;
+        }
+
+        public void ResetPose()
+        {
+            HeadTarget = (null, Matrix4x4.Identity);
+            LeftHandTarget = (null, Matrix4x4.Identity);
+            RightHandTarget = (null, Matrix4x4.Identity);
+            HipsTarget = (null, Matrix4x4.Identity);
+            LeftFootTarget = (null, Matrix4x4.Identity);
+            RightFootTarget = (null, Matrix4x4.Identity);
+            ChestTarget = (null, Matrix4x4.Identity);
+            LeftElbowTarget = (null, Matrix4x4.Identity);
+            RightElbowTarget = (null, Matrix4x4.Identity);
+            LeftKneeTarget = (null, Matrix4x4.Identity);
+            RightKneeTarget = (null, Matrix4x4.Identity);
         }
     }
 }

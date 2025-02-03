@@ -105,15 +105,15 @@ namespace XREngine.Rendering.Physics.Physx
             sceneDesc.gravity = DefaultGravity;
             sceneDesc.cpuDispatcher = _dispatcher = (PxCpuDispatcher*)phys_PxDefaultCpuDispatcherCreate(4, null, PxDefaultCpuDispatcherWaitForWorkMode.WaitForWork, 0);
 
-            //var simEventCallback = new SimulationEventCallbackInfo
-            //{
-            //    collision_callback = (delegate* unmanaged[Cdecl]<void*, PxContactPairHeader*, PxContactPair*, uint, void>)Marshal.GetFunctionPointerForDelegate(OnContactDelegateInstance).ToPointer()
-            //};
-            //sceneDesc.simulationEventCallback = create_simulation_event_callbacks(&simEventCallback);
+            var simEventCallback = new SimulationEventCallbackInfo
+            {
+                collision_callback = (delegate* unmanaged[Cdecl]<void*, PxContactPairHeader*, PxContactPair*, uint, void>)Marshal.GetFunctionPointerForDelegate(OnContactDelegateInstance).ToPointer()
+            };
+            sceneDesc.simulationEventCallback = create_simulation_event_callbacks(&simEventCallback);
 
-            sceneDesc.filterShader = get_default_simulation_filter_shader();
-            //var filterShaderCallback = (delegate* unmanaged[Cdecl]<FilterShaderCallbackInfo*, PxFilterFlags>)Marshal.GetFunctionPointerForDelegate(CustomFilterShaderInstance).ToPointer();
-            //enable_custom_filter_shader(&sceneDesc, filterShaderCallback, 1u);
+            //sceneDesc.filterShader = get_default_simulation_filter_shader();
+            var filterShaderCallback = (delegate* unmanaged[Cdecl]<FilterShaderCallbackInfo*, PxFilterFlags>)Marshal.GetFunctionPointerForDelegate(CustomFilterShaderInstance).ToPointer();
+            enable_custom_filter_shader(&sceneDesc, filterShaderCallback, 1u);
 
             sceneDesc.flags |= PxSceneFlags.EnableCcd | PxSceneFlags.EnableGpuDynamics;
             sceneDesc.broadPhaseType = PxBroadPhaseType.Gpu;
@@ -972,7 +972,7 @@ namespace XREngine.Rendering.Physics.Physx
             PxVec3 d = unitDir;
             var t = MakeTransform(pose.position, pose.rotation);
             PxQueryHit hit_;
-            using var structObj = geometry.GetStruct();
+            using var structObj = geometry.GetPhysxStruct();
             bool hasHit = _scene->QueryExtSweepAny(
                 structObj.Address.As<PxGeometry>(),
                 &t,
@@ -1005,7 +1005,7 @@ namespace XREngine.Rendering.Physics.Physx
             PxVec3 d = unitDir;
             var t = MakeTransform(pose.position, pose.rotation);
             PxSweepHit hit_;
-            using var structObj = geometry.GetStruct();
+            using var structObj = geometry.GetPhysxStruct();
             bool hasHit = _scene->QueryExtSweepSingle(
                 structObj.Address.As<PxGeometry>(),
                 &t,
@@ -1040,7 +1040,7 @@ namespace XREngine.Rendering.Physics.Physx
             var t = MakeTransform(pose.position, pose.rotation);
             bool blockingHit_;
             PxSweepHit* hitBuffer_ = stackalloc PxSweepHit[maxHitCapacity];
-            using var structObj = geometry.GetStruct();
+            using var structObj = geometry.GetPhysxStruct();
             int hitCount = _scene->QueryExtSweepMultiple(
                 structObj.Address.As<PxGeometry>(),
                 &t,
@@ -1072,7 +1072,7 @@ namespace XREngine.Rendering.Physics.Physx
             var filterData = filterMask != null ? PxQueryFilterData_new_1(filterMask, queryFlags) : PxQueryFilterData_new_2(queryFlags);
             var t = MakeTransform(pose.position, pose.rotation);
             PxOverlapHit* hitBuffer = stackalloc PxOverlapHit[maxHitCapacity];
-            using var structObj = geometry.GetStruct();
+            using var structObj = geometry.GetPhysxStruct();
             int hitCount = _scene->QueryExtOverlapMultiple(
                 structObj.Address.As<PxGeometry>(),
                 &t,
@@ -1097,7 +1097,7 @@ namespace XREngine.Rendering.Physics.Physx
             var filterData = filterMask != null ? PxQueryFilterData_new_1(filterMask, queryFlags) : PxQueryFilterData_new_2(queryFlags);
             var t = MakeTransform(pose.position, pose.rotation);
             PxOverlapHit hit_;
-            using var structObj = geometry.GetStruct();
+            using var structObj = geometry.GetPhysxStruct();
             bool hasHit = _scene->QueryExtOverlapAny(
                 structObj.Address.As<PxGeometry>(),
                 &t,

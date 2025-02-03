@@ -52,7 +52,7 @@ namespace XREngine.Rendering.Physics.Physx
         {
             var tfm = PhysxScene.MakeTransform(position, rotation);
             var shapeTfm = PhysxScene.MakeTransform(shapeOffsetTranslation, shapeOffsetRotation);
-            using var structObj = geometry.GetStruct();
+            using var structObj = geometry.GetPhysxStruct();
             _obj = PhysxScene.PhysicsPtr->PhysPxCreateStatic(&tfm, structObj.ToStructPtr<PxGeometry>(), material.MaterialPtr, &shapeTfm);
             AllActors.Add((nint)_obj, this);
             AllRigidActors.Add((nint)_obj, this);

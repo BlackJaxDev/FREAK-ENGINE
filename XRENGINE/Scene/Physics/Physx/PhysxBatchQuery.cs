@@ -12,23 +12,44 @@ namespace XREngine.Rendering.Physics.Physx
             => BatchQueryPtr->ReleaseMut();
         public void Execute()
             => BatchQueryPtr->ExecuteMut();
-        public PxRaycastBuffer* Raycast(Vector3 origin, Vector3 unitDir, float distance, ushort maxTouchCount, PxHitFlags hitFlags, PxQueryFilterData* filterData, PxQueryCache* cache)
+
+        public PxRaycastBuffer* Raycast(
+            Vector3 origin,
+            Vector3 unitDir,
+            float distance,
+            ushort maxTouchCount,
+            PxHitFlags hitFlags,
+            PxQueryFilterData* filterData,
+            PxQueryCache* cache)
         {
             PxVec3 o = origin;
             PxVec3 d = unitDir;
             return BatchQueryPtr->RaycastMut(&o, &d, distance, maxTouchCount, hitFlags, filterData, cache);
         }
-        public PxSweepBuffer* Sweep(PxGeometry* geometry, (Vector3 position, Quaternion rotation) pose, Vector3 unitDir, float distance, ushort maxTouchCount, PxHitFlags hitFlags, PxQueryFilterData* filterData, PxQueryCache* cache, float inflation)
+        public PxSweepBuffer* Sweep(
+            PxGeometry* geometry,
+            (Vector3 position, Quaternion rotation) pose,
+            Vector3 unitDir,
+            float distance,
+            ushort maxTouchCount,
+            PxHitFlags hitFlags,
+            PxQueryFilterData* filterData,
+            PxQueryCache* cache,
+            float inflation)
         {
             PxVec3 d = unitDir;
             var t = PhysxScene.MakeTransform(pose.position, pose.rotation);
             return BatchQueryPtr->SweepMut(geometry, &t, &d, distance, maxTouchCount, hitFlags, filterData, cache, inflation);
         }
-        public PxOverlapBuffer* Overlap(PxGeometry* geometry, (Vector3 position, Quaternion rotation) pose, ushort maxTouchCount, PxQueryFilterData* filterData, PxQueryCache* cache)
+        public PxOverlapBuffer* Overlap(
+            PxGeometry* geometry,
+            (Vector3 position, Quaternion rotation) pose,
+            ushort maxTouchCount,
+            PxQueryFilterData* filterData,
+            PxQueryCache* cache)
         {
             var t = PhysxScene.MakeTransform(pose.position, pose.rotation);
             return BatchQueryPtr->OverlapMut(geometry, &t, maxTouchCount, filterData, cache);
         }
     }
-
 }

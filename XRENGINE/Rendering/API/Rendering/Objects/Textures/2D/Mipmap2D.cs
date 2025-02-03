@@ -54,6 +54,19 @@ namespace XREngine.Rendering
                 SetFromImage(image);
         }
 
+        public Mipmap2D(Task<Image<Rgba32>?> loadTask)
+        {
+            void OnLoaded(Task<Image<Rgba32>?> t)
+            {
+                if (t.IsFaulted)
+                    return;
+                Image<Rgba32>? image = t.Result;
+                if (image != null)
+                    SetFromImage(image);
+            }
+            loadTask?.ContinueWith(OnLoaded);
+        }
+
         public DataSource? Data
         {
             get => _bytes;

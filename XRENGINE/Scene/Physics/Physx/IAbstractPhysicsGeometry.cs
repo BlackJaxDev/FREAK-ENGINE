@@ -1,9 +1,206 @@
-﻿using XREngine.Data;
+﻿using MagicPhysX;
+using System.Numerics;
+using XREngine.Data;
+using XREngine.Data.Geometry;
+using static MagicPhysX.NativeMethods;
 
 namespace XREngine.Rendering.Physics.Physx
 {
-    public interface IAbstractPhysicsGeometry
+    public unsafe interface IAbstractPhysicsGeometry
     {
-        DataSource GetStruct();
+        DataSource GetPhysxStruct();
+
+        public unsafe struct Sphere(float radius) : IAbstractPhysicsGeometry
+        {
+            public float Radius = radius;
+
+            public readonly PxSphereGeometry GetGeometry() => PxSphereGeometry_new(Radius);
+
+            readonly DataSource IAbstractPhysicsGeometry.GetPhysxStruct() => DataSource.FromStruct(GetGeometry());
+        }
+        public unsafe struct Box(Vector3 halfExtents) : IAbstractPhysicsGeometry
+        {
+            public Vector3 HalfExtents = halfExtents;
+
+            public readonly PxBoxGeometry GetGeometry() => PxBoxGeometry_new(HalfExtents.X, HalfExtents.Y, HalfExtents.Z);
+
+            readonly DataSource IAbstractPhysicsGeometry.GetPhysxStruct() => DataSource.FromStruct(GetGeometry());
+        }
+        public unsafe struct Capsule(float radius, float halfHeight) : IAbstractPhysicsGeometry
+        {
+            public float Radius = radius;
+            public float HalfHeight = halfHeight;
+
+            public readonly PxCapsuleGeometry GetGeometry() => PxCapsuleGeometry_new(Radius, HalfHeight);
+
+            readonly DataSource IAbstractPhysicsGeometry.GetPhysxStruct() => DataSource.FromStruct(GetGeometry());
+        }
+        public unsafe struct ConvexMesh(PxConvexMesh* mesh, Vector3 scale, Quaternion rotation, bool tightBounds) : IAbstractPhysicsGeometry
+        {
+            public PxConvexMesh* Mesh = mesh;
+            public Vector3 Scale = scale;
+            public Quaternion Rotation = rotation;
+            public bool TightBounds = tightBounds;
+
+            public readonly PxConvexMeshGeometry GetGeometry()
+            {
+                PxVec3 scale = Scale;
+                PxQuat rotation = Rotation;
+                PxMeshScale scaleRot = PxMeshScale_new_3(&scale, &rotation);
+                PxConvexMeshGeometryFlags flags = TightBounds ? PxConvexMeshGeometryFlags.TightBounds : 0;
+                return PxConvexMeshGeometry_new(Mesh, &scaleRot, flags);
+            }
+
+            readonly DataSource IAbstractPhysicsGeometry.GetPhysxStruct() => DataSource.FromStruct(GetGeometry());
+        }
+        public unsafe struct TriangleMesh(PxTriangleMesh* mesh, Vector3 scale, Quaternion rotation, bool tightBounds, bool doubleSided) : IAbstractPhysicsGeometry
+        {
+            public PxTriangleMesh* Mesh = mesh;
+            public Vector3 Scale = scale;
+            public Quaternion Rotation = rotation;
+            public bool TightBounds = tightBounds;
+            public bool DoubleSided = doubleSided;
+
+            public readonly PxTriangleMeshGeometry GetGeometry()
+            {
+                PxVec3 scale = Scale;
+                PxQuat rotation = Rotation;
+                PxMeshScale scaleRot = PxMeshScale_new_3(&scale, &rotation);
+                PxMeshGeometryFlags flags = (TightBounds ? PxMeshGeometryFlags.TightBounds : 0) | (DoubleSided ? PxMeshGeometryFlags.DoubleSided : 0);
+                return PxTriangleMeshGeometry_new(Mesh, &scaleRot, flags);
+            }
+
+            readonly DataSource IAbstractPhysicsGeometry.GetPhysxStruct() => DataSource.FromStruct(GetGeometry());
+        }
+        public unsafe struct HeightField(PxHeightField* field, float heightScale, float rowScale, float columnScale, bool tightBounds, bool doubleSided) : IAbstractPhysicsGeometry
+        {
+            public PxHeightField* Field = field;
+            public float HeightScale = heightScale;
+            public float RowScale = rowScale;
+            public float ColumnScale = columnScale;
+            public bool TightBounds = tightBounds;
+            public bool DoubleSided = doubleSided;
+
+            public readonly PxHeightFieldGeometry GetGeometry()
+            {
+                PxMeshGeometryFlags flags = (TightBounds ? PxMeshGeometryFlags.TightBounds : 0) | (DoubleSided ? PxMeshGeometryFlags.DoubleSided : 0);
+                return PxHeightFieldGeometry_new(Field, flags, HeightScale, RowScale, ColumnScale);
+            }
+
+            readonly DataSource IAbstractPhysicsGeometry.GetPhysxStruct() => DataSource.FromStruct(GetGeometry());
+        }
+        public unsafe struct Plane() : IAbstractPhysicsGeometry
+        {
+            public readonly PxPlaneGeometry GetGeometry() => PxPlaneGeometry_new();
+
+            readonly DataSource IAbstractPhysicsGeometry.GetPhysxStruct() => DataSource.FromStruct(GetGeometry());
+        }
+        public unsafe struct ParticleSystem(PxParticleSolverType solver) : IAbstractPhysicsGeometry
+        {
+            public PxParticleSolverType Solver = solver;
+
+            public readonly PxParticleSystemGeometry GetGeometry()
+            {
+                var g = PxParticleSystemGeometry_new();
+                g.mSolverType = Solver;
+                return g;
+            }
+
+            readonly DataSource IAbstractPhysicsGeometry.GetPhysxStruct() => DataSource.FromStruct(GetGeometry());
+        }
+        public unsafe struct TetrahedronMesh(PxTetrahedronMesh* mesh) : IAbstractPhysicsGeometry
+        {
+            public PxTetrahedronMesh* Mesh = mesh;
+
+            public readonly PxTetrahedronMeshGeometry GetGeometry()
+                => PxTetrahedronMeshGeometry_new(Mesh);
+
+            readonly DataSource IAbstractPhysicsGeometry.GetPhysxStruct() => DataSource.FromStruct(GetGeometry());
+        }
+
+        public PxGeometry* PhysxGeometry
+            => (PxGeometry*)GetPhysxStruct().Address;
+
+        public PxGeometryType PhysxType
+            => PxGeometry_getType(PhysxGeometry);
+
+        public PxGeometryHolder NewHolder()
+            => PhysxGeometry->HolderNew1();
+
+        public bool PhysxQueryIsValid()
+            => PhysxGeometry->QueryIsValid();
+
+        public bool PhysxQueryOverlap(
+            (Vector3 position, Quaternion rotation) pose,
+            IAbstractPhysicsGeometry otherGeom,
+            (Vector3 position, Quaternion rotation) pose1,
+            PxGeometryQueryFlags queryFlags,
+            PxQueryThreadContext* threadContext)
+        {
+            PxTransform p0 = PhysxScene.MakeTransform(pose.position, pose.rotation);
+            PxTransform p1 = PhysxScene.MakeTransform(pose1.position, pose1.rotation);
+            return PxGeometryQuery_overlap(PhysxGeometry, &p0, otherGeom.PhysxGeometry, &p1, queryFlags, threadContext);
+        }
+
+        public (Matrix4x4 inertiaTensor, Vector3 centerOfMass, float mass) MassProperties
+        {
+            get
+            {
+                PxMassProperties props = PhysxGeometry->MassPropertiesNew2();
+                var it = props.inertiaTensor;
+                Vector3 col0 = it.column0;
+                Vector3 col1 = it.column1;
+                Vector3 col2 = it.column2;
+                Matrix4x4 itMtx = new(
+                    col0.X, col1.X, col2.X, 0,
+                    col0.Y, col1.Y, col2.Y, 0,
+                    col0.Z, col1.Z, col2.Z, 0,
+                    0, 0, 0, 1);
+                return (itMtx, props.centerOfMass, props.mass);
+            }
+        }
+
+        public PxPoissonSampler* PoissonSamplerNew(
+            (Vector3 position, Quaternion rotation) transform,
+            AABB worldBounds,
+            float initialSamplingRadius,
+            int numSampleAttemptsAroundPoint)
+        {
+            PxTransform tfm = PhysxScene.MakeTransform(transform.position, transform.rotation);
+            PxVec3 min = PxVec3_new_3(worldBounds.Min.X, worldBounds.Min.Y, worldBounds.Min.Z);
+            PxVec3 max = PxVec3_new_3(worldBounds.Max.X, worldBounds.Max.Y, worldBounds.Max.Z);
+            PxBounds3 bounds = PxBounds3_new_1(&min, &max);
+            return PhysxGeometry->PhysPxCreateShapeSampler(&tfm, &bounds, initialSamplingRadius, numSampleAttemptsAroundPoint);
+        }
+
+        public uint MeshQueryFindOverlapTriangleMesh(
+            (Vector3 position, Quaternion rotation) pose,
+            PxTriangleMeshGeometry* meshGeom,
+            (Vector3 position, Quaternion rotation) meshPose,
+            uint* results,
+            uint maxResults,
+            uint startIndex,
+            bool* overflow,
+            PxGeometryQueryFlags queryFlags)
+        {
+            PxTransform tfm = PhysxScene.MakeTransform(pose.position, pose.rotation);
+            PxTransform meshTfm = PhysxScene.MakeTransform(meshPose.position, meshPose.rotation);
+            return PhysxGeometry->MeshQueryFindOverlapTriangleMesh(&tfm, meshGeom, &meshTfm, results, maxResults, startIndex, overflow, queryFlags);
+        }
+
+        public uint MeshQueryFindOverlapHeightField(
+            (Vector3 position, Quaternion rotation) pose,
+            PxHeightFieldGeometry* heightField,
+            (Vector3 position, Quaternion rotation) heightFieldPose,
+            uint* results,
+            uint maxResults,
+            uint startIndex,
+            bool* overflow,
+            PxGeometryQueryFlags queryFlags)
+        {
+            PxTransform p = PhysxScene.MakeTransform(pose.position, pose.rotation);
+            PxTransform hfPose = PhysxScene.MakeTransform(heightFieldPose.position, heightFieldPose.rotation);
+            return PhysxGeometry->MeshQueryFindOverlapHeightField(&p, heightField, &hfPose, results, maxResults, startIndex, overflow, queryFlags);
+        }
     }
 }
