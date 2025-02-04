@@ -94,10 +94,18 @@ namespace XREngine.Components
             base.OnComponentActivated();
             RegisterTick(ETickGroup.Normal, ETickOrder.Logic, TickMovementInput);
         }
+
+        private Transform? _viewTransform;
+        public Transform? ViewTransform
+        {
+            get => _viewTransform;
+            set => SetField(ref _viewTransform, value);
+        }
+
         protected virtual void TickMovementInput()
         {
             var cam = GetCamera();
-            var viewTransform = cam?.Transform ?? Transform;
+            var viewTransform = ViewTransform ?? cam?.Transform ?? Transform;
 
             GetDirectionalVectorsFromView(viewTransform, out Vector3 forward, out Vector3 right);
 
@@ -119,12 +127,9 @@ namespace XREngine.Components
             if (_keyboardLookInput != Vector2.Zero)
                 KeyboardLook(_keyboardLookInput.X, _keyboardLookInput.Y);
 
-            if (cam is not null)
-            {
-                var tfm = cam.SceneNode.GetTransformAs<Transform>(false);
-                if (tfm != null)
-                    tfm.Rotator = _viewRotation;
-            }
+            var viewTfm = ViewTransform ?? cam?.SceneNode.GetTransformAs<Transform>(false);
+            if (viewTfm != null)
+                viewTfm.Rotator = _viewRotation;
         }
 
         private static void GetDirectionalVectorsFromView(TransformBase viewTransform, out Vector3 forward, out Vector3 right)

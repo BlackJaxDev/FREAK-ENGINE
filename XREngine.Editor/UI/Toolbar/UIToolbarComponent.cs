@@ -1,10 +1,8 @@
 ﻿using System.Numerics;
 using XREngine.Core.Attributes;
 using XREngine.Data.Colors;
-using XREngine.Data.Rendering;
 using XREngine.Editor.UI.Toolbar;
 using XREngine.Rendering;
-using XREngine.Rendering.Models.Materials;
 using XREngine.Rendering.UI;
 using XREngine.Scene;
 

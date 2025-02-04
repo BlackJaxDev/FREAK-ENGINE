@@ -1,4 +1,5 @@
 ﻿using XREngine.Core.Files;
+using XREngine.Rendering;
 
 namespace XREngine.Scene
 {
@@ -9,7 +10,7 @@ namespace XREngine.Scene
     {
         private bool _isVisible = true;
         private List<SceneNode> _rootObjects = [];
-
+        
         /// <summary>
         /// If the scene is currently visible in the world.
         /// </summary>

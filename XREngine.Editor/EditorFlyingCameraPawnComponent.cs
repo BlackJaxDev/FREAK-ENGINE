@@ -2,6 +2,7 @@
 using ImageMagick;
 using System.Numerics;
 using XREngine.Components;
+using XREngine.Core;
 using XREngine.Data.Colors;
 using XREngine.Data.Core;
 using XREngine.Data.Geometry;
@@ -23,7 +24,7 @@ public partial class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent
     {
         _postRenderRC = new((int)EDefaultRenderPass.PostRender, PostRender);
         _renderHighlightRC = new((int)EDefaultRenderPass.OpaqueForward, RenderHighlight);
-        RenderedObjects = 
+        RenderedObjects =
         [
             RenderInfo3D.New(this, _postRenderRC),
             RenderInfo3D.New(this, _renderHighlightRC)
@@ -86,7 +87,42 @@ public partial class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent
     public RenderInfo[] RenderedObjects { get; }
 
     static void ScreenshotCallback(MagickImage img)
-        => img?.Write(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "screenshot.png"));
+    {
+        var path = GetScreenshotPath();
+        VerifyPathExists(path);
+        img?.Write(path);
+    }
+
+    private static void VerifyPathExists(string path)
+    {
+        string? dir = Path.GetDirectoryName(path);
+        if (string.IsNullOrWhiteSpace(dir) || Directory.Exists(dir))
+            return;
+
+        VerifyPathExists(dir);
+        Directory.CreateDirectory(dir);
+    }
+
+    private static string GetScreenshotPath()
+        => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), GetGameName(), GetDay(), $"{GetTime()}.png");
+
+    private static string GetGameName()
+    {
+        string? name = Engine.GameSettings.Name;
+        if (string.IsNullOrWhiteSpace(name))
+            name = "XREngine";
+        return name;
+    }
+    private static string GetDay()
+    {
+        DateTime now = DateTime.Now;
+        return $"{now.Year}-{now.Month}-{now.Day}";
+    }
+    private static string GetTime()
+    {
+        DateTime now = DateTime.Now;
+        return $"{now.Hour}-{now.Minute}-{now.Second}";
+    }
 
     public Vector3? LastDepthHitNormalizedViewportPoint => _lastDepthHitNormalizedViewportPoint;
     public Vector3? DepthHitNormalizedViewportPoint
@@ -413,7 +449,7 @@ public partial class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent
                 foreach (var (comp, _) in x)
                     if (comp?.SceneNode is not null)
                         currentHits.Add(comp.SceneNode);
-            
+
             foreach (var x in _lastOctreePickResults.Values)
                 foreach (var (info, _) in x)
                     if (info.Owner is XRComponent comp && comp.SceneNode is not null)
@@ -460,7 +496,7 @@ public partial class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent
         var kbd = input?.Keyboard;
         if (kbd is null)
             return false;
-        
+
         //control is toggle, alt is remove, shift is add
 
         if (kbd.GetKeyState(EKey.ControlLeft, EButtonInputType.Pressed) ||

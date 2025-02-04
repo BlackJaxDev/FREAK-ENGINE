@@ -15,6 +15,9 @@ namespace XREngine.Rendering
     /// </summary>
     public sealed class XRWindow : XRBase
     {
+        public static event Action<XRWindow, bool>? AnyWindowFocusChanged;
+        public event Action<XRWindow, bool>? FocusChanged;
+
         private XRWorldInstance? _worldInstance;
         public XRWorldInstance? TargetWorldInstance
         {
@@ -87,6 +90,9 @@ namespace XREngine.Rendering
 
             w.FramebufferResize -= FramebufferResizeCallback;
             w.Render -= RenderCallback;
+            w.FocusChanged -= OnFocusChanged;
+            w.Closing -= Window_Closing;
+            w.Load -= Window_Load;
         }
 
         private void LinkWindow()
@@ -97,6 +103,15 @@ namespace XREngine.Rendering
 
             w.FramebufferResize += FramebufferResizeCallback;
             w.Render += RenderCallback;
+            w.FocusChanged += OnFocusChanged;
+            w.Closing += Window_Closing;
+            w.Load += Window_Load;
+        }
+
+        private void OnFocusChanged(bool focused)
+        {
+            FocusChanged?.Invoke(this, focused);
+            AnyWindowFocusChanged?.Invoke(this, focused);
         }
 
         private void EndTick()
@@ -227,7 +242,7 @@ namespace XREngine.Rendering
             Silk.NET.Windowing.Window.PrioritizeGlfw();
             //options.WindowBorder = WindowBorder.Hidden;
             Window = Silk.NET.Windowing.Window.Create(options);
-            Window.Load += Window_Load;
+            LinkWindow();
             Window.Initialize();
             Renderer = Window.API.API switch
             {
@@ -235,8 +250,6 @@ namespace XREngine.Rendering
                 ContextAPI.Vulkan => new VulkanRenderer(this, true),
                 _ => throw new Exception($"Unsupported API: {Window.API.API}"),
             };
-            Window.Closing += Window_Closing;
-            LinkWindow();
         }
 
         private void Window_Load()
@@ -268,6 +281,7 @@ namespace XREngine.Rendering
         {
             //Renderer.Dispose();
             //Window.Dispose();
+            UnlinkWindow();
             Engine.RemoveWindow(this);
         }
 

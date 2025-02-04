@@ -23,7 +23,12 @@ namespace XREngine.Components.Scene.Mesh
         public XRMeshRenderer? CurrentLODRenderer => CurrentLOD?.Value?.Renderer;
         public XRMesh? CurrentLODMesh => CurrentLOD?.Value?.Renderer?.Mesh;
 
-        public LinkedListNode<RenderableLOD>? CurrentLOD { get; private set; } = null;
+        private LinkedListNode<RenderableLOD>? _currentLOD = null;
+        public LinkedListNode<RenderableLOD>? CurrentLOD
+        {
+            get => _currentLOD;
+            private set => SetField(ref _currentLOD, value);
+        }
         public XRWorldInstance? World => Component.SceneNode.World;
         public LinkedList<RenderableLOD> LODs { get; private set; } = new();
 
@@ -90,12 +95,7 @@ namespace XREngine.Components.Scene.Mesh
             RenderInfo.PreAddRenderCommandsCallback = BeforeAdd;
 
             if (LODs.Count > 0)
-            {
                 CurrentLOD = LODs.First;
-                var rend = CurrentLODRenderer;
-                bool skinned = (rend?.Mesh?.HasSkinning ?? false);
-                RenderInfo.CullingOffsetMatrix = _rc.WorldMatrix = skinned ? Matrix4x4.Identity : Component.Transform.WorldMatrix;
-            }
         }
 
         private void DoRenderBounds(bool shadowPass)
@@ -220,11 +220,17 @@ namespace XREngine.Components.Scene.Mesh
             {
                 case nameof(RootBone):
                     if (RootBone is not null)
+                    {
                         RootBone.WorldMatrixChanged += RootBone_WorldMatrixChanged;
+                        RootBone_WorldMatrixChanged(RootBone);
+                    }
                     break;
                 case nameof(Component):
                     if (Component is not null)
+                    {
                         Component.Transform.WorldMatrixChanged += RootBone_WorldMatrixChanged;
+                        Component_WorldMatrixChanged(Component.Transform);
+                    }
                     break;
                 case nameof(RenderBounds):
                     if (RenderBounds)
@@ -235,17 +241,34 @@ namespace XREngine.Components.Scene.Mesh
                     else
                         RenderInfo.RenderCommands.Remove(_renderBoundsCommand);
                     break;
+                case nameof(CurrentLOD):
+                    if (CurrentLOD is not null)
+                    {
+                        var rend = CurrentLODRenderer;
+                        bool skinned = (rend?.Mesh?.HasSkinning ?? false);
+                        _rc.WorldMatrix = skinned ? Matrix4x4.Identity : Component.Transform.WorldMatrix;
+                    }
+                    break;
             }
         }
 
+        /// <summary>
+        /// Updates the culling offset matrix for skinned meshes.
+        /// </summary>
+        /// <param name="rootBone"></param>
         private void RootBone_WorldMatrixChanged(TransformBase rootBone)
         {
             bool hasSkinning = CurrentLOD?.Value?.Renderer?.Mesh?.HasSkinning ?? false;
             if (!hasSkinning)
                 return;
             
-            RenderInfo.CullingOffsetMatrix = _rc.WorldMatrix = rootBone.WorldMatrix;
+            RenderInfo.CullingOffsetMatrix = rootBone.WorldMatrix;
         }
+
+        /// <summary>
+        /// Updates the culling offset matrix for non-skinned meshes.
+        /// </summary>
+        /// <param name="component"></param>
         private void Component_WorldMatrixChanged(TransformBase component)
         {
             bool hasSkinning = CurrentLOD?.Value?.Renderer?.Mesh?.HasSkinning ?? false;

@@ -58,7 +58,7 @@ namespace XREngine.Actors.Types
 
         public TransformTool3D() : base()
         {
-            TransformSpace = ETransformSpace.Local;
+            TransformSpace = ETransformSpace.World;
             _rc = new RenderCommandMethod3D((int)EDefaultRenderPass.OnTopForward, Render);
             RenderInfo = RenderInfo3D.New(this, _rc);
             RenderedObjects = [RenderInfo];
@@ -76,7 +76,7 @@ namespace XREngine.Actors.Types
         private readonly XRMaterial[] _scalePlaneMat = new XRMaterial[3];
         private XRMaterial? _screenMat;
 
-        private ETransformSpace _transformSpace;
+        private ETransformSpace _transformSpace = ETransformSpace.World;
 
         public Matrix4x4 PrevRootWorldMatrix { get; private set; } = Matrix4x4.Identity;
         public RenderInfo[] RenderedObjects { get; }
@@ -188,7 +188,6 @@ namespace XREngine.Actors.Types
 
         private static void GetMeshes(Vector3 unit, VertexLine axisLine, VertexLine transLine1, VertexLine transLine2, VertexLine scaleLine1, VertexLine scaleLine2, out XRMesh axisPrim, out XRMesh arrowPrim, out XRMesh transPrim1, out XRMesh transPrim2, out XRMesh scalePrim, out XRMesh rotPrim)
         {
-
             //string axis = ((char)('X' + normalAxis)).ToString();
 
             float coneHeight = _axisLength - _coneDistance;
@@ -523,14 +522,14 @@ namespace XREngine.Actors.Types
 
         private void SocketTransformChanged(TransformBase? socket)
         {
-            if (!_pressed)
-            {
-                _pressed = true;
-                SetWorldMatrices(GetSocketSpacialTransform(), GetSocketSpacialTransformInverse());
-                //_dragMatrix = RootComponent.WorldMatrix;
-                //_invDragMatrix = RootComponent.InverseWorldMatrix;
-                _pressed = false;
-            }
+            if (_pressed)
+                return;
+            
+            _pressed = true;
+            SetWorldMatrices(GetSocketSpacialTransform(), GetSocketSpacialTransformInverse());
+            //_dragMatrix = RootComponent.WorldMatrix;
+            //_invDragMatrix = RootComponent.InverseWorldMatrix;
+            _pressed = false;
         }
 
         //public override void OnSpawnedPreComponentSetup()

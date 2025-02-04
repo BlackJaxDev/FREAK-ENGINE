@@ -49,7 +49,7 @@ namespace XREngine.Scene.Components.Animation
             SetFromNode();
         }
 
-        private bool _solveIK = true;
+        private bool _solveIK = false;
         public bool SolveIK
         {
             get => _solveIK;
@@ -66,21 +66,20 @@ namespace XREngine.Scene.Components.Animation
             if (shadowPass)
                 return;
 
-            // Draw bones
-            //foreach (var bone in GetHipToHeadChain())
-            //    Engine.Rendering.Debug.RenderPoint(bone.WorldPosition, ColorF4.Red, false);
+            foreach (var bone in GetHipToHeadChain())
+                Engine.Rendering.Debug.RenderPoint(bone.WorldPosition, ColorF4.Red, false);
 
             foreach (var bone in GetLeftShoulderToWristChain())
                 Engine.Rendering.Debug.RenderPoint(bone.WorldPosition, ColorF4.Red, false);
 
-            //foreach (var bone in GetRightShoulderToWristChain())
-            //    Engine.Rendering.Debug.RenderPoint(bone.WorldPosition, ColorF4.Red, false);
+            foreach (var bone in GetRightShoulderToWristChain())
+                Engine.Rendering.Debug.RenderPoint(bone.WorldPosition, ColorF4.Red, false);
 
-            //foreach (var bone in GetLeftLegToAnkleChain())
-            //    Engine.Rendering.Debug.RenderPoint(bone.WorldPosition, ColorF4.Red, false);
+            foreach (var bone in GetLeftLegToAnkleChain())
+                Engine.Rendering.Debug.RenderPoint(bone.WorldPosition, ColorF4.Red, false);
 
-            //foreach (var bone in GetRightLegToAnkleChain())
-            //    Engine.Rendering.Debug.RenderPoint(bone.WorldPosition, ColorF4.Red, false);
+            foreach (var bone in GetRightLegToAnkleChain())
+                Engine.Rendering.Debug.RenderPoint(bone.WorldPosition, ColorF4.Red, false);
         }
 
         public class BoneDef : XRBase

@@ -125,12 +125,7 @@ namespace XREngine.Timers
         private void UpdateThread()
         {
             while (IsRunning)
-            {
-                //_collectVisibleDone.Wait();
-                //_updateDone.Reset();
                 DispatchUpdate();
-                //_updateDone.Set();
-            }
         }
         /// <summary>
         /// This thread waits for the render thread to finish swapping the last frame's prerender buffers, 
@@ -158,14 +153,14 @@ namespace XREngine.Timers
             {
                 float timestamp = Time();
                 float elapsed = (timestamp - FixedUpdateManager.LastTimestamp).Clamp(0.0f, 1.0f);
-                if (elapsed >= FixedUpdateDelta)
-                {
-                    FixedUpdateManager.Delta = elapsed;
-                    FixedUpdateManager.LastTimestamp = timestamp;
-                    DispatchFixedUpdate();
-                    timestamp = Time();
-                    FixedUpdateManager.ElapsedTime = timestamp - FixedUpdateManager.LastTimestamp;
-                }
+                if (elapsed < FixedUpdateDelta)
+                    continue;
+                
+                FixedUpdateManager.Delta = elapsed;
+                FixedUpdateManager.LastTimestamp = timestamp;
+                DispatchFixedUpdate();
+                timestamp = Time();
+                FixedUpdateManager.ElapsedTime = timestamp - FixedUpdateManager.LastTimestamp;
             }
         }
         /// <summary>

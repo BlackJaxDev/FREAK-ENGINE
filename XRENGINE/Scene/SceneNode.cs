@@ -137,9 +137,9 @@ namespace XREngine.Scene
             {
                 case nameof(IsActiveSelf):
                     if (IsActiveSelf)
-                        OnSceneNodeActivated();
+                        OnActivated();
                     else
-                        OnSceneNodeDeactivated();
+                        OnDeactivated();
                     break;
                 case nameof(World):
                     Transform.World = World;
@@ -672,13 +672,17 @@ namespace XREngine.Scene
         }
         public XRComponent? this[Type type] => GetComponent(type);
 
+        public event Action<SceneNode> Activated;
+        public event Action<SceneNode> Deactivated;
+
         /// <summary>
         /// Called when the scene node is added to a world or activated.
         /// </summary>
-        public void OnSceneNodeActivated()
+        public void OnActivated()
         {
             ActivateTransform();
             ActivateComponents();
+            Activated?.Invoke(this);
         }
 
         private void ActivateComponents()
@@ -706,7 +710,7 @@ namespace XREngine.Scene
                         continue;
 
                     if (node.IsActiveSelf)
-                        node.OnSceneNodeActivated();
+                        node.OnActivated();
                 }
             }
         }
@@ -714,10 +718,11 @@ namespace XREngine.Scene
         /// <summary>
         /// Called when the scene node is removed from a world or deactivated.
         /// </summary>
-        public void OnSceneNodeDeactivated()
+        public void OnDeactivated()
         {
             DeactivateComponents();
             DeactivateTransform();
+            Deactivated?.Invoke(this);
         }
 
         private void DeactivateComponents()
@@ -748,7 +753,7 @@ namespace XREngine.Scene
                         continue;
 
                     if (node.IsActiveSelf)
-                        node.OnSceneNodeDeactivated();
+                        node.OnDeactivated();
                 }
             }
         }

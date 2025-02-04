@@ -31,14 +31,15 @@ namespace Extensions
                 && Path.IsPathRooted(path)
                 && (!Path.GetPathRoot(path)?.Equals(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal) ?? false);
         public static bool IsValidPath(this string path)
-            => !string.IsNullOrWhiteSpace(path) && path.IndexOfAny(Path.GetInvalidPathChars().ToArray()) == -1;
+            => !string.IsNullOrWhiteSpace(path) && path.IndexOfAny([.. Path.GetInvalidPathChars()]) == -1;
         public static bool StartsWithDirectorySeparator(this string str)
             => !string.IsNullOrEmpty(str) && str[0] == Path.DirectorySeparatorChar;
         public static bool EndsWithDirectorySeparator(this string str)
             => !string.IsNullOrEmpty(str) && str[^1] == Path.DirectorySeparatorChar;
         public static string SplitCamelCase(this string str)
             => MyRegex().Replace(MyRegex1().Replace(str, "$1 $2"), "$1 $2");
-        public static bool IsValidExistingPath(this string path) => path.IsExistingDirectoryPath() != null;
+        public static bool IsValidExistingPath(this string path)
+            => path.IsExistingDirectoryPath() != null;
         /// <summary>
         /// Determines the type of this path.
         /// <see langword="true"/> is a directory,
@@ -130,7 +131,7 @@ namespace Extensions
         /// Parses the given string as an enum of the given type.
         /// </summary>
         public static T AsEnum<T>(this string s) where T : struct
-            => (T)Enum.Parse(typeof(T), s);
+            => Enum.Parse<T>(s);
 
         public static string ReplaceWhitespace(this string input, string replacement)
             => WhitespaceMatcher().Replace(input, replacement);

@@ -277,6 +277,7 @@ namespace XREngine
         public string EngineAssetsPath { get; }
         public string GameAssetsPath { get; set; } = Path.Combine(ApplicationEnvironment.ApplicationBasePath, "Assets");
         public string PackagesPath { get; set; } = Path.Combine(ApplicationEnvironment.ApplicationBasePath, "Packages");
+        public string LibrariesPath { get; set; } = Path.Combine(ApplicationEnvironment.ApplicationBasePath, "Libraries");
 
         public ConcurrentDictionary<string, XRAsset> LoadedAssetsByOriginalPathInternal { get; } = [];
         public ConcurrentDictionary<string, XRAsset> LoadedAssetsByPathInternal { get; } = [];
