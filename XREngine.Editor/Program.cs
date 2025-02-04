@@ -4,6 +4,7 @@ using Silk.NET.Input;
 using System.Collections.Concurrent;
 using System.Numerics;
 using XREngine;
+using XREngine.Actors.Types;
 using XREngine.Animation;
 using XREngine.Components;
 using XREngine.Components.Lights;
@@ -41,8 +42,8 @@ using Quaternion = System.Numerics.Quaternion;
 
 internal class Program
 {
-    public const bool VisualizeOctree = false;
-    public const bool VisualizeQuadtree = false;
+    public const bool VisualizeOctree = true;
+    public const bool VisualizeQuadtree = true;
     public const bool Physics = true;
     public const bool DirLight = true;
     public const bool SpotLight = false;
@@ -93,7 +94,7 @@ internal class Program
     {
         int w = 1920;
         int h = 1080;
-        float updateHz = 60.0f;
+        float updateHz = 90.0f;
         float renderHz = 0.0f;
         float fixedHz = 30.0f;
 
@@ -819,7 +820,7 @@ internal class Program
         var comp = rootNode.AddComponent<HumanoidComponent>()!;
         //comp.IsActive = false;
 
-        //TransformTool3D.GetInstance(comp.Transform, ETransformType.Translate);
+        TransformTool3D.GetInstance(comp.Transform, ETransformType.Translate);
 
         var knee = comp!.Right.Knee?.Node?.Transform;
         var leg = comp!.Right.Leg?.Node?.Transform;

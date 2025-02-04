@@ -121,8 +121,6 @@ namespace XREngine.Rendering.Info
 
         public bool Intersects(IVolume? cullingVolume, bool containsOnly)
         {
-            //using var s = Engine.Profiler.Start();
-
             var worldCullingVolume = ((IOctreeItem)this).WorldCullingVolume;
             if (worldCullingVolume is null)
                 return true;

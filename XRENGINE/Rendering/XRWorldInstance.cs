@@ -258,11 +258,13 @@ namespace XREngine.Rendering
             ConcurrentDictionary<int, ConcurrentBag<TransformBase>> dict = directToRender 
                 ? _transformBucketsByDepthRendering 
                 : _transformBucketsByDepthUpdating;
-            dict.GetOrAdd(transform.Depth, x =>
+            var bag = dict.GetOrAdd(transform.Depth, x =>
             {
                 added = true;
                 return [];
-            }).Add(transform);
+            });
+            if (!bag.Contains(transform))
+                bag.Add(transform);
             wasDepthAdded |= added;
         }
 
@@ -272,7 +274,10 @@ namespace XREngine.Rendering
         /// <param name="transform"></param>
         /// <param name="directToRender"></param>
         public void AddDirtyTransform(TransformBase transform, bool directToRender)
-            => (directToRender ? _transformBucketsByDepthRendering : _transformBucketsByDepthUpdating).GetOrAdd(transform.Depth, static x => []).Add(transform);
+        {
+            bool added = false;
+            AddDirtyTransform(transform, ref added, directToRender);
+        }
 
         private XRWorld? _targetWorld;
         /// <summary>

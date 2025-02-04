@@ -393,10 +393,11 @@ namespace XREngine.Scene.Components.Animation
                 return;
             }
 
+            Vector3 targetPos = target.Translation;
             float totalLength = Init(chain);
             bool hasMovableRoot = chain[0].Def.IsMovable;
             Vector3 originalRootPosition = chain[0].WorldPosition;
-            float distanceToTarget = Vector3.Distance(originalRootPosition, target);
+            float distanceToTarget = Vector3.Distance(originalRootPosition, targetPos);
 
             //if (distanceToTarget > totalLength)
             //{
@@ -404,14 +405,14 @@ namespace XREngine.Scene.Components.Animation
             //}
 
             int iterations = 0;
-            float diff = Vector3.Distance(chain[^1].WorldPosition, target);
+            float diff = Vector3.Distance(chain[^1].WorldPosition, targetPos);
 
             while (diff > tolerance && iterations < maxIterations)
             {
                 // **Forward Reaching Phase**
 
                 // Move end effector to the target
-                chain[^1].WorldPosition = target;
+                chain[^1].WorldPosition = targetPos;
 
                 // Iterate backwards through the chain
                 for (int i = chain.Length - 2; i >= 0; i--)
@@ -440,7 +441,7 @@ namespace XREngine.Scene.Components.Animation
                     child.WorldPosition = parent.WorldPosition + DirFromTo(parent.WorldPosition, child.WorldPosition) * parent.Length;
                 }
 
-                diff = Vector3.Distance(chain[^1].WorldPosition, target);
+                diff = Vector3.Distance(chain[^1].WorldPosition, targetPos);
                 iterations++;
             }
 
@@ -465,18 +466,15 @@ namespace XREngine.Scene.Components.Animation
                     Debug.LogWarning($"Bone {i} has no transform.");
             }
 
-            foreach (var bone in chain)
-                bone.WorldAxis = (bone.ChildPositionWorld - bone.WorldPosition).Normalized();
-
             // Calculate total length
             float totalLength = 0;
             chain[^1].Length = 0; // Last bone has no length
             for (int i = 0; i < chain.Length - 1; i++)
             {
-                var parent = chain[i];
-                var child = chain[i + 1];
-                parent.WorldAxis = (child.WorldPosition - parent.WorldPosition).Normalized();
-                totalLength += parent.Length = parent.WorldPosition.Distance(child?.WorldPosition ?? Vector3.Zero);
+                var bone = chain[i];
+                var nextBone = chain[i + 1];
+                bone.WorldAxis = (nextBone.WorldPosition - bone.WorldPosition).Normalized();
+                totalLength += bone.Length = bone.WorldPosition.Distance(nextBone?.WorldPosition ?? Vector3.Zero);
             }
             return totalLength;
         }
@@ -495,19 +493,21 @@ namespace XREngine.Scene.Components.Animation
                 return;
             }
 
+            Vector3 endPos = endPosition.Translation;
+            Vector3 startPos = startPosition.Translation;
             float totalLength = Init(chain);
 
-            chain[0].WorldPosition = startPosition;
-            chain[numBones - 1].WorldPosition = endPosition;
+            chain[0].WorldPosition = startPos;
+            chain[numBones - 1].WorldPosition = endPos;
 
             // Distance between the fixed points
-            if (Vector3.DistanceSquared(startPosition, endPosition) > totalLength * totalLength)
+            if (Vector3.DistanceSquared(startPos, endPos) > totalLength * totalLength)
             {
                 //Debug.LogWarning("The fixed points are too far apart to be connected by the chain.");
                 //Stretch the chain to reach both points
                 //TODO: implement stretching factors for each bone.
                 for (int i = 1; i < numBones - 1; i++)
-                    chain[i].WorldPosition = Vector3.Lerp(startPosition, endPosition, (float)i / (numBones - 1));
+                    chain[i].WorldPosition = Vector3.Lerp(startPos, endPos, (float)i / (numBones - 1));
             }
             else
             {
@@ -521,7 +521,7 @@ namespace XREngine.Scene.Components.Animation
                         prevPositions[i] = chain[i].WorldPosition;
                     
                     // **Forward Reaching Phase**
-                    chain[0].WorldPosition = startPosition;
+                    chain[0].WorldPosition = startPos;
                     for (int i = 0; i < numBones - 1; i++)
                     {
                         float length = chain[i].Length;
@@ -530,7 +530,7 @@ namespace XREngine.Scene.Components.Animation
                     }
 
                     // **Backward Reaching Phase**
-                    chain[numBones - 1].WorldPosition = endPosition;
+                    chain[numBones - 1].WorldPosition = endPos;
                     for (int i = numBones - 2; i >= 0; i--)
                     {
                         float length = chain[i].Length;
@@ -539,7 +539,7 @@ namespace XREngine.Scene.Components.Animation
                     }
 
                     //Enforce the start position again
-                    chain[0].WorldPosition = startPosition;
+                    chain[0].WorldPosition = startPos;
 
                     //Compute the maximum change in positions
                     diff = 0;
