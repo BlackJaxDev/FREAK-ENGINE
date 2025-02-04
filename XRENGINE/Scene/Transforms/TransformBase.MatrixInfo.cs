@@ -136,32 +136,32 @@ namespace XREngine.Scene.Transforms
             {
                 get
                 {
-                    _modifiedLock.EnterReadLock();
+                    //_modifiedLock.EnterReadLock();
                     bool modified = _modified;
-                    _modifiedLock.ExitReadLock();
+                    //_modifiedLock.ExitReadLock();
                     return modified;
                 }
                 set
                 {
-                    _modifiedLock.EnterWriteLock();
+                    //_modifiedLock.EnterWriteLock();
                     _modified = value;
-                    _modifiedLock.ExitWriteLock();
+                    //_modifiedLock.ExitWriteLock();
                 }
             }
             public Matrix4x4 Matrix
             {
                 get
                 {
-                    _matrixLock.EnterReadLock();
+                    //_matrixLock.EnterReadLock();
                     Matrix4x4 matrix = _matrix;
-                    _matrixLock.ExitReadLock();
+                    //_matrixLock.ExitReadLock();
                     return matrix;
                 }
                 set
                 {
-                    _matrixLock.EnterWriteLock();
+                    //_matrixLock.EnterWriteLock();
                     _matrix = value;
-                    _matrixLock.ExitWriteLock();
+                    //_matrixLock.ExitWriteLock();
                 }
             }
         }

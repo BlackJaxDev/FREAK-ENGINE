@@ -88,7 +88,7 @@ namespace XREngine.Rendering.UI
         protected override void OnResizeChildComponents(BoundingRectangleF parentRegion)
         {
             //TODO: clip children that are outside of the parent region
-            lock (Children)
+            //lock (Children)
             {
                 switch (ItemAlignment)
                 {

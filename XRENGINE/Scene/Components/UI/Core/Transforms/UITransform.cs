@@ -243,7 +243,7 @@ namespace XREngine.Rendering.UI
         {
             try
             {
-                lock (Children)
+               // lock (Children)
                 {
                     foreach (var c in Children)
                         if (c is UITransform uiTfm)
