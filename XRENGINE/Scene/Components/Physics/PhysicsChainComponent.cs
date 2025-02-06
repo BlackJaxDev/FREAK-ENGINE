@@ -56,8 +56,8 @@ public class PhysicsChainComponent : XRComponent, IRenderable
 
     public float _endLength = 0;
 
-    public Vector3 _endOffset = Vector3.Zero;
-    public Vector3 _gravity = new(0.0f, 0.0f, 0.0f);
+    public Vector3 _endOffset = new(0.0f, 0.0f, 1.0f);
+    public Vector3 _gravity = new(0.0f, -9.8f, 0.0f);
     public Vector3 _force = Vector3.Zero;
 
     [Range(0, 1)]

@@ -59,7 +59,13 @@ namespace XREngine.Data.Trees
                 if (item is null)
                     continue;
 
-                _head.RemoveHereOrSmaller(item);
+                var node = item.OctreeNode;
+                if (node != null)
+                {
+                    node.Remove(item, out bool destroyNode);
+                    if (destroyNode)
+                        node.Destroy();
+                }
             }
             while (AddedItems.TryDequeue(out T? item))
             {

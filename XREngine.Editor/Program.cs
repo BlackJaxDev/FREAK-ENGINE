@@ -1,13 +1,7 @@
-﻿using Microsoft.Build.Evaluation;
-using Microsoft.Build.Execution;
-using Microsoft.Build.Framework;
-using Microsoft.Build.Logging;
-using OpenVR.NET.Manifest;
-using System.Xml.Linq;
+﻿using OpenVR.NET.Manifest;
 using XREngine;
 using XREngine.Editor;
 using XREngine.Native;
-using XREngine.Rendering;
 using XREngine.Rendering.Commands;
 using XREngine.Rendering.Info;
 using XREngine.Scene;
@@ -27,86 +21,11 @@ internal class Program
         RenderInfo3D.ConstructorOverride = RenderInfo3DConstructor;
 
         var startup =/* Engine.LoadOrGenerateGameSettings(() => */GetEngineSettings(new XRWorld());//);
-        var world = EditorWorld.CreateTestWorld();
+        var world = EditorWorld.CreateUnitTestWorld();
         startup.StartupWindows[0].TargetWorld = world;
 
-        Engine.Assets.GameFileChanged += VerifyCodeAsset;
-        Engine.Assets.GameFileCreated += VerifyCodeAsset;
-        Engine.Assets.GameFileDeleted += VerifyCodeAsset;
-        Engine.Assets.GameFileRenamed += VerifyCodeAsset;
-        XRWindow.AnyWindowFocusChanged += AnyWindowFocusChanged;
+        CodeManager.Instance.CompileOnChange = true;
         Engine.Run(startup, Engine.LoadOrGenerateGameState());
-    }
-
-    private static void AnyWindowFocusChanged(XRWindow window, bool focused)
-    {
-        if (focused && _isGameClientInvalid)
-            CompileGameClient();
-    }
-
-    private static void VerifyCodeAsset(FileSystemEventArgs e)
-    {
-        if (e.FullPath.EndsWith(".cs"))
-            _isGameClientInvalid = true;
-    }
-
-    private static bool _isGameClientInvalid = false;
-
-    private static void CompileGameClient()
-    {
-        string sourceFolder = Engine.Assets.GameAssetsPath;
-        string outputFolder = Engine.Assets.LibrariesPath;
-        string projectName = Engine.GameSettings.Name ?? "GeneratedProject";
-        string projectFilePath = Path.Combine(sourceFolder, $"{projectName}.csproj");
-
-        CreateCsprojFile(sourceFolder, projectFilePath);
-        CompileProject(projectFilePath, outputFolder);
-    }
-
-    private static void CreateCsprojFile(string sourceFolder, string projectFilePath)
-    {
-        var project = new XDocument(
-            new XElement("Project",
-                new XAttribute("Sdk", "Microsoft.NET.Sdk"),
-                new XElement("PropertyGroup",
-                    new XElement("OutputType", "Library"),
-                    new XElement("TargetFramework", "net9.0")
-                ),
-                new XElement("ItemGroup",
-                    Directory.GetFiles(sourceFolder, "*.cs", SearchOption.AllDirectories)
-                        .Select(file => new XElement("Compile", new XAttribute("Include", file)))
-                )
-            )
-        );
-        project.Save(projectFilePath);
-    }
-
-    private static void CompileProject(string projectFilePath, string outputFolder)
-    {
-        var projectCollection = new ProjectCollection();
-        var buildParameters = new BuildParameters(projectCollection)
-        {
-            Loggers = [new ConsoleLogger(LoggerVerbosity.Minimal)]
-        };
-
-        var buildRequest = new BuildRequestData(projectFilePath, new Dictionary<string, string?>(), null, ["Build"], null);
-        var buildResult = BuildManager.DefaultBuildManager.Build(buildParameters, buildRequest);
-
-        if (buildResult.OverallResult == BuildResultCode.Success)
-        {
-            Debug.Out("Build succeeded.");
-            _isGameClientInvalid = false;
-        }
-        else
-        {
-            Debug.Out("Build failed.");
-            foreach (var message in buildResult.ResultsByTarget.Values.SelectMany(x => x.Items))
-            {
-                //Debug.Out(message.ItemType.ToString());
-                Debug.Out(message.ItemSpec);
-                Debug.Out(message.GetMetadata("Message"));
-            }
-        }
     }
 
     static EditorRenderInfo2D RenderInfo2DConstructor(IRenderable owner, RenderCommand[] commands)
@@ -126,7 +45,7 @@ internal class Program
     {
         int w = 1920;
         int h = 1080;
-        float updateHz = 60.0f;
+        float updateHz = 120.0f;
         float renderHz = 0.0f;
         float fixedHz = 30.0f;
 

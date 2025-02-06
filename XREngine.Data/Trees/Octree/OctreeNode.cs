@@ -25,7 +25,25 @@ namespace XREngine.Data.Trees
             => _subNodes[index];
 
         public Octree<T> Owner { get; set; } = owner;
-        public OctreeNode<T>? ParentNode { get => _parentNode; set => _parentNode = value; }
+        public OctreeNode<T>? ParentNode
+        {
+            get => _parentNode;
+            set => _parentNode = value;
+        }
+        public override OctreeNodeBase? GenericParent => ParentNode;
+        public override void Destroy()
+        {
+            for (int i = 0; i < OctreeBase.MaxChildNodeCount; ++i)
+                _subNodes[i]?.Destroy();
+            foreach (T item in _items)
+                item.OctreeNode = null;
+            _items.Clear();
+            base.Destroy();
+        }
+        protected override void RemoveNodeAt(int subDivIndex)
+        {
+            _subNodes[subDivIndex] = null;
+        }
         public List<T> Items => _items;
 
         #region Child movement
@@ -60,8 +78,8 @@ namespace XREngine.Data.Trees
                         return;
                     if (bounds.Value.ContainsBox(worldCullingVolume.Value) == EContainment.Contains)
                     {
-                        bool shouldDestroy = RemoveHereOrSmaller(t);
-                        if (shouldDestroy)
+                        bool removed = RemoveHereOrSmaller(t, out bool destroyChild);
+                        if (destroyChild)
                             ClearSubNode(_subDivIndex);
                         CreateSubNode(bounds.Value, i)?.AddHereOrSmaller(t);
                         break;
@@ -71,8 +89,8 @@ namespace XREngine.Data.Trees
             else if (ParentNode != null)
             {
                 //Belongs in larger parent volume, remove from this node
-                bool shouldDestroy = RemoveHereOrSmaller(t);
-                if (!ParentNode.TryAddUp(t, shouldDestroy ? _subDivIndex : -1))
+                bool removed = RemoveHereOrSmaller(t, out bool destroyChild);
+                if (!ParentNode.TryAddUp(t, destroyChild ? _subDivIndex : -1))
                 {
                     //Force add to root node
                     Owner._head.AddHere(t);
@@ -246,28 +264,44 @@ namespace XREngine.Data.Trees
         #endregion
 
         #region Add/Remove
+        public override bool Remove(IOctreeItem item, out bool destroyNode)
+        {
+            if (item is T t)
+            {
+                _items.Remove(t);
+                t.OctreeNode = null;
+            }
+            destroyNode = _items.Count == 0 && HasNoSubNodesExcept(-1);
+            return false;
+        }
         /// <summary>
-        /// Returns true if this node no longer contains anything.
+        /// Returns true if this node no longer contains anything - no items and no sub nodes.
         /// </summary>
         /// <param name="item">The item to remove.</param>
-        public bool RemoveHereOrSmaller(T item)
+        public bool RemoveHereOrSmaller(T item, out bool destroyNode)
         {
-            if (_items.Contains(item))
-                RemoveHere(item);
+            bool removed;
+            if (removed = _items.Remove(item))
+            {
+                item.OctreeNode = null;
+            }
             else
                 for (int i = 0; i < OctreeBase.MaxChildNodeCount; ++i)
                 {
                     OctreeNode<T>? node = _subNodes[i];
                     if (node is null)
                         continue;
-                    
-                    if (node.RemoveHereOrSmaller(item))
+
+                    removed = node.RemoveHereOrSmaller(item, out bool destroyChild);
+                    if (destroyChild)
                         _subNodes[i] = null;
-                    else
-                        return false;
+
+                    if (removed)
+                        break;
                 }
 
-            return _items.Count == 0 && HasNoSubNodesExcept(-1);
+            destroyNode = _items.Count == 0 && HasNoSubNodesExcept(-1);
+            return removed;
         }
         /// <summary>
         /// Adds a list of items to this node. May subdivide.
@@ -319,14 +353,14 @@ namespace XREngine.Data.Trees
             _items.Add(item);
             item.OctreeNode = this;
         }
-        internal void RemoveHere(T item)
-        {
-            if (item is null)
-                return;
+        //internal void RemoveHere(T item)
+        //{
+        //    if (item is null)
+        //        return;
 
-            _items.Remove(item);
-            item.OctreeNode = null;
-        }
+        //    _items.Remove(item);
+        //    item.OctreeNode = null;
+        //}
 
         #region Convenience methods
         public T? FindClosest(Vector3 point, ref float closestDistance)

@@ -1,5 +1,6 @@
 ﻿using Extensions;
 using System.Numerics;
+using XREngine.Data.Core;
 using XREngine.Data.Geometry;
 using XREngine.Rendering;
 
@@ -34,7 +35,11 @@ namespace XREngine.Scene.Transforms
 
         public Constrainer? Constrainment { get; set; }
 
-        public abstract class Constrainer(BillboardTransform transform)
+        /// <summary>
+        /// A constrainer that constrains the billboard to a specific direction.
+        /// </summary>
+        /// <param name="transform"></param>
+        public abstract class Constrainer(BillboardTransform transform) : XRBase
         {
             public BillboardTransform Transform { get; } = transform;
 
@@ -50,9 +55,19 @@ namespace XREngine.Scene.Transforms
                 Vector3 cameraPos, Vector3 cameraUp, Vector3 cameraRight,
                 out Vector3 resultUp, out Vector3 resultForward);
         }
+        /// <summary>
+        /// Constrains the billboard to a line defined between this transform and a target transform.
+        /// </summary>
+        /// <param name="transform"></param>
+        /// <param name="target"></param>
         public class TransformConstrainer(BillboardTransform transform, TransformBase target) : Constrainer(transform)
         {
-            public TransformBase Target { get; set; } = target;
+            private TransformBase _target = target;
+            public TransformBase Target
+            {
+                get => _target;
+                set => SetField(ref _target, value);
+            }
 
             public override void Constrain(
                 Vector3 transformPos, Vector3 transformUp, Vector3 transformRight,
@@ -64,9 +79,19 @@ namespace XREngine.Scene.Transforms
                 resultForward = (cameraPos - posOnConstrainLine).Normalized();
             }
         }
+        /// <summary>
+        /// Constrains the billboard to a specific direction.
+        /// </summary>
+        /// <param name="transform"></param>
+        /// <param name="direction"></param>
         public class DirectionConstrainer(BillboardTransform transform, Vector3 direction) : Constrainer(transform)
         {
-            public Vector3 Direction { get; set; } = direction;
+            private Vector3 _direction = direction;
+            public Vector3 Direction
+            {
+                get => _direction;
+                set => SetField(ref _direction, value);
+            }
 
             public override void Constrain(
                 Vector3 transformPos, Vector3 transformUp, Vector3 transformRight,
@@ -157,11 +182,38 @@ namespace XREngine.Scene.Transforms
         private void OnConstrainDirectionChanged(TransformBase @base)
             => MarkWorldModified();
 
+        protected internal override void OnSceneNodeActivated()
+        {
+            base.OnSceneNodeActivated();
+            var vp = Engine.State.MainPlayer.Viewport;
+            if (vp is null || vp.ActiveCamera is null)
+                return;
+            vp.ActiveCamera.Transform.WorldMatrixChanged += CameraMoved;
+        }
+        protected internal override void OnSceneNodeDeactivated()
+        {
+            base.OnSceneNodeDeactivated();
+            var vp = Engine.State.MainPlayer.Viewport;
+            if (vp is null || vp.ActiveCamera is null)
+                return;
+            vp.ActiveCamera.Transform.WorldMatrixChanged -= CameraMoved;
+        }
+
+        private void CameraMoved(TransformBase @base)
+        {
+            RecalcWorld(true);
+        }
+
+        protected override Matrix4x4 CreateLocalMatrix()
+        {
+            return Matrix4x4.Identity;
+        }
+
         protected override Matrix4x4 CreateWorldMatrix()
         {
-            var camera = XRCamera.CurrentRenderTarget;
+            var camera = Engine.State.MainPlayer.Viewport?.ActiveCamera;
             if (camera is null)
-                return Parent?.WorldMatrix ?? Matrix4x4.Identity;
+                return Matrix4x4.Identity;
 
             var pos = Parent?.WorldTranslation ?? Vector3.Zero;
 
@@ -169,7 +221,17 @@ namespace XREngine.Scene.Transforms
                 ? camera.Transform.WorldTranslation
                 : GeoUtil.ClosestPointPlanePoint(camera.GetNearPlane(), pos);
 
-            Matrix4x4 transform = Matrix4x4.Identity;
+            Matrix4x4 worldMtx;
+
+            //Move the billboard to the parent's position
+            if (Parent is not null)
+            {
+                Matrix4x4.Decompose(Parent.WorldMatrix, out var pScale, out _, out var pPos);
+                worldMtx = Matrix4x4.CreateScale(pScale) * Matrix4x4.CreateTranslation(pPos);
+            }
+            else
+                worldMtx = Matrix4x4.Identity;
+
             if (BillboardActive)
             {
                 var up = Parent?.WorldUp ?? Vector3.UnitY;
@@ -190,22 +252,18 @@ namespace XREngine.Scene.Transforms
                 }
                 else
                     resultUp = Vector3.Cross(cameraRight, resultForward = (cameraPos - pos).Normalized()).Normalized();
-                
-                transform = Matrix4x4.CreateWorld(pos, resultForward, resultUp);
+
+                worldMtx = Matrix4x4.CreateWorld(Vector3.Zero, resultForward, resultUp) * worldMtx;
             }
+
             if (ScaleByDistance)
             {
                 float distance = pos.Distance(cameraPos);
                 float scale = distance / ScaleReferenceDistance;
-                return Matrix4x4.CreateScale(scale) * transform;
+                worldMtx = Matrix4x4.CreateScale(scale) * worldMtx;
             }
-            else
-                return transform;
-        }
 
-        protected override Matrix4x4 CreateLocalMatrix()
-        {
-            return Matrix4x4.Identity;
+            return worldMtx;
         }
     }
 }

@@ -2,7 +2,6 @@
 using Silk.NET.Input;
 using System.Collections.Concurrent;
 using System.Numerics;
-using XREngine;
 using XREngine.Actors.Types;
 using XREngine.Animation;
 using XREngine.Components;
@@ -16,7 +15,6 @@ using XREngine.Data.Components;
 using XREngine.Data.Components.Scene;
 using XREngine.Data.Core;
 using XREngine.Data.Rendering;
-using XREngine.Editor;
 using XREngine.Editor.UI.Components;
 using XREngine.Editor.UI.Toolbar;
 using XREngine.Rendering;
@@ -34,32 +32,38 @@ using static XREngine.Scene.Transforms.RigidBodyTransform;
 using BlendMode = XREngine.Rendering.Models.Materials.BlendMode;
 using Quaternion = System.Numerics.Quaternion;
 
+namespace XREngine.Editor;
+
 public static class EditorWorld
 {
-
+    //Unit testing toggles
     public const bool VisualizeOctree = false;
     public const bool VisualizeQuadtree = false;
-    public const bool Physics = false;
+    public const bool Physics = true;
     public const bool DirLight = true;
     public const bool SpotLight = false;
     public const bool DirLight2 = false;
     public const bool PointLight = false;
     public const bool SoundNode = true;
-    public const bool LightProbe = true;
+    public const bool LightProbe = true; //Adds a test light probe to the scene for PBR lighting.
     public const bool Skybox = true;
-    public const bool Spline = false;
-    public const bool DeferredDecal = false;
-    public const bool StaticModel = false;
-    public const bool AnimatedModel = true;
-    public const bool AddEditorUI = true;
-    public const bool VRPawn = false;
-    public const bool CharacterPawn = false;
-    public const bool ThirdPersonPawn = false;
-    public const bool TestAnimation = false;
-    public const bool PhysicsChain = true;
-    public const bool TransformTool = true;
+    public const bool Spline = false; //Adds a 3D spline to the scene.
+    public const bool DeferredDecal = false; //Adds a deferred decal to the scene.
+    public const bool StaticModel = false; //Imports a scene model to be rendered.
+    public const bool AnimatedModel = true; //Imports a character model to be animated.
+    public const bool AddEditorUI = false; //Adds the full editor UI to the camera. Probably don't use this one a character pawn.
+    public const bool VRPawn = false; //Enables VR input and pawn.
+    public const bool CharacterPawn = false; //Enables the player to physically locomote in the world. Requires a physical floor.
+    public const bool ThirdPersonPawn = false; //If on desktop and character pawn is enabled, this will add a third person camera instead of first person.
+    public const bool TestAnimation = false; //Adds test animations to the character pawn.
+    public const bool PhysicsChain = true; //Adds a jiggle physics chain to the character pawn.
+    public const bool TransformTool = true; //Adds the transform tool to the scene for testing dragging and rotating etc.
 
-    public static XRWorld CreateTestWorld()
+    /// <summary>
+    /// Creates a test world with a variety of objects for testing purposes.
+    /// </summary>
+    /// <returns></returns>
+    public static XRWorld CreateUnitTestWorld()
     {
         string desktopDir = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
         //UnityPackageExtractor.ExtractAsync(Path.Combine(desktopDir, "Animations.unitypackage"), Path.Combine(desktopDir, "Extracted"), true);
@@ -92,7 +96,7 @@ public static class EditorWorld
         {
             SceneNode cameraNode = CreateCamera(rootNode, out var camComp);
             var pawn = CreateDesktopViewerPawn(cameraNode);
-            CreateUserInterface(rootNode, camComp!, pawn);
+            CreateEditorUI(rootNode, camComp!, pawn);
         }
 
         if (DirLight)
@@ -126,6 +130,11 @@ public static class EditorWorld
         return world;
     }
 
+    //Pawns are what the player controls in the game world.
+    #region Pawns
+
+    #region VR
+
     private static SceneNode CreateCharacterVRPawn(SceneNode rootNode)
     {
         SceneNode vrPlayspaceNode = new(rootNode) { Name = "VRPlayspaceNode" };
@@ -150,7 +159,6 @@ public static class EditorWorld
 
         return vrPlayspaceNode;
     }
-
     private static void AddHandControllerNode(SceneNode parentNode, bool left)
     {
         SceneNode leftControllerNode = new(parentNode) { Name = "VRLeftControllerNode" };
@@ -159,7 +167,6 @@ public static class EditorWorld
         var leftControllerModel = leftControllerNode.AddComponent<VRControllerModelComponent>()!;
         leftControllerModel.LeftHand = left;
     }
-
     private static void CreateFlyingVRPawn(SceneNode rootNode)
     {
         SceneNode vrPlayspaceNode = new(rootNode) { Name = "VRPlayspaceNode" };
@@ -169,13 +176,11 @@ public static class EditorWorld
         AddHandControllerNode(vrPlayspaceNode, false);
         AddTrackerCollectionNode(vrPlayspaceNode);
     }
-
     private static void AddTrackerCollectionNode(SceneNode vrPlayspaceNode)
     {
         SceneNode trackerNode = new(vrPlayspaceNode) { Name = "VRTrackerNode" };
         trackerNode.AddComponent<VRTrackerCollectionComponent>();
     }
-
     private static void AddHeadsetNode(SceneNode parentNode, PawnComponent? pawn = null)
     {
         SceneNode vrHeadsetNode = new(parentNode) { Name = "VRHeadsetNode" };
@@ -198,7 +203,22 @@ public static class EditorWorld
             firstPersonCam.SetAsPlayerView(ELocalPlayerIndex.One);
         else
             pawn.CameraComponent = firstPersonCam;
-        CreateUserInterface(vrHeadsetNode, firstPersonCam);
+        CreateEditorUI(vrHeadsetNode, firstPersonCam);
+    }
+    #endregion
+
+    #region Desktop
+
+    private static EditorFlyingCameraPawnComponent CreateDesktopViewerPawn(SceneNode cameraNode)
+    {
+        var pawnComp = cameraNode.AddComponent<EditorFlyingCameraPawnComponent>();
+        var listener = cameraNode.AddComponent<AudioListenerComponent>()!;
+        //listener.Gain = 1.0f;
+        //listener.DistanceModel = DistanceModel.LinearDistanceClamped;
+
+        pawnComp!.Name = "TestPawn";
+        pawnComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
+        return pawnComp;
     }
 
     private static SceneNode CreateDesktopCharacterPawn(SceneNode rootNode)
@@ -242,232 +262,11 @@ public static class EditorWorld
         characterComp!.Name = "TestPawn";
         characterComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
         if (camComp is not null)
-            CreateUserInterface(characterNode, camComp);
+            CreateEditorUI(characterNode, camComp);
         return characterNode;
     }
 
-    private static void AddDeferredDecal(SceneNode rootNode)
-    {
-        var decalNode = new SceneNode(rootNode) { Name = "TestDecalNode" };
-        var decalTfm = decalNode.SetTransform<Transform>();
-        decalTfm.Translation = new Vector3(0.0f, 5.0f, 0.0f);
-        decalTfm.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitX, XRMath.DegToRad(70.0f));
-        decalTfm.Scale = new Vector3(7.0f);
-        var decalComp = decalNode.AddComponent<DeferredDecalComponent>()!;
-        decalComp.Name = "TestDecal";
-        decalComp.SetTexture(Engine.Assets.LoadEngineAsset<XRTexture2D>("Textures", "decal guide.png"));
-    }
-
-    //private static void AddPBRTestOrbs(SceneNode rootNode, float y)
-    //{
-    //    for (int metallic = 0; metallic < 10; metallic++)
-    //        for (int roughness = 0; roughness < 10; roughness++)
-    //            AddPBRTestOrb(rootNode, metallic / 10.0f, roughness / 10.0f, 0.5f, 0.5f, 10, 10, y);
-    //}
-
-    //private static void AddPBRTestOrb(SceneNode rootNode, float metallic, float roughness, float radius, float padding, int metallicCount, int roughnessCount, float y)
-    //{
-    //    var orb1 = new SceneNode(rootNode) { Name = "TestOrb1" };
-    //    var orb1Transform = orb1.SetTransform<Transform>();
-
-    //    //arrange in grid using metallic and roughness
-    //    orb1Transform.Translation = new Vector3(
-    //        (metallic * 2.0f - 1.0f) * (radius + padding) * metallicCount,
-    //        y + padding + radius,
-    //        (roughness * 2.0f - 1.0f) * (radius + padding) * roughnessCount);
-
-    //    var orb1Model = orb1.AddComponent<ModelComponent>()!;
-    //    var mat = XRMaterial.CreateLitColorMaterial(ColorF4.Red);
-    //    mat.RenderPass = (int)EDefaultRenderPass.OpaqueDeferredLit;
-    //    mat.Parameter<ShaderFloat>("Roughness")!.Value = roughness;
-    //    mat.Parameter<ShaderFloat>("Metallic")!.Value = metallic;
-    //    orb1Model.Model = new Model([new SubMesh(XRMesh.Shapes.SolidSphere(Vector3.Zero, radius, 32), mat)]);
-    //}
-
-    private static void CreateUserInterface(SceneNode parent, CameraComponent camComp, PawnComponent? pawnForInput = null)
-    {
-        var rootCanvasNode = new SceneNode(parent) { Name = "TestUINode" };
-        var canvas = rootCanvasNode.AddComponent<UICanvasComponent>()!;
-        var canvasTfm = rootCanvasNode.GetTransformAs<UICanvasTransform>(true)!;
-        canvasTfm.DrawSpace = ECanvasDrawSpace.Screen;
-        canvasTfm.Width = 1920.0f;
-        canvasTfm.Height = 1080.0f;
-        canvasTfm.CameraDrawSpaceDistance = 10.0f;
-        canvasTfm.Padding = new Vector4(0.0f);
-
-        if (VisualizeQuadtree)
-            rootCanvasNode.AddComponent<DebugVisualizeQuadtreeComponent>();
-
-        if (camComp is not null)
-            camComp.UserInterface = canvas;
-
-        AddFPSText(null, rootCanvasNode);
-
-        if (AddEditorUI)
-        {
-            //Add input handler
-            var input = rootCanvasNode.AddComponent<UIInputComponent>()!;
-            input.OwningPawn = pawnForInput;
-
-            //This will take care of editor UI arrangement operations for us
-            var mainUINode = rootCanvasNode.NewChild<UIEditorComponent>(out var editorComp);
-            editorComp.MenuOptions = GenerateRootMenu();
-            if (editorComp.UITransform is not UIBoundableTransform tfm)
-                return;
-            tfm.MinAnchor = new Vector2(0.0f, 0.0f);
-            tfm.MaxAnchor = new Vector2(1.0f, 1.0f);
-            tfm.NormalizedPivot = new Vector2(0.0f, 0.0f);
-            tfm.Translation = new Vector2(0.0f, 0.0f);
-            tfm.Width = null;
-            tfm.Height = null;
-        }
-    }
-
-    public static void TakeScreenshot(UIInteractableComponent comp)
-    {
-        //Debug.Out("Take Screenshot clicked");
-
-        var camera = Engine.State.GetOrCreateLocalPlayer(ELocalPlayerIndex.One).ControlledPawn as EditorFlyingCameraPawnComponent;
-        camera?.TakeScreenshot();
-    }
-    public static void LoadProject(UIInteractableComponent comp)
-    {
-        //Debug.Out("Load Project clicked");
-    }
-    public static async void SaveAll(UIInteractableComponent comp)
-    {
-        await Engine.Assets.SaveAllAsync();
-    }
-
-    //TODO: allow scripts to add menu options with attributes
-    private static List<ToolbarButton> GenerateRootMenu()
-    {
-        return [
-            new("File", [Key.ControlLeft, Key.F],
-            [
-                new("Save All", SaveAll),
-                new("Open", [
-                    new ToolbarButton("Project", LoadProject),
-                    ])
-            ]),
-            new("Edit"),
-            new("Assets"),
-            new("Tools", [Key.ControlLeft, Key.T],
-            [
-                new("Take Screenshot", TakeScreenshot),
-            ]),
-            new("View"),
-            new("Window"),
-            new("Help"),
-        ];
-    }
-
-    private static void AddPhysics(SceneNode rootNode)
-    {
-        float ballRadius = 0.5f;
-
-        var floor = new SceneNode(rootNode) { Name = "Floor" };
-        var floorTfm = floor.SetTransform<RigidBodyTransform>();
-        var floorComp = floor.AddComponent<StaticRigidBodyComponent>()!;
-
-        PhysxMaterial floorPhysMat = new(0.5f, 0.5f, 0.7f);
-        PhysxMaterial ballPhysMat = new(0.2f, 0.2f, 1.0f);
-
-        var floorBody = PhysxStaticRigidBody.CreatePlane(Globals.Up, 0.0f, floorPhysMat);
-        //new PhysxStaticRigidBody(floorMat, new PhysxGeometry.Box(new Vector3(100.0f, 2.0f, 100.0f)));
-        floorBody.SetTransform(new Vector3(0.0f, 0.0f, 0.0f), Quaternion.CreateFromAxisAngle(Globals.Backward, XRMath.DegToRad(90.0f)), true);
-        //floorBody.CollisionGroup = 1;
-        //floorBody.GroupsMask = new MagicPhysX.PxGroupsMask() { bits0 = 0, bits1 = 0, bits2 = 0, bits3 = 1 };
-        floorComp.RigidBody = floorBody;
-        //floorBody.AddedToScene += x =>
-        //{
-        //    var shapes = floorBody.GetShapes();
-        //    var shape = shapes[0];
-        //    //shape.QueryFilterData = new MagicPhysX.PxFilterData() { word0 = 0, word1 = 0, word2 = 0, word3 = 1 };
-        //};
-
-        //var floorShader = ShaderHelper.LoadEngineShader("Misc\\TestFloor.frag");
-        //ShaderVar[] floorUniforms =
-        //[
-        //    new ShaderVector4(new ColorF4(0.9f, 0.9f, 0.9f, 1.0f), "MatColor"),
-        //    new ShaderFloat(10.0f, "BlurStrength"),
-        //    new ShaderInt(20, "SampleCount"),
-        //    new ShaderVector3(Globals.Up, "PlaneNormal"),
-        //];
-        //XRTexture2D grabTex = XRTexture2D.CreateGrabPassTextureResized(0.2f);
-        //XRMaterial floorMat = new(floorUniforms, [grabTex], floorShader);
-        XRMaterial floorMat = XRMaterial.CreateLitColorMaterial(ColorF4.Gray);
-        floorMat.RenderOptions.CullMode = ECullMode.None;
-        //floorMat.RenderOptions.RequiredEngineUniforms = EUniformRequirements.Camera;
-        floorMat.RenderPass = (int)EDefaultRenderPass.OpaqueDeferredLit;
-        //floorMat.EnableTransparency();
-
-        var floorModel = floor.AddComponent<ModelComponent>()!;
-        floorModel.Model = new Model([new SubMesh(XRMesh.Create(VertexQuad.PosY(10000.0f)), floorMat)]);
-
-        Random random = new();
-        for (int i = 0; i < 100; i++)
-            AddBall(rootNode, ballPhysMat, ballRadius, random);
-    }
-
-    private static void AddBall(SceneNode rootNode, PhysxMaterial ballPhysMat, float ballRadius, Random random)
-    {
-        var ballBody = new PhysxDynamicRigidBody(ballPhysMat, new IAbstractPhysicsGeometry.Sphere(ballRadius), 1.0f)
-        {
-            Transform = (new Vector3(
-                random.NextSingle() * 100.0f,
-                random.NextSingle() * 100.0f,
-                random.NextSingle() * 100.0f), Quaternion.Identity),
-            AngularDamping = 0.2f,
-            LinearDamping = 0.2f,
-        };
-
-        ballBody.SetAngularVelocity(new Vector3(
-            random.NextSingle() * 100.0f,
-            random.NextSingle() * 100.0f,
-            random.NextSingle() * 100.0f));
-
-        ballBody.SetLinearVelocity(new Vector3(
-            random.NextSingle() * 10.0f,
-            random.NextSingle() * 10.0f,
-            random.NextSingle() * 10.0f));
-
-        var ball = new SceneNode(rootNode) { Name = "Ball" };
-        var ballTfm = ball.SetTransform<RigidBodyTransform>();
-        ballTfm.InterpolationMode = EInterpolationMode.Interpolate;
-        var ballComp = ball.AddComponent<DynamicRigidBodyComponent>()!;
-        ballComp.RigidBody = ballBody;
-        var ballModel = ball.AddComponent<ModelComponent>()!;
-
-        ColorF4 color = new(
-            random.NextSingle(),
-            random.NextSingle(),
-            random.NextSingle());
-
-        var ballMat = XRMaterial.CreateLitColorMaterial(color);
-        ballMat.RenderPass = (int)EDefaultRenderPass.OpaqueDeferredLit;
-        ballMat.Parameter<ShaderFloat>("Roughness")!.Value = random.NextSingle();
-        ballMat.Parameter<ShaderFloat>("Metallic")!.Value = random.NextSingle();
-        ballModel.Model = new Model([new SubMesh(XRMesh.Shapes.SolidSphere(Vector3.Zero, ballRadius, 32), ballMat)]);
-    }
-
-    private static void AddSpline(SceneNode rootNode)
-    {
-        var spline = rootNode.AddComponent<Spline3DPreviewComponent>();
-        PropAnimVector3 anim = new();
-        Random r = new();
-        float len = r.NextSingle() * 10.0f;
-        int frameCount = r.Next(2, 10);
-        for (int i = 0; i < frameCount; i++)
-        {
-            float t = i / (float)frameCount;
-            Vector3 value = new(r.NextSingle() * 10.0f, r.NextSingle() * 10.0f, r.NextSingle() * 10.0f);
-            Vector3 tangent = new(r.NextSingle() * 10.0f, r.NextSingle() * 10.0f, r.NextSingle() * 10.0f);
-            anim.Keyframes.Add(new Vector3Keyframe(t, value, tangent, EVectorInterpType.Smooth));
-        }
-        anim.LengthInSeconds = len;
-        spline!.Spline = anim;
-    }
+    #endregion
 
     private static SceneNode CreateCamera(SceneNode parentNode, out CameraComponent? camComp, bool smoothed = true)
     {
@@ -494,34 +293,27 @@ public static class EditorWorld
         return cameraNode;
     }
 
-    private static UITextComponent AddFPSText(FontGlyphSet? font, SceneNode parentNode)
-    {
-        SceneNode textNode = new(parentNode) { Name = "TestTextNode" };
-        UITextComponent text = textNode.AddComponent<UITextComponent>()!;
-        text.Font = font;
-        text.FontSize = 22;
-        text.RegisterAnimationTick<UITextComponent>(TickFPS);
-        var textTransform = textNode.GetTransformAs<UIBoundableTransform>(true)!;
-        textTransform.MinAnchor = new Vector2(1.0f, 0.0f);
-        textTransform.MaxAnchor = new Vector2(1.0f, 0.0f);
-        textTransform.NormalizedPivot = new Vector2(1.0f, 0.0f);
-        textTransform.Width = null;
-        textTransform.Height = null;
-        textTransform.Margins = new Vector4(10.0f, 10.0f, 10.0f, 10.0f);
-        textTransform.Scale = new Vector3(1.0f);
-        return text;
-    }
+    #endregion
 
-    private static EditorFlyingCameraPawnComponent CreateDesktopViewerPawn(SceneNode cameraNode)
-    {
-        var pawnComp = cameraNode.AddComponent<EditorFlyingCameraPawnComponent>();
-        var listener = cameraNode.AddComponent<AudioListenerComponent>()!;
-        //listener.Gain = 1.0f;
-        //listener.DistanceModel = DistanceModel.LinearDistanceClamped;
+    //All tests pertaining to shading the scene.
+    #region Shading Tests
 
-        pawnComp!.Name = "TestPawn";
-        pawnComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
-        return pawnComp;
+    //Code for lighting the scene.
+    #region Lights
+
+    private static void AddLightProbe(SceneNode rootNode)
+    {
+        var probe = new SceneNode(rootNode) { Name = "TestLightProbeNode" };
+        var probeTransform = probe.SetTransform<Transform>();
+        probeTransform.Translation = new Vector3(0.0f, 20.0f, 0.0f);
+        if (!probe.TryAddComponent<LightProbeComponent>(out var probeComp))
+            return;
+
+        probeComp!.Name = "TestLightProbe";
+        probeComp.SetCaptureResolution(128, false);
+        probeComp.RealtimeCapture = true;
+        probeComp.PreviewDisplay = LightProbeComponent.ERenderPreview.Irradiance;
+        probeComp.RealTimeCaptureUpdateInterval = TimeSpan.FromSeconds(1.0f);
     }
 
     private static void AddDirLight(SceneNode rootNode)
@@ -595,6 +387,287 @@ public static class EditorWorld
         pointLightComp.SetShadowMapResolution(1024, 1024);
     }
 
+    #endregion
+
+    //Deferred decals are textures that are projected onto the scene geometry before the lighting pass using the GBuffer.
+    private static void AddDeferredDecal(SceneNode rootNode)
+    {
+        var decalNode = new SceneNode(rootNode) { Name = "TestDecalNode" };
+        var decalTfm = decalNode.SetTransform<Transform>();
+        decalTfm.Translation = new Vector3(0.0f, 5.0f, 0.0f);
+        decalTfm.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitX, XRMath.DegToRad(70.0f));
+        decalTfm.Scale = new Vector3(7.0f);
+        var decalComp = decalNode.AddComponent<DeferredDecalComponent>()!;
+        decalComp.Name = "TestDecal";
+        decalComp.SetTexture(Engine.Assets.LoadEngineAsset<XRTexture2D>("Textures", "decal guide.png"));
+    }
+
+    //private static void AddPBRTestOrbs(SceneNode rootNode, float y)
+    //{
+    //    for (int metallic = 0; metallic < 10; metallic++)
+    //        for (int roughness = 0; roughness < 10; roughness++)
+    //            AddPBRTestOrb(rootNode, metallic / 10.0f, roughness / 10.0f, 0.5f, 0.5f, 10, 10, y);
+    //}
+
+    //private static void AddPBRTestOrb(SceneNode rootNode, float metallic, float roughness, float radius, float padding, int metallicCount, int roughnessCount, float y)
+    //{
+    //    var orb1 = new SceneNode(rootNode) { Name = "TestOrb1" };
+    //    var orb1Transform = orb1.SetTransform<Transform>();
+
+    //    //arrange in grid using metallic and roughness
+    //    orb1Transform.Translation = new Vector3(
+    //        (metallic * 2.0f - 1.0f) * (radius + padding) * metallicCount,
+    //        y + padding + radius,
+    //        (roughness * 2.0f - 1.0f) * (radius + padding) * roughnessCount);
+
+    //    var orb1Model = orb1.AddComponent<ModelComponent>()!;
+    //    var mat = XRMaterial.CreateLitColorMaterial(ColorF4.Red);
+    //    mat.RenderPass = (int)EDefaultRenderPass.OpaqueDeferredLit;
+    //    mat.Parameter<ShaderFloat>("Roughness")!.Value = roughness;
+    //    mat.Parameter<ShaderFloat>("Metallic")!.Value = metallic;
+    //    orb1Model.Model = new Model([new SubMesh(XRMesh.Shapes.SolidSphere(Vector3.Zero, radius, 32), mat)]);
+    //}
+
+    #endregion
+
+    //User interface overlay code.
+    #region UI
+
+    private static readonly Queue<float> _fpsAvg = new();
+    private static void TickFPS(UITextComponent t)
+    {
+        _fpsAvg.Enqueue(1.0f / Engine.Time.Timer.Render.SmoothedDelta);
+        if (_fpsAvg.Count > 60)
+            _fpsAvg.Dequeue();
+        t.Text = $"{MathF.Round(_fpsAvg.Sum() / _fpsAvg.Count)}hz";
+    }
+
+    //Simple FPS counter in the bottom right for debugging.
+    private static UITextComponent AddFPSText(FontGlyphSet? font, SceneNode parentNode)
+    {
+        SceneNode textNode = new(parentNode) { Name = "TestTextNode" };
+        UITextComponent text = textNode.AddComponent<UITextComponent>()!;
+        text.Font = font;
+        text.FontSize = 22;
+        text.RegisterAnimationTick<UITextComponent>(TickFPS);
+        var textTransform = textNode.GetTransformAs<UIBoundableTransform>(true)!;
+        textTransform.MinAnchor = new Vector2(1.0f, 0.0f);
+        textTransform.MaxAnchor = new Vector2(1.0f, 0.0f);
+        textTransform.NormalizedPivot = new Vector2(1.0f, 0.0f);
+        textTransform.Width = null;
+        textTransform.Height = null;
+        textTransform.Margins = new Vector4(10.0f, 10.0f, 10.0f, 10.0f);
+        textTransform.Scale = new Vector3(1.0f);
+        return text;
+    }
+
+    //The full editor UI - includes a toolbar, inspector, viewport and scene hierarchy.
+    private static void CreateEditorUI(SceneNode parent, CameraComponent camComp, PawnComponent? pawnForInput = null)
+    {
+        var rootCanvasNode = new SceneNode(parent) { Name = "TestUINode" };
+        var canvas = rootCanvasNode.AddComponent<UICanvasComponent>()!;
+        var canvasTfm = rootCanvasNode.GetTransformAs<UICanvasTransform>(true)!;
+        canvasTfm.DrawSpace = ECanvasDrawSpace.Screen;
+        canvasTfm.Width = 1920.0f;
+        canvasTfm.Height = 1080.0f;
+        canvasTfm.CameraDrawSpaceDistance = 10.0f;
+        canvasTfm.Padding = new Vector4(0.0f);
+
+        if (VisualizeQuadtree)
+            rootCanvasNode.AddComponent<DebugVisualizeQuadtreeComponent>();
+
+        if (camComp is not null)
+            camComp.UserInterface = canvas;
+
+        AddFPSText(null, rootCanvasNode);
+
+        if (AddEditorUI)
+        {
+            //Add input handler
+            var input = rootCanvasNode.AddComponent<UIInputComponent>()!;
+            input.OwningPawn = pawnForInput;
+
+            //This will take care of editor UI arrangement operations for us
+            var mainUINode = rootCanvasNode.NewChild<UIEditorComponent>(out var editorComp);
+            editorComp.MenuOptions = GenerateRootMenu();
+            if (editorComp.UITransform is not UIBoundableTransform tfm)
+                return;
+            tfm.MinAnchor = new Vector2(0.0f, 0.0f);
+            tfm.MaxAnchor = new Vector2(1.0f, 1.0f);
+            tfm.NormalizedPivot = new Vector2(0.0f, 0.0f);
+            tfm.Translation = new Vector2(0.0f, 0.0f);
+            tfm.Width = null;
+            tfm.Height = null;
+        }
+    }
+
+    //Signals the camera to take a picture of the current view.
+    public static void TakeScreenshot(UIInteractableComponent comp)
+    {
+        //Debug.Out("Take Screenshot clicked");
+
+        var camera = Engine.State.GetOrCreateLocalPlayer(ELocalPlayerIndex.One).ControlledPawn as EditorFlyingCameraPawnComponent;
+        camera?.TakeScreenshot();
+    }
+    //Loads a project from the file system.
+    public static void LoadProject(UIInteractableComponent comp)
+    {
+        //Debug.Out("Load Project clicked");
+    }
+    //Saves all modified assets in the project.
+    public static async void SaveAll(UIInteractableComponent comp)
+    {
+        await Engine.Assets.SaveAllAsync();
+    }
+
+    //Generates the root menu for the editor UI.
+    //TODO: allow scripts to add menu options with attributes
+    private static List<ToolbarButton> GenerateRootMenu()
+    {
+        return [
+            new("File", [Key.ControlLeft, Key.F],
+            [
+                new("Save All", SaveAll),
+                new("Open", [
+                    new ToolbarButton("Project", LoadProject),
+                    ])
+            ]),
+            new("Edit"),
+            new("Assets"),
+            new("Tools", [Key.ControlLeft, Key.T],
+            [
+                new("Take Screenshot", TakeScreenshot),
+            ]),
+            new("View"),
+            new("Window"),
+            new("Help"),
+        ];
+    }
+
+    #endregion
+
+    //All tests pertaining to lighting the scene.
+    #region Physics Tests
+
+    //Creates a floor and a bunch of balls that fall onto it.
+    private static void AddPhysics(SceneNode rootNode, int ballCount = 100)
+    {
+        float ballRadius = 0.5f;
+
+        var floor = new SceneNode(rootNode) { Name = "Floor" };
+        var floorTfm = floor.SetTransform<RigidBodyTransform>();
+        var floorComp = floor.AddComponent<StaticRigidBodyComponent>()!;
+
+        PhysxMaterial floorPhysMat = new(0.5f, 0.5f, 0.7f);
+        PhysxMaterial ballPhysMat = new(0.2f, 0.2f, 1.0f);
+
+        var floorBody = PhysxStaticRigidBody.CreatePlane(Globals.Up, 0.0f, floorPhysMat);
+        //new PhysxStaticRigidBody(floorMat, new PhysxGeometry.Box(new Vector3(100.0f, 2.0f, 100.0f)));
+        floorBody.SetTransform(new Vector3(0.0f, 0.0f, 0.0f), Quaternion.CreateFromAxisAngle(Globals.Backward, XRMath.DegToRad(90.0f)), true);
+        //floorBody.CollisionGroup = 1;
+        //floorBody.GroupsMask = new MagicPhysX.PxGroupsMask() { bits0 = 0, bits1 = 0, bits2 = 0, bits3 = 1 };
+        floorComp.RigidBody = floorBody;
+        //floorBody.AddedToScene += x =>
+        //{
+        //    var shapes = floorBody.GetShapes();
+        //    var shape = shapes[0];
+        //    //shape.QueryFilterData = new MagicPhysX.PxFilterData() { word0 = 0, word1 = 0, word2 = 0, word3 = 1 };
+        //};
+
+        //var floorShader = ShaderHelper.LoadEngineShader("Misc\\TestFloor.frag");
+        //ShaderVar[] floorUniforms =
+        //[
+        //    new ShaderVector4(new ColorF4(0.9f, 0.9f, 0.9f, 1.0f), "MatColor"),
+        //    new ShaderFloat(10.0f, "BlurStrength"),
+        //    new ShaderInt(20, "SampleCount"),
+        //    new ShaderVector3(Globals.Up, "PlaneNormal"),
+        //];
+        //XRTexture2D grabTex = XRTexture2D.CreateGrabPassTextureResized(0.2f);
+        //XRMaterial floorMat = new(floorUniforms, [grabTex], floorShader);
+        XRMaterial floorMat = XRMaterial.CreateLitColorMaterial(ColorF4.Gray);
+        floorMat.RenderOptions.CullMode = ECullMode.None;
+        //floorMat.RenderOptions.RequiredEngineUniforms = EUniformRequirements.Camera;
+        floorMat.RenderPass = (int)EDefaultRenderPass.OpaqueDeferredLit;
+        //floorMat.EnableTransparency();
+
+        var floorModel = floor.AddComponent<ModelComponent>()!;
+        floorModel.Model = new Model([new SubMesh(XRMesh.Create(VertexQuad.PosY(10000.0f)), floorMat)]);
+
+        Random random = new();
+        for (int i = 0; i < ballCount; i++)
+            AddBall(rootNode, ballPhysMat, ballRadius, random);
+    }
+
+    //Spawns a ball with a random position, velocity and angular velocity.
+    private static void AddBall(SceneNode rootNode, PhysxMaterial ballPhysMat, float ballRadius, Random random)
+    {
+        var ballBody = new PhysxDynamicRigidBody(ballPhysMat, new IAbstractPhysicsGeometry.Sphere(ballRadius), 1.0f)
+        {
+            Transform = (new Vector3(
+                random.NextSingle() * 100.0f,
+                random.NextSingle() * 100.0f,
+                random.NextSingle() * 100.0f), Quaternion.Identity),
+            AngularDamping = 0.2f,
+            LinearDamping = 0.2f,
+        };
+
+        ballBody.SetAngularVelocity(new Vector3(
+            random.NextSingle() * 100.0f,
+            random.NextSingle() * 100.0f,
+            random.NextSingle() * 100.0f));
+
+        ballBody.SetLinearVelocity(new Vector3(
+            random.NextSingle() * 10.0f,
+            random.NextSingle() * 10.0f,
+            random.NextSingle() * 10.0f));
+
+        var ball = new SceneNode(rootNode) { Name = "Ball" };
+        var ballTfm = ball.SetTransform<RigidBodyTransform>();
+        ballTfm.InterpolationMode = EInterpolationMode.Interpolate;
+        var ballComp = ball.AddComponent<DynamicRigidBodyComponent>()!;
+        ballComp.RigidBody = ballBody;
+        var ballModel = ball.AddComponent<ModelComponent>()!;
+
+        ColorF4 color = new(
+            random.NextSingle(),
+            random.NextSingle(),
+            random.NextSingle());
+
+        var ballMat = XRMaterial.CreateLitColorMaterial(color);
+        ballMat.RenderPass = (int)EDefaultRenderPass.OpaqueDeferredLit;
+        ballMat.Parameter<ShaderFloat>("Roughness")!.Value = random.NextSingle();
+        ballMat.Parameter<ShaderFloat>("Metallic")!.Value = random.NextSingle();
+        ballModel.Model = new Model([new SubMesh(XRMesh.Shapes.SolidSphere(Vector3.Zero, ballRadius, 32), ballMat)]);
+    }
+
+    #endregion
+
+    //Tests for transforming scene nodes via animations and methods.
+    #region Animation Tests
+
+    private static void AddSpline(SceneNode rootNode)
+    {
+        var spline = rootNode.AddComponent<Spline3DPreviewComponent>();
+        PropAnimVector3 anim = new();
+        Random r = new();
+        float len = r.NextSingle() * 10.0f;
+        int frameCount = r.Next(2, 10);
+        for (int i = 0; i < frameCount; i++)
+        {
+            float t = i / (float)frameCount;
+            Vector3 value = new(r.NextSingle() * 10.0f, r.NextSingle() * 10.0f, r.NextSingle() * 10.0f);
+            Vector3 tangent = new(r.NextSingle() * 10.0f, r.NextSingle() * 10.0f, r.NextSingle() * 10.0f);
+            anim.Keyframes.Add(new Vector3Keyframe(t, value, tangent, EVectorInterpType.Smooth));
+        }
+        anim.LengthInSeconds = len;
+        spline!.Spline = anim;
+    }
+
+    #endregion
+
+    //Tests for audio sources and listeners.
+    #region Sound Tests
+
     private static void AddSoundNode(SceneNode rootNode)
     {
         var sound = new SceneNode(rootNode) { Name = "TestSoundNode" };
@@ -617,20 +690,10 @@ public static class EditorWorld
         soundComp.PlayOnActivate = true;
     }
 
-    private static void AddLightProbe(SceneNode rootNode)
-    {
-        var probe = new SceneNode(rootNode) { Name = "TestLightProbeNode" };
-        var probeTransform = probe.SetTransform<Transform>();
-        probeTransform.Translation = new Vector3(0.0f, 20.0f, 0.0f);
-        if (!probe.TryAddComponent<LightProbeComponent>(out var probeComp))
-            return;
+    #endregion
 
-        probeComp!.Name = "TestLightProbe";
-        probeComp.SetCaptureResolution(128, false);
-        probeComp.RealtimeCapture = true;
-        probeComp.PreviewDisplay = LightProbeComponent.ERenderPreview.Irradiance;
-        probeComp.RealTimeCaptureUpdateInterval = TimeSpan.FromSeconds(1.0f);
-    }
+    //Tests for importing models and animations.
+    #region Models
 
     private static async void ImportModels(string desktopDir, SceneNode rootNode, SceneNode characterParentNode)
     {
@@ -703,7 +766,6 @@ public static class EditorWorld
         (SceneNode? rootNode, IReadOnlyCollection<XRMaterial> materials, IReadOnlyCollection<XRMesh> meshes) = task.Result;
         rootNode?.GetTransformAs<Transform>()?.ApplyScale(new Vector3(0.015f));
     }
-
     private static void OnFinishedAvatar(Task<(SceneNode? rootNode, IReadOnlyCollection<XRMaterial> materials, IReadOnlyCollection<XRMesh> meshes)> x)
     {
         (SceneNode? rootNode, IReadOnlyCollection<XRMaterial> materials, IReadOnlyCollection<XRMesh> meshes) = x.Result;
@@ -889,12 +951,5 @@ public static class EditorWorld
         textureList[i] = _textureCache.GetOrAdd(path, TextureFactory);
     }
 
-    private static readonly Queue<float> _fpsAvg = new();
-    private static void TickFPS(UITextComponent t)
-    {
-        _fpsAvg.Enqueue(1.0f / Engine.Time.Timer.Render.SmoothedDelta);
-        if (_fpsAvg.Count > 60)
-            _fpsAvg.Dequeue();
-        t.Text = $"{MathF.Round(_fpsAvg.Sum() / _fpsAvg.Count)}hz";
-    }
+    #endregion
 }

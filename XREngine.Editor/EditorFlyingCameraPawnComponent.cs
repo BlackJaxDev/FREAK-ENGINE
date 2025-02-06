@@ -1,6 +1,7 @@
 ﻿using Extensions;
 using ImageMagick;
 using System.Numerics;
+using XREngine.Actors.Types;
 using XREngine.Components;
 using XREngine.Core;
 using XREngine.Data.Colors;
@@ -180,8 +181,13 @@ public partial class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent
         if (NeedsDepthHit())
             GetDepthHit(vp, p);
 
-        //_lastRaycastSegment = vp.GetWorldSegment(p);
+        p = vp.NormalizeInternalCoordinate(p);
+        _lastRaycastSegment = vp.GetWorldSegment(p);
 
+        SceneNode? tfmTool = TransformTool3D.InstanceNode;
+        if (tfmTool is not null && tfmTool.TryGetComponent<TransformTool3D>(out var comp))
+            comp?.MouseMove(_lastRaycastSegment, cam.Camera, LeftClickPressed);
+        
         //lock (_raycastLock)
         //    if (vp.PickScene(p, false, true, true, _lastOctreePickResults, _lastPhysicsPickResults))
         //    {

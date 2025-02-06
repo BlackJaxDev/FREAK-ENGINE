@@ -54,10 +54,18 @@ namespace XREngine.Components
             private set => SetField(ref _rightClickPressed, value);
         }
 
+        public bool LeftClickPressed
+        {
+            get => _leftClickPressed;
+            private set => SetField(ref _leftClickPressed, value);
+        }
+
         protected bool
             _ctrlPressed = false,
             _shiftPressed = false,
-            _rightClickPressed = false;
+            _rightClickPressed = false,
+            _leftClickPressed = false;
+
         private float _yaw;
         private float _pitch;
 
@@ -96,6 +104,7 @@ namespace XREngine.Components
             input.RegisterMouseScroll(OnScrolled);
             input.RegisterMouseMove(MouseMove, EMouseMoveType.Relative);
 
+            input.RegisterMouseButtonContinuousState(EMouseButton.LeftClick, OnLeftClick);
             input.RegisterMouseButtonContinuousState(EMouseButton.RightClick, OnRightClick);
 
             input.RegisterKeyStateChange(EKey.A, MoveLeft);
@@ -161,6 +170,8 @@ namespace XREngine.Components
             => CtrlPressed = pressed;
         protected virtual void OnRightClick(bool pressed)
             => RightClickPressed = pressed;
+        protected virtual void OnLeftClick(bool pressed)
+            => LeftClickPressed = pressed;
 
         protected internal override void OnComponentActivated()
         {

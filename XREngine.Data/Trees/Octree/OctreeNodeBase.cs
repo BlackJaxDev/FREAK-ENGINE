@@ -16,9 +16,11 @@ namespace XREngine.Data.Trees
         public Vector3 Center => _bounds.Center;
         public Vector3 Min => _bounds.Min;
         public Vector3 Max => _bounds.Max;
+        public abstract OctreeNodeBase? GenericParent { get; }
 
         protected abstract OctreeNodeBase? GetNodeInternal(int index);
         public abstract void HandleMovedItem(IOctreeItem item);
+        public abstract bool Remove(IOctreeItem item, out bool destroyNode);
 
         public AABB? GetSubdivision(int index)
         {
@@ -55,5 +57,10 @@ namespace XREngine.Data.Trees
         {
 
         }
+
+        public virtual void Destroy()
+            => GenericParent?.RemoveNodeAt(SubDivIndex);
+
+        protected abstract void RemoveNodeAt(int subDivIndex);
     }
 }

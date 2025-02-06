@@ -18,20 +18,44 @@ using XREngine.Scene.Transforms;
 
 namespace XREngine.Actors.Types
 {
-    [RequireComponents(typeof(ModelComponent))]
+    [RequiresTransform(typeof(DrivenWorldTransform))]
     public class TransformTool3D : XRComponent, IRenderable
     {
+        public DrivenWorldTransform RootTransform => SceneNode.GetTransformAs<DrivenWorldTransform>(true)!;
+        
         public RenderInfo3D RenderInfo { get; }
 
-        private static SceneNode? _instanceNode;
-
-        public static void DestroyInstance()
+        private ETransformSpace _transformSpace = ETransformSpace.World;
+        public ETransformSpace TransformSpace
         {
-            _instanceNode?.Destroy();
+            get => _transformSpace;
+            set => SetField(ref _transformSpace, value);
+        }
+
+        private ETransformType _mode = ETransformType.Translate;
+        public ETransformType TransformMode
+        {
+            get => _mode;
+            set => SetField(ref _mode, value);
         }
 
         /// <summary>
-        /// 
+        /// The root node of the transformation tool, if spawned, containing all of the tool's components.
+        /// </summary>
+        private static SceneNode? _instanceNode;
+        public static SceneNode? InstanceNode => _instanceNode;
+
+        /// <summary>
+        /// Removes the current instance of the transformation tool from the scene.
+        /// </summary>
+        public static void DestroyInstance()
+        {
+            _instanceNode?.Destroy();
+            _instanceNode = null;
+        }
+
+        /// <summary>
+        /// Spawns and retrieves the transformation tool in the current scene.
         /// </summary>
         /// <param name="world">The world to spawn the transform tool in.</param>
         /// <param name="comp"></param>
@@ -62,35 +86,108 @@ namespace XREngine.Actors.Types
             _rc = new RenderCommandMethod3D((int)EDefaultRenderPass.OnTopForward, Render);
             RenderInfo = RenderInfo3D.New(this, _rc);
             RenderedObjects = [RenderInfo];
+        }
+
+        protected internal override void OnComponentActivated()
+        {
+            base.OnComponentActivated();
             UpdateModelComponent();
+        }
+        protected internal override void OnComponentDeactivated()
+        {
+            base.OnComponentDeactivated();
         }
 
         public event Action? MouseDown, MouseUp;
 
         private readonly RenderCommandMethod3D _rc;
 
-        //UIString2D _xText, _yText, _zText;
-
         private readonly XRMaterial[] _axisMat = new XRMaterial[3];
         private readonly XRMaterial[] _transPlaneMat = new XRMaterial[6];
         private readonly XRMaterial[] _scalePlaneMat = new XRMaterial[3];
         private XRMaterial? _screenMat;
 
-        private ETransformSpace _transformSpace = ETransformSpace.World;
-
         public Matrix4x4 PrevRootWorldMatrix { get; private set; } = Matrix4x4.Identity;
         public RenderInfo[] RenderedObjects { get; }
 
+        private ModelComponent? _translationModel;
+        private ModelComponent? _nonRotationModel;
+        private ModelComponent? _scaleModel;
+        private ModelComponent? _rotationModel;
+        private ModelComponent? _screenRotationModel;
+        private ModelComponent? _screenTranslationModel;
+
         protected void UpdateModelComponent()
         {
-            List<SubMesh> subMeshes = [];
-            List<SubMesh> screenSubMeshes = [];
+            GenerateMeshes(
+                out var translationMeshes,
+                out var nonRotationMeshes,
+                out var scaleMeshes,
+                out var rotationMeshes,
+                out var screenRotationMeshes,
+                out var screenTranslationMeshes);
+
+            //Generate skeleton: root node should scale by distance
+            SceneNode skelRoot = SceneNode.NewChild();
+
+            BillboardTransform rootBillboardTfm = skelRoot.GetTransformAs<BillboardTransform>(true)!;
+            rootBillboardTfm.BillboardActive = false;
+            rootBillboardTfm.Perspective = true;
+            rootBillboardTfm.ScaleByDistance = true;
+            rootBillboardTfm.ScaleReferenceDistance = 10.0f;
+
+            ModelComponent translationModelComp = skelRoot.AddComponent<ModelComponent>()!;
+            translationModelComp.Model = new Model(translationMeshes);
+            _translationModel = translationModelComp;
+
+            ModelComponent nonRotationModelComp = skelRoot.AddComponent<ModelComponent>()!;
+            nonRotationModelComp.Model = new Model(nonRotationMeshes);
+            _nonRotationModel = nonRotationModelComp;
+
+            ModelComponent scaleModelComp = skelRoot.AddComponent<ModelComponent>()!;
+            scaleModelComp.Model = new Model(scaleMeshes);
+            _scaleModel = scaleModelComp;
+
+            ModelComponent rotationModelComp = skelRoot.AddComponent<ModelComponent>()!;
+            rotationModelComp.Model = new Model(rotationMeshes);
+            _rotationModel = rotationModelComp;
+
+            SceneNode screenNode = skelRoot.NewChild();
+            BillboardTransform screenBillboard = screenNode.GetTransformAs<BillboardTransform>(true)!;
+            screenBillboard.Perspective = false;
+            screenBillboard.BillboardActive = true;
+
+            ModelComponent screenRotationModelComp = screenNode.AddComponent<ModelComponent>()!;
+            screenRotationModelComp.Model = new Model(screenRotationMeshes);
+            _screenRotationModel = screenRotationModelComp;
+
+            ModelComponent screenTranslationModelComp = screenNode.AddComponent<ModelComponent>()!;
+            screenTranslationModelComp.Model = new Model(screenTranslationMeshes);
+            _screenTranslationModel = screenTranslationModelComp;
+
+            ModeChanged();
+        }
+
+        private void GenerateMeshes(
+            out List<SubMesh> translationMeshes,
+            out List<SubMesh> nonRotationMeshes,
+            out List<SubMesh> scaleMeshes,
+            out List<SubMesh> rotationMeshes,
+            out List<SubMesh> screenRotationMeshes,
+            out List<SubMesh> screenTranslationMeshes)
+        {
+            translationMeshes = [];
+            nonRotationMeshes = [];
+            scaleMeshes = [];
+            rotationMeshes = [];
+            screenRotationMeshes = [];
+            screenTranslationMeshes = [];
 
             _screenMat = XRMaterial.CreateUnlitColorMaterialForward(ColorF4.LightGray);
             _screenMat.RenderOptions.DepthTest.Enabled = ERenderParamUsage.Disabled;
             _screenMat.RenderOptions.LineWidth = 1.0f;
 
-            GetSphere(subMeshes);
+            GetSphere(translationMeshes);
 
             for (int normalAxis = 0; normalAxis < 3; ++normalAxis)
             {
@@ -135,55 +232,35 @@ namespace XREngine.Actors.Types
                     out XRMesh rotPrim);
 
                 //isRotate = false
-                subMeshes.Add(new SubMesh(axisPrim, axisMat));
-                subMeshes.Add(new SubMesh(arrowPrim, axisMat));
+                nonRotationMeshes.Add(new SubMesh(axisPrim, axisMat));
+                nonRotationMeshes.Add(new SubMesh(arrowPrim, axisMat));
 
                 //isTranslate = true
-                subMeshes.Add(new SubMesh(transPrim1, planeMat1));
-                subMeshes.Add(new SubMesh(transPrim2, planeMat2));
+                translationMeshes.Add(new SubMesh(transPrim1, planeMat1));
+                translationMeshes.Add(new SubMesh(transPrim2, planeMat2));
 
                 //isScale = true
-                subMeshes.Add(new SubMesh(scalePrim, scalePlaneMat));
+                scaleMeshes.Add(new SubMesh(scalePrim, scalePlaneMat));
 
                 //isRotate = true
-                subMeshes.Add(new SubMesh(rotPrim, axisMat));
+                rotationMeshes.Add(new SubMesh(rotPrim, axisMat));
             }
 
-            //Screen-aligned rotation
-            XRMesh screenRotPrim = XRMesh.Shapes.WireframeCircle(_circRadius, Vector3.UnitZ, Vector3.Zero, _circlePrecision);
+            //Screen-aligned rotation: view-aligned circle around the center
+            var screenRotPrim = XRMesh.Shapes.WireframeCircle(_circRadius, Vector3.UnitZ, Vector3.Zero, _circlePrecision);
 
-            //Screen-aligned translation
+            //Screen-aligned translation: small view-aligned square at the center
             Vertex v1 = new Vector3(-_screenTransExtent, -_screenTransExtent, 0.0f);
             Vertex v2 = new Vector3(_screenTransExtent, -_screenTransExtent, 0.0f);
             Vertex v3 = new Vector3(_screenTransExtent, _screenTransExtent, 0.0f);
             Vertex v4 = new Vector3(-_screenTransExtent, _screenTransExtent, 0.0f);
             VertexLineStrip strip = new(true, v1, v2, v3, v4);
-            XRMesh screenTransPrim = XRMesh.Create(strip);
+            var screenTransPrim = XRMesh.Create(strip);
 
             //isRotate = true
-            screenSubMeshes.Add(new SubMesh(screenRotPrim, _screenMat));
+            screenRotationMeshes.Add(new SubMesh(screenRotPrim, _screenMat));
             //isTranslate = true
-            screenSubMeshes.Add(new SubMesh(screenTransPrim, _screenMat));
-
-            //Skeleton
-            var rootBillboard = SceneNode.SetTransform<BillboardTransform>();
-            rootBillboard.Perspective = false;
-            rootBillboard.ScaleByDistance = true;
-            rootBillboard.ScaleReferenceDistance = _orbRadius;
-            SceneNode screen = new(SceneNode)
-            {
-                //BillboardType = EBillboardType.OrthographicXYZ
-            };
-            var screenBillboard = screen.SetTransform<BillboardTransform>();
-            screenBillboard.Perspective = false;
-
-            ModelComponent modelComp = GetSiblingComponent<ModelComponent>(true)!;
-            modelComp.Model = new Model(subMeshes);
-
-            ModelComponent screenModelComp = screen.GetOrAddComponent<ModelComponent>(out _)!;
-            screenModelComp.Model = new Model(screenSubMeshes);
-
-            ModeChanged();
+            screenTranslationMeshes.Add(new SubMesh(screenTransPrim, _screenMat));
         }
 
         private static void GetMeshes(Vector3 unit, VertexLine axisLine, VertexLine transLine1, VertexLine transLine2, VertexLine scaleLine1, VertexLine scaleLine2, out XRMesh axisPrim, out XRMesh arrowPrim, out XRMesh transPrim1, out XRMesh transPrim2, out XRMesh scalePrim, out XRMesh rotPrim)
@@ -277,40 +354,12 @@ namespace XREngine.Actors.Types
             subMeshes.Add(new SubMesh(spherePrim, sphereMat));
         }
 
-        private ETransformType _mode = ETransformType.Translate;
         private TransformBase? _targetSocket = null;
-
-        public ETransformSpace TransformSpace
-        {
-            get => _transformSpace;
-            set
-            {
-                if (_transformSpace == value)
-                    return;
-
-                _transformSpace = value;
-
-                SetWorldMatrices(GetSocketSpacialTransform(), GetSocketSpacialTransformInverse());
-                //_dragMatrix = RootComponent.WorldMatrix;
-                //_invDragMatrix = RootComponent.InverseWorldMatrix;
-
-                if (_transformSpace == ETransformSpace.Screen)
-                    RegisterTick(ETickGroup.PostPhysics, ETickOrder.Logic, UpdateScreenSpace);
-                else
-                    UnregisterTick(ETickGroup.PostPhysics, ETickOrder.Logic, UpdateScreenSpace);
-            }
-        }
 
         private void UpdateScreenSpace()
         {
             if (_targetSocket != null)
                 SocketTransformChanged(null);
-        }
-
-        public ETransformType TransformMode
-        {
-            get => _mode;
-            set => SetField(ref _mode, value);
         }
 
         protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
@@ -320,6 +369,15 @@ namespace XREngine.Actors.Types
             {
                 case nameof(TransformMode):
                     ModeChanged();
+                    break;
+                case nameof(TransformSpace):
+                    SetWorldMatrices(GetSocketSpacialTransform(), GetSocketSpacialTransformInverse());
+                    //_dragMatrix = RootComponent.WorldMatrix;
+                    //_invDragMatrix = RootComponent.InverseWorldMatrix;
+                    if (_transformSpace == ETransformSpace.Screen)
+                        RegisterTick(ETickGroup.PostPhysics, ETickOrder.Logic, UpdateScreenSpace);
+                    else
+                        UnregisterTick(ETickGroup.PostPhysics, ETickOrder.Logic, UpdateScreenSpace);
                     break;
             }
         }
@@ -358,35 +416,81 @@ namespace XREngine.Actors.Types
 
         private void UpdateVisibility()
         {
-            int x = 0;
-
-            ModelComponent modelComp = GetSiblingComponent<ModelComponent>(true)!;
-            SceneNode? screen = SceneNode.Transform.TryGetChildAt(0)?.SceneNode;
-            ModelComponent? screenModelComp = screen?.GetOrAddComponent<ModelComponent>(out _);
-
-            var meshes = modelComp.Meshes;
-            var screenMeshes = screenModelComp?.Meshes;
-
-            if (meshes.Count != 21)
-                return;
-
-            meshes[x++].RenderInfo.IsVisible = _mode == ETransformType.Rotate;
-
-            for (int i = 0; i < 3; ++i)
+            switch (_mode)
             {
-                meshes[x++].RenderInfo.IsVisible = _mode != ETransformType.Rotate;
-                meshes[x++].RenderInfo.IsVisible = _mode != ETransformType.Rotate;
-                meshes[x++].RenderInfo.IsVisible = _mode == ETransformType.Translate;
-                meshes[x++].RenderInfo.IsVisible = _mode == ETransformType.Translate;
-                meshes[x++].RenderInfo.IsVisible = _mode == ETransformType.Scale;
-                meshes[x++].RenderInfo.IsVisible = _mode == ETransformType.Rotate;
+                case ETransformType.Rotate:
+                    if (_translationModel is not null)
+                        _translationModel.IsActive = false;
+                    if (_nonRotationModel is not null)
+                        _nonRotationModel.IsActive = false;
+                    if (_scaleModel is not null)
+                        _scaleModel.IsActive = false;
+                    if (_rotationModel is not null)
+                        _rotationModel.IsActive = true;
+                    if (_screenRotationModel is not null)
+                        _screenRotationModel.IsActive = true;
+                    if (_screenTranslationModel is not null)
+                        _screenTranslationModel.IsActive = false;
+                    break;
+                case ETransformType.Translate:
+                    if (_translationModel is not null)
+                        _translationModel.IsActive = true;
+                    if (_nonRotationModel is not null)
+                        _nonRotationModel.IsActive = true;
+                    if (_scaleModel is not null)
+                        _scaleModel.IsActive = false;
+                    if (_rotationModel is not null)
+                        _rotationModel.IsActive = false;
+                    if (_screenRotationModel is not null)
+                        _screenRotationModel.IsActive = false;
+                    if (_screenTranslationModel is not null)
+                        _screenTranslationModel.IsActive = true;
+                    break;
+                case ETransformType.Scale:
+                    if (_translationModel is not null)
+                        _translationModel.IsActive = false;
+                    if (_nonRotationModel is not null)
+                        _nonRotationModel.IsActive = true;
+                    if (_scaleModel is not null)
+                        _scaleModel.IsActive = true;
+                    if (_rotationModel is not null)
+                        _rotationModel.IsActive = false;
+                    if (_screenRotationModel is not null)
+                        _screenRotationModel.IsActive = false;
+                    if (_screenTranslationModel is not null)
+                        _screenTranslationModel.IsActive = false;
+                    break;
             }
 
-            if (screenMeshes != null)
-            {
-                screenMeshes[0].RenderInfo.IsVisible = _mode == ETransformType.Rotate;
-                screenMeshes[1].RenderInfo.IsVisible = _mode == ETransformType.Translate;
-            }
+            //int x = 0;
+
+            //ModelComponent modelComp = GetSiblingComponent<ModelComponent>(true)!;
+            //SceneNode? screen = SceneNode.Transform.TryGetChildAt(0)?.SceneNode;
+            //ModelComponent? screenModelComp = screen?.GetOrAddComponent<ModelComponent>(out _);
+
+            //var meshes = modelComp.Meshes;
+            //var screenMeshes = screenModelComp?.Meshes;
+
+            //if (meshes.Count != 21)
+            //    return;
+
+            //meshes[x++].RenderInfo.IsVisible = _mode == ETransformType.Rotate;
+
+            //for (int i = 0; i < 3; ++i)
+            //{
+            //    meshes[x++].RenderInfo.IsVisible = _mode != ETransformType.Rotate;
+            //    meshes[x++].RenderInfo.IsVisible = _mode != ETransformType.Rotate;
+            //    meshes[x++].RenderInfo.IsVisible = _mode == ETransformType.Translate;
+            //    meshes[x++].RenderInfo.IsVisible = _mode == ETransformType.Translate;
+            //    meshes[x++].RenderInfo.IsVisible = _mode == ETransformType.Scale;
+            //    meshes[x++].RenderInfo.IsVisible = _mode == ETransformType.Rotate;
+            //}
+
+            //if (screenMeshes != null)
+            //{
+            //    screenMeshes[0].RenderInfo.IsVisible = _mode == ETransformType.Rotate;
+            //    screenMeshes[1].RenderInfo.IsVisible = _mode == ETransformType.Translate;
+            //}
         }
 
         private void MouseUpScale()
@@ -565,7 +669,7 @@ namespace XREngine.Actors.Types
         private Action? _mouseUp, _mouseDown;
         private DelDrag? _drag;
         private DelHighlight? _highlight;
-        private delegate bool DelHighlight(XRCamera camera, Ray localRay);
+        private delegate bool DelHighlight(XRCamera camera, Segment localRay);
         private delegate void DelDrag(Vector3 dragPoint);
         private delegate void DelDragRot(Quaternion dragPoint);
 
@@ -601,6 +705,10 @@ namespace XREngine.Actors.Types
         private void DragTranslation(Vector3 dragPointWorld)
         {
             Vector3 worldDelta = dragPointWorld - _lastPointWorld;
+
+            //var parent = _targetSocket?.Parent;
+            //Matrix4x4 mtx = _targetSocket.LocalMatrix * Matrix4x4.CreateTranslation(worldDelta) * (parent?.WorldMatrix ?? Matrix4x4.Identity);
+            _targetSocket?.DeriveWorldMatrix(_targetSocket.WorldMatrix * Matrix4x4.CreateTranslation(worldDelta));
 
             //Matrix4 m = _targetSocket.InverseWorldMatrix.ClearScale();
             //m = m.ClearTranslation();
@@ -641,12 +749,15 @@ namespace XREngine.Actors.Types
         /// <param name="camera">The camera viewing this tool, used for camera space drag clamping.</param>
         /// <param name="localRay">The mouse ray, transformed into the socket's local space.</param>
         /// <returns></returns>
-        private Vector3 GetLocalDragPoint(XRCamera camera, Ray localRay)
+        private Vector3 GetLocalDragPoint(XRCamera camera, Segment localRay)
         {
             //Convert all coordinates to local space
 
             Vector3 localCamPoint = Vector3.Transform(camera.Transform.WorldTranslation, Transform.InverseWorldMatrix);
             Vector3 localDragPoint, unit;
+
+            var start = localRay.Start;
+            var dir = Vector3.Normalize(localRay.End - localRay.Start);
 
             switch (_mode)
             {
@@ -675,7 +786,7 @@ namespace XREngine.Actors.Types
                                 _localDragPlaneNormal = localCamPoint - perpPoint;
                                 _localDragPlaneNormal.Normalized();
 
-                                if (!GeoUtil.RayIntersectsPlane(localRay.StartPoint, localRay.Direction, Vector3.Zero, _localDragPlaneNormal, out localDragPoint))
+                                if (!GeoUtil.RayIntersectsPlane(start, dir, Vector3.Zero, _localDragPlaneNormal, out localDragPoint))
                                     return _lastPointWorld;
 
                                 return Ray.GetClosestColinearPoint(Vector3.Zero, unit, localDragPoint);
@@ -698,7 +809,7 @@ namespace XREngine.Actors.Types
                                 _localDragPlaneNormal = localCamPoint - perpPoint;
                                 _localDragPlaneNormal.Normalized();
 
-                                if (!GeoUtil.RayIntersectsPlane(localRay.StartPoint, localRay.Direction, Vector3.Zero, _localDragPlaneNormal, out localDragPoint))
+                                if (!GeoUtil.RayIntersectsPlane(start, dir, Vector3.Zero, _localDragPlaneNormal, out localDragPoint))
                                     return _lastPointWorld;
 
                                 return Ray.GetClosestColinearPoint(Vector3.Zero, unit, localDragPoint);
@@ -721,14 +832,14 @@ namespace XREngine.Actors.Types
                                 _localDragPlaneNormal = localCamPoint - perpPoint;
                                 _localDragPlaneNormal.Normalized();
 
-                                if (!GeoUtil.RayIntersectsPlane(localRay.StartPoint, localRay.Direction, Vector3.Zero, _localDragPlaneNormal, out localDragPoint))
+                                if (!GeoUtil.RayIntersectsPlane(start, dir, Vector3.Zero, _localDragPlaneNormal, out localDragPoint))
                                     return _lastPointWorld;
 
                                 return Ray.GetClosestColinearPoint(Vector3.Zero, unit, localDragPoint);
                             }
                         }
 
-                        if (GeoUtil.RayIntersectsPlane(localRay.StartPoint, localRay.Direction, Vector3.Zero, _localDragPlaneNormal, out localDragPoint))
+                        if (GeoUtil.RayIntersectsPlane(start, dir, Vector3.Zero, _localDragPlaneNormal, out localDragPoint))
                             return localDragPoint;
                     }
                     break;
@@ -739,7 +850,7 @@ namespace XREngine.Actors.Types
                             _localDragPlaneNormal = localCamPoint;
                             _localDragPlaneNormal.Normalized();
 
-                            if (GeoUtil.RayIntersectsPlane(localRay.StartPoint, localRay.Direction, Vector3.Zero, _localDragPlaneNormal, out localDragPoint))
+                            if (GeoUtil.RayIntersectsPlane(start, dir, Vector3.Zero, _localDragPlaneNormal, out localDragPoint))
                                 return localDragPoint;
                         }
                         else if (_hiAxis.Any)
@@ -754,7 +865,7 @@ namespace XREngine.Actors.Types
                             _localDragPlaneNormal = unit;
                             _localDragPlaneNormal.Normalized();
 
-                            if (GeoUtil.RayIntersectsPlane(localRay.StartPoint, localRay.Direction, Vector3.Zero, _localDragPlaneNormal, out localDragPoint))
+                            if (GeoUtil.RayIntersectsPlane(start, dir, Vector3.Zero, _localDragPlaneNormal, out localDragPoint))
                                 return localDragPoint;
                         }
                         else if (_hiSphere)
@@ -762,7 +873,7 @@ namespace XREngine.Actors.Types
                             Vector3 worldPoint = Transform.WorldTranslation;
                             float radius = camera.DistanceScaleOrthographic(worldPoint, _orbRadius);
 
-                            if (GeoUtil.RayIntersectsSphere(localRay.StartPoint, localRay.Direction, Vector3.Zero, radius * _circOrbScale, out localDragPoint))
+                            if (GeoUtil.RayIntersectsSphere(start, dir, Vector3.Zero, radius * _circOrbScale, out localDragPoint))
                             {
                                 _localDragPlaneNormal = localDragPoint.Normalized();
                                 return localDragPoint;
@@ -777,16 +888,19 @@ namespace XREngine.Actors.Types
         #endregion
 
         #region Highlighting
-        private bool HighlightRotation(XRCamera camera, Ray localRay)
+        private bool HighlightRotation(XRCamera camera, Segment localRay)
         {
             Vector3 worldPoint = Transform.WorldTranslation;
             float radius = camera.DistanceScaleOrthographic(worldPoint, _orbRadius);
 
-            if (!GeoUtil.RayIntersectsSphere(localRay.StartPoint, localRay.Direction, Vector3.Zero, radius * _circOrbScale, out Vector3 point))
+            var start = localRay.Start;
+            var dir = Vector3.Normalize(localRay.End - localRay.Start);
+
+            if (!GeoUtil.RayIntersectsSphere(start, dir, Vector3.Zero, radius * _circOrbScale, out Vector3 point))
             {
                 //If no intersect is found, project the ray through the plane perpendicular to the camera.
                 //localRay.LinePlaneIntersect(Vector3.Zero, (camera.WorldPoint - worldPoint).Normalized(), out point);
-                GeoUtil.RayIntersectsPlane(localRay.StartPoint, localRay.Direction, Vector3.Zero, Vector3.Transform((camera.Transform.WorldTranslation - worldPoint), Transform.InverseWorldMatrix), out point);
+                GeoUtil.RayIntersectsPlane(start, dir, Vector3.Zero, Vector3.Transform((camera.Transform.WorldTranslation - worldPoint), Transform.InverseWorldMatrix), out point);
 
                 //Clamp the point to edge of the sphere
                 point = Ray.PointAtLineDistance(Vector3.Zero, point, radius);
@@ -816,10 +930,13 @@ namespace XREngine.Actors.Types
 
             return _hiAxis.Any || _hiCam || _hiSphere;
         }
-        private bool HighlightTranslation(XRCamera camera, Ray localRay)
+        private bool HighlightTranslation(XRCamera camera, Segment localRay)
         {
             Vector3 worldPoint = Transform.WorldTranslation;
             float radius = camera.DistanceScaleOrthographic(worldPoint, _orbRadius);
+
+            var start = localRay.Start;
+            var dir = Vector3.Normalize(localRay.End - localRay.Start);
 
             List<Vector3> intersectionPoints = new(3);
 
@@ -827,10 +944,10 @@ namespace XREngine.Actors.Types
             for (int normalAxis = 0; normalAxis < 3; ++normalAxis)
             {
                 Vector3 unit = Vector3.Zero;
-                unit[normalAxis] = localRay.StartPoint[normalAxis] < 0.0f ? -1.0f : 1.0f;
+                unit[normalAxis] = start[normalAxis] < 0.0f ? -1.0f : 1.0f;
 
                 //Get plane intersection point for cursor ray and each drag plane
-                if (GeoUtil.RayIntersectsPlane(localRay.StartPoint, localRay.Direction, Vector3.Zero, unit, out Vector3 point))
+                if (GeoUtil.RayIntersectsPlane(start, dir, Vector3.Zero, unit, out Vector3 point))
                     intersectionPoints.Add(point);
             }
 
@@ -873,21 +990,24 @@ namespace XREngine.Actors.Types
 
             return snapFound;
         }
-        private bool HighlightScale(XRCamera camera, Ray localRay)
+        private bool HighlightScale(XRCamera camera, Segment localRay)
         {
             Vector3 worldPoint = Transform.WorldTranslation;
             float radius = camera.DistanceScaleOrthographic(worldPoint, _orbRadius);
 
             List<Vector3> intersectionPoints = new(3);
 
+            var start = localRay.Start;
+            var dir = Vector3.Normalize(localRay.End - localRay.Start);
+
             bool snapFound = false;
             for (int normalAxis = 0; normalAxis < 3; ++normalAxis)
             {
                 Vector3 unit = Vector3.Zero;
-                unit[normalAxis] = localRay.StartPoint[normalAxis] < 0.0f ? -1.0f : 1.0f;
+                unit[normalAxis] = start[normalAxis] < 0.0f ? -1.0f : 1.0f;
 
                 //Get plane intersection point for cursor ray and each drag plane
-                if (GeoUtil.RayIntersectsPlane(localRay.StartPoint, localRay.Direction, Vector3.Zero, unit, out Vector3 point))
+                if (GeoUtil.RayIntersectsPlane(start, dir, Vector3.Zero, unit, out Vector3 point))
                     intersectionPoints.Add(point);
             }
 
@@ -955,7 +1075,7 @@ namespace XREngine.Actors.Types
         /// <summary>
         /// Returns true if intersecting one of the transform tool's various parts.
         /// </summary>
-        public bool MouseMove(Ray cursor, XRCamera camera, bool pressed)
+        public bool MouseMove(Segment cursor, XRCamera camera, bool pressed)
         {
             bool snapFound = true;
             if (pressed)
@@ -966,7 +1086,7 @@ namespace XREngine.Actors.Types
                 if (!_pressed)
                     OnPressed();
 
-                Ray localRay = cursor.TransformedBy(Transform.InverseWorldMatrix);
+                Segment localRay = cursor.TransformedBy(Transform.InverseWorldMatrix);
                 Vector3 localDragPoint = GetLocalDragPoint(camera, localRay);
                 Vector3 worldDragPoint = Vector3.Transform(localDragPoint, Transform.WorldMatrix);
                 _drag?.Invoke(worldDragPoint);
@@ -978,7 +1098,7 @@ namespace XREngine.Actors.Types
                 if (_pressed)
                     OnReleased();
 
-                Ray localRay = cursor.TransformedBy(Transform.InverseWorldMatrix);
+                Segment localRay = cursor.TransformedBy(Transform.InverseWorldMatrix);
 
                 _hiAxis.X = _hiAxis.Y = _hiAxis.Z = false;
                 _hiCam = _hiSphere = false;
@@ -1037,9 +1157,7 @@ namespace XREngine.Actors.Types
         }
 
         private void SetWorldMatrices(Matrix4x4 transform, Matrix4x4 invTransform)
-        {
-            SceneNode.GetTransformAs<DrivenWorldTransform>(true)!.SetWorldMatrix(transform);
-        }
+            => RootTransform.SetWorldMatrix(transform);
 
         private void OnReleased()
         {

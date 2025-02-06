@@ -83,7 +83,7 @@ namespace XREngine.Components
         }
         public float SlopeLimitAngleRad
         {
-            get => (float) Math.Acos(SlopeLimitCosine);
+            get => (float)Math.Acos(SlopeLimitCosine);
             set => SlopeLimitCosine = (float)Math.Cos(value);
         }
         public float SlopeLimitAngleDeg
