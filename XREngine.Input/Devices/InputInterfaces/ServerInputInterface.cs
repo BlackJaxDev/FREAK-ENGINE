@@ -1,13 +1,8 @@
 ﻿namespace XREngine.Input.Devices
 {
-    public class ServerInputInterface : InputInterface
+    public class ServerInputInterface(int serverPlayerIndex) : InputInterface(serverPlayerIndex)
     {
         public override bool HideCursor { get; set; }
-
-        public ServerInputInterface(int serverPlayerIndex) : base(serverPlayerIndex)
-        {
-
-        }
 
         public override bool GetAxisState(EGamePadAxis axis, EButtonInputType type)
         {
@@ -120,6 +115,46 @@
         }
 
         public override void TryUnregisterInput()
+        {
+            throw new NotImplementedException();
+        }
+
+        public override void RegisterVRBoolAction<TCategory, TName>(TCategory category, TName name, DelVRBool func)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override void RegisterVRFloatAction<TCategory, TName>(TCategory category, TName name, DelVRFloat func)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override void RegisterVRVector2Action<TCategory, TName>(TCategory category, TName name, DelVRVector2 func)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override void RegisterVRVector3Action<TCategory, TName>(TCategory category, TName name, DelVRVector3 func)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override bool VibrateVRAction<TCategory, TName>(TCategory category, TName name, double duration, double frequency = 40, double amplitude = 1, double delay = 0)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override void RegisterVRHandSkeletonQuery<TCategory, TName>(TCategory category, TName name, bool left, EVRSkeletalTransformSpace transformSpace = EVRSkeletalTransformSpace.Model, EVRSkeletalMotionRange motionRange = EVRSkeletalMotionRange.WithController, EVRSkeletalReferencePose? overridePose = null)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override void RegisterVRHandSkeletonSummaryAction<TCategory, TName>(TCategory category, TName name, bool left, DelVRSkeletonSummary func, EVRSummaryType type)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override int[] GetBoneHeirarchy(bool leftHand)
         {
             throw new NotImplementedException();
         }

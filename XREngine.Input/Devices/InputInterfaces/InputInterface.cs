@@ -1,4 +1,5 @@
-﻿using XREngine.Data.Core;
+﻿using System.Numerics;
+using XREngine.Data.Core;
 
 namespace XREngine.Input.Devices
 {
@@ -61,6 +62,155 @@ namespace XREngine.Input.Devices
         public abstract void RegisterAxisButtonEvent(EGamePadAxis button, EButtonInputType type, Action func);
         public abstract void RegisterAxisUpdate(EGamePadAxis axis, DelAxisValue func, bool continuousUpdate);
 
+        public delegate void DelVRBool(bool state);
+        public delegate void DelVRFloat(float state);
+        public delegate void DelVRVector2(Vector2 state);
+        public delegate void DelVRVector3(Vector3 state);
+        public delegate void DelVRSkeletonSummary(float ThumbCurl, float IndexCurl, float MiddleCurl, float RingCurl, float PinkyCurl, float ThumbIndexSplay, float IndexMiddleSplay, float MiddleRingSplay, float RingPinkySplay, EVRSkeletalTrackingLevel level);
+
+        public static string MakeVRActionPath(string category, string name, bool vibration)
+            => $"/actions/{category}/{(vibration ? "out" : "in")}/{name}";
+        
+        public abstract void RegisterVRBoolAction<TCategory, TName>(
+            TCategory category,
+            TName name,
+            DelVRBool func)
+            where TCategory : struct, Enum 
+            where TName : struct, Enum;
+
+        public abstract void RegisterVRFloatAction<TCategory, TName>(
+            TCategory category,
+            TName name,
+            DelVRFloat func);
+
+        public abstract void RegisterVRVector2Action<TCategory, TName>(
+            TCategory category,
+            TName name,
+            DelVRVector2 func);
+
+        public abstract void RegisterVRVector3Action<TCategory, TName>(
+            TCategory category,
+            TName name,
+            DelVRVector3 func);
+
+        /// <summary>
+        /// Sends a vibration signal to the action specified by the category and name.
+        /// </summary>
+        /// <typeparam name="TCategory"></typeparam>
+        /// <typeparam name="TName"></typeparam>
+        /// <param name="category"></param>
+        /// <param name="name"></param>
+        /// <param name="duration"></param>
+        /// <param name="frequency"></param>
+        /// <param name="amplitude"></param>
+        /// <param name="delay"></param>
+        /// <returns></returns>
+        public abstract bool VibrateVRAction<TCategory, TName>(
+            TCategory category,
+            TName name,
+            double duration,
+            double frequency = 40,
+            double amplitude = 1,
+            double delay = 0);
+
+        public enum EVRSkeletalTransformSpace
+        {
+            Model = 0,
+            Parent = 1,
+        }
+        public enum EVRSkeletalReferencePose
+        {
+            BindPose = 0,
+            OpenHand = 1,
+            Fist = 2,
+            GripLimit = 3,
+        }
+        public enum EVRSkeletalMotionRange
+        {
+            WithController = 0,
+            WithoutController = 1,
+        }
+        public enum EVRSummaryType
+        {
+            FromAnimation = 0,
+            FromDevice = 1,
+        }
+        public enum EVRSkeletalTrackingLevel
+        {
+            VRSkeletalTracking_Estimated = 0,
+            VRSkeletalTracking_Partial = 1,
+            VRSkeletalTracking_Full = 2,
+        }
+        public enum EVRHandSkeletonBone
+        {
+            Root = 0,
+            Wrist,
+            Thumb0,
+            Thumb1,
+            Thumb2,
+            Thumb3,
+            IndexFinger0,
+            IndexFinger1,
+            IndexFinger2,
+            IndexFinger3,
+            IndexFinger4,
+            MiddleFinger0,
+            MiddleFinger1,
+            MiddleFinger2,
+            MiddleFinger3,
+            MiddleFinger4,
+            RingFinger0,
+            RingFinger1,
+            RingFinger2,
+            RingFinger3,
+            RingFinger4,
+            PinkyFinger0,
+            PinkyFinger1,
+            PinkyFinger2,
+            PinkyFinger3,
+            PinkyFinger4,
+            Aux_Thumb,
+            Aux_IndexFinger,
+            Aux_MiddleFinger,
+            Aux_RingFinger,
+            Aux_PinkyFinger,
+        };
+
+        /// <summary>
+        /// Registers a query for the position and rotation of all bones in the hand.
+        /// Enables transforms of type 'VRHandSkeletonBoneTransform' to be updated with the current state of the hand if its category, name, hand, transform space, motion range, and override pose match.
+        /// </summary>
+        /// <typeparam name="TCategory"></typeparam>
+        /// <typeparam name="TName"></typeparam>
+        /// <param name="category"></param>
+        /// <param name="name"></param>
+        /// <param name="left"></param>
+        /// <param name="transformSpace"></param>
+        /// <param name="motionRange"></param>
+        /// <param name="overridePose"></param>
+        public abstract void RegisterVRHandSkeletonQuery<TCategory, TName>(
+            TCategory category,
+            TName name,
+            bool left,
+            EVRSkeletalTransformSpace transformSpace = EVRSkeletalTransformSpace.Model,
+            EVRSkeletalMotionRange motionRange = EVRSkeletalMotionRange.WithController,
+            EVRSkeletalReferencePose? overridePose = null);
+
+        public abstract void RegisterVRHandSkeletonSummaryAction<TCategory, TName>(
+            TCategory category,
+            TName name,
+            bool left,
+            DelVRSkeletonSummary func,
+            EVRSummaryType type);
+
+        /// <summary>
+        /// Returns the heirarchy of the bones in the hand.
+        /// Each value is the parent index of the bone at that value's index in the array.
+        /// </summary>
+        /// <param name="leftHand"></param>
+        /// <returns></returns>
+        public abstract int[] GetBoneHeirarchy(bool leftHand);
+        
         /// <summary>
         /// Retrieves the state of the requested mouse button: 
         /// pressed, released, held, or double pressed.

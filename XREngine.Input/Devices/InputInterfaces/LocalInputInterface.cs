@@ -237,5 +237,45 @@ namespace XREngine.Input.Devices
             Keyboard?.TickStates(delta);
             Mouse?.TickStates(delta);
         }
+
+        public override void RegisterVRBoolAction<TCategory, TName>(TCategory category, TName name, DelVRBool func)
+        {
+
+        }
+
+        public override void RegisterVRFloatAction<TCategory, TName>(TCategory category, TName name, DelVRFloat func)
+        {
+
+        }
+
+        public override void RegisterVRVector2Action<TCategory, TName>(TCategory category, TName name, DelVRVector2 func)
+        {
+
+        }
+
+        public override void RegisterVRVector3Action<TCategory, TName>(TCategory category, TName name, DelVRVector3 func)
+        {
+
+        }
+
+        public override bool VibrateVRAction<TCategory, TName>(TCategory category, TName name, double duration, double frequency = 40, double amplitude = 1, double delay = 0)
+        {
+            return false;
+        }
+
+        public override void RegisterVRHandSkeletonQuery<TCategory, TName>(TCategory category, TName name, bool left, EVRSkeletalTransformSpace transformSpace = EVRSkeletalTransformSpace.Model, EVRSkeletalMotionRange motionRange = EVRSkeletalMotionRange.WithController, EVRSkeletalReferencePose? overridePose = null)
+        {
+
+        }
+
+        public override void RegisterVRHandSkeletonSummaryAction<TCategory, TName>(TCategory category, TName name, bool left, DelVRSkeletonSummary func, EVRSummaryType type)
+        {
+
+        }
+
+        public override int[] GetBoneHeirarchy(bool leftHand)
+        {
+            return new int[0];
+        }
     }
 }

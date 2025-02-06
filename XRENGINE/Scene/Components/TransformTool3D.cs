@@ -86,12 +86,12 @@ namespace XREngine.Actors.Types
             _rc = new RenderCommandMethod3D((int)EDefaultRenderPass.OnTopForward, Render);
             RenderInfo = RenderInfo3D.New(this, _rc);
             RenderedObjects = [RenderInfo];
+            UpdateModelComponent();
         }
 
         protected internal override void OnComponentActivated()
         {
             base.OnComponentActivated();
-            UpdateModelComponent();
         }
         protected internal override void OnComponentDeactivated()
         {

@@ -221,6 +221,10 @@ namespace XREngine.Scene
         private void OnParentChanged()
         {
             World = Parent?.World;
+            if (IsActiveInHierarchy)
+                ActivateTransform();
+            else
+                DeactivateTransform();
         }
 
         /// <summary>

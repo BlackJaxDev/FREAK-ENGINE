@@ -40,7 +40,17 @@ namespace XREngine
 
             public static ETrackingUniverseOrigin Origin { get; set; } = ETrackingUniverseOrigin.TrackingUniverseStanding;
 
-            private static readonly Dictionary<string, List<OpenVR.NET.Input.Action>> _actions = [];
+            private static readonly Dictionary<string, Dictionary<string, OpenVR.NET.Input.Action>> _actions = [];
+
+            public static OpenVR.NET.Input.Action? GetAction<TCategory, TName>(TCategory category, TName name)
+                where TCategory : struct, Enum
+                where TName : struct, Enum
+            {
+                if (_actions.TryGetValue(category.ToString(), out var nameDic))
+                    if (nameDic.TryGetValue(name.ToString(), out var action))
+                        return action;
+                return null;
+            }
 
             private static void CreateActions(IActionManifest actionManifest, VR vr)
             {
@@ -54,10 +64,11 @@ namespace XREngine
                         if (a is null)
                             continue;
 
-                        string name = actionSet.Name.ToString();
-                        if (!_actions.TryGetValue(name, out var list))
-                            _actions.Add(name, list = []);
-                        list.Add(a);
+                        string categoryName = actionSet.Name.ToString();
+                        if (!_actions.TryGetValue(categoryName, out var nameDic))
+                            _actions.Add(categoryName, nameDic = []);
+
+                        nameDic.Add(action.Name.ToString(), a);
                     }
                 }
             }

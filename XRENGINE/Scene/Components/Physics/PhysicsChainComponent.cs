@@ -33,15 +33,15 @@ public class PhysicsChainComponent : XRComponent, IRenderable
     public EUpdateMode _updateMode = EUpdateMode.Default;
 
     [Range(0, 1)]
-    public float _damping = 0.01f;
+    public float _damping = 0.1f;
     public AnimationCurve? _dampingDistrib = null;
 
     [Range(0, 1)]
-    public float _elasticity = 1.0f;
+    public float _elasticity = 0.1f;
     public AnimationCurve? _elasticityDistrib = null;
 
     [Range(0, 1)]
-    public float _stiffness = 0.0f;
+    public float _stiffness = 0.1f;
     public AnimationCurve? _stiffnessDistrib = null;
 
     [Range(0, 1)]
@@ -54,10 +54,10 @@ public class PhysicsChainComponent : XRComponent, IRenderable
     public float _radius = 0.01f;
     public AnimationCurve? _radiusDistrib = null;
 
-    public float _endLength = 0;
+    public float _endLength = 0.0f;
 
-    public Vector3 _endOffset = new(0.0f, 0.0f, 1.0f);
-    public Vector3 _gravity = new(0.0f, -9.8f, 0.0f);
+    public Vector3 _endOffset = new(0.0f, 0.0f, 0.0f);
+    public Vector3 _gravity = new(0.0f, 0.0f, 0.0f);
     public Vector3 _force = Vector3.Zero;
 
     [Range(0, 1)]
@@ -81,7 +81,7 @@ public class PhysicsChainComponent : XRComponent, IRenderable
     public float _distanceToObject = 20;
 
     [HideInInspector]
-    public bool _multithread = false;
+    public bool _multithread = true;
 
     private Vector3 _objectMove;
     private Vector3 _objectPrevPosition;
@@ -160,7 +160,7 @@ public class PhysicsChainComponent : XRComponent, IRenderable
     protected internal override void OnComponentActivated()
     {
         SetupParticles();
-        RegisterTick(ETickGroup.PrePhysics, ETickOrder.Animation, FixedUpdate);
+        RegisterTick(ETickGroup.PostPhysics, ETickOrder.Animation, FixedUpdate);
         RegisterTick(ETickGroup.Normal, ETickOrder.Animation, Update);
         RegisterTick(ETickGroup.Late, ETickOrder.Animation, LateUpdate);
         OnEnable();
@@ -733,7 +733,7 @@ public class PhysicsChainComponent : XRComponent, IRenderable
 
             float restLen = p._transform is not null
                 ? (p0._transformPosition - p._transformPosition).Length()
-                : Vector3.Transform(p._endOffset, p0._transformLocalToWorldMatrix).Length();
+                : (Vector3.Transform(p._endOffset, p0._transformLocalToWorldMatrix) - p0._transformLocalToWorldMatrix.Translation).Length();
 
             // keep shape
             float stiffness = Interp.Lerp(1.0f, p._stiffness, _weight);
@@ -741,7 +741,9 @@ public class PhysicsChainComponent : XRComponent, IRenderable
             {
                 Matrix4x4 m0 = p0._transformLocalToWorldMatrix;
                 m0.Translation = p0._position;
-                Vector3 restPos = p._transform is not null ? Vector3.Transform(p._transformLocalPosition, m0) : Vector3.Transform(p._endOffset, m0);
+                Vector3 restPos = p._transform is not null 
+                    ? Vector3.Transform(p._transformLocalPosition, m0)
+                    : Vector3.Transform(p._endOffset, m0);
                 Vector3 d = restPos - p._position;
                 p._position += d * (p._elasticity * timeVar);
 
@@ -860,7 +862,7 @@ public class PhysicsChainComponent : XRComponent, IRenderable
                 Vector3 v0 = p0._transform.TransformDirection(localPos);
                 Vector3 v1 = p._position - p0._position;
                 Quaternion rot = XRMath.RotationBetweenVectors(v0, v1);
-                p0._transform.SetWorldRotation(rot * p0._transform.Rotation);
+                p0._transform.SetWorldRotation(rot * p0._transform.WorldRotation);
             }
 
             p._transform?.SetWorldTranslation(p._position);

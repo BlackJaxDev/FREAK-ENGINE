@@ -422,13 +422,9 @@ namespace XREngine.Scene.Transforms
         //}
 
         public void SetWorldRotation(Quaternion value)
-        {
-            Rotation = Quaternion.Normalize(value * ParentInverseWorldRotation);
-        }
+            => Rotation = Quaternion.Normalize(ParentInverseWorldRotation * value);
         public void SetWorldTranslation(Vector3 value)
-        {
-            Translation = Vector3.Transform(value, ParentInverseWorldMatrix);
-        }
+            => Translation = Vector3.Transform(value, ParentInverseWorldMatrix);
 
         public Quaternion ParentWorldRotation
             => Parent?.WorldRotation ?? Quaternion.Identity;

@@ -709,13 +709,14 @@ public static class EditorWorld
 
         var flags =
         PostProcessSteps.Triangulate |
-        PostProcessSteps.JoinIdenticalVertices |
-        PostProcessSteps.CalculateTangentSpace |
-        PostProcessSteps.OptimizeGraph |
-        PostProcessSteps.OptimizeMeshes |
-        PostProcessSteps.SortByPrimitiveType |
-        PostProcessSteps.ImproveCacheLocality |
-        PostProcessSteps.RemoveRedundantMaterials;
+        //PostProcessSteps.JoinIdenticalVertices |
+        PostProcessSteps.GenerateNormals |
+        PostProcessSteps.CalculateTangentSpace;
+        //PostProcessSteps.OptimizeGraph |
+        //PostProcessSteps.OptimizeMeshes |
+        //PostProcessSteps.SortByPrimitiveType |
+        //PostProcessSteps.ImproveCacheLocality |
+        //PostProcessSteps.RemoveRedundantMaterials;
 
         if (AnimatedModel)
             ModelImporter.ImportAsync(fbxPathDesktop, flags, null, MaterialFactory, characterParentNode, 1, true).ContinueWith(OnFinishedAvatar);
@@ -814,15 +815,20 @@ public static class EditorWorld
         {
             //Put the transform tool on the head for testing
             var head = comp!.Head?.Node?.Transform;
-            if (head is not null)
+            if (head is null)
+                return;
+            
+            //we have to wait for the scene node to be activated in the instance of the world before we can attach the transform tool
+            static void Edit(SceneNode x)
             {
-                //we have to wait for the scene node to be activated in the instance of the world before we can attach the transform tool
-                static void Edit(SceneNode x)
-                {
-                    TransformTool3D.GetInstance(x.Transform, ETransformType.Translate);
-                    x.Activated -= Edit;
-                }
-                if (head.SceneNode is not null)
+                TransformTool3D.GetInstance(x.Transform, ETransformType.Translate);
+                x.Activated -= Edit;
+            }
+            if (head.SceneNode is not null)
+            {
+                if (head.SceneNode.IsActiveInHierarchy && head.SceneNode.World is not null)
+                    TransformTool3D.GetInstance(head, ETransformType.Translate);
+                else
                     head.SceneNode.Activated += Edit;
             }
         }
