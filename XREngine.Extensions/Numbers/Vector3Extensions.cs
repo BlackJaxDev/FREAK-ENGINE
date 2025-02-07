@@ -49,6 +49,21 @@ namespace Extensions
                 return value / len;
         }
 
+        public static bool TryNormalizeSafe(this Vector3 value, out Vector3 result, float safeLengthTolerance = 0.0001f)
+        {
+            var len = value.Length();
+            if (len < safeLengthTolerance)
+            {
+                result = Vector3.Zero;
+                return false;
+            }
+            else
+            {
+                result = value / len;
+                return true;
+            }
+        }
+
         public static Vector3 Reflect(this Vector3 value, Vector3 normal) =>
             Vector3.Reflect(value, normal);
 

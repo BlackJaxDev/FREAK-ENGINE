@@ -337,7 +337,7 @@ namespace XREngine
                 CheckError(comp.Submit(EVREye.Eye_Left, ref _eyeTex, ref _leftEyeTexBounds, flags));
                 CheckError(comp.Submit(EVREye.Eye_Right, ref _eyeTex, ref _rightEyeTexBounds, flags));
 
-                //comp.PostPresentHandoff();
+                comp.PostPresentHandoff();
             }
 
             //enum EVRSubmitFlags

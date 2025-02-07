@@ -188,7 +188,7 @@ namespace XREngine.Components
             input.RegisterAxisUpdate(EGamePadAxis.RightThumbstickX, LookRight, true);
             input.RegisterAxisUpdate(EGamePadAxis.RightThumbstickY, LookUp, true);
 
-            input.RegisterButtonEvent(EGamePadButton.FaceDown, EButtonInputType.Pressed, Jump);
+            input.RegisterButtonPressed(EGamePadButton.FaceDown, Jump);
 
             input.RegisterKeyStateChange(EKey.W, MoveForward);
             input.RegisterKeyStateChange(EKey.A, MoveLeft);
@@ -200,7 +200,7 @@ namespace XREngine.Components
             input.RegisterKeyStateChange(EKey.Up, LookUp);
             input.RegisterKeyStateChange(EKey.Down, LookDown);
 
-            input.RegisterKeyEvent(EKey.Space, EButtonInputType.Pressed, Jump);
+            input.RegisterKeyStateChange(EKey.Space, Jump);
             input.RegisterKeyEvent(EKey.C, EButtonInputType.Pressed, ToggleCrouch);
             input.RegisterKeyEvent(EKey.Z, EButtonInputType.Pressed, ToggleProne);
 
@@ -273,13 +273,12 @@ namespace XREngine.Components
         protected virtual void Quit()
             => Engine.ShutDown();
 
-        protected virtual void Jump()
-            => Movement.Jump();
+        //protected virtual void Jump()
+        //    => Movement.Jump(true);
 
         private void Jump(bool pressed)
         {
-            if (pressed)
-                Jump();
+            Movement.Jump(pressed);
         }
 
         protected virtual void ToggleCrouch()

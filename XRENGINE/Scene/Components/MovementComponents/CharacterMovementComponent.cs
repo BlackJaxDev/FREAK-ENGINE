@@ -1,4 +1,5 @@
-﻿using MagicPhysX;
+﻿using Extensions;
+using MagicPhysX;
 using System.Numerics;
 using XREngine.Core.Attributes;
 using XREngine.Data.Core;
@@ -19,7 +20,8 @@ namespace XREngine.Components
 
         private float _stepOffset = 0.0f;
         private float _slopeLimitCosine = 0.707f;
-        private float _walkingMovementSpeed = 0.1f;
+        private float _walkingMovementSpeed = 0.07f;
+        private float _airMovementAcceleration = 0.5f;
         private float _jumpSpeed = 20.0f;
         private Func<Vector3, Vector3>? _subUpdateTick;
         private ECrouchState _crouchState = ECrouchState.Standing;
@@ -41,6 +43,12 @@ namespace XREngine.Components
         private Vector3 _spawnPosition = Vector3.Zero;
         private Vector3 _velocity = Vector3.Zero;
         private Vector3? _gravityOverride = null;
+
+        public float AirMovementAcceleration
+        {
+            get => _airMovementAcceleration;
+            set => SetField(ref _airMovementAcceleration, value);
+        }
 
         public Vector3 FootPosition
         {
@@ -415,18 +423,35 @@ namespace XREngine.Components
             if (manager is null)
                 return;
 
-            //Move this to tick in world instance
-            //manager.ComputeInteractions(Engine.Delta);
+            var moveDelta = _subUpdateTick?.Invoke(ConsumeInput()) ?? Vector3.Zero;
+            Controller.Move(moveDelta, MinMoveDistance, Engine.Delta, manager.ControllerFilters, null);
+            if (Controller.CollidingDown)
+            {
+                if (_subUpdateTick == AirMovementTick)
+                    _subUpdateTick = GroundMovementTick;
+            }
+            else
+            {
+                if (_subUpdateTick == GroundMovementTick)
+                    _subUpdateTick = AirMovementTick;
+            }
+            LastVelocity = Velocity;
+            Velocity = RigidBodyTransform.RigidBody?.LinearVelocity ?? Vector3.Zero;
+            Acceleration = (Velocity - LastVelocity) / Engine.Delta;
+        }
 
-            var delta = _subUpdateTick?.Invoke(ConsumeInput()) ?? Vector3.Zero;
+        private Vector3 _acceleration;
+        public Vector3 Acceleration
+        {
+            get => _acceleration;
+            private set => SetField(ref _acceleration, value);
+        }
 
-            //if (delta.LengthSquared() > float.Epsilon)
-                Controller.Move(delta, MinMoveDistance, Engine.Delta, manager.ControllerFilters, null);
-            //var pos = Controller.FootPosition;
-            //if (float.IsNaN(pos.X) || float.IsNaN(pos.Y) || float.IsNaN(pos.Z))
-            //    Controller.Position = pos = Vector3.Zero;
-            //Debug.Out("CONTROLLER POS: " + pos.ToString());
-            //ControllerTransform.Translation = pos;
+        private Vector3 _lastVelocity;
+        public Vector3 LastVelocity
+        {
+            get => _lastVelocity;
+            private set => SetField(ref _lastVelocity, value);
         }
 
         public Vector3 Velocity
@@ -434,6 +459,27 @@ namespace XREngine.Components
             get => _velocity;
             set => SetField(ref _velocity, value);
         }
+
+        public float Friction
+        {
+            get => Material.DynamicFriction;
+            set => Material.DynamicFriction = value;
+        }
+
+        //public float GroundFriction
+        //{
+        //    get => Material.StaticFriction;
+        //    set => Material.StaticFriction = value;
+        //}
+
+        // TODO: calculate friction based on this character's material and the current surface
+        private float _walkingFriction = 0.5f;
+        public float WalkingFriction
+        {
+            get => _walkingFriction;
+            set => SetField(ref _walkingFriction, value.Clamp(0.0f, 1.0f));
+        }
+
         public Vector3? GravityOverride
         {
             get => _gravityOverride;
@@ -448,38 +494,38 @@ namespace XREngine.Components
                 Velocity += force / mass;
         }
 
+        private bool _isJumping = false;
         protected virtual unsafe Vector3 GroundMovementTick(Vector3 movementInput)
         {
-            if (Controller is null)
+            if (Controller is null || World?.PhysicsScene is not PhysxScene scene)
                 return Vector3.Zero;
 
-            if (World?.PhysicsScene is not PhysxScene scene)
-                return Vector3.Zero;
+            Vector3 delta = Velocity * Engine.Delta * (1.0f - WalkingFriction);
+            delta += movementInput * WalkingMovementSpeed;
+            delta += (GravityOverride ?? scene.Gravity) * Engine.Delta;
+            if (_isJumping)
+            {
+                _isJumping = false;
+                delta.Y = JumpSpeed;
+            }
 
-            Vector3 delta = movementInput * WalkingMovementSpeed;
-            if (!Controller.CollidingDown)
-            {
-                Vector3 gravAccel = (GravityOverride ?? scene.Gravity) * Engine.Delta;
-                Velocity += gravAccel;
-                delta += Velocity;
-            }
-            else
-            {
-                Velocity = Vector3.Zero;
-            }
-            //Debug.Out(delta.ToString());
             return delta;
         }
 
-        public void Jump()
+        protected virtual unsafe Vector3 AirMovementTick(Vector3 movementInput)
         {
-            //if (Controller is null)
-            //    return;
+            if (Controller is null || World?.PhysicsScene is not PhysxScene scene)
+                return Vector3.Zero;
 
-            //if (!Controller.CollidingDown)
-            //    return;
+            Vector3 delta = Velocity * Engine.Delta; //No friction in the air
+            delta.X += movementInput.X * AirMovementAcceleration * Engine.Delta;
+            delta.Z += movementInput.Z * AirMovementAcceleration * Engine.Delta;
+            delta += (GravityOverride ?? scene.Gravity) * Engine.Delta;
 
-            Velocity = new Vector3(Velocity.X, JumpSpeed, Velocity.Z);
+            return delta;
         }
+
+        public void Jump(bool pressed)
+            => _isJumping = pressed;
     }
 }

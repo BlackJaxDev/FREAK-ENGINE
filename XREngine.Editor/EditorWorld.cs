@@ -53,7 +53,7 @@ public static class EditorWorld
     public const bool AnimatedModel = true; //Imports a character model to be animated.
     public const bool AddEditorUI = false; //Adds the full editor UI to the camera. Probably don't use this one a character pawn.
     public const bool VRPawn = false; //Enables VR input and pawn.
-    public const bool CharacterPawn = false; //Enables the player to physically locomote in the world. Requires a physical floor.
+    public const bool CharacterPawn = true; //Enables the player to physically locomote in the world. Requires a physical floor.
     public const bool ThirdPersonPawn = false; //If on desktop and character pawn is enabled, this will add a third person camera instead of first person.
     public const bool TestAnimation = false; //Adds test animations to the character pawn.
     public const bool PhysicsChain = true; //Adds a jiggle physics chain to the character pawn.
@@ -150,15 +150,9 @@ public static class EditorWorld
         var characterTfm = vrPlayspaceNode.SetTransform<RigidBodyTransform>();
         characterTfm.InterpolationMode = EInterpolationMode.Interpolate;
 
-        var characterComp = vrPlayspaceNode.AddComponent<CharacterPawnComponent>();
-        var movementComp = vrPlayspaceNode.AddComponent<CharacterMovement3DComponent>();
-        movementComp!.StandingHeight = 1.89f;
-        movementComp!.SpawnPosition = new Vector3(0.0f, 10.0f, 0.0f);
-        movementComp.Velocity = new Vector3(0.0f, 0.0f, 0.0f);
-        movementComp.JumpSpeed = 3.0f;
-        //movementComp.GravityOverride = new Vector3(0.0f, -0.1f, 0.0f);
-        movementComp.InputLerpSpeed = 0.5f;
-        characterComp!.Name = "TestPawn";
+        var characterComp = vrPlayspaceNode.AddComponent<CharacterPawnComponent>("TestPawn")!;
+        var movementComp = vrPlayspaceNode.AddComponent<CharacterMovement3DComponent>()!;
+        InitMovement(movementComp);
 
         //TODO: divert VR input from player 1 to this pawn instead of the flying editor pawn when AllowEditingInVR is true.
         if (!AllowEditingInVR)
@@ -178,6 +172,17 @@ public static class EditorWorld
 
         return vrPlayspaceNode;
     }
+
+    private static void InitMovement(CharacterMovement3DComponent movementComp)
+    {
+        movementComp.StandingHeight = 1.89f;
+        movementComp.SpawnPosition = new Vector3(0.0f, 10.0f, 0.0f);
+        movementComp.Velocity = new Vector3(0.0f, 0.0f, 0.0f);
+        movementComp.JumpSpeed = 1.0f;
+        movementComp.GravityOverride = new Vector3(0.0f, -1.0f, 0.0f);
+        movementComp.InputLerpSpeed = 0.9f;
+    }
+
     private static void AddHandControllerNode(SceneNode parentNode, bool left)
     {
         SceneNode leftControllerNode = new(parentNode) { Name = "VRLeftControllerNode" };
@@ -272,18 +277,14 @@ public static class EditorWorld
         SceneNode cameraNode = CreateCamera(cameraParentNode, out CameraComponent? camComp, false);
         cameraNode.AddComponent<AudioListenerComponent>();
 
-        var characterComp = characterNode.AddComponent<CharacterPawnComponent>();
-        characterComp!.CameraComponent = camComp;
+        var characterComp = characterNode.AddComponent<CharacterPawnComponent>("TestPawn")!;
+        characterComp.CameraComponent = camComp;
+
         if (ThirdPersonPawn)
             characterComp.ViewTransform = cameraParentNode.Parent.GetTransformAs<Transform>()!;
-        var movementComp = characterNode.AddComponent<CharacterMovement3DComponent>();
-        movementComp!.StandingHeight = 1.89f;
-        movementComp!.SpawnPosition = new Vector3(0.0f, 10.0f, 0.0f);
-        movementComp.Velocity = new Vector3(0.0f, 0.0f, 0.0f);
-        movementComp.JumpSpeed = 0.5f;
-        movementComp.GravityOverride = new Vector3(0.0f, -1.0f, 0.0f);
-        movementComp.InputLerpSpeed = 0.2f;
-        characterComp!.Name = "TestPawn";
+
+        var movementComp = characterNode.AddComponent<CharacterMovement3DComponent>()!;
+        InitMovement(movementComp);
         characterComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
         if (camComp is not null)
             CreateEditorUI(characterNode, camComp);

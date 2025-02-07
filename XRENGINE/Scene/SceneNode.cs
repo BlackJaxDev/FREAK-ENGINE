@@ -384,10 +384,11 @@ namespace XREngine.Scene
         /// Creates and adds a component of type T to the scene node.
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public T? AddComponent<T>() where T : XRComponent
+        public T? AddComponent<T>(string? name = null) where T : XRComponent
         {
             var comp = XRComponent.New<T>(this);
             comp.World = World;
+            comp.Name = name;
 
             if (!VerifyComponentAttributesOnAdd(comp, out XRComponent? existingComponent))
             {
@@ -400,41 +401,81 @@ namespace XREngine.Scene
             return comp;
         }
 
-        public (T1? comp1, T2? comp2) AddComponents<T1, T2>() where T1 : XRComponent where T2 : XRComponent
+        public (T1? comp1, T2? comp2) AddComponents<T1, T2>(params string?[] names) where T1 : XRComponent where T2 : XRComponent
         {
             var comp1 = AddComponent<T1>();
             var comp2 = AddComponent<T2>();
+            if (names.Length > 0)
+            {
+                if (comp1 is not null)
+                    comp1.Name = names[0];
+                if (names.Length > 1 && comp2 is not null)
+                    comp2.Name = names[1];
+            }
             return (comp1, comp2);
         }
 
-        public (T1? comp1, T2? comp2, T3? comp3) AddComponents<T1, T2, T3>() where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent
+        public (T1? comp1, T2? comp2, T3? comp3) AddComponents<T1, T2, T3>(params string?[] names) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent
         {
             var comp1 = AddComponent<T1>();
             var comp2 = AddComponent<T2>();
             var comp3 = AddComponent<T3>();
+            if (names.Length > 0)
+            {
+                if (comp1 is not null)
+                    comp1.Name = names[0];
+                if (names.Length > 1 && comp2 is not null)
+                    comp2.Name = names[1];
+                if (names.Length > 2 && comp3 is not null)
+                    comp3.Name = names[2];
+            }
             return (comp1, comp2, comp3);
         }
 
-        public (T1? comp1, T2? comp2, T3? comp3, T4? comp4) AddComponents<T1, T2, T3, T4>() where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent where T4 : XRComponent
+        public (T1? comp1, T2? comp2, T3? comp3, T4? comp4) AddComponents<T1, T2, T3, T4>(params string?[] names) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent where T4 : XRComponent
         {
             var comp1 = AddComponent<T1>();
             var comp2 = AddComponent<T2>();
             var comp3 = AddComponent<T3>();
             var comp4 = AddComponent<T4>();
+            if (names.Length > 0)
+            {
+                if (comp1 is not null)
+                    comp1.Name = names[0];
+                if (names.Length > 1 && comp2 is not null)
+                    comp2.Name = names[1];
+                if (names.Length > 2 && comp3 is not null)
+                    comp3.Name = names[2];
+                if (names.Length > 3 && comp4 is not null)
+                    comp4.Name = names[3];
+            }
             return (comp1, comp2, comp3, comp4);
         }
 
-        public (T1? comp1, T2? comp2, T3? comp3, T4? comp4, T5? comp5) AddComponents<T1, T2, T3, T4, T5>() where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent where T4 : XRComponent where T5 : XRComponent
+        public (T1? comp1, T2? comp2, T3? comp3, T4? comp4, T5? comp5) AddComponents<T1, T2, T3, T4, T5>(params string?[] names) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent where T4 : XRComponent where T5 : XRComponent
         {
             var comp1 = AddComponent<T1>();
             var comp2 = AddComponent<T2>();
             var comp3 = AddComponent<T3>();
             var comp4 = AddComponent<T4>();
             var comp5 = AddComponent<T5>();
+            if (names.Length > 0)
+            {
+                if (comp1 is not null)
+                    comp1.Name = names[0];
+                if (names.Length > 1 && comp2 is not null)
+                    comp2.Name = names[1];
+                if (names.Length > 2 && comp3 is not null)
+                    comp3.Name = names[2];
+                if (names.Length > 3 && comp4 is not null)
+                    comp4.Name = names[3];
+                if (names.Length > 4 && comp5 is not null)
+                    comp5.Name = names[4];
+            }
             return (comp1, comp2, comp3, comp4, comp5);
         }
 
-        public (T1? comp1, T2? comp2, T3? comp3, T4? comp4, T5? comp5, T6? comp6) AddComponents<T1, T2, T3, T4, T5, T6>() where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent where T4 : XRComponent where T5 : XRComponent where T6 : XRComponent
+        public (T1? comp1, T2? comp2, T3? comp3, T4? comp4, T5? comp5, T6? comp6) AddComponents<T1, T2, T3, T4, T5, T6>(params string?[] names) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent where T4 : XRComponent where T5 : XRComponent where T6 : XRComponent
         {
             var comp1 = AddComponent<T1>();
             var comp2 = AddComponent<T2>();
@@ -442,6 +483,21 @@ namespace XREngine.Scene
             var comp4 = AddComponent<T4>();
             var comp5 = AddComponent<T5>();
             var comp6 = AddComponent<T6>();
+            if (names.Length > 0)
+            {
+                if (comp1 is not null)
+                    comp1.Name = names[0];
+                if (names.Length > 1 && comp2 is not null)
+                    comp2.Name = names[1];
+                if (names.Length > 2 && comp3 is not null)
+                    comp3.Name = names[2];
+                if (names.Length > 3 && comp4 is not null)
+                    comp4.Name = names[3];
+                if (names.Length > 4 && comp5 is not null)
+                    comp5.Name = names[4];
+                if (names.Length > 5 && comp6 is not null)
+                    comp6.Name = names[5];
+            }
             return (comp1, comp2, comp3, comp4, comp5, comp6);
         }
 
@@ -449,7 +505,7 @@ namespace XREngine.Scene
         /// Creates and adds a component of type to the scene node.
         /// </summary>
         /// <param name="type"></param>
-        public XRComponent? AddComponent(Type type)
+        public XRComponent? AddComponent(Type type, string? name = null)
         {
             XRComponent? existingComponent = null;
 
@@ -457,6 +513,7 @@ namespace XREngine.Scene
                 return existingComponent;
 
             AddComponent(comp);
+            comp.Name = name;
             return comp;
         }
 
@@ -477,15 +534,15 @@ namespace XREngine.Scene
             }
         }
 
-        public bool TryAddComponent<T>(out T? comp) where T : XRComponent
+        public bool TryAddComponent<T>(out T? comp, string? name = null) where T : XRComponent
         {
-            comp = AddComponent<T>();
+            comp = AddComponent<T>(name);
             return comp != null;
         }
 
-        public bool TryAddComponent(Type type, out XRComponent? comp)
+        public bool TryAddComponent(Type type, out XRComponent? comp, string? name = null)
         {
-            comp = AddComponent(type);
+            comp = AddComponent(type, name);
             return comp != null;
         }
 
