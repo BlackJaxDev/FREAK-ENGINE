@@ -32,7 +32,7 @@ namespace XREngine.VRClient
             }
 
             //Initialize VR
-            Engine.VRState.InitializeLocal(settings.ActionManifest, settings.VRManifest, GetEyeTextureHandle);
+            //Engine.VRState.InitializeLocal(settings.ActionManifest, settings.VRManifest, GetEyeTextureHandle);
 
             //Run the game
             //We don't need to load a game state because this app only sends inputs to the game and receives renders
@@ -43,7 +43,7 @@ namespace XREngine.VRClient
             return 0;
         }
 
-        private static bool VerifyMainGameRunning(Process[]? processes, VRGameStartupSettings<EVRActionCategory, EVRGameAction> settings, out string? resultPath)
+        private static bool VerifyMainGameRunning(Process[]? processes, IVRGameStartupSettings settings, out string? resultPath)
         {
             resultPath = null;
             string name = settings.GameName;
@@ -97,9 +97,11 @@ namespace XREngine.VRClient
             return mo != null ? (string)mo["ExecutablePath"] : null;
         }
 
-        private static VRGameStartupSettings<EVRActionCategory, EVRGameAction> GenerateGameSettings()
+        private static VRGameStartupSettings<TActionCategory, TGameAction> GenerateGameSettings<TActionCategory, TGameAction>()
+            where TActionCategory : struct, Enum
+            where TGameAction : struct, Enum
         {
-            VRGameStartupSettings<EVRActionCategory, EVRGameAction>? settings;
+            VRGameStartupSettings<TActionCategory, TGameAction>? settings;
             int w = 1920;
             int h = 1080;
             float update = 90.0f;
@@ -108,7 +110,7 @@ namespace XREngine.VRClient
             int primaryX = NativeMethods.GetSystemMetrics(0);
             int primaryY = NativeMethods.GetSystemMetrics(1);
 
-            settings = new VRGameStartupSettings<EVRActionCategory, EVRGameAction>()
+            settings = new VRGameStartupSettings<TActionCategory, TGameAction>()
             {
                 Name = "startup",
                 StartupWindows =
@@ -132,9 +134,9 @@ namespace XREngine.VRClient
                     VSync = EVSyncMode.Off,
                 },
                 TargetUpdatesPerSecond = update,
-                ActionManifest = new ActionManifest<EVRActionCategory, EVRGameAction>()
+                ActionManifest = new ActionManifest<TActionCategory, TGameAction>()
                 {
-                    Actions = GetActions(),
+                    Actions = GetActions<TActionCategory, TGameAction>(),
                 },
                 VRManifest = new VrManifest()
                 {
@@ -147,7 +149,9 @@ namespace XREngine.VRClient
             return settings;
         }
 
-        private static List<OpenVR.NET.Manifest.Action<EVRActionCategory, EVRGameAction>> GetActions()
+        private static List<OpenVR.NET.Manifest.Action<TActionCategory, TGameAction>> GetActions<TActionCategory, TGameAction>()
+            where TActionCategory : struct, Enum
+            where TGameAction : struct, Enum
         {
             return [];
         }

@@ -1,10 +1,11 @@
 ﻿using System.Numerics;
+using XREngine.Input.Devices.Types.OpenVR;
 using XREngine.Scene.Transforms;
 using static XREngine.Input.Devices.InputInterface;
 
 namespace XREngine.Data.Components.Scene
 {
-    public abstract class VRPoseTransformBase<TCategory, TName> : TransformBase
+    public abstract class VRActionTransformBase<TCategory, TName> : TransformBase, IVRActionTransformBase<TCategory, TName>
         where TCategory : struct, Enum
         where TName : struct, Enum
     {

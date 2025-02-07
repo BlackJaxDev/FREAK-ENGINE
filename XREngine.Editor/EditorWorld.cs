@@ -58,6 +58,7 @@ public static class EditorWorld
     public const bool TestAnimation = false; //Adds test animations to the character pawn.
     public const bool PhysicsChain = true; //Adds a jiggle physics chain to the character pawn.
     public const bool TransformTool = true; //Adds the transform tool to the scene for testing dragging and rotating etc.
+    public const bool AllowEditingInVR = true; //Allows the user to edit the scene from desktop in VR.
 
     /// <summary>
     /// Creates a test world with a variety of objects for testing purposes.
@@ -86,7 +87,15 @@ public static class EditorWorld
         if (VRPawn)
         {
             if (CharacterPawn)
+            {
                 characterPawnNode = CreateCharacterVRPawn(rootNode);
+                if (AllowEditingInVR)
+                {
+                    SceneNode cameraNode = CreateCamera(rootNode, out var camComp);
+                    var pawn = CreateDesktopViewerPawn(cameraNode);
+                    CreateEditorUI(rootNode, camComp!, pawn);
+                }
+            }
             else
                 CreateFlyingVRPawn(rootNode);
         }
@@ -150,12 +159,22 @@ public static class EditorWorld
         //movementComp.GravityOverride = new Vector3(0.0f, -0.1f, 0.0f);
         movementComp.InputLerpSpeed = 0.5f;
         characterComp!.Name = "TestPawn";
-        characterComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
 
-        AddHeadsetNode(vrPlayspaceNode, characterComp);
-        AddHandControllerNode(vrPlayspaceNode, true);
-        AddHandControllerNode(vrPlayspaceNode, false);
-        AddTrackerCollectionNode(vrPlayspaceNode);
+        //TODO: divert VR input from player 1 to this pawn instead of the flying editor pawn when AllowEditingInVR is true.
+        if (!AllowEditingInVR)
+            characterComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
+
+        SceneNode localRotationNode = vrPlayspaceNode.NewChild();
+        var localRotationTfm = localRotationNode.SetTransform<Transform>();
+        characterComp.IgnoreViewTransformPitch = true;
+        characterComp.RotationTransform = localRotationTfm;
+
+        var headsetNode = AddHeadsetNode(localRotationNode, characterComp);
+        characterComp.ViewTransform = headsetNode.Transform;
+
+        AddHandControllerNode(localRotationNode, true);
+        AddHandControllerNode(localRotationNode, false);
+        AddTrackerCollectionNode(localRotationNode);
 
         return vrPlayspaceNode;
     }
@@ -181,29 +200,34 @@ public static class EditorWorld
         SceneNode trackerNode = new(vrPlayspaceNode) { Name = "VRTrackerNode" };
         trackerNode.AddComponent<VRTrackerCollectionComponent>();
     }
-    private static void AddHeadsetNode(SceneNode parentNode, PawnComponent? pawn = null)
+    private static SceneNode AddHeadsetNode(SceneNode parentNode, PawnComponent? pawn = null)
     {
         SceneNode vrHeadsetNode = new(parentNode) { Name = "VRHeadsetNode" };
         vrHeadsetNode.AddComponent<AudioListenerComponent>();
         var hmdTfm = vrHeadsetNode.SetTransform<VRHeadsetTransform>();
         var hmdComp = vrHeadsetNode.AddComponent<VRHeadsetComponent>()!;
 
-        SceneNode firstPersonViewNode = new(vrHeadsetNode) { Name = "FirstPersonViewNode" };
-        var firstPersonViewTfm = firstPersonViewNode.SetTransform<SmoothedParentConstraintTransform>();
-        firstPersonViewTfm.TranslationInterpolationSpeed = 3.0f;
-        firstPersonViewTfm.YawInterpolationSpeed = 1.0f;
-        firstPersonViewTfm.PitchInterpolationSpeed = 1.0f;
-        firstPersonViewTfm.ScaleInterpolationSpeed = 1.0f;
-        firstPersonViewTfm.SplitYPR = true;
-        firstPersonViewTfm.IgnoreRoll = true;
-        firstPersonViewTfm.UseLookAtYawPitch = true;
-        var firstPersonCam = firstPersonViewNode.AddComponent<CameraComponent>()!;
-        firstPersonCam.CullWithFrustum = true;
-        if (pawn is null)
-            firstPersonCam.SetAsPlayerView(ELocalPlayerIndex.One);
-        else
-            pawn.CameraComponent = firstPersonCam;
-        CreateEditorUI(vrHeadsetNode, firstPersonCam);
+        if (!AllowEditingInVR)
+        {
+            SceneNode firstPersonViewNode = new(vrHeadsetNode) { Name = "FirstPersonViewNode" };
+            var firstPersonViewTfm = firstPersonViewNode.SetTransform<SmoothedParentConstraintTransform>();
+            firstPersonViewTfm.TranslationInterpolationSpeed = null;
+            firstPersonViewTfm.ScaleInterpolationSpeed = null;
+            firstPersonViewTfm.SplitYPR = true;
+            firstPersonViewTfm.YawInterpolationSpeed = 5.0f;
+            firstPersonViewTfm.PitchInterpolationSpeed = 5.0f;
+            firstPersonViewTfm.IgnoreRoll = true;
+            firstPersonViewTfm.UseLookAtYawPitch = true;
+            var firstPersonCam = firstPersonViewNode.AddComponent<CameraComponent>()!;
+            firstPersonCam.CullWithFrustum = true;
+            if (pawn is null)
+                firstPersonCam.SetAsPlayerView(ELocalPlayerIndex.One);
+            else
+                pawn.CameraComponent = firstPersonCam;
+            CreateEditorUI(vrHeadsetNode, firstPersonCam);
+        }
+
+        return vrHeadsetNode;
     }
     #endregion
 

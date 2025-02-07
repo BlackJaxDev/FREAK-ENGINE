@@ -41,6 +41,9 @@ namespace XREngine
             public static ETrackingUniverseOrigin Origin { get; set; } = ETrackingUniverseOrigin.TrackingUniverseStanding;
 
             private static readonly Dictionary<string, Dictionary<string, OpenVR.NET.Input.Action>> _actions = [];
+            public static Dictionary<string, Dictionary<string, OpenVR.NET.Input.Action>> Actions => _actions;
+
+            public static event Action<Dictionary<string, Dictionary<string, OpenVR.NET.Input.Action>>>? ActionsChanged;
 
             public static OpenVR.NET.Input.Action? GetAction<TCategory, TName>(TCategory category, TName name)
                 where TCategory : struct, Enum
@@ -50,6 +53,14 @@ namespace XREngine
                     if (nameDic.TryGetValue(name.ToString(), out var action))
                         return action;
                 return null;
+            }
+
+            public static bool TryGetAction<TCategory, TName>(TCategory category, TName name, [NotNullWhen(true)] out OpenVR.NET.Input.Action? action)
+                where TCategory : struct, Enum
+                where TName : struct, Enum
+            {
+                action = GetAction(category, name);
+                return action is not null;
             }
 
             private static void CreateActions(IActionManifest actionManifest, VR vr)
@@ -71,6 +82,7 @@ namespace XREngine
                         nameDic.Add(action.Name.ToString(), a);
                     }
                 }
+                ActionsChanged?.Invoke(_actions);
             }
 
             public static AbstractRenderer? Renderer { get; set; } = null;
@@ -308,7 +320,7 @@ namespace XREngine
                 _eyeTex.handle = rightEyeHandle;
                 CheckError(comp.Submit(EVREye.Eye_Right, ref _eyeTex, ref _singleTexBounds, flags));
 
-                //comp.PostPresentHandoff();
+                comp.PostPresentHandoff();
             }
 
             public static void SubmitRender(

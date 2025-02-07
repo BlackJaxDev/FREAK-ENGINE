@@ -1,8 +1,9 @@
 ﻿using System.Numerics;
+using XREngine.Input.Devices.Types.OpenVR;
 
 namespace XREngine.Data.Components.Scene
 {
-    public class VRActionPoseTransform<TCategory, TName> : VRPoseTransformBase<TCategory, TName>
+    public class VRActionPoseTransform<TCategory, TName> : VRActionTransformBase<TCategory, TName>, IVRActionPoseTransform<TCategory, TName>
         where TCategory : struct, Enum
         where TName : struct, Enum
     {

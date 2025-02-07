@@ -10,15 +10,15 @@ namespace XREngine.Components.Scene.Transforms
     /// </summary>
     public class SmoothedParentConstraintTransform : TransformBase
     {
-        private float _translationInterpolationSpeed = 1.0f;
-        public float TranslationInterpolationSpeed
+        private float? _translationInterpolationSpeed = 1.0f;
+        public float? TranslationInterpolationSpeed
         {
             get => _translationInterpolationSpeed;
             set => SetField(ref _translationInterpolationSpeed, value);
         }
 
-        private float _quaternionInterpolationSpeed = 1.0f;
-        public float QuaternionInterpolationSpeed
+        private float? _quaternionInterpolationSpeed = 1.0f;
+        public float? QuaternionInterpolationSpeed
         {
             get => _quaternionInterpolationSpeed;
             set => SetField(ref _quaternionInterpolationSpeed, value);
@@ -66,8 +66,8 @@ namespace XREngine.Components.Scene.Transforms
             set => SetField(ref _ignoreRoll, value);
         }
 
-        private float _scaleInterpolationSpeed = 1.0f;
-        public float ScaleInterpolationSpeed
+        private float? _scaleInterpolationSpeed = 1.0f;
+        public float? ScaleInterpolationSpeed
         {
             get => _scaleInterpolationSpeed;
             set => SetField(ref _scaleInterpolationSpeed, value);
@@ -105,7 +105,10 @@ namespace XREngine.Components.Scene.Transforms
             Matrix4x4.Decompose(currMatrix, out var currScale, out var currRot, out var currTrans);
             Matrix4x4.Decompose(destMatrix, out var destScale, out var destRot, out var destTrans);
 
-            currTrans = Vector3.Lerp(currTrans, destTrans, Engine.Delta * TranslationInterpolationSpeed);
+            if (TranslationInterpolationSpeed.HasValue)
+                currTrans = Vector3.Lerp(currTrans, destTrans, Engine.Delta * TranslationInterpolationSpeed.Value);
+            else
+                currTrans = destTrans;
 
             if (UseLookAtYawPitch)
             {
@@ -164,10 +167,15 @@ namespace XREngine.Components.Scene.Transforms
 
                 currRot = Quaternion.CreateFromYawPitchRoll(v.Y, v.X, v.Z);
             }
+            else if (QuaternionInterpolationSpeed.HasValue)
+                currRot = Quaternion.Lerp(currRot, destRot, Engine.Delta * QuaternionInterpolationSpeed.Value);
             else
-                currRot = Quaternion.Lerp(currRot, destRot, Engine.Delta * QuaternionInterpolationSpeed);
+                currRot = destRot;
 
-            currScale = Vector3.Lerp(currScale, destScale, Engine.Delta * ScaleInterpolationSpeed);
+            if (ScaleInterpolationSpeed.HasValue)
+                currScale = Vector3.Lerp(currScale, destScale, Engine.Delta * ScaleInterpolationSpeed.Value);
+            else
+                currScale = destScale;
 
             _currentMatrix = Matrix4x4.CreateScale(currScale) * Matrix4x4.CreateFromQuaternion(currRot) * Matrix4x4.CreateTranslation(currTrans);
 

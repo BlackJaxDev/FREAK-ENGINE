@@ -95,11 +95,32 @@ namespace XREngine.Components
             RegisterTick(ETickGroup.Normal, ETickOrder.Logic, TickMovementInput);
         }
 
-        private Transform? _viewTransform;
-        public Transform? ViewTransform
+        private TransformBase? _viewTransform;
+        public TransformBase? ViewTransform
         {
             get => _viewTransform;
             set => SetField(ref _viewTransform, value);
+        }
+
+        private Transform? _rotationTransform;
+        public Transform? RotationTransform
+        {
+            get => _rotationTransform;
+            set => SetField(ref _rotationTransform, value);
+        }
+
+        private bool _ignoreViewTransformPitch = false;
+        public bool IgnoreViewTransformPitch
+        {
+            get => _ignoreViewTransformPitch;
+            set => SetField(ref _ignoreViewTransformPitch, value);
+        }
+
+        private bool _ignoreViewTransformYaw = false;
+        public bool IgnoreViewTransformYaw
+        {
+            get => _ignoreViewTransformYaw;
+            set => SetField(ref _ignoreViewTransformYaw, value);
         }
 
         protected virtual void TickMovementInput()
@@ -127,9 +148,15 @@ namespace XREngine.Components
             if (_keyboardLookInput != Vector2.Zero)
                 KeyboardLook(_keyboardLookInput.X, _keyboardLookInput.Y);
 
-            var viewTfm = ViewTransform ?? cam?.SceneNode.GetTransformAs<Transform>(false);
-            if (viewTfm != null)
-                viewTfm.Rotator = _viewRotation;
+            var rotTfm = RotationTransform ?? cam?.SceneNode.GetTransformAs<Transform>(false);
+            if (rotTfm != null)
+            {
+                if (_ignoreViewTransformPitch)
+                    _viewRotation.Pitch = 0.0f;
+                if (_ignoreViewTransformYaw)
+                    _viewRotation.Yaw = 0.0f;
+                rotTfm.Rotator = _viewRotation;
+            }
         }
 
         private static void GetDirectionalVectorsFromView(TransformBase viewTransform, out Vector3 forward, out Vector3 right)
@@ -179,8 +206,62 @@ namespace XREngine.Components
 
             input.RegisterKeyEvent(EKey.Escape, EButtonInputType.Pressed, Quit);
             input.RegisterKeyEvent(EKey.Backspace, EButtonInputType.Pressed, ToggleMouseCapture);
+
+            input.RegisterVRBoolAction(EVRActionCategory.Global, EVRGameAction.Jump, Jump);
+            input.RegisterVRVector2Action(EVRActionCategory.Global, EVRGameAction.Locomote, Locomote);
+            input.RegisterVRVector2Action(EVRActionCategory.Global, EVRGameAction.Turn, Turn);
         }
 
+        private void Turn(Vector2 oldValue, Vector2 newValue)
+        {
+            LookRight(newValue.X);
+        }
+
+        private void Locomote(Vector2 oldValue, Vector2 newValue)
+        {
+            MoveRight(newValue.X);
+            MoveForward(newValue.Y);
+        }
+
+        public enum EVRActionCategory
+        {
+            /// <summary>
+            /// Global actions are always available.
+            /// </summary>
+            Global,
+            /// <summary>
+            /// Actions that are only available when one controller is off.
+            /// </summary>
+            OneHanded,
+            /// <summary>
+            /// Actions that are enabled when the quick menu (the menu on the controller) is open.
+            /// </summary>
+            QuickMenu,
+            /// <summary>
+            /// Actions that are enabled when the main menu is fully open.
+            /// </summary>
+            Menu,
+            /// <summary>
+            /// Actions that are enabled when the avatar's menu is open.
+            /// </summary>
+            AvatarMenu,
+        }
+        public enum EVRGameAction
+        {
+            Interact,
+            Jump,
+            ToggleMute,
+            Grab,
+            PlayspaceDragLeft,
+            PlayspaceDragRight,
+            ToggleQuickMenu,
+            ToggleMenu,
+            ToggleAvatarMenu,
+            LeftHandPose,
+            RightHandPose,
+            Locomote,
+            Turn,
+        }
         private void ToggleMouseCapture()
         {
             if (LocalInput is null)
@@ -194,6 +275,12 @@ namespace XREngine.Components
 
         protected virtual void Jump()
             => Movement.Jump();
+
+        private void Jump(bool pressed)
+        {
+            if (pressed)
+                Jump();
+        }
 
         protected virtual void ToggleCrouch()
             => Movement.CrouchState = Movement.CrouchState == CharacterMovement3DComponent.ECrouchState.Crouched

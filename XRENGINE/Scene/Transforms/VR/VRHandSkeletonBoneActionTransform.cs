@@ -1,8 +1,9 @@
-﻿using static XREngine.Input.Devices.InputInterface;
+﻿using XREngine.Input.Devices;
+using static XREngine.Input.Devices.InputInterface;
 
 namespace XREngine.Data.Components.Scene
 {
-    public class VRHandSkeletonBoneTransform<TCategory, TName> : VRPoseTransformBase<TCategory, TName>
+    public class VRHandSkeletonBoneActionTransform<TCategory, TName> : VRActionTransformBase<TCategory, TName>
         where TCategory : struct, Enum
         where TName : struct, Enum
     {

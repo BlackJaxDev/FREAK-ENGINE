@@ -1,4 +1,7 @@
-﻿namespace XREngine.Input.Devices
+﻿using OpenVR.NET.Input;
+using XREngine.Input.Devices.Types.OpenVR;
+
+namespace XREngine.Input.Devices
 {
     public class ServerInputInterface(int serverPlayerIndex) : InputInterface(serverPlayerIndex)
     {
@@ -29,12 +32,12 @@
             throw new NotImplementedException();
         }
 
-        public override void RegisterAxisButtonEvent(EGamePadAxis button, EButtonInputType type, Action func)
+        public override void RegisterAxisButtonEvent(EGamePadAxis button, EButtonInputType type, System.Action func)
         {
             throw new NotImplementedException();
         }
 
-        public override void RegisterAxisButtonEventAction(string actionName, Action func)
+        public override void RegisterAxisButtonEventAction(string actionName, System.Action func)
         {
             throw new NotImplementedException();
         }
@@ -59,17 +62,17 @@
             throw new NotImplementedException();
         }
 
-        public override void RegisterMouseButtonEvent(EMouseButton button, EButtonInputType type, Action func)
+        public override void RegisterMouseButtonEvent(EMouseButton button, EButtonInputType type, System.Action func)
         {
             throw new NotImplementedException();
         }
 
-        public override void RegisterButtonEvent(EGamePadButton button, EButtonInputType type, Action func)
+        public override void RegisterButtonEvent(EGamePadButton button, EButtonInputType type, System.Action func)
         {
             throw new NotImplementedException();
         }
 
-        public override void RegisterButtonEventAction(string actionName, Action func)
+        public override void RegisterButtonEventAction(string actionName, System.Action func)
         {
             throw new NotImplementedException();
         }
@@ -89,7 +92,7 @@
             throw new NotImplementedException();
         }
 
-        public override void RegisterKeyEvent(EKey button, EButtonInputType type, Action func)
+        public override void RegisterKeyEvent(EKey button, EButtonInputType type, System.Action func)
         {
             throw new NotImplementedException();
         }
@@ -119,22 +122,22 @@
             throw new NotImplementedException();
         }
 
-        public override void RegisterVRBoolAction<TCategory, TName>(TCategory category, TName name, DelVRBool func)
+        public override void RegisterVRBoolAction<TCategory, TName>(TCategory category, TName name, Action<bool> func)
         {
             throw new NotImplementedException();
         }
 
-        public override void RegisterVRFloatAction<TCategory, TName>(TCategory category, TName name, DelVRFloat func)
+        public override void RegisterVRFloatAction<TCategory, TName>(TCategory category, TName name, ScalarAction.ValueChangedHandler func)
         {
             throw new NotImplementedException();
         }
 
-        public override void RegisterVRVector2Action<TCategory, TName>(TCategory category, TName name, DelVRVector2 func)
+        public override void RegisterVRVector2Action<TCategory, TName>(TCategory category, TName name, Vector2Action.ValueChangedHandler func)
         {
             throw new NotImplementedException();
         }
 
-        public override void RegisterVRVector3Action<TCategory, TName>(TCategory category, TName name, DelVRVector3 func)
+        public override void RegisterVRVector3Action<TCategory, TName>(TCategory category, TName name, Vector3Action.ValueChangedHandler func)
         {
             throw new NotImplementedException();
         }
@@ -154,7 +157,7 @@
             throw new NotImplementedException();
         }
 
-        public override int[] GetBoneHeirarchy(bool leftHand)
+        public override void RegisterVRPose<TCategory, TName>(IVRActionPoseTransform<TCategory, TName> poseTransform)
         {
             throw new NotImplementedException();
         }

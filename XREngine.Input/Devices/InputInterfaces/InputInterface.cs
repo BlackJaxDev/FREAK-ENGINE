@@ -1,5 +1,7 @@
-﻿using System.Numerics;
+﻿using OpenVR.NET.Input;
+using System.Numerics;
 using XREngine.Data.Core;
+using XREngine.Input.Devices.Types.OpenVR;
 
 namespace XREngine.Input.Devices
 {
@@ -28,8 +30,8 @@ namespace XREngine.Input.Devices
 
         public abstract void RegisterAxisButtonPressedAction(string actionName, DelButtonState func);
         public abstract void RegisterButtonPressedAction(string actionName, DelButtonState func);
-        public abstract void RegisterAxisButtonEventAction(string actionName, Action func);
-        public abstract void RegisterButtonEventAction(string actionName, Action func);
+        public abstract void RegisterAxisButtonEventAction(string actionName, System.Action func);
+        public abstract void RegisterButtonEventAction(string actionName, System.Action func);
         public abstract void RegisterAxisUpdateAction(string actionName, DelAxisValue func, bool continuousUpdate);
 
         /// <summary>
@@ -44,7 +46,7 @@ namespace XREngine.Input.Devices
         /// <param name="button"></param>
         /// <param name="type"></param>
         /// <param name="func"></param>
-        public abstract void RegisterMouseButtonEvent(EMouseButton button, EButtonInputType type, Action func);
+        public abstract void RegisterMouseButtonEvent(EMouseButton button, EButtonInputType type, System.Action func);
         public abstract void RegisterMouseScroll(DelMouseScroll func);
         public abstract void RegisterMouseMove(DelCursorUpdate func, EMouseMoveType type);
 
@@ -54,18 +56,14 @@ namespace XREngine.Input.Devices
         /// <param name="button"></param>
         /// <param name="func"></param>
         public abstract void RegisterKeyStateChange(EKey button, DelButtonState func);
-        public abstract void RegisterKeyEvent(EKey button, EButtonInputType type, Action func);
+        public abstract void RegisterKeyEvent(EKey button, EButtonInputType type, System.Action func);
 
         public abstract void RegisterAxisButtonPressed(EGamePadAxis axis, DelButtonState func);
         public abstract void RegisterButtonPressed(EGamePadButton button, DelButtonState func);
-        public abstract void RegisterButtonEvent(EGamePadButton button, EButtonInputType type, Action func);
-        public abstract void RegisterAxisButtonEvent(EGamePadAxis button, EButtonInputType type, Action func);
+        public abstract void RegisterButtonEvent(EGamePadButton button, EButtonInputType type, System.Action func);
+        public abstract void RegisterAxisButtonEvent(EGamePadAxis button, EButtonInputType type, System.Action func);
         public abstract void RegisterAxisUpdate(EGamePadAxis axis, DelAxisValue func, bool continuousUpdate);
 
-        public delegate void DelVRBool(bool state);
-        public delegate void DelVRFloat(float state);
-        public delegate void DelVRVector2(Vector2 state);
-        public delegate void DelVRVector3(Vector3 state);
         public delegate void DelVRSkeletonSummary(float ThumbCurl, float IndexCurl, float MiddleCurl, float RingCurl, float PinkyCurl, float ThumbIndexSplay, float IndexMiddleSplay, float MiddleRingSplay, float RingPinkySplay, EVRSkeletalTrackingLevel level);
 
         public static string MakeVRActionPath(string category, string name, bool vibration)
@@ -74,24 +72,30 @@ namespace XREngine.Input.Devices
         public abstract void RegisterVRBoolAction<TCategory, TName>(
             TCategory category,
             TName name,
-            DelVRBool func)
+            Action<bool> func)
             where TCategory : struct, Enum 
             where TName : struct, Enum;
 
         public abstract void RegisterVRFloatAction<TCategory, TName>(
             TCategory category,
             TName name,
-            DelVRFloat func);
+            ScalarAction.ValueChangedHandler func)
+            where TCategory : struct, Enum
+            where TName : struct, Enum;
 
         public abstract void RegisterVRVector2Action<TCategory, TName>(
             TCategory category,
             TName name,
-            DelVRVector2 func);
+            Vector2Action.ValueChangedHandler func)
+            where TCategory : struct, Enum
+            where TName : struct, Enum;
 
         public abstract void RegisterVRVector3Action<TCategory, TName>(
             TCategory category,
             TName name,
-            DelVRVector3 func);
+            Vector3Action.ValueChangedHandler func)
+            where TCategory : struct, Enum
+            where TName : struct, Enum;
 
         /// <summary>
         /// Sends a vibration signal to the action specified by the category and name.
@@ -111,7 +115,13 @@ namespace XREngine.Input.Devices
             double duration,
             double frequency = 40,
             double amplitude = 1,
-            double delay = 0);
+            double delay = 0)
+            where TCategory : struct, Enum
+            where TName : struct, Enum;
+
+        public abstract void RegisterVRPose<TCategory, TName>(IVRActionPoseTransform<TCategory, TName> poseTransform)
+            where TCategory : struct, Enum
+            where TName : struct, Enum;
 
         public enum EVRSkeletalTransformSpace
         {
@@ -203,14 +213,6 @@ namespace XREngine.Input.Devices
             DelVRSkeletonSummary func,
             EVRSummaryType type);
 
-        /// <summary>
-        /// Returns the heirarchy of the bones in the hand.
-        /// Each value is the parent index of the bone at that value's index in the array.
-        /// </summary>
-        /// <param name="leftHand"></param>
-        /// <returns></returns>
-        public abstract int[] GetBoneHeirarchy(bool leftHand);
-        
         /// <summary>
         /// Retrieves the state of the requested mouse button: 
         /// pressed, released, held, or double pressed.

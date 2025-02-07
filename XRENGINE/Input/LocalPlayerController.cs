@@ -5,11 +5,24 @@ using XREngine.Rendering;
 namespace XREngine.Input
 {
     //TODO: handle sending controller input packets to the server
-    public class LocalPlayerController(ELocalPlayerIndex index) : PlayerController<LocalInputInterface>(new LocalInputInterface((int)index))
+    public class LocalPlayerController : PlayerController<LocalInputInterface>
     {
-        public ELocalPlayerIndex LocalPlayerIndex => index;
+        public ELocalPlayerIndex LocalPlayerIndex => _index;
 
         private XRViewport? _viewport = null;
+        private readonly ELocalPlayerIndex _index;
+
+        public LocalPlayerController(ELocalPlayerIndex index) : base(new LocalInputInterface((int)index))
+        {
+            _index = index;
+            Engine.VRState.ActionsChanged += OnActionsChanged;
+        }
+
+        private void OnActionsChanged(Dictionary<string, Dictionary<string, OpenVR.NET.Input.Action>> dictionary)
+        {
+            UpdateViewportCamera();
+        }
+
         public XRViewport? Viewport
         {
             get => _viewport;
@@ -37,10 +50,10 @@ namespace XREngine.Input
             if (_viewport is not null)
             {
                 _viewport.CameraComponent = _controlledPawn?.GetCamera();
-                Input.UpdateDevices(_viewport.Window?.Input);
+                Input.UpdateDevices(_viewport.Window?.Input, Engine.VRState.Actions);
             }
             else
-                Input.UpdateDevices(null);
+                Input.UpdateDevices(null, Engine.VRState.Actions);
         }
         protected override void RegisterInput(InputInterface input)
         {

@@ -1,5 +1,8 @@
-﻿using Silk.NET.Input;
+﻿using OpenVR.NET.Input;
+using Silk.NET.Input;
+using XREngine.Data.Core;
 using XREngine.Input.Devices.Glfw;
+using XREngine.Input.Devices.Types.OpenVR;
 
 namespace XREngine.Input.Devices
 {
@@ -14,6 +17,11 @@ namespace XREngine.Input.Devices
         public BaseGamePad? Gamepad { get; private set; }
         public BaseKeyboard? Keyboard { get; private set; }
         public BaseMouse? Mouse { get; private set; }
+        public Dictionary<string, Dictionary<string, OpenVR.NET.Input.Action>>? OpenVRActions { get; private set; }
+        public OpenVR.NET.Input.Action? TryGetOpenVRAction(string category, string name)
+            => OpenVRActions is not null &&
+            OpenVRActions.TryGetValue(category, out var actions) &&
+            actions.TryGetValue(name, out var action) ? action : null;
 
         private int _localPlayerIndex;
         public int LocalPlayerIndex
@@ -38,7 +46,7 @@ namespace XREngine.Input.Devices
 
         public override void TryRegisterInput()
         {
-            if (Gamepad is null && Keyboard is null && Mouse is null)
+            if (Gamepad is null && Keyboard is null && Mouse is null && OpenVRActions is null)
                 return;
             
             TryUnregisterInput();
@@ -54,7 +62,7 @@ namespace XREngine.Input.Devices
 
         public override void TryUnregisterInput()
         {
-            if (Gamepad is null && Keyboard is null && Mouse is null)
+            if (Gamepad is null && Keyboard is null && Mouse is null && OpenVRActions is null)
                 return;
             
             //Call for regular old input registration, but in the backend,
@@ -78,11 +86,11 @@ namespace XREngine.Input.Devices
         {
 
         }
-        public override void RegisterAxisButtonEventAction(string actionName, Action func)
+        public override void RegisterAxisButtonEventAction(string actionName, System.Action func)
         {
 
         }
-        public override void RegisterButtonEventAction(string actionName, Action func)
+        public override void RegisterButtonEventAction(string actionName, System.Action func)
         {
 
         }
@@ -94,7 +102,7 @@ namespace XREngine.Input.Devices
         #region Mouse input registration
         public override void RegisterMouseButtonContinuousState(EMouseButton button, DelButtonState func)
             => Mouse?.RegisterButtonPressed(button, func, Unregister);
-        public override void RegisterMouseButtonEvent(EMouseButton button, EButtonInputType type, Action func)
+        public override void RegisterMouseButtonEvent(EMouseButton button, EButtonInputType type, System.Action func)
             => Mouse?.RegisterButtonEvent(button, type, func, Unregister);
         public override void RegisterMouseScroll(DelMouseScroll func)
             => Mouse?.RegisterScroll(func, Unregister);
@@ -105,7 +113,7 @@ namespace XREngine.Input.Devices
         #region Keyboard input registration
         public override void RegisterKeyStateChange(EKey button, DelButtonState func)
             => Keyboard?.RegisterKeyPressed(button, func, Unregister);
-        public override void RegisterKeyEvent(EKey button, EButtonInputType type, Action func)
+        public override void RegisterKeyEvent(EKey button, EButtonInputType type, System.Action func)
             => Keyboard?.RegisterKeyEvent(button, type, func, Unregister);
         #endregion
 
@@ -114,9 +122,9 @@ namespace XREngine.Input.Devices
             => Gamepad?.RegisterButtonState(axis, func, Unregister);
         public override void RegisterButtonPressed(EGamePadButton button, DelButtonState func)
             => Gamepad?.RegisterButtonState(button, func, Unregister);
-        public override void RegisterButtonEvent(EGamePadButton button, EButtonInputType type, Action func)
+        public override void RegisterButtonEvent(EGamePadButton button, EButtonInputType type, System.Action func)
             => Gamepad?.RegisterButtonEvent(button, type, func, Unregister);
-        public override void RegisterAxisButtonEvent(EGamePadAxis button, EButtonInputType type, Action func)
+        public override void RegisterAxisButtonEvent(EGamePadAxis button, EButtonInputType type, System.Action func)
             => Gamepad?.RegisterButtonEvent(button, type, func, Unregister);
         public override void RegisterAxisUpdate(EGamePadAxis axis, DelAxisValue func, bool continuousUpdate)
             => Gamepad?.RegisterAxisUpdate(axis, func, continuousUpdate, Unregister);
@@ -167,13 +175,13 @@ namespace XREngine.Input.Devices
         public override float GetAxisValue(EGamePadAxis axis)
             => Gamepad?.GetAxisValue(axis) ?? 0.0f;
 
-        public void UpdateDevices(IInputContext? input)
+        public void UpdateDevices(IInputContext? input, Dictionary<string, Dictionary<string, OpenVR.NET.Input.Action>>? vrActions)
         {
             TryUnregisterInput();
-            GetDevices(input);
+            GetDevices(input, vrActions);
             TryRegisterInput();
         }
-        private void GetDevices(IInputContext? context)
+        private void GetDevices(IInputContext? context, Dictionary<string, Dictionary<string, OpenVR.NET.Input.Action>>? vrActions)
         {
             AttachInterfaceToDevices(false);
 
@@ -202,6 +210,8 @@ namespace XREngine.Input.Devices
 
             if (mice.Count > 0 && _localPlayerIndex == 0)
                 Mouse = new GlfwMouse(mice[0]);
+
+            OpenVRActions = vrActions;
 
             AttachInterfaceToDevices(true);
         }
@@ -236,32 +246,193 @@ namespace XREngine.Input.Devices
             Gamepad?.TickStates(delta);
             Keyboard?.TickStates(delta);
             Mouse?.TickStates(delta);
+            foreach (var a in _registeredOpenVRActions.Values)
+                a.TickStates(delta);
         }
 
-        public override void RegisterVRBoolAction<TCategory, TName>(TCategory category, TName name, DelVRBool func)
+        private readonly Dictionary<string, OpenVRActionSetInputs> _registeredOpenVRActions = [];
+
+        public class OpenVRActionSetInputs : XRBase
         {
+            private bool _enabled = true;
+            public bool Enabled
+            {
+                get => _enabled;
+                set => SetField(ref _enabled, value);
+            }
 
+            private readonly Dictionary<string, (BooleanAction action, List<Action<bool>> callbacks)> _registeredBooleanActions = [];
+            private readonly Dictionary<string, (ScalarAction action, List<ScalarAction.ValueChangedHandler> callbacks)> _registeredFloatActions = [];
+            private readonly Dictionary<string, (Vector2Action action, List<Vector2Action.ValueChangedHandler> callbacks)> _registeredVector2Actions = [];
+            private readonly Dictionary<string, (Vector3Action action, List<Vector3Action.ValueChangedHandler> callbacks)> _registeredVector3Actions = [];
+            private readonly Dictionary<string, (HandSkeletonAction action, List<DelVRSkeletonSummary> summaryCallbacks)> _registeredHandSkeletonActions = [];
+
+            public void RegisterBooleanAction(string name, BooleanAction action, Action<bool> callback)
+            {
+                if (!_registeredBooleanActions.TryGetValue(name, out var data))
+                    _registeredBooleanActions.Add(name, data = (action, []));
+                
+                data.callbacks.Add(callback);
+                action.ValueUpdated += callback;
+            }
+            public void RegisterFloatAction(string name, ScalarAction action, ScalarAction.ValueChangedHandler callback)
+            {
+                if (!_registeredFloatActions.TryGetValue(name, out var data))
+                    _registeredFloatActions.Add(name, data = (action, []));
+                
+                data.callbacks.Add(callback);
+                action.ValueChanged += callback;
+            }
+            public void RegisterVector2Action(string name, Vector2Action action, Vector2Action.ValueChangedHandler callback)
+            {
+                if (!_registeredVector2Actions.TryGetValue(name, out var data))
+                    _registeredVector2Actions.Add(name, data = (action, []));
+                
+                data.callbacks.Add(callback);
+                action.ValueChanged += callback;
+            }
+            public void RegisterVector3Action(string name, Vector3Action action, Vector3Action.ValueChangedHandler callback)
+            {
+                if (!_registeredVector3Actions.TryGetValue(name, out var data))
+                    _registeredVector3Actions.Add(name, data = (action, []));
+                
+                data.callbacks.Add(callback);
+                action.ValueChanged += callback;
+            }
+            public void RegisterHandSkeletonActionQuery(string name, HandSkeletonAction action, DelVRSkeletonSummary? callback)
+            {
+                if (!_registeredHandSkeletonActions.TryGetValue(name, out var data))
+                    _registeredHandSkeletonActions.Add(name, data = (action, []));
+
+                if (callback is not null)
+                    data.summaryCallbacks.Add(callback);
+            }
+
+            public void UnregisterBooleanAction(string name, Action<bool> callback)
+            {
+                if (_registeredBooleanActions.TryGetValue(name, out var data))
+                {
+                    data.action.ValueUpdated -= callback;
+                    data.callbacks.Remove(callback);
+                }
+
+                if (data.callbacks.Count == 0)
+                    _registeredBooleanActions.Remove(name);
+            }
+            public void UnregisterFloatAction(string name, ScalarAction.ValueChangedHandler callback)
+            {
+                if (_registeredFloatActions.TryGetValue(name, out var data))
+                {
+                    data.action.ValueChanged -= callback;
+                    data.callbacks.Remove(callback);
+                }
+
+                if (data.callbacks.Count == 0)
+                    _registeredFloatActions.Remove(name);
+            }
+            public void UnregisterVector2Action(string name, Vector2Action.ValueChangedHandler callback)
+            {
+                if (_registeredVector2Actions.TryGetValue(name, out var data))
+                {
+                    data.action.ValueChanged -= callback;
+                    data.callbacks.Remove(callback);
+                }
+
+                if (data.callbacks.Count == 0)
+                    _registeredVector2Actions.Remove(name);
+            }
+            public void UnregisterVector3Action(string name, Vector3Action.ValueChangedHandler callback)
+            {
+                if (_registeredVector3Actions.TryGetValue(name, out var data))
+                {
+                    data.action.ValueChanged -= callback;
+                    data.callbacks.Remove(callback);
+                }
+
+                if (data.callbacks.Count == 0)
+                    _registeredVector3Actions.Remove(name);
+            }
+            public void UnregisterHandSkeletonActionQuery(string name, DelVRSkeletonSummary? callback)
+            {
+                if (_registeredHandSkeletonActions.TryGetValue(name, out var data))
+                {
+                    if (callback is not null)
+                        data.summaryCallbacks.Remove(callback);
+                }
+
+                if (data.summaryCallbacks.Count == 0)
+                    _registeredHandSkeletonActions.Remove(name);
+            }
+
+            public void TickStates(float delta)
+            {
+                if (!Enabled)
+                    return;
+                
+                //TODO: Is OpenVR thread safe? We could execute all these with async tasks if it is.
+                foreach (var a in _registeredBooleanActions.Values)
+                    a.action.Update();
+                foreach (var a in _registeredFloatActions.Values)
+                    a.action.Update();
+                foreach (var a in _registeredVector2Actions.Values)
+                    a.action.Update();
+                foreach (var a in _registeredVector3Actions.Values)
+                    a.action.Update();
+                foreach (var a in _registeredHandSkeletonActions.Values)
+                    a.action.Update();
+            }
         }
 
-        public override void RegisterVRFloatAction<TCategory, TName>(TCategory category, TName name, DelVRFloat func)
+        public override void RegisterVRBoolAction<TCategory, TName>(TCategory category, TName name, Action<bool> func)
         {
-
+            var c = category.ToString();
+            if (!_registeredOpenVRActions.TryGetValue(c, out var actions))
+                _registeredOpenVRActions.Add(c, actions = new OpenVRActionSetInputs());
+            
+            BooleanAction? action = TryGetOpenVRAction(c, name.ToString()) as BooleanAction;
+            if (action is not null)
+                actions.RegisterBooleanAction(name.ToString(), action, func);
         }
 
-        public override void RegisterVRVector2Action<TCategory, TName>(TCategory category, TName name, DelVRVector2 func)
+        public override void RegisterVRFloatAction<TCategory, TName>(TCategory category, TName name, ScalarAction.ValueChangedHandler func)
         {
+            var c = category.ToString();
+            if (!_registeredOpenVRActions.TryGetValue(c, out var actions))
+                _registeredOpenVRActions.Add(c, actions = new OpenVRActionSetInputs());
 
+            ScalarAction? action = TryGetOpenVRAction(c, name.ToString()) as ScalarAction;
+            if (action is not null)
+                actions.RegisterFloatAction(name.ToString(), action, func);
         }
 
-        public override void RegisterVRVector3Action<TCategory, TName>(TCategory category, TName name, DelVRVector3 func)
+        public override void RegisterVRVector2Action<TCategory, TName>(TCategory category, TName name, Vector2Action.ValueChangedHandler func)
         {
+            var c = category.ToString();
+            if (!_registeredOpenVRActions.TryGetValue(c, out var actions))
+                _registeredOpenVRActions.Add(c, actions = new OpenVRActionSetInputs());
 
+            Vector2Action? action = TryGetOpenVRAction(c, name.ToString()) as Vector2Action;
+            if (action is not null)
+                actions.RegisterVector2Action(name.ToString(), action, func);
         }
 
-        public override bool VibrateVRAction<TCategory, TName>(TCategory category, TName name, double duration, double frequency = 40, double amplitude = 1, double delay = 0)
+        public override void RegisterVRVector3Action<TCategory, TName>(TCategory category, TName name, Vector3Action.ValueChangedHandler func)
         {
-            return false;
+            var c = category.ToString();
+            if (!_registeredOpenVRActions.TryGetValue(c, out var actions))
+                _registeredOpenVRActions.Add(c, actions = new OpenVRActionSetInputs());
+
+            Vector3Action? action = TryGetOpenVRAction(c, name.ToString()) as Vector3Action;
+            if (action is not null)
+                actions.RegisterVector3Action(name.ToString(), action, func);
         }
+
+        public override bool VibrateVRAction<TCategory, TName>(TCategory category, TName name, double duration, double frequency = 40, double amplitude = 1, double delay = 0) 
+            => OpenVRActions is not null &&
+            OpenVRActions.TryGetValue(category.ToString(), out var actions) &&
+            actions.TryGetValue(name.ToString(), out var action) &&
+            action is HapticAction h &&
+            h.TriggerVibration(duration, frequency, amplitude, delay);
 
         public override void RegisterVRHandSkeletonQuery<TCategory, TName>(TCategory category, TName name, bool left, EVRSkeletalTransformSpace transformSpace = EVRSkeletalTransformSpace.Model, EVRSkeletalMotionRange motionRange = EVRSkeletalMotionRange.WithController, EVRSkeletalReferencePose? overridePose = null)
         {
@@ -273,9 +444,9 @@ namespace XREngine.Input.Devices
 
         }
 
-        public override int[] GetBoneHeirarchy(bool leftHand)
+        public override void RegisterVRPose<TCategory, TName>(IVRActionPoseTransform<TCategory, TName> poseTransform)
         {
-            return new int[0];
+
         }
     }
 }

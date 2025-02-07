@@ -6,6 +6,8 @@ namespace XREngine
     {
         VrManifest? VRManifest { get; set; }
         IActionManifest? ActionManifest { get; }
+        string GameName { get; set; }
+        (Environment.SpecialFolder folder, string relativePath)[] GameSearchPaths { get; set; }
     }
 
     public class VRGameStartupSettings<TCategory, TAction> : GameStartupSettings, IVRGameStartupSettings
