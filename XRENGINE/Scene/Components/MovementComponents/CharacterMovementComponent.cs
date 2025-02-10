@@ -274,7 +274,7 @@ namespace XREngine.Components
             out PhysxShape? touchedShape,
             out PhysxRigidActor? touchedActor,
             out uint touchedObstacleHandle,
-            out uint collisionFlags,
+            out PxControllerCollisionFlags collisionFlags,
             out bool standOnAnotherCCT,
             out bool standOnObstacle,
             out bool isMovingUp)
@@ -397,7 +397,10 @@ namespace XREngine.Components
             //Wrap the hidden actor and apply to the transform
             //The constructor automatically caches the actor
             var rb = new PhysxDynamicRigidBody(Controller.ControllerPtr->GetActor());
+            rb.Flags |= PxRigidBodyFlags.EnableCcd | PxRigidBodyFlags.EnableSpeculativeCcd | PxRigidBodyFlags.EnableCcdFriction;
+            //RigidBodyTransform.InterpolationMode = RigidBodyTransform.EInterpolationMode.Discrete;
             RigidBodyTransform.RigidBody = rb;
+
             //World.PhysicsScene.AddActor(rb);
         }
 
@@ -435,6 +438,8 @@ namespace XREngine.Components
                 if (_subUpdateTick == GroundMovementTick)
                     _subUpdateTick = AirMovementTick;
             }
+            //(Vector3 deltaXP, PhysxShape? touchedShape, PhysxRigidActor? touchedActor, uint touchedObstacleHandle, PxControllerCollisionFlags collisionFlags, bool standOnAnotherCCT, bool standOnObstacle, bool isMovingUp) state = Controller.State;
+            //Debug.Out($"DeltaXP: {state.deltaXP}, TouchedShape: {state.touchedShape}, TouchedActor: {state.touchedActor}, TouchedObstacleHandle: {state.touchedObstacleHandle}, CollisionFlags: {state.collisionFlags}, StandOnAnotherCCT: {state.standOnAnotherCCT}, StandOnObstacle: {state.standOnObstacle}, IsMovingUp: {state.isMovingUp}");
             LastVelocity = Velocity;
             Velocity = RigidBodyTransform.RigidBody?.LinearVelocity ?? Vector3.Zero;
             Acceleration = (Velocity - LastVelocity) / Engine.Delta;
@@ -474,7 +479,7 @@ namespace XREngine.Components
 
         // TODO: calculate friction based on this character's material and the current surface
         private float _walkingFriction = 0.5f;
-        public float WalkingFriction
+        public float GroundFriction
         {
             get => _walkingFriction;
             set => SetField(ref _walkingFriction, value.Clamp(0.0f, 1.0f));
@@ -495,18 +500,51 @@ namespace XREngine.Components
         }
 
         private bool _isJumping = false;
+        public bool IsJumping => _isJumping;
+
+        private float _maxSpeed = 0.311f;
+        public float MaxSpeed
+        {
+            get => _maxSpeed;
+            set => SetField(ref _maxSpeed, value);
+        }
+
+        private float _jumpElapsed = 0.0f;
+
+        private float _maxJumpDuration = 0.5f;
+        /// <summary>
+        /// How long jumping can be sustained.
+        /// </summary>
+        public float MaxJumpDuration
+        {
+            get => _maxJumpDuration;
+            set => SetField(ref _maxJumpDuration, value);
+        }
+
         protected virtual unsafe Vector3 GroundMovementTick(Vector3 movementInput)
         {
             if (Controller is null || World?.PhysicsScene is not PhysxScene scene)
                 return Vector3.Zero;
 
-            Vector3 delta = Velocity * Engine.Delta * (1.0f - WalkingFriction);
+            //Start with the current velocity
+            //Dampen the velocity with friction
+            Vector3 delta = Velocity * Engine.Delta * (1.0f - GroundFriction);
+
+            //Apply movement input aligned movement to the ground normal
+            Vector3 groundNormal = Globals.Up;
+            Vector3 up = Globals.Up;
+            Quaternion rotation = XRMath.RotationBetweenVectors(up, groundNormal);
+            movementInput = Vector3.Transform(movementInput, rotation);
             delta += movementInput * WalkingMovementSpeed;
-            delta += (GravityOverride ?? scene.Gravity) * Engine.Delta;
-            if (_isJumping)
+
+            ClampSpeed(ref delta);
+            ApplyGravity(scene, ref delta);
+
+            //Set jump velocity in the Y axis
+            if (_isJumping && _jumpElapsed < 0.01f)
             {
-                _isJumping = false;
                 delta.Y = JumpSpeed;
+                _jumpElapsed = 0.0f;
             }
 
             return delta;
@@ -517,15 +555,44 @@ namespace XREngine.Components
             if (Controller is null || World?.PhysicsScene is not PhysxScene scene)
                 return Vector3.Zero;
 
-            Vector3 delta = Velocity * Engine.Delta; //No friction in the air
-            delta.X += movementInput.X * AirMovementAcceleration * Engine.Delta;
-            delta.Z += movementInput.Z * AirMovementAcceleration * Engine.Delta;
-            delta += (GravityOverride ?? scene.Gravity) * Engine.Delta;
+            float dt = Engine.Delta;
+
+            //Start with the current velocity
+            Vector3 delta = Velocity * dt; //No friction in the air
+
+            //Apply movement input
+            delta.X += movementInput.X * AirMovementAcceleration * dt;
+            delta.Z += movementInput.Z * AirMovementAcceleration * dt;
+
+            ClampSpeed(ref delta);
+
+            //Set jump velocity in the Y axis
+            if (_isJumping && _jumpElapsed < MaxJumpDuration)
+                _jumpElapsed += dt;
+            else
+            {
+                if (_jumpElapsed > 0.0f)
+                    _jumpElapsed = _maxJumpDuration;
+                ApplyGravity(scene, ref delta);
+            }
 
             return delta;
         }
 
+        private void ClampSpeed(ref Vector3 delta)
+        {
+            if (delta.Length() > _maxSpeed)
+                delta = Vector3.Normalize(delta) * _maxSpeed;
+        }
+
+        private void ApplyGravity(PhysxScene scene, ref Vector3 delta)
+            => delta += (GravityOverride ?? scene.Gravity) * Engine.Delta;
+
         public void Jump(bool pressed)
-            => _isJumping = pressed;
+        {
+            if (_isJumping != pressed && _subUpdateTick == GroundMovementTick)
+                _jumpElapsed = 0.0f;
+            _isJumping = pressed;
+        }
     }
 }

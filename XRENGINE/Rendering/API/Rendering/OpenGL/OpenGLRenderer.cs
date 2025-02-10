@@ -239,7 +239,7 @@ namespace XREngine.Rendering.OpenGL
 
                 //Texture 2D
                 XRTexture2D data => new GLTexture2D(this, data),
-                //XRTexture2DArray data => new GLTexture2DArray(this, data),
+                XRTexture2DArray data => new GLTexture2DArray(this, data),
                 XRTexture2DView data => new GLTextureView(this, data),
                 XRTexture2DArrayView data => new GLTextureView(this, data),
 

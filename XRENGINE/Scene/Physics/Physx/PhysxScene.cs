@@ -78,7 +78,12 @@ namespace XREngine.Rendering.Physics.Physx
         public CustomFilterShaderDelegate CustomFilterShaderInstance = CustomFilterShader;
         static void CustomFilterShader(FilterShaderCallbackInfo* callbackInfo, PxFilterFlags filterFlags)
         {
-            PxPairFlags flags = PxPairFlags.ContactDefault | PxPairFlags.NotifyTouchFound;
+            PxPairFlags flags = 
+                PxPairFlags.ContactDefault |
+                PxPairFlags.NotifyTouchFound |
+                PxPairFlags.SolveContact |
+                PxPairFlags.DetectCcdContact |
+                PxPairFlags.DetectDiscreteContact;
             callbackInfo->pairFlags[0] = flags;
         }
 

@@ -246,10 +246,7 @@ namespace XREngine.Components
         /// Called when the component is made active.
         /// This is where ticks should register and connections to the world should be established.
         /// </summary>
-        protected internal virtual void OnComponentActivated()
-        {
-
-        }
+        protected internal virtual void OnComponentActivated() { }
 
         /// <summary>
         /// If true, all registered ticks will be unregistered when the component is set to inactive.
@@ -265,10 +262,7 @@ namespace XREngine.Components
         /// <summary>
         /// Called when the component is made inactive.
         /// </summary>
-        protected internal virtual void OnComponentDeactivated()
-        {
-
-        }
+        protected internal virtual void OnComponentDeactivated() { }
 
         /// <summary>
         /// This method is called when the component is set to active in the world.
@@ -277,12 +271,8 @@ namespace XREngine.Components
         internal virtual void VerifyInterfacesOnStart()
         {
             if (this is IRenderable rend)
-            {
                 foreach (var obj in rend.RenderedObjects)
-                {
                     obj.WorldInstance = SceneNode?.World;
-                }
-            }
         }
 
         /// <summary>
@@ -292,12 +282,8 @@ namespace XREngine.Components
         internal virtual void VerifyInterfacesOnStop()
         {
             if (this is IRenderable rend)
-            {
                 foreach (var obj in rend.RenderedObjects)
-                {
                     obj.WorldInstance = null;
-                }
-            }
         }
 
         protected override void OnDestroying()

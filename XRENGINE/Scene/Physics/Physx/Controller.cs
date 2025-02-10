@@ -78,7 +78,7 @@ namespace XREngine.Rendering.Physics.Physx
             set => ControllerPtr->SetUserDataMut(value);
         }
 
-        public (Vector3 deltaXP, PhysxShape? touchedShape, PhysxRigidActor? touchedActor, uint touchedObstacleHandle, uint collisionFlags, bool standOnAnotherCCT, bool standOnObstacle, bool isMovingUp) State
+        public (Vector3 deltaXP, PhysxShape? touchedShape, PhysxRigidActor? touchedActor, uint touchedObstacleHandle, PxControllerCollisionFlags collisionFlags, bool standOnAnotherCCT, bool standOnObstacle, bool isMovingUp) State
         {
             get
             {
@@ -89,7 +89,7 @@ namespace XREngine.Rendering.Physics.Physx
                     PhysxShape.All.TryGetValue((nint)state.touchedShape, out var shape) ? shape : null,
                     PhysxRigidActor.AllRigidActors.TryGetValue((nint)state.touchedActor, out var actor) ? actor : null,
                     state.touchedObstacleHandle,
-                    state.collisionFlags,
+                    (PxControllerCollisionFlags)state.collisionFlags,
                     state.standOnAnotherCCT,
                     state.standOnObstacle,
                     state.isMovingUp);

@@ -51,7 +51,7 @@ namespace XREngine
                 private bool _renderMesh2DBounds = false;
                 private bool _renderUITransformCoordinate = true;
                 private bool _renderTransformLines = true;
-                private bool _renderTransformPoints = true;
+                private bool _renderTransformPoints = false;
                 private bool _renderTransformCapsules = false;
                 private bool _visualizeDirectionalLightVolumes = false;
 
@@ -227,6 +227,7 @@ namespace XREngine
                 public ColorF4 TransformPointColor { get; set; } = ColorF4.Orange;
                 public ColorF4 TransformLineColor { get; set; } = ColorF4.LightRed;
                 public ColorF4 TransformCapsuleColor { get; set; } = ColorF4.LightOrange;
+                public bool AllowBlendshapes { get; set; } = false;
             }
         }
     }

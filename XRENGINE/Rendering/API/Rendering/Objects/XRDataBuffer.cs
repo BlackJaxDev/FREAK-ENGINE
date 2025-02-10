@@ -4,6 +4,7 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using XREngine.Data;
 using XREngine.Data.Rendering;
+using XREngine.Rendering.Objects;
 using YamlDotNet.Serialization;
 
 namespace XREngine.Rendering
@@ -263,7 +264,7 @@ namespace XREngine.Rendering
         }
 
         [YamlIgnore]
-        public VoidPtr Address => _clientSideSource!.Address;
+        public VoidPtr Address => _clientSideSource?.Address ?? throw new InvalidDataException("Local buffer data has not been allocated.");
 
         /// <summary>
         /// The total size in bytes of this buffer.

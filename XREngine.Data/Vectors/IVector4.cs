@@ -1,12 +1,14 @@
 ﻿using System.ComponentModel;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using XREngine.Data.Rendering;
+using XREngine.Rendering.Objects;
 
 namespace XREngine.Data.Vectors;
 
 [Serializable]
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-public unsafe struct IVector4(int x, int y, int z, int w)
+public unsafe struct IVector4(int x, int y, int z, int w)// : IBufferable
 {
     public int X
     {
@@ -37,6 +39,10 @@ public unsafe struct IVector4(int x, int y, int z, int w)
 
     [Browsable(false)]
     public int* Data { get { fixed (void* ptr = &this) return (int*)ptr; } }
+
+    //public EComponentType ComponentType { get; } = EComponentType.Int;
+    //public uint ComponentCount { get; } = 4;
+    //public bool Normalize { get; } = false;
 
     public void Write(VoidPtr address)
     {

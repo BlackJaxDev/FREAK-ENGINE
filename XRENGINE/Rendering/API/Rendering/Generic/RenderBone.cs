@@ -19,7 +19,7 @@ namespace XREngine.Rendering
             get => _index;
             set => SetField(ref _index, value);
         }
-        public XREvent<RenderBone> TransformUpdated = new();
+        public event Action<RenderBone>? TransformUpdated;
         public TransformBase Transform { get; }
         public Matrix4x4 InvBindMatrix { get; }
 

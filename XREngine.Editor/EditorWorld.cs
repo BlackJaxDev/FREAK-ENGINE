@@ -53,12 +53,12 @@ public static class EditorWorld
     public const bool AnimatedModel = true; //Imports a character model to be animated.
     public const bool AddEditorUI = false; //Adds the full editor UI to the camera. Probably don't use this one a character pawn.
     public const bool VRPawn = false; //Enables VR input and pawn.
-    public const bool CharacterPawn = true; //Enables the player to physically locomote in the world. Requires a physical floor.
+    public const bool CharacterPawn = false; //Enables the player to physically locomote in the world. Requires a physical floor.
     public const bool ThirdPersonPawn = false; //If on desktop and character pawn is enabled, this will add a third person camera instead of first person.
     public const bool TestAnimation = false; //Adds test animations to the character pawn.
-    public const bool PhysicsChain = true; //Adds a jiggle physics chain to the character pawn.
-    public const bool TransformTool = true; //Adds the transform tool to the scene for testing dragging and rotating etc.
-    public const bool AllowEditingInVR = true; //Allows the user to edit the scene from desktop in VR.
+    public const bool PhysicsChain = false; //Adds a jiggle physics chain to the character pawn.
+    public const bool TransformTool = false; //Adds the transform tool to the scene for testing dragging and rotating etc.
+    public const bool AllowEditingInVR = false; //Allows the user to edit the scene from desktop in VR.
 
     /// <summary>
     /// Creates a test world with a variety of objects for testing purposes.
@@ -224,6 +224,10 @@ public static class EditorWorld
             firstPersonViewTfm.IgnoreRoll = true;
             firstPersonViewTfm.UseLookAtYawPitch = true;
             var firstPersonCam = firstPersonViewNode.AddComponent<CameraComponent>()!;
+            var persp = firstPersonCam.Camera.Parameters as XRPerspectiveCameraParameters;
+            persp!.HorizontalFieldOfView = 40.0f;
+            persp.NearZ = 0.1f;
+            persp.FarZ = 100000.0f;
             firstPersonCam.CullWithFrustum = true;
             if (pawn is null)
                 firstPersonCam.SetAsPlayerView(ELocalPlayerIndex.One);
@@ -730,7 +734,7 @@ public static class EditorWorld
         //orbitTransform2.IgnoreRotation = false;
         //orbitTransform2.RegisterAnimationTick<OrbitTransform>(t => t.Angle += Engine.DilatedDelta * 0.5f);
 
-        string fbxPathDesktop = Path.Combine(desktopDir, "misc", "test.fbx");
+        string fbxPathDesktop = Path.Combine(desktopDir, "misc", "jax.fbx");
 
         var flags =
         PostProcessSteps.Triangulate |
@@ -743,8 +747,9 @@ public static class EditorWorld
         //PostProcessSteps.ImproveCacheLocality |
         //PostProcessSteps.RemoveRedundantMaterials;
 
+        //TODO: skinned models don't propogate world matrix changed to the skinned matrix buffers per mesh
         if (AnimatedModel)
-            ModelImporter.ImportAsync(fbxPathDesktop, flags, null, MaterialFactory, characterParentNode, 1, true).ContinueWith(OnFinishedAvatar);
+            ModelImporter.ImportAsync(fbxPathDesktop, flags, null, MaterialFactory, characterParentNode, 1.0f, true).ContinueWith(OnFinishedAvatar);
         if (StaticModel)
         {
             string path = Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj");
@@ -790,7 +795,7 @@ public static class EditorWorld
     private static void OnFinishedWorld(Task<(SceneNode? rootNode, IReadOnlyCollection<XRMaterial> materials, IReadOnlyCollection<XRMesh> meshes)> task)
     {
         (SceneNode? rootNode, IReadOnlyCollection<XRMaterial> materials, IReadOnlyCollection<XRMesh> meshes) = task.Result;
-        rootNode?.GetTransformAs<Transform>()?.ApplyScale(new Vector3(0.015f));
+        rootNode?.GetTransformAs<Transform>()?.ApplyScale(new Vector3(0.01f));
     }
     private static void OnFinishedAvatar(Task<(SceneNode? rootNode, IReadOnlyCollection<XRMaterial> materials, IReadOnlyCollection<XRMesh> meshes)> x)
     {
@@ -814,11 +819,18 @@ public static class EditorWorld
 
         if (TestAnimation)
         {
-            var knee = comp!.Right.Knee?.Node?.Transform;
-            var leg = comp!.Right.Leg?.Node?.Transform;
+            //var knee = comp!.Right.Knee?.Node?.Transform;
+            //var leg = comp!.Right.Leg?.Node?.Transform;
 
-            leg?.RegisterAnimationTick<Transform>(t => t.Rotation = Quaternion.CreateFromAxisAngle(Globals.Right, XRMath.DegToRad(180 - 90.0f * (MathF.Cos(Engine.ElapsedTime) * 0.5f + 0.5f))));
-            knee?.RegisterAnimationTick<Transform>(t => t.Rotation = Quaternion.CreateFromAxisAngle(Globals.Right, XRMath.DegToRad(90.0f * (MathF.Cos(Engine.ElapsedTime) * 0.5f + 0.5f))));
+            //leg?.RegisterAnimationTick<Transform>(t => t.Rotation = Quaternion.CreateFromAxisAngle(Globals.Right, XRMath.DegToRad(180 - 90.0f * (MathF.Cos(Engine.ElapsedTime) * 0.5f + 0.5f))));
+            //knee?.RegisterAnimationTick<Transform>(t => t.Rotation = Quaternion.CreateFromAxisAngle(Globals.Right, XRMath.DegToRad(90.0f * (MathF.Cos(Engine.ElapsedTime) * 0.5f + 0.5f))));
+        
+            var rootTfm = rootNode.FirstChild.GetTransformAs<Transform>(true)!;
+            //rotate the root node in a circle, but still facing forward
+            rootTfm.RegisterAnimationTick<Transform>(t =>
+            {
+                t.Translation = new Vector3(0, MathF.Sin(Engine.ElapsedTime), 0);
+            });
         }
 
         if (PhysicsChain)
@@ -832,7 +844,15 @@ public static class EditorWorld
                     (x.Name?.Contains("breast", StringComparison.InvariantCultureIgnoreCase) ?? false) ||
                     (x.Name?.Contains("boob", StringComparison.InvariantCultureIgnoreCase) ?? false));
                 if (breast?.SceneNode is not null)
-                    breast.SceneNode.AddComponent<PhysicsChainComponent>();
+                {
+                    var phys = breast.SceneNode.AddComponent<PhysicsChainComponent>()!;
+                    phys._updateMode = PhysicsChainComponent.EUpdateMode.Normal;
+                    phys._updateRate = 60;
+                    phys._damping = 0.01f;
+                    phys._stiffness = 0.0f;
+                    phys._force = new Vector3(0.0f, 0.0f, 0.0f);
+                    phys._elasticity = 0.07f;
+                }
             }
         }
 

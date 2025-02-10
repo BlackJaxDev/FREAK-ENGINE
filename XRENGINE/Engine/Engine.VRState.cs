@@ -1,6 +1,8 @@
-﻿using OpenVR.NET;
+﻿using Microsoft.VisualBasic;
+using OpenVR.NET;
 using OpenVR.NET.Devices;
 using OpenVR.NET.Manifest;
+using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO.Pipes;
@@ -246,6 +248,8 @@ namespace XREngine
             /// </summary>
             public static event Action? RecalcMatrixOnDraw;
 
+            public static uint LastFrameSampleIndex { get; private set; } = 0;
+
             private static void Render()
             {
                 //Begin drawing to the headset
@@ -264,7 +268,55 @@ namespace XREngine
                 nint? rightHandle = VRRightEyeViewTexture?.APIWrappers?.FirstOrDefault()?.GetHandle();
                 if (leftHandle is not null && rightHandle is not null)
                     SubmitRenders(leftHandle.Value, rightHandle.Value);
+
+                ReadStats();
             }
+
+            private static void ReadStats()
+            {
+                Compositor_FrameTiming currentFrame = new();
+                Compositor_FrameTiming previousFrame = new();
+                currentFrame.m_nSize = (uint)Marshal.SizeOf<Compositor_FrameTiming>();
+                previousFrame.m_nSize = (uint)Marshal.SizeOf<Compositor_FrameTiming>();
+                Valve.VR.OpenVR.Compositor.GetFrameTiming(ref currentFrame, 0);
+                Valve.VR.OpenVR.Compositor.GetFrameTiming(ref previousFrame, 1);
+
+                uint currentFrameIndex = currentFrame.m_nFrameIndex;
+                uint amountOfFramesSinceLast = currentFrameIndex - LastFrameSampleIndex;
+
+                double gpuFrametimeMs = 0;
+                double cpuFrametimeMs = 0;
+                double totalFrametimeMs = 0;
+
+                for (uint i = 0; i < amountOfFramesSinceLast; i++)
+                {
+                    Valve.VR.OpenVR.Compositor.GetFrameTiming(ref currentFrame, i);
+                    Valve.VR.OpenVR.Compositor.GetFrameTiming(ref previousFrame, i + 1);
+
+                    gpuFrametimeMs += currentFrame.m_flTotalRenderGpuMs;
+                    cpuFrametimeMs += currentFrame.m_flNewFrameReadyMs - currentFrame.m_flNewPosesReadyMs + currentFrame.m_flCompositorRenderCpuMs;
+                    totalFrametimeMs += (currentFrame.m_flSystemTimeInSeconds - previousFrame.m_flSystemTimeInSeconds) * 1000f;
+                }
+
+                gpuFrametimeMs /= amountOfFramesSinceLast;
+                cpuFrametimeMs /= amountOfFramesSinceLast;
+                totalFrametimeMs /= amountOfFramesSinceLast;
+
+                LastFrameSampleIndex = currentFrameIndex;
+
+                GpuFrametime = (float)gpuFrametimeMs;
+                CpuFrametime = (float)cpuFrametimeMs;
+                TotalFrametime = (float)totalFrametimeMs;
+                Framerate = (int)(1.0f / totalFrametimeMs * 1000.0f);
+
+                Debug.Out($"VR: {Framerate}fps / GPU: {MathF.Round(GpuFrametime, 2, MidpointRounding.AwayFromZero)}ms / CPU: {MathF.Round(CpuFrametime, 2, MidpointRounding.AwayFromZero)}ms");
+            }
+
+            public static float GpuFrametime { get; private set; } = 0;
+            public static float CpuFrametime { get; private set; } = 0;
+            public static float TotalFrametime { get; private set; } = 0;
+            public static float Framerate { get; private set; } = 0;
+            public static float MaxFrametime { get; private set; } = 0;
 
             public static XRViewport? LeftEyeViewport { get; private set; }
             public static XRViewport? RightEyeViewport { get; private set; }

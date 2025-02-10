@@ -29,14 +29,29 @@
         TexCoord,
 
         /// <summary>
-        /// The offset into the blendshape delta buffers for each vertex.
-        /// Add indices up until count to retrieve all deltas for a vertex.
+        /// The user-set weight of each blendshape.
+        /// </summary>
+        BlendshapeWeights,
+        /// <summary>
+        /// The offset into the blendshape indices buffers for each vertex.
+        /// Add indices up until count to retrieve all indices for a vertex.
         /// </summary>
         BlendshapeOffset,
         /// <summary>
-        /// The number of blendshapes affecting each vertex.
+        /// The number of blendshapes affecting this particular vertex (pos, norm or tan has a non-zero delta).
         /// </summary>
         BlendshapeCount,
+        /// <summary>
+        /// Array of vec4s containing the indices into the blendshape deltas buffer.
+        /// Each vertex has an arbitrary number of vec4s, one for each blendshape affecting it.
+        /// vec4: blendshape index, pos delta index, norm delta index, tan delta index
+        /// </summary>
+        BlendshapeIndices,
+        /// <summary>
+        /// Remapped array of all position, normal, and tangent offsets.
+        /// Referred to by the blendshape indices buffer.
+        /// </summary>
+        BlendshapeDeltas,
 
         /// <summary>
         /// The offset into the indices/weights array for each vertex.
@@ -47,7 +62,6 @@
         /// The number of bones affecting the postion of each vertex.
         /// </summary>
         BoneMatrixCount,
-
         /// <summary>
         /// The weight of each bone affecting the position of each vertex.
         /// </summary>
@@ -56,15 +70,6 @@
         /// The index into the bone matrix buffer for each bone affecting each vertex.
         /// </summary>
         BoneMatrixIndices,
-
-        /// <summary>
-        /// The user-set weight of each blendshape affecting each vertex.
-        /// </summary>
-        BlendshapeWeights,
-        /// <summary>
-        /// The index into the blendshape delta buffers for each blendshape affecting each vertex.
-        /// </summary>
-        BlendshapeIndices,
 
         /// <summary>
         /// The animated world matrices for each bone utilized by the mesh.
@@ -76,22 +81,6 @@
         /// The first matrix is identity.
         /// </summary>
         BoneInvBindMatrices,
-
-        /// <summary>
-        /// Remapped array of position offsets.
-        /// No 0 values are stored in this buffer.
-        /// </summary>
-        BlendshapePositionDeltas,
-        /// <summary>
-        /// Remapped array of normal offsets.
-        /// No 0 values are stored in this buffer.
-        /// </summary>
-        BlendshapeNormalDeltas,
-        /// <summary>
-        /// Remapped array of tangent offsets.
-        /// No 0 values are stored in this buffer.
-        /// </summary>
-        BlendshapeTangentDeltas,
 
         GlyphTransforms,
         GlyphTexCoords,

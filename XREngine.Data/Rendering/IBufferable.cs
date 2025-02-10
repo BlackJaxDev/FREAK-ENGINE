@@ -8,7 +8,7 @@ namespace XREngine.Rendering.Objects
         EComponentType ComponentType { get; }
         uint ComponentCount { get; }
         bool Normalize { get; }
-        
+
         void Read(VoidPtr address);
         void Write(VoidPtr address);
     }

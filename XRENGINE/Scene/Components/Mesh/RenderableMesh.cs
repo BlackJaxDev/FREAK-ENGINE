@@ -283,7 +283,7 @@ namespace XREngine.Components.Scene.Mesh
             if (_rc is not null)
                 _rc.WorldMatrix = mtx;
 
-            if (RenderInfo is not null)
+            if (RenderInfo is not null/* && !hasSkinning*/)
                 RenderInfo.CullingOffsetMatrix = mtx;
         }
     }

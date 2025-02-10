@@ -1,6 +1,4 @@
 ﻿using Silk.NET.OpenGL;
-using Silk.NET.OpenXR;
-using System.ComponentModel;
 using XREngine.Data.Colors;
 using XREngine.Data.Core;
 using XREngine.Data.Rendering;

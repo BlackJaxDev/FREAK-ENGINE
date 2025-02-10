@@ -593,7 +593,7 @@ public class PhysicsChainComponent : XRComponent, IRenderable
     void UpdateParameters(ParticleTree pt)
     {
         // m_LocalGravity = m_Root.InverseTransformDirection(m_Gravity);
-        pt._localGravity = Vector3.Transform(_gravity, pt._rootWorldToLocalMatrix).Normalized() * _gravity.Length();
+        pt._localGravity = (Vector3.Transform(_gravity, pt._rootWorldToLocalMatrix) - pt._rootWorldToLocalMatrix.Translation).Normalized() * _gravity.Length();
 
         for (int i = 0; i < pt._particles.Count; ++i)
         {

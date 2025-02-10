@@ -66,7 +66,8 @@ namespace XREngine.Rendering
             bool hasNormals,
             bool hasTangents,
             int colorCount,
-            int texCoordCount)
+            int texCoordCount,
+            bool hasBlendshapes)
         {
             PositionsBuffer = new XRDataBuffer(ECommonBufferType.Position.ToString(), EBufferTarget.ArrayBuffer, false);
             PositionsBuffer.Allocate<Vector3>((uint)VertexCount);
@@ -108,6 +109,21 @@ namespace XREngine.Rendering
                     TexCoordBuffers[texCoordIndex].Allocate<Vector2>((uint)VertexCount);
                     Buffers.Add(binding, TexCoordBuffers[texCoordIndex]);
                 }
+            }
+
+            if (hasBlendshapes)
+            {
+                BlendshapeOffsets = new XRDataBuffer(ECommonBufferType.BlendshapeOffset.ToString(), EBufferTarget.ArrayBuffer, (uint)VertexCount, EComponentType.Int, 1, false, true);
+                Buffers.Add(ECommonBufferType.BlendshapeOffset.ToString(), BlendshapeOffsets);
+
+                BlendshapeCounts = new XRDataBuffer(ECommonBufferType.BlendshapeCount.ToString(), EBufferTarget.ArrayBuffer, (uint)VertexCount, EComponentType.Int, 1, false, true);
+                Buffers.Add(ECommonBufferType.BlendshapeCount.ToString(), BlendshapeCounts);
+
+                BlendshapeWeights = new XRDataBuffer(ECommonBufferType.BlendshapeCount.ToString(), EBufferTarget.ShaderStorageBuffer, BlendshapeCount, EComponentType.Int, 1, false, true)
+                {
+                    Usage = EBufferUsage.DynamicDraw
+                };
+                Buffers.Add(ECommonBufferType.BlendshapeWeights.ToString(), BlendshapeWeights);
             }
         }
 
@@ -688,31 +704,32 @@ namespace XREngine.Rendering
 
         #region Blendshape Buffers
         //Deltas for each blendshape on this mesh
-        /// <summary>
-        /// Remapped array of position deltas for all blendshapes on this mesh.
-        /// Static read-only buffer.
-        /// </summary>
-        public XRDataBuffer? BlendshapePositionDeltasBuffer { get; private set; }
-        /// <summary>
-        /// Remapped array of normal deltas for all blendshapes on this mesh.
-        /// Static read-only buffer.
-        /// </summary>
-        public XRDataBuffer? BlendshapeNormalDeltasBuffer { get; private set; }
-        /// <summary>
-        /// Remapped array of tangent deltas for all blendshapes on this mesh.
-        /// Static read-only buffer.
-        /// </summary>
-        public XRDataBuffer? BlendshapeTangentDeltasBuffer { get; private set; }
-        /// <summary>
-        /// Remapped array of color deltas for all blendshapes on this mesh.
-        /// Static read-only buffers.
-        /// </summary>
-        public XRDataBuffer[]? BlendshapeColorDeltaBuffers { get; private set; } = [];
-        /// <summary>
-        /// Remapped array of texture coordinate deltas for all blendshapes on this mesh.
-        /// Static read-only buffers.
-        /// </summary>
-        public XRDataBuffer[]? BlendshapeTexCoordDeltaBuffers { get; private set; } = [];
+        public XRDataBuffer? BlendshapeDeltasBuffer { get; private set; }
+        ///// <summary>
+        ///// Remapped array of position deltas for all blendshapes on this mesh.
+        ///// Static read-only buffer.
+        ///// </summary>
+        //public XRDataBuffer? BlendshapePositionDeltasBuffer { get; private set; }
+        ///// <summary>
+        ///// Remapped array of normal deltas for all blendshapes on this mesh.
+        ///// Static read-only buffer.
+        ///// </summary>
+        //public XRDataBuffer? BlendshapeNormalDeltasBuffer { get; private set; }
+        ///// <summary>
+        ///// Remapped array of tangent deltas for all blendshapes on this mesh.
+        ///// Static read-only buffer.
+        ///// </summary>
+        //public XRDataBuffer? BlendshapeTangentDeltasBuffer { get; private set; }
+        ///// <summary>
+        ///// Remapped array of color deltas for all blendshapes on this mesh.
+        ///// Static read-only buffers.
+        ///// </summary>
+        //public XRDataBuffer[]? BlendshapeColorDeltaBuffers { get; private set; } = [];
+        ///// <summary>
+        ///// Remapped array of texture coordinate deltas for all blendshapes on this mesh.
+        ///// Static read-only buffers.
+        ///// </summary>
+        //public XRDataBuffer[]? BlendshapeTexCoordDeltaBuffers { get; private set; } = [];
         //Weights for each blendshape on this mesh
         /// <summary>
         /// Indices into the blendshape delta buffers for each blendshape that affects each vertex.
@@ -882,26 +899,26 @@ namespace XREngine.Rendering
                     });
                 }
 
-                if (v.Blendshapes is not null && v.Blendshapes.Count > 0 && !vertexActions.ContainsKey(5))
-                {
-                    vertexActions.TryAdd(5, (i, x, vtx) =>
-                    {
-                        if (vtx?.Blendshapes is null)
-                            return;
+                //if (v.Blendshapes is not null && v.Blendshapes.Count > 0 && !vertexActions.ContainsKey(5))
+                //{
+                //    vertexActions.TryAdd(5, (i, x, vtx) =>
+                //    {
+                //        if (vtx?.Blendshapes is null)
+                //            return;
 
-                        foreach (var pair in vtx.Blendshapes!)
-                        {
-                            string name = pair.Key;
-                            var data = pair.Value;
-                            Vector3 deltaPos = data.Position - vtx.Position;
-                            Vector3? deltaNorm = data.Normal - vtx.Normal;
-                            Vector3? deltaTan = data.Tangent - vtx.Tangent;
-                            //List<Vector4> colors = data.ColorSets;
-                            //List<Vector2> texCoords = data.TextureCoordinateSets;
+                //        foreach (var pair in vtx.Blendshapes!)
+                //        {
+                //            string name = pair.Key;
+                //            var data = pair.Value;
+                //            Vector3 deltaPos = data.Position - vtx.Position;
+                //            Vector3? deltaNorm = data.Normal - vtx.Normal;
+                //            Vector3? deltaTan = data.Tangent - vtx.Tangent;
+                //            //List<Vector4> colors = data.ColorSets;
+                //            //List<Vector2> texCoords = data.TextureCoordinateSets;
 
-                        }
-                    });
-                }
+                //        }
+                //    });
+                //}
             }
 
             //Convert all primitives to simple primitives
@@ -917,7 +934,8 @@ namespace XREngine.Rendering
                 vertexActions.ContainsKey(1),
                 vertexActions.ContainsKey(2),
                 maxColorCount,
-                maxTexCoordCount);
+                maxTexCoordCount,
+                vertexActions.ContainsKey(5));
 
             vertexActions.TryAdd(6, (i, x, vtx) => PositionsBuffer!.SetDataRawAtIndex((uint)i, vtx?.Position ?? Vector3.Zero));
 
@@ -991,26 +1009,26 @@ namespace XREngine.Rendering
                     });
                 }
 
-                if (v.Blendshapes is not null && v.Blendshapes.Count > 0 && !vertexActions.ContainsKey(5))
-                {
-                    vertexActions.TryAdd(5, (i, x, vtx) =>
-                    {
-                        if (vtx?.Blendshapes is null)
-                            return;
+                //if (v.Blendshapes is not null && v.Blendshapes.Count > 0 && !vertexActions.ContainsKey(5))
+                //{
+                //    vertexActions.TryAdd(5, (i, x, vtx) =>
+                //    {
+                //        if (vtx?.Blendshapes is null)
+                //            return;
 
-                        foreach (var pair in vtx.Blendshapes!)
-                        {
-                            string name = pair.Key;
-                            var data = pair.Value;
-                            Vector3 deltaPos = data.Position - vtx.Position;
-                            Vector3? deltaNorm = data.Normal - vtx.Normal;
-                            Vector3? deltaTan = data.Tangent - vtx.Tangent;
-                            //List<Vector4> colors = data.ColorSets;
-                            //List<Vector2> texCoords = data.TextureCoordinateSets;
+                //        foreach (var pair in vtx.Blendshapes!)
+                //        {
+                //            string name = pair.Key;
+                //            var data = pair.Value;
+                //            Vector3 deltaPos = data.Position - vtx.Position;
+                //            Vector3? deltaNorm = data.Normal - vtx.Normal;
+                //            Vector3? deltaTan = data.Tangent - vtx.Tangent;
+                //            //List<Vector4> colors = data.ColorSets;
+                //            //List<Vector2> texCoords = data.TextureCoordinateSets;
 
-                        }
-                    });
-                }
+                //        }
+                //    });
+                //}
             }
 
             //Convert all primitives to simple primitives
@@ -1094,8 +1112,9 @@ namespace XREngine.Rendering
                 vertexActions.ContainsKey(1),
                 vertexActions.ContainsKey(2),
                 maxColorCount,
-                maxTexCoordCount);
-
+                maxTexCoordCount,
+                vertexActions.ContainsKey(5));
+            
             vertexActions.TryAdd(6, (i, x, vtx) => PositionsBuffer!.SetDataRawAtIndex((uint)i, vtx?.Position ?? Vector3.Zero));
 
             //MakeFaceIndices(weights, firstAppearanceArray.Length);
@@ -1127,6 +1146,10 @@ namespace XREngine.Rendering
             List<Vertex> points = [];
             List<Vertex> lines = [];
             List<Vertex> triangles = [];
+
+            ConcurrentDictionary<string, Vector3[]>? positionDeltas = null;
+            ConcurrentDictionary<string, Vector3[]>? normalDeltas = null;
+            ConcurrentDictionary<string, Vector3[]>? tangentDeltas = null;
 
             //Create an action for each vertex attribute to set the buffer data
             //This lets us avoid redundant LINQ code by looping through the vertices only once
@@ -1181,23 +1204,25 @@ namespace XREngine.Rendering
                     });
                 }
 
-                if (v.Blendshapes is not null && v.Blendshapes.Count > 0 && !vertexActions.ContainsKey(5))
+                if (v.Blendshapes is not null && v.Blendshapes.Count > 0 && !vertexActions.ContainsKey(5) && Engine.Rendering.Settings.AllowBlendshapes)
                 {
                     vertexActions.TryAdd(5, (i, x, vtx) =>
                     {
                         if (vtx?.Blendshapes is null)
                             return;
 
-                        foreach (var pair in vtx.Blendshapes!)
+                        foreach (KeyValuePair<string, VertexData> d in vtx.Blendshapes)
                         {
-                            string name = pair.Key;
-                            var data = pair.Value;
-                            Vector3 deltaPos = data.Position - vtx.Position;
-                            Vector3? deltaNorm = data.Normal - vtx.Normal;
-                            Vector3? deltaTan = data.Tangent - vtx.Tangent;
-                            //List<Vector4> colors = data.ColorSets;
-                            //List<Vector2> texCoords = data.TextureCoordinateSets;
+                            var data = d.Value;
+                            if (data is null)
+                                continue;
 
+                            if (positionDeltas is not null)
+                                positionDeltas[d.Key][i] = data.Position - vtx.Position;
+                            if (normalDeltas is not null && data.Normal is not null && vtx.Normal is not null)
+                                normalDeltas[d.Key][i] = data.Normal.Value - vtx.Normal.Value;
+                            if (tangentDeltas is not null && data.Tangent is not null && vtx.Tangent is not null)
+                                tangentDeltas[d.Key][i] = data.Tangent.Value - vtx.Tangent.Value;
                         }
                     });
                 }
@@ -1313,11 +1338,50 @@ namespace XREngine.Rendering
                     faceRemap,
                     sourceList);
 
+            bool hasBlendshapes = Engine.Rendering.Settings.AllowBlendshapes && mesh.HasMeshAnimationAttachments && vertexActions.ContainsKey(5);
+            BlendshapeCount = hasBlendshapes ? (uint)mesh.MeshAnimationAttachmentCount : 0u;
+
             InitMeshBuffers(
                 vertexActions.ContainsKey(1),
                 vertexActions.ContainsKey(2),
                 maxColorCount,
-                maxTexCoordCount);
+                maxTexCoordCount,
+                hasBlendshapes);
+
+            if (hasBlendshapes)
+            {
+                positionDeltas = [];
+                normalDeltas = [];
+                tangentDeltas = [];
+                for (int i = 0; i < mesh.MeshAnimationAttachmentCount; i++)
+                {
+                    string name = mesh.MeshAnimationAttachments[i].Name;
+
+                    if (positionDeltas.ContainsKey(name))
+                    {
+                        string newName = name + $"_{i}";
+                        positionDeltas.TryAdd(newName, new Vector3[count]);
+                    }
+                    else
+                        positionDeltas.TryAdd(name, new Vector3[count]);
+
+                    if (normalDeltas.ContainsKey(name))
+                    {
+                        string newName = name + $"_{i}";
+                        normalDeltas.TryAdd(newName, new Vector3[count]);
+                    }
+                    else
+                        normalDeltas.TryAdd(name, new Vector3[count]);
+
+                    if (tangentDeltas.ContainsKey(name))
+                    {
+                        string newName = name + $"_{i}";
+                        tangentDeltas.TryAdd(newName, new Vector3[count]);
+                    }
+                    else
+                        tangentDeltas.TryAdd(name, new Vector3[count]);
+                }
+            }
 
             vertexActions.TryAdd(6, (i, x, vtx) => PositionsBuffer!.SetDataRawAtIndex((uint)i, Vector3.Transform(vtx?.Position ?? Vector3.Zero, dataTransform)));
 
@@ -1327,7 +1391,112 @@ namespace XREngine.Rendering
             //We can do this in parallel since each vertex is independent
             PopulateVertexData(vertexActions.Values, sourceList, count, true);
 
+            if (hasBlendshapes)
+                PopulateBlendshapeBuffers(sourceList, mesh, positionDeltas, normalDeltas, tangentDeltas);
+
             _bounds = bounds ?? new AABB(Vector3.Zero, Vector3.Zero);
+        }
+
+        private unsafe void PopulateBlendshapeBuffers(
+            List<Vertex> sourceList,
+            Mesh mesh,
+            ConcurrentDictionary<string, Vector3[]>? positionDeltas,
+            ConcurrentDictionary<string, Vector3[]>? normalDeltas,
+            ConcurrentDictionary<string, Vector3[]>? tangentDeltas)
+        {
+            for (int i = 0; i < mesh.MeshAnimationAttachments.Count; i++)
+                BlendshapeWeights!.SetDataRawAtIndex((uint)i, mesh.MeshAnimationAttachments[i].Weight);
+
+            List<Vector4> deltas = [Vector4.Zero]; //0 index is reserved for 0 delta
+            List<IVector4> blendshapeIndices = [];
+
+            int offset = 0;
+            int deltasOffset = 1;
+            int[] posOffsetsPerVertex = new int[sourceList.Count];
+            int[] nrmOffsetsPerVertex = new int[sourceList.Count];
+            int[] tanOffsetsPerVertex = new int[sourceList.Count];
+            for (int i = 0; i < sourceList.Count; i++)
+            {
+                int countForThisVertex = 0;
+                for (int j = 0; j < mesh.MeshAnimationAttachments.Count; j++)
+                {
+                    string name = mesh.MeshAnimationAttachments[j].Name;
+
+                    bool anyData = false;
+                    var posDeltas = positionDeltas?[name];
+                    var nrmDeltas = normalDeltas?[name];
+                    var tanDeltas = tangentDeltas?[name];
+
+                    if (posDeltas is not null && posDeltas[i].LengthSquared() > 0.01f)
+                    {
+                        deltas.Add(new Vector4(posDeltas[i], 0.0f));
+                        posOffsetsPerVertex[i] = deltasOffset++;
+                        anyData = true;
+                    }
+                    else
+                        posOffsetsPerVertex[i] = 0; //point to 0 index for no delta
+
+                    if (nrmDeltas is not null && nrmDeltas[i].LengthSquared() > 0.01f)
+                    {
+                        deltas.Add(new Vector4(nrmDeltas[i], 0.0f));
+                        nrmOffsetsPerVertex[i] = deltasOffset++;
+                        anyData = true;
+                    }
+                    else
+                        nrmOffsetsPerVertex[i] = 0; //point to 0 index for no delta
+
+                    if (tanDeltas is not null && tanDeltas[i].LengthSquared() > 0.01f)
+                    {
+                        deltas.Add(new Vector4(tanDeltas[i], 0.0f));
+                        tanOffsetsPerVertex[i] = deltasOffset++;
+                        anyData = true;
+                    }
+                    else
+                        tanOffsetsPerVertex[i] = 0; //point to 0 index for no delta
+
+                    if (anyData)
+                    {
+                        ++countForThisVertex;
+
+                        blendshapeIndices.Add(new IVector4(
+                            j,
+                            posOffsetsPerVertex[i],
+                            nrmOffsetsPerVertex[i],
+                            tanOffsetsPerVertex[i]));
+                    }
+                }
+
+                if (countForThisVertex > 0)
+                {
+                    BlendshapeCounts!.SetDataRawAtIndex((uint)i, countForThisVertex);
+                    BlendshapeOffsets!.SetDataRawAtIndex((uint)i, offset);
+                    offset += countForThisVertex;
+                }
+            }
+
+            BlendshapeIndices = new XRDataBuffer($"{ECommonBufferType.BlendshapeIndices}Buffer", EBufferTarget.ShaderStorageBuffer, (uint)blendshapeIndices.Count, EComponentType.Int, 4, false, true);
+            BlendshapeDeltasBuffer = new XRDataBuffer($"{ECommonBufferType.BlendshapeDeltas}Buffer", EBufferTarget.ShaderStorageBuffer, false);
+
+            var deltaRemap = BlendshapeDeltasBuffer!.SetDataRaw(deltas, true);
+            //Update the blendshape indices buffer with remapped delta indices
+            for (int i = 0; i < blendshapeIndices.Count; i++)
+            {
+                IVector4 indices = blendshapeIndices[i];
+                var posIndex = indices.Y;
+                var nrmIndex = indices.Z;
+                var tanIndex = indices.W;
+                if (posIndex > 0)
+                    indices.Y = deltaRemap!.RemapTable![posIndex];
+                if (nrmIndex > 0)
+                    indices.Z = deltaRemap!.RemapTable![nrmIndex];
+                if (tanIndex > 0)
+                    indices.W = deltaRemap!.RemapTable![tanIndex];
+                BlendshapeIndices.Set((uint)i, indices);
+            }
+            //BlendshapeIndices!.SetData(blendshapeIndices, false);
+
+            Buffers.Add(ECommonBufferType.BlendshapeIndices.ToString(), BlendshapeIndices);
+            Buffers.Add(ECommonBufferType.BlendshapeDeltas.ToString(), BlendshapeDeltasBuffer);
         }
 
         //private unsafe Matrix4x4 GetSingleBind(Mesh mesh, Dictionary<string, List<SceneNode>> nodeCache)

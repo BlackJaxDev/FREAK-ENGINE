@@ -136,19 +136,19 @@ namespace XREngine.Actors.Types
             rootBillboardTfm.ScaleByDistance = true;
             rootBillboardTfm.ScaleReferenceDistance = 10.0f;
 
-            ModelComponent translationModelComp = skelRoot.AddComponent<ModelComponent>()!;
+            ModelComponent translationModelComp = skelRoot.AddComponent<ModelComponent>("Translation Model")!;
             translationModelComp.Model = new Model(translationMeshes);
             _translationModel = translationModelComp;
 
-            ModelComponent nonRotationModelComp = skelRoot.AddComponent<ModelComponent>()!;
+            ModelComponent nonRotationModelComp = skelRoot.AddComponent<ModelComponent>("Non-Rotation Model")!;
             nonRotationModelComp.Model = new Model(nonRotationMeshes);
             _nonRotationModel = nonRotationModelComp;
 
-            ModelComponent scaleModelComp = skelRoot.AddComponent<ModelComponent>()!;
+            ModelComponent scaleModelComp = skelRoot.AddComponent<ModelComponent>("Scale Model")!;
             scaleModelComp.Model = new Model(scaleMeshes);
             _scaleModel = scaleModelComp;
 
-            ModelComponent rotationModelComp = skelRoot.AddComponent<ModelComponent>()!;
+            ModelComponent rotationModelComp = skelRoot.AddComponent<ModelComponent>("Rotation Model")!;
             rotationModelComp.Model = new Model(rotationMeshes);
             _rotationModel = rotationModelComp;
 
@@ -157,11 +157,11 @@ namespace XREngine.Actors.Types
             screenBillboard.Perspective = false;
             screenBillboard.BillboardActive = true;
 
-            ModelComponent screenRotationModelComp = screenNode.AddComponent<ModelComponent>()!;
+            ModelComponent screenRotationModelComp = screenNode.AddComponent<ModelComponent>("Screen Rotation Model")!;
             screenRotationModelComp.Model = new Model(screenRotationMeshes);
             _screenRotationModel = screenRotationModelComp;
 
-            ModelComponent screenTranslationModelComp = screenNode.AddComponent<ModelComponent>()!;
+            ModelComponent screenTranslationModelComp = screenNode.AddComponent<ModelComponent>("Screen Translation Model")!;
             screenTranslationModelComp.Model = new Model(screenTranslationMeshes);
             _screenTranslationModel = screenTranslationModelComp;
 
@@ -187,7 +187,7 @@ namespace XREngine.Actors.Types
             _screenMat.RenderOptions.DepthTest.Enabled = ERenderParamUsage.Disabled;
             _screenMat.RenderOptions.LineWidth = 1.0f;
 
-            GetSphere(translationMeshes);
+            GetSphere(rotationMeshes);
 
             for (int normalAxis = 0; normalAxis < 3; ++normalAxis)
             {
@@ -337,7 +337,7 @@ namespace XREngine.Actors.Types
             unit2[planeAxis2] = 1.0f;
         }
 
-        private static void GetSphere(List<SubMesh> subMeshes)
+        private static void GetSphere(List<SubMesh> rotationMeshes)
         {
             XRMaterial sphereMat = XRMaterial.CreateUnlitColorMaterialForward(ColorF4.Orange);
             sphereMat.RenderOptions.DepthTest.Enabled = ERenderParamUsage.Enabled;
@@ -351,7 +351,7 @@ namespace XREngine.Actors.Types
 
             XRMesh spherePrim = XRMesh.Shapes.SolidSphere(Vector3.Zero, _orbRadius, 10, 10);
             //isRotate = true
-            subMeshes.Add(new SubMesh(spherePrim, sphereMat));
+            rotationMeshes.Add(new SubMesh(spherePrim, sphereMat));
         }
 
         private TransformBase? _targetSocket = null;

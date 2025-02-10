@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
 using XREngine.Data.Core;
 using XREngine.Data.Rendering;
+using XREngine.Rendering.Objects;
 
 namespace XREngine.Rendering
 {

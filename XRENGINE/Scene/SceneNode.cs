@@ -893,16 +893,15 @@ namespace XREngine.Scene
             return comps.Length > 0;
         }
 
-        public string PrintTree()
+        public string PrintTree(int depth = 0)
         {
-            string name = Name ?? "<no name>";
-            string depth = new(' ', Transform.Depth * 2);
-            string output = $"{depth}{Transform}{Environment.NewLine}";
+            string d = new(' ', depth++);
+            string output = $"{d}{Transform}{Environment.NewLine}";
             lock (Transform.Children)
             {
                 foreach (var child in Transform.Children)
                     if (child?.SceneNode is SceneNode node)
-                        output += node.PrintTree();
+                        output += node.PrintTree(depth);
             }
             return output;
         }
