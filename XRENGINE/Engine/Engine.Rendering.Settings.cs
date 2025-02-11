@@ -227,7 +227,8 @@ namespace XREngine
                 public ColorF4 TransformPointColor { get; set; } = ColorF4.Orange;
                 public ColorF4 TransformLineColor { get; set; } = ColorF4.LightRed;
                 public ColorF4 TransformCapsuleColor { get; set; } = ColorF4.LightOrange;
-                public bool AllowBlendshapes { get; set; } = false;
+                public bool AllowSkinning { get; set; } = true;
+                public bool AllowBlendshapes { get; set; } = true;
             }
         }
     }

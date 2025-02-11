@@ -110,7 +110,8 @@ namespace XREngine.Rendering.Shaders.Generator
         {
             string s = _shaderCode;
             Reset();
-            //Debug.Out(s);
+            if (Mesh.HasBlendshapes || Mesh.MaxWeightCount > 4)
+                Debug.Out(s);
             return s;
         }
         public enum EGLVertexShaderInput

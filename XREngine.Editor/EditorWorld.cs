@@ -1,4 +1,5 @@
 ﻿using Assimp;
+using Extensions;
 using Silk.NET.Input;
 using System.Collections.Concurrent;
 using System.Numerics;
@@ -55,7 +56,7 @@ public static class EditorWorld
     public const bool VRPawn = false; //Enables VR input and pawn.
     public const bool CharacterPawn = false; //Enables the player to physically locomote in the world. Requires a physical floor.
     public const bool ThirdPersonPawn = false; //If on desktop and character pawn is enabled, this will add a third person camera instead of first person.
-    public const bool TestAnimation = false; //Adds test animations to the character pawn.
+    public const bool TestAnimation = true; //Adds test animations to the character pawn.
     public const bool PhysicsChain = false; //Adds a jiggle physics chain to the character pawn.
     public const bool TransformTool = false; //Adds the transform tool to the scene for testing dragging and rotating etc.
     public const bool AllowEditingInVR = false; //Allows the user to edit the scene from desktop in VR.
@@ -66,6 +67,9 @@ public static class EditorWorld
     /// <returns></returns>
     public static XRWorld CreateUnitTestWorld()
     {
+        Engine.Rendering.Settings.AllowBlendshapes = false;
+        Engine.Rendering.Settings.AllowSkinning = true;
+
         string desktopDir = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
         //UnityPackageExtractor.ExtractAsync(Path.Combine(desktopDir, "Animations.unitypackage"), Path.Combine(desktopDir, "Extracted"), true);
 
@@ -819,18 +823,18 @@ public static class EditorWorld
 
         if (TestAnimation)
         {
-            //var knee = comp!.Right.Knee?.Node?.Transform;
-            //var leg = comp!.Right.Leg?.Node?.Transform;
+            var knee = comp!.Right.Knee?.Node?.Transform;
+            var leg = comp!.Right.Leg?.Node?.Transform;
 
-            //leg?.RegisterAnimationTick<Transform>(t => t.Rotation = Quaternion.CreateFromAxisAngle(Globals.Right, XRMath.DegToRad(180 - 90.0f * (MathF.Cos(Engine.ElapsedTime) * 0.5f + 0.5f))));
-            //knee?.RegisterAnimationTick<Transform>(t => t.Rotation = Quaternion.CreateFromAxisAngle(Globals.Right, XRMath.DegToRad(90.0f * (MathF.Cos(Engine.ElapsedTime) * 0.5f + 0.5f))));
-        
-            var rootTfm = rootNode.FirstChild.GetTransformAs<Transform>(true)!;
-            //rotate the root node in a circle, but still facing forward
-            rootTfm.RegisterAnimationTick<Transform>(t =>
-            {
-                t.Translation = new Vector3(0, MathF.Sin(Engine.ElapsedTime), 0);
-            });
+            leg?.RegisterAnimationTick<Transform>(t => t.Rotation = Quaternion.CreateFromAxisAngle(Globals.Right, XRMath.DegToRad(180 - 90.0f * (MathF.Cos(Engine.ElapsedTime) * 0.5f + 0.5f))));
+            knee?.RegisterAnimationTick<Transform>(t => t.Rotation = Quaternion.CreateFromAxisAngle(Globals.Right, XRMath.DegToRad(90.0f * (MathF.Cos(Engine.ElapsedTime) * 0.5f + 0.5f))));
+
+            //var rootTfm = rootNode.FirstChild.GetTransformAs<Transform>(true)!;
+            ////rotate the root node in a circle, but still facing forward
+            //rootTfm.RegisterAnimationTick<Transform>(t =>
+            //{
+            //    t.Translation = new Vector3(0, MathF.Sin(Engine.ElapsedTime), 0);
+            //});
         }
 
         if (PhysicsChain)

@@ -119,7 +119,7 @@ namespace XREngine.Components.Scene.Mesh
         private bool BeforeAdd(RenderInfo info, RenderCommandCollection passes, XRCamera? camera)
         {
             var rend = CurrentLODRenderer;
-            bool skinned = (rend?.Mesh?.HasSkinning ?? false);
+            bool skinned = (rend?.Mesh?.HasSkinning ?? false) && Engine.Rendering.Settings.AllowSkinning;
             TransformBase tfm = skinned ? RootBone ?? Component.Transform : Component.Transform;
             float distance = camera?.DistanceFromNearPlane(tfm.WorldTranslation) ?? 0.0f;
 
@@ -245,7 +245,7 @@ namespace XREngine.Components.Scene.Mesh
                     if (CurrentLOD is not null)
                     {
                         var rend = CurrentLODRenderer;
-                        bool skinned = (rend?.Mesh?.HasSkinning ?? false);
+                        bool skinned = (rend?.Mesh?.HasSkinning ?? false) && Engine.Rendering.Settings.AllowSkinning;
                         _rc.WorldMatrix = skinned ? Matrix4x4.Identity : Component.Transform.WorldMatrix;
                     }
                     break;
@@ -258,7 +258,7 @@ namespace XREngine.Components.Scene.Mesh
         /// <param name="rootBone"></param>
         private void RootBone_WorldMatrixChanged(TransformBase rootBone)
         {
-            bool hasSkinning = CurrentLOD?.Value?.Renderer?.Mesh?.HasSkinning ?? false;
+            bool hasSkinning = (CurrentLOD?.Value?.Renderer?.Mesh?.HasSkinning ?? false) && Engine.Rendering.Settings.AllowSkinning;
             if (!hasSkinning)
                 return;
             
@@ -271,7 +271,7 @@ namespace XREngine.Components.Scene.Mesh
         /// <param name="component"></param>
         private void Component_WorldMatrixChanged(TransformBase component)
         {
-            bool hasSkinning = CurrentLOD?.Value?.Renderer?.Mesh?.HasSkinning ?? false;
+            bool hasSkinning = (CurrentLOD?.Value?.Renderer?.Mesh?.HasSkinning ?? false) && Engine.Rendering.Settings.AllowSkinning;
             if (hasSkinning)
                 return;
 

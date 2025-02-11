@@ -66,8 +66,7 @@ namespace XREngine.Rendering
             bool hasNormals,
             bool hasTangents,
             int colorCount,
-            int texCoordCount,
-            bool hasBlendshapes)
+            int texCoordCount)
         {
             PositionsBuffer = new XRDataBuffer(ECommonBufferType.Position.ToString(), EBufferTarget.ArrayBuffer, false);
             PositionsBuffer.Allocate<Vector3>((uint)VertexCount);
@@ -109,21 +108,6 @@ namespace XREngine.Rendering
                     TexCoordBuffers[texCoordIndex].Allocate<Vector2>((uint)VertexCount);
                     Buffers.Add(binding, TexCoordBuffers[texCoordIndex]);
                 }
-            }
-
-            if (hasBlendshapes)
-            {
-                BlendshapeOffsets = new XRDataBuffer(ECommonBufferType.BlendshapeOffset.ToString(), EBufferTarget.ArrayBuffer, (uint)VertexCount, EComponentType.Int, 1, false, true);
-                Buffers.Add(ECommonBufferType.BlendshapeOffset.ToString(), BlendshapeOffsets);
-
-                BlendshapeCounts = new XRDataBuffer(ECommonBufferType.BlendshapeCount.ToString(), EBufferTarget.ArrayBuffer, (uint)VertexCount, EComponentType.Int, 1, false, true);
-                Buffers.Add(ECommonBufferType.BlendshapeCount.ToString(), BlendshapeCounts);
-
-                BlendshapeWeights = new XRDataBuffer(ECommonBufferType.BlendshapeCount.ToString(), EBufferTarget.ShaderStorageBuffer, BlendshapeCount, EComponentType.Int, 1, false, true)
-                {
-                    Usage = EBufferUsage.DynamicDraw
-                };
-                Buffers.Add(ECommonBufferType.BlendshapeWeights.ToString(), BlendshapeWeights);
             }
         }
 
@@ -187,10 +171,6 @@ namespace XREngine.Rendering
         /// Number of indices/weights in the bone index/weight buffers for each vertex.
         /// </summary>
         public XRDataBuffer? BoneWeightCounts { get; private set; }
-        /// <summary>
-        /// Offset into the blendshape index/weight buffers to find each blendshape that actually changes this vertex.
-        /// </summary>
-        public XRDataBuffer? BlendshapeOffsets { get; private set; }
         /// <summary>
         /// Number of indices/weights in the blendshape index/weight buffers for each vertex.
         /// </summary>
@@ -934,8 +914,7 @@ namespace XREngine.Rendering
                 vertexActions.ContainsKey(1),
                 vertexActions.ContainsKey(2),
                 maxColorCount,
-                maxTexCoordCount,
-                vertexActions.ContainsKey(5));
+                maxTexCoordCount);
 
             vertexActions.TryAdd(6, (i, x, vtx) => PositionsBuffer!.SetDataRawAtIndex((uint)i, vtx?.Position ?? Vector3.Zero));
 
@@ -1112,8 +1091,7 @@ namespace XREngine.Rendering
                 vertexActions.ContainsKey(1),
                 vertexActions.ContainsKey(2),
                 maxColorCount,
-                maxTexCoordCount,
-                vertexActions.ContainsKey(5));
+                maxTexCoordCount);
             
             vertexActions.TryAdd(6, (i, x, vtx) => PositionsBuffer!.SetDataRawAtIndex((uint)i, vtx?.Position ?? Vector3.Zero));
 
@@ -1238,7 +1216,6 @@ namespace XREngine.Rendering
             //This remap contains a list of new vertex indices for each original vertex index.
             Dictionary<int, List<int>> faceRemap = [];
 
-            int boneCount = mesh.BoneCount;
             for (int i = 0; i < mesh.FaceCount; i++)
             {
                 Face face = mesh.Faces[i];
@@ -1331,12 +1308,11 @@ namespace XREngine.Rendering
 
             VertexCount = count;
 
-            if (boneCount > 0)
-                CollectBoneWeights(
-                    mesh,
-                    nodeCache,
-                    faceRemap,
-                    sourceList);
+            InitializeSkinning(
+                mesh,
+                nodeCache,
+                faceRemap,
+                sourceList);
 
             bool hasBlendshapes = Engine.Rendering.Settings.AllowBlendshapes && mesh.HasMeshAnimationAttachments && vertexActions.ContainsKey(5);
             BlendshapeCount = hasBlendshapes ? (uint)mesh.MeshAnimationAttachmentCount : 0u;
@@ -1345,8 +1321,7 @@ namespace XREngine.Rendering
                 vertexActions.ContainsKey(1),
                 vertexActions.ContainsKey(2),
                 maxColorCount,
-                maxTexCoordCount,
-                hasBlendshapes);
+                maxTexCoordCount);
 
             if (hasBlendshapes)
             {
@@ -1404,99 +1379,94 @@ namespace XREngine.Rendering
             ConcurrentDictionary<string, Vector3[]>? normalDeltas,
             ConcurrentDictionary<string, Vector3[]>? tangentDeltas)
         {
+            BlendshapeCounts = new XRDataBuffer(ECommonBufferType.BlendshapeCount.ToString(), EBufferTarget.ArrayBuffer, (uint)sourceList.Count, EComponentType.Int, 2, false, true);
+            BlendshapeWeights = new XRDataBuffer($"{ECommonBufferType.BlendshapeWeights}Buffer", EBufferTarget.ShaderStorageBuffer, BlendshapeCount, EComponentType.Float, 1, false, false)
+            {
+                Usage = EBufferUsage.StreamDraw
+            };
+
+            //TODO: move this buffer to the XRMeshRenderer
             for (int i = 0; i < mesh.MeshAnimationAttachments.Count; i++)
-                BlendshapeWeights!.SetDataRawAtIndex((uint)i, mesh.MeshAnimationAttachments[i].Weight);
+                BlendshapeWeights!.Set((uint)i, 0.0f);
 
             List<Vector4> deltas = [Vector4.Zero]; //0 index is reserved for 0 delta
             List<IVector4> blendshapeIndices = [];
 
-            int offset = 0;
-            int deltasOffset = 1;
-            int[] posOffsetsPerVertex = new int[sourceList.Count];
-            int[] nrmOffsetsPerVertex = new int[sourceList.Count];
-            int[] tanOffsetsPerVertex = new int[sourceList.Count];
-            for (int i = 0; i < sourceList.Count; i++)
+            int blendshapeDeltaIndicesIndex = 0;
+            int deltasIndex = 1;
+            int sourceCount = sourceList.Count;
+            int blendshapeCount = mesh.MeshAnimationAttachmentCount;
+            int* blendshapeCounts = (int*)BlendshapeCounts.Address;
+            for (int i = 0; i < sourceCount; i++)
             {
-                int countForThisVertex = 0;
-                for (int j = 0; j < mesh.MeshAnimationAttachments.Count; j++)
+                int activeBlendshapeCountForThisVertex = 0;
+                for (int j = 0; j < blendshapeCount; j++)
                 {
                     string name = mesh.MeshAnimationAttachments[j].Name;
-
                     bool anyData = false;
                     var posDeltas = positionDeltas?[name];
                     var nrmDeltas = normalDeltas?[name];
                     var tanDeltas = tangentDeltas?[name];
+                    int posInd = 0;
+                    int nrmInd = 0;
+                    int tanInd = 0;
 
-                    if (posDeltas is not null && posDeltas[i].LengthSquared() > 0.01f)
+                    if (posDeltas is not null && posDeltas[i].LengthSquared() > float.Epsilon)
                     {
                         deltas.Add(new Vector4(posDeltas[i], 0.0f));
-                        posOffsetsPerVertex[i] = deltasOffset++;
+                        posInd = deltasIndex++;
                         anyData = true;
                     }
-                    else
-                        posOffsetsPerVertex[i] = 0; //point to 0 index for no delta
-
-                    if (nrmDeltas is not null && nrmDeltas[i].LengthSquared() > 0.01f)
+                    if (nrmDeltas is not null && nrmDeltas[i].LengthSquared() > float.Epsilon)
                     {
                         deltas.Add(new Vector4(nrmDeltas[i], 0.0f));
-                        nrmOffsetsPerVertex[i] = deltasOffset++;
+                        nrmInd = deltasIndex++;
                         anyData = true;
                     }
-                    else
-                        nrmOffsetsPerVertex[i] = 0; //point to 0 index for no delta
-
-                    if (tanDeltas is not null && tanDeltas[i].LengthSquared() > 0.01f)
+                    if (tanDeltas is not null && tanDeltas[i].LengthSquared() > float.Epsilon)
                     {
                         deltas.Add(new Vector4(tanDeltas[i], 0.0f));
-                        tanOffsetsPerVertex[i] = deltasOffset++;
+                        tanInd = deltasIndex++;
                         anyData = true;
                     }
-                    else
-                        tanOffsetsPerVertex[i] = 0; //point to 0 index for no delta
-
                     if (anyData)
                     {
-                        ++countForThisVertex;
-
-                        blendshapeIndices.Add(new IVector4(
-                            j,
-                            posOffsetsPerVertex[i],
-                            nrmOffsetsPerVertex[i],
-                            tanOffsetsPerVertex[i]));
+                        ++activeBlendshapeCountForThisVertex;
+                        blendshapeIndices.Add(new IVector4(j, posInd, nrmInd, tanInd));
                     }
                 }
-
-                if (countForThisVertex > 0)
-                {
-                    BlendshapeCounts!.SetDataRawAtIndex((uint)i, countForThisVertex);
-                    BlendshapeOffsets!.SetDataRawAtIndex((uint)i, offset);
-                    offset += countForThisVertex;
-                }
+                *blendshapeCounts++ = activeBlendshapeCountForThisVertex > 0 ? blendshapeDeltaIndicesIndex : 0;
+                *blendshapeCounts++ = activeBlendshapeCountForThisVertex;
+                blendshapeDeltaIndicesIndex += activeBlendshapeCountForThisVertex;
             }
 
             BlendshapeIndices = new XRDataBuffer($"{ECommonBufferType.BlendshapeIndices}Buffer", EBufferTarget.ShaderStorageBuffer, (uint)blendshapeIndices.Count, EComponentType.Int, 4, false, true);
-            BlendshapeDeltasBuffer = new XRDataBuffer($"{ECommonBufferType.BlendshapeDeltas}Buffer", EBufferTarget.ShaderStorageBuffer, false);
+            BlendshapeDeltasBuffer = new XRDataBuffer($"{ECommonBufferType.BlendshapeDeltas}Buffer", EBufferTarget.ShaderStorageBuffer, /*(uint)deltas.Count, EComponentType.Float, 4, false,*/ false);
+            //for (int i = 0; i < deltas.Count; i++)
+            //    BlendshapeDeltasBuffer!.Set((uint)i, deltas[i]);
+            //for (int i = 0; i < blendshapeIndices.Count; i++)
+            //    BlendshapeIndices!.Set((uint)i, blendshapeIndices[i]);
 
             var deltaRemap = BlendshapeDeltasBuffer!.SetDataRaw(deltas, true);
             //Update the blendshape indices buffer with remapped delta indices
+            var remap = deltaRemap!.RemapTable!;
             for (int i = 0; i < blendshapeIndices.Count; i++)
             {
                 IVector4 indices = blendshapeIndices[i];
-                var posIndex = indices.Y;
-                var nrmIndex = indices.Z;
-                var tanIndex = indices.W;
-                if (posIndex > 0)
-                    indices.Y = deltaRemap!.RemapTable![posIndex];
-                if (nrmIndex > 0)
-                    indices.Z = deltaRemap!.RemapTable![nrmIndex];
-                if (tanIndex > 0)
-                    indices.W = deltaRemap!.RemapTable![tanIndex];
-                BlendshapeIndices.Set((uint)i, indices);
+                IVector4 newIndices = new(indices.X, remap[indices.Y], remap[indices.Z], remap[indices.W]);
+                BlendshapeIndices.Set((uint)i, newIndices);
             }
-            //BlendshapeIndices!.SetData(blendshapeIndices, false);
 
-            Buffers.Add(ECommonBufferType.BlendshapeIndices.ToString(), BlendshapeIndices);
-            Buffers.Add(ECommonBufferType.BlendshapeDeltas.ToString(), BlendshapeDeltasBuffer);
+            Buffers.Add(BlendshapeCounts.BindingName, BlendshapeCounts);
+            Buffers.Add(BlendshapeWeights.BindingName, BlendshapeWeights);
+            Buffers.Add(BlendshapeIndices.BindingName, BlendshapeIndices);
+            Buffers.Add(BlendshapeDeltasBuffer.BindingName, BlendshapeDeltasBuffer);
+
+            //BlendshapeOffsets.Generate();
+            //BlendshapeCounts.Generate();
+            //BlendshapeWeights.Generate();
+            //BlendshapeIndices.Generate();
+            //BlendshapeDeltasBuffer.Generate();
         }
 
         //private unsafe Matrix4x4 GetSingleBind(Mesh mesh, Dictionary<string, List<SceneNode>> nodeCache)
@@ -1522,7 +1492,7 @@ namespace XREngine.Rendering
         //    return dataTransform;
         //}
 
-        private void CollectBoneWeights(
+        private void InitializeSkinning(
             Mesh mesh,
             Dictionary<string, List<SceneNode>> nodeCache,
             Dictionary<int, List<int>> faceRemap,
@@ -1532,12 +1502,13 @@ namespace XREngine.Rendering
 
             //Debug.Out($"Collecting bone weights for {mesh.Name}.");
 
+            int boneCount = Engine.Rendering.Settings.AllowSkinning ? mesh.BoneCount : 0;
             Dictionary<TransformBase, (float weight, Matrix4x4 invBindMatrix)>?[]? weightsPerVertex = new Dictionary<TransformBase, (float weight, Matrix4x4 invBindMatrix)>?[VertexCount];
             Dictionary<TransformBase, Matrix4x4> invBindMatrices = [];
 
             int boneIndex = 0;
             Dictionary<TransformBase, int> boneToIndexTable = [];
-            for (int i = 0; i < mesh.BoneCount; i++)
+            for (int i = 0; i < boneCount; i++)
             {
                 Bone bone = mesh.Bones[i];
                 if (!bone.HasVertexWeights)
@@ -1589,7 +1560,7 @@ namespace XREngine.Rendering
             //if (boneToIndexTable.Count < boneCount)
             //    Debug.Out($"{boneCount - boneToIndexTable.Count} unweighted bones were removed.");
 
-            if (weightsPerVertex is not null && weightsPerVertex.Length > 0)
+            if (weightsPerVertex is not null && weightsPerVertex.Length > 0 && boneCount > 0)
                 PopulateSkinningBuffers(boneToIndexTable, weightsPerVertex);
         }
 
@@ -1597,71 +1568,6 @@ namespace XREngine.Rendering
         /// This is the maximum number of weights used for one or more vertices.
         /// </summary>
         public int MaxWeightCount { get; private set; } = 0;
-
-        //private void PopulateBlendshapeBuffers(Dictionary<string, List<Blendshape>> blendshapes)
-        //{
-        //    //using var timer = Engine.Profiler.Start();
-
-        //    uint vertCount = (uint)VertexCount;
-
-        //    BlendshapeOffsets = new XRDataBuffer(ECommonBufferType.BlendshapeOffset.ToString(), EBufferTarget.ArrayBuffer, vertCount, EComponentType.Int, 1, false, true)
-        //    {
-        //        Usage = EBufferUsage.StaticCopy
-        //    };
-        //    BlendshapeCounts = new XRDataBuffer(ECommonBufferType.BlendshapeCount.ToString(), EBufferTarget.ArrayBuffer, vertCount, EComponentType.Int, 1, false, true)
-        //    {
-        //        Usage = EBufferUsage.StaticCopy
-        //    };
-
-        //    //Blendshape weights
-        //    BlendshapeWeights = new XRDataBuffer(ECommonBufferType.BlendshapeWeights.ToString(), EBufferTarget.ArrayBuffer, vertCount, EComponentType.Float, 1, false, false)
-        //    {
-        //        Usage = EBufferUsage.DynamicDraw
-        //    };
-        //    //Blendshape indices
-        //    BlendshapeIndices = new XRDataBuffer(ECommonBufferType.BlendshapeIndices.ToString(), EBufferTarget.ArrayBuffer, vertCount, EComponentType.Int, 1, false, false)
-        //    {
-        //        Usage = EBufferUsage.StaticCopy
-        //    };
-
-        //    //Blendshape deltas
-        //    BlendshapePositionDeltasBuffer = new XRDataBuffer(ECommonBufferType.BlendshapePositionDeltas.ToString(), EBufferTarget.ArrayBuffer, vertCount, EComponentType.Float, 3, false, false)
-        //    {
-        //        Usage = EBufferUsage.StaticCopy
-        //    };
-        //    BlendshapeNormalDeltasBuffer = new XRDataBuffer(ECommonBufferType.BlendshapeNormalDeltas.ToString(), EBufferTarget.ArrayBuffer, vertCount, EComponentType.Float, 3, false, false)
-        //    {
-        //        Usage = EBufferUsage.StaticCopy
-        //    };
-        //    BlendshapeTangentDeltasBuffer = new XRDataBuffer(ECommonBufferType.BlendshapeTangentDeltas.ToString(), EBufferTarget.ArrayBuffer, vertCount, EComponentType.Float, 3, false, false)
-        //    {
-        //        Usage = EBufferUsage.StaticCopy
-        //    };
-
-        //    ////Blendshape color deltas
-        //    //BlendshapeColorDeltaBuffers = new XRDataBuffer[blendshapes.Count];
-        //    //for (int i = 0; i < blendshapes.Count; i++)
-        //    //{
-        //    //    BlendshapeColorDeltaBuffers[i] = new XRDataBuffer($"{ECommonBufferType.BlendshapeColorDeltas}{i}", EBufferTarget.ArrayBuffer, vertCount, EComponentType.Float, 4, false, false)
-        //    //    {
-        //    //        Usage = EBufferUsage.StaticCopy
-        //    //    };
-        //    //}
-
-        //    ////Blendshape texcoord deltas
-        //    //BlendshapeTexCoordDeltaBuffers = new XRDataBuffer[blendshapes.Count];
-        //    //for (int i = 0; i < blendshapes.Count; i++)
-        //    //{
-        //    //    BlendshapeTexCoordDeltaBuffers[i] = new XRDataBuffer($"{ECommonBufferType.BlendshapeTexCoordDeltas}{i}", EBufferTarget.ArrayBuffer, vertCount, EComponentType.Float, 2, false, false)
-        //    //    {
-        //    //        Usage = EBufferUsage.StaticCopy
-        //    //    };
-        //    //}
-
-
-        //    //Populate the buffers with the blendshape data
-        //    PopulateBlendshapeData(blendshapes);
-        //}
 
         private void PopulateSkinningBuffers(Dictionary<TransformBase, int> boneToIndexTable, Dictionary<TransformBase, (float weight, Matrix4x4 invBindMatrix)>?[] weightsPerVertex)
         {
@@ -1673,26 +1579,14 @@ namespace XREngine.Rendering
             if (optimizeTo4Weights)
             {
                 //4 bone indices
-                BoneWeightOffsets = new XRDataBuffer(ECommonBufferType.BoneMatrixOffset.ToString(), EBufferTarget.ArrayBuffer, vertCount, EComponentType.Int, 4, false, true)
-                {
-                    Usage = EBufferUsage.StaticCopy
-                };
+                BoneWeightOffsets = new XRDataBuffer(ECommonBufferType.BoneMatrixOffset.ToString(), EBufferTarget.ArrayBuffer, vertCount, EComponentType.Int, 4, false, true);
                 //4 bone weights
-                BoneWeightCounts = new XRDataBuffer(ECommonBufferType.BoneMatrixCount.ToString(), EBufferTarget.ArrayBuffer, vertCount, EComponentType.Float, 4, false, false)
-                {
-                    Usage = EBufferUsage.StaticCopy
-                };
+                BoneWeightCounts = new XRDataBuffer(ECommonBufferType.BoneMatrixCount.ToString(), EBufferTarget.ArrayBuffer, vertCount, EComponentType.Float, 4, false, false);
             }
             else
             {
-                BoneWeightOffsets = new XRDataBuffer(ECommonBufferType.BoneMatrixOffset.ToString(), EBufferTarget.ArrayBuffer, vertCount, EComponentType.Int, 1, false, true)
-                {
-                    Usage = EBufferUsage.StaticCopy
-                };
-                BoneWeightCounts = new XRDataBuffer(ECommonBufferType.BoneMatrixCount.ToString(), EBufferTarget.ArrayBuffer, vertCount, EComponentType.Int, 1, false, true)
-                {
-                    Usage = EBufferUsage.StaticCopy
-                };
+                BoneWeightOffsets = new XRDataBuffer(ECommonBufferType.BoneMatrixOffset.ToString(), EBufferTarget.ArrayBuffer, vertCount, EComponentType.Int, 1, false, true);
+                BoneWeightCounts = new XRDataBuffer(ECommonBufferType.BoneMatrixCount.ToString(), EBufferTarget.ArrayBuffer, vertCount, EComponentType.Int, 1, false, true);
             }
 
             PopulateWeightBuffers(boneToIndexTable, weightsPerVertex, optimizeTo4Weights, out List<int> boneIndices, out List<float> boneWeights);
@@ -1703,9 +1597,7 @@ namespace XREngine.Rendering
             if (!optimizeTo4Weights)
             {
                 BoneWeightIndices = Buffers.SetBufferRaw(boneIndices, $"{ECommonBufferType.BoneMatrixIndices}Buffer", false, true, false, 0, EBufferTarget.ShaderStorageBuffer);
-                BoneWeightIndices.Usage = EBufferUsage.StaticCopy;
                 BoneWeightValues = Buffers.SetBufferRaw(boneWeights, $"{ECommonBufferType.BoneMatrixWeights}Buffer", false, false, false, 0, EBufferTarget.ShaderStorageBuffer);
-                BoneWeightValues.Usage = EBufferUsage.StaticCopy;
             }
         }
 

@@ -1,7 +1,5 @@
 ﻿using Extensions;
 using Silk.NET.OpenGL;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using XREngine.Data;
@@ -218,11 +216,13 @@ namespace XREngine.Rendering.OpenGL
                     //if (Data.SingleBind != null)
                     //    modelMatrix *= Data.SingleBind.WorldMatrix;
 
+                    BindBuffers(vertexProgram!);
                     Data.PushBoneMatricesToGPU();
+                    Data.Mesh?.BlendshapeWeights?.PushSubData();
+
                     SetMeshUniforms(modelMatrix, vertexProgram!);
                     material.SetUniforms(materialProgram);
                     OnSettingUniforms(vertexProgram!, materialProgram!);
-                    BindBuffers(vertexProgram!);
                     Renderer.RenderMesh(this, false, instances);
                 }
                 else
@@ -237,11 +237,19 @@ namespace XREngine.Rendering.OpenGL
                 foreach (var buffer in _bufferCache.Where(x => x.Value.Data.Target == EBufferTarget.ShaderStorageBuffer))
                 {
                     var b = buffer.Value;
-                    b.Bind();
                     uint resourceIndex = b.Data.BindingIndexOverride ?? Api.GetProgramResourceIndex(vertexProgram!.BindingId, GLEnum.ShaderStorageBlock, b.Data.BindingName);
-                    Api.BindBufferBase(ToGLEnum(EBufferTarget.ShaderStorageBuffer), resourceIndex, b.BindingId);
-                    //b.PushSubData();
-                    b.Unbind();
+                    if (resourceIndex != uint.MaxValue)
+                    {
+                        b.Bind();
+                        Api.BindBufferBase(ToGLEnum(EBufferTarget.ShaderStorageBuffer), resourceIndex, b.BindingId);
+                        //b.PushSubData();
+                        b.Unbind();
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"Failed to bind shader storage buffer '{b.GetDescribingName()}' to program '{vertexProgram.GetDescribingName()}' with name '{b.Data.BindingName}'.");
+                        vertexProgram.Data.Shaders.ForEach(x => Debug.Out(x?.Source?.Text ?? string.Empty));
+                    }
                 }
             }
 

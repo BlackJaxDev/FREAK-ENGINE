@@ -87,7 +87,7 @@ namespace XREngine.Rendering
 
             ResetBoneInfo();
 
-            if (Mesh?.HasSkinning ?? false)
+            if ((Mesh?.HasSkinning ?? false) && Engine.Rendering.Settings.AllowSkinning)
             {
                 PopulateBoneMatrixBuffers();
                 Engine.Time.Timer.SwapBuffers += SwapBuffers;

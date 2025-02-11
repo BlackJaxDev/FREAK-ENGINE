@@ -211,6 +211,8 @@ namespace XREngine
             //if (node.MeshCount > 0)
             //    Debug.Out($"Node {name} has {node.MeshCount} meshes");
 
+            EnqueueProcessMeshes(node, scene, sceneNode, invRootMatrix, rootTransform!);
+
             for (var i = 0; i < node.ChildCount; i++)
                 ProcessNode(
                     false,
@@ -221,8 +223,6 @@ namespace XREngine
                     rootTransform,
                     fbxMatrix,
                     removeAssimpFBXNodes);
-
-            EnqueueProcessMeshes(node, scene, sceneNode, invRootMatrix, rootTransform!);
         }
 
         private SceneNode CreateNode(Node node, SceneNode parentSceneNode, Matrix4x4? fbxMatrixParent, bool removeAssimpFBXNodes, string name)
@@ -271,8 +271,16 @@ namespace XREngine
                 _meshes.Add(xrMesh);
                 _materials.Add(xrMaterial);
 
+                if (xrMesh.HasBlendshapes)
+                    sceneNode.RegisterAnimationTick<SceneNode>(t =>
+                    {
+                        for (int i = 0; i < xrMesh.BlendshapeCount; i++)
+                            xrMesh.BlendshapeWeights?.Set((uint)i, MathF.Sin(Engine.ElapsedTime) * 0.5f + 0.5f);
+                    });
+
                 model.Meshes.Add(new SubMesh(xrMesh, xrMaterial) { Name = mesh.Name, RootTransform = rootTransform });
             }
+
             modelComponent!.Model = model;
         }
 

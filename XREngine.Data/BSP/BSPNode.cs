@@ -42,7 +42,7 @@ namespace XREngine.Data.BSP
             }
         }
 
-        private void SplitTriangle(System.Numerics.Plane value, Triangle triangle, List<Triangle>? triangles, List<Triangle>? front, List<Triangle>? back)
+        private void SplitTriangle(Plane value, Triangle triangle, List<Triangle>? triangles, List<Triangle>? front, List<Triangle>? back)
         {
             int[] sides = GetSides(triangle, value);
 

@@ -33,12 +33,7 @@
         /// </summary>
         BlendshapeWeights,
         /// <summary>
-        /// The offset into the blendshape indices buffers for each vertex.
-        /// Add indices up until count to retrieve all indices for a vertex.
-        /// </summary>
-        BlendshapeOffset,
-        /// <summary>
-        /// The number of blendshapes affecting this particular vertex (pos, norm or tan has a non-zero delta).
+        /// The index into blendshape indices, and the number of blendshapes affecting this particular vertex (pos, norm or tan has a non-zero delta).
         /// </summary>
         BlendshapeCount,
         /// <summary>

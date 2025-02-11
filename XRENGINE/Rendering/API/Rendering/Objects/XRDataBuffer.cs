@@ -2,8 +2,10 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using System.Text;
 using XREngine.Data;
 using XREngine.Data.Rendering;
+using XREngine.Data.Vectors;
 using XREngine.Rendering.Objects;
 using YamlDotNet.Serialization;
 
@@ -447,6 +449,10 @@ namespace XREngine.Rendering
                     _componentType = EComponentType.Float;
                     _componentCount = 2;
                     break;
+                case Type t when t == typeof(IVector2):
+                    _componentType = EComponentType.Int;
+                    _componentCount = 2;
+                    break;
                 case Type t when t == typeof(Vector3):
                     _componentType = EComponentType.Float;
                     _componentCount = 3;
@@ -786,6 +792,52 @@ namespace XREngine.Rendering
 
             _clientSideSource?.Dispose();
             _clientSideSource = newSource;
+        }
+
+        public unsafe void Print()
+        {
+            switch (ComponentType)
+            {
+                case EComponentType.SByte:
+                    Print<sbyte>();
+                    break;
+                case EComponentType.Byte:
+                    Print<byte>();
+                    break;
+                case EComponentType.Short:
+                    Print<short>();
+                    break;
+                case EComponentType.UShort:
+                    Print<ushort>();
+                    break;
+                case EComponentType.Int:
+                    Print<int>();
+                    break;
+                case EComponentType.UInt:
+                    Print<uint>();
+                    break;
+                case EComponentType.Float:
+                    Print<float>();
+                    break;
+                case EComponentType.Double:
+                    Print<double>();
+                    break;
+                default:
+                    Debug.Out("Unsupported data type.");
+                    break;
+            }
+        }
+
+        private void Print<T>() where T : struct
+        {
+            GetDataRaw<T>(out T[] array);
+            StringBuilder sb = new();
+            foreach (T item in array)
+            {
+                sb.Append(item);
+                sb.Append(' ');
+            }
+            Debug.Out(sb.ToString());
         }
 
         public static implicit operator VoidPtr(XRDataBuffer b) => b.Address;

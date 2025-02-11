@@ -1,4 +1,5 @@
-﻿using Silk.NET.OpenGL;
+﻿using Extensions;
+using Silk.NET.OpenGL;
 using XREngine.Data;
 using XREngine.Data.Rendering;
 
@@ -44,73 +45,86 @@ namespace XREngine.Rendering.OpenGL
 
             private void BindBuffer(GLMeshRenderer renderer)
             {
-                //TODO: get GL version
-                int glVer = 2;
-                uint index = GetBindingLocation(renderer);
-                int componentType = (int)Data.ComponentType;
-                uint componentCount = Data.ComponentCount;
-                bool integral = Data.Integral;
-
-                switch (glVer)
+                try
                 {
-                    case 0:
-                        Bind();
-                        if (Data.Target == EBufferTarget.ArrayBuffer)
-                        {
-                            Api.EnableVertexAttribArray(index);
-                            void* addr = Data.Address;
-                            if (integral)
-                                Api.VertexAttribIPointer(index, (int)componentCount, GLEnum.Byte + componentType, 0, addr);
-                            else
-                                Api.VertexAttribPointer(index, (int)componentCount, GLEnum.Byte + componentType, Data.Normalize, 0, addr);
-                        }
-                        Unbind();
-                        break;
+                    //TODO: get GL version
+                    int glVer = 2;
+                    uint index = GetBindingLocation(renderer);
+                    if (index == uint.MaxValue)
+                    {
+                        Debug.LogWarning($"Failed to bind buffer {GetDescribingName()} to mesh renderer {renderer.GetDescribingName()}.");
+                        renderer.VertexProgram.Data.Shaders.ForEach(x => Debug.Out(x?.Source?.Text ?? string.Empty));
+                        return;
+                    }
+                    int componentType = (int)Data.ComponentType;
+                    uint componentCount = Data.ComponentCount;
+                    bool integral = Data.Integral;
 
-                    case 1:
+                    switch (glVer)
+                    {
+                        case 0:
+                            Bind();
+                            if (Data.Target == EBufferTarget.ArrayBuffer)
+                            {
+                                Api.EnableVertexAttribArray(index);
+                                void* addr = Data.Address;
+                                if (integral)
+                                    Api.VertexAttribIPointer(index, (int)componentCount, GLEnum.Byte + componentType, 0, addr);
+                                else
+                                    Api.VertexAttribPointer(index, (int)componentCount, GLEnum.Byte + componentType, Data.Normalize, 0, addr);
+                            }
+                            Unbind();
+                            break;
 
-                        Api.BindVertexBuffer(index, BindingId, IntPtr.Zero, Data.ElementSize);
+                        case 1:
 
-                        if (Data.Target == EBufferTarget.ArrayBuffer)
-                        {
-                            Api.EnableVertexAttribArray(index);
-                            Api.VertexAttribBinding(index, index);
-                            if (integral)
-                                Api.VertexAttribIFormat(index, (int)componentCount, GLEnum.Byte + componentType, 0);
-                            else
-                                Api.VertexAttribFormat(index, (int)componentCount, GLEnum.Byte + componentType, Data.Normalize, 0);
-                        }
+                            Api.BindVertexBuffer(index, BindingId, IntPtr.Zero, Data.ElementSize);
 
-                        break;
+                            if (Data.Target == EBufferTarget.ArrayBuffer)
+                            {
+                                Api.EnableVertexAttribArray(index);
+                                Api.VertexAttribBinding(index, index);
+                                if (integral)
+                                    Api.VertexAttribIFormat(index, (int)componentCount, GLEnum.Byte + componentType, 0);
+                                else
+                                    Api.VertexAttribFormat(index, (int)componentCount, GLEnum.Byte + componentType, Data.Normalize, 0);
+                            }
 
-                    default:
-                    case 2:
+                            break;
 
-                        switch (Data.Target)
-                        {
-                            case EBufferTarget.ArrayBuffer:
-                                {
-                                    uint vaoId = renderer.BindingId;
-                                    Api.EnableVertexArrayAttrib(vaoId, index);
-                                    Api.VertexArrayBindingDivisor(vaoId, index, Data.InstanceDivisor);
-                                    Api.VertexArrayAttribBinding(vaoId, index, index);
-                                    if (integral)
-                                        Api.VertexArrayAttribIFormat(vaoId, index, (int)componentCount, GLEnum.Byte + componentType, 0);
-                                    else
-                                        Api.VertexArrayAttribFormat(vaoId, index, (int)componentCount, GLEnum.Byte + componentType, Data.Normalize, 0);
-                                    Api.VertexArrayVertexBuffer(vaoId, index, BindingId, 0, Data.ElementSize);
-                                }
-                                break;
-                            case EBufferTarget.ShaderStorageBuffer:
-                            case EBufferTarget.UniformBuffer:
-                                Bind();
-                                //Api.BufferData(ToGLEnum(Data.Target), Data.Length, Data.Address.Pointer, ToGLEnum(Data.Usage));
-                                Api.BindBufferBase(ToGLEnum(Data.Target), index, BindingId);
-                                Unbind();
-                                break;
-                        }
+                        default:
+                        case 2:
 
-                        break;
+                            switch (Data.Target)
+                            {
+                                case EBufferTarget.ArrayBuffer:
+                                    {
+                                        uint vaoId = renderer.BindingId;
+                                        Api.EnableVertexArrayAttrib(vaoId, index);
+                                        Api.VertexArrayBindingDivisor(vaoId, index, Data.InstanceDivisor);
+                                        Api.VertexArrayAttribBinding(vaoId, index, index);
+                                        if (integral)
+                                            Api.VertexArrayAttribIFormat(vaoId, index, (int)componentCount, GLEnum.Byte + componentType, 0);
+                                        else
+                                            Api.VertexArrayAttribFormat(vaoId, index, (int)componentCount, GLEnum.Byte + componentType, Data.Normalize, 0);
+                                        Api.VertexArrayVertexBuffer(vaoId, index, BindingId, 0, Data.ElementSize);
+                                    }
+                                    break;
+                                case EBufferTarget.ShaderStorageBuffer:
+                                case EBufferTarget.UniformBuffer:
+                                    Bind();
+                                    //Api.BufferData(ToGLEnum(Data.Target), Data.Length, Data.Address.Pointer, ToGLEnum(Data.Usage));
+                                    Api.BindBufferBase(ToGLEnum(Data.Target), index, BindingId);
+                                    Unbind();
+                                    break;
+                            }
+
+                            break;
+                    }
+                }
+                catch (Exception e)
+                {
+                    Debug.LogException(e, "Error binding buffer.");
                 }
 
                 if (Data.Mapped)
