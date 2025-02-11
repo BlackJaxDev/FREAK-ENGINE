@@ -34,7 +34,7 @@ namespace XREngine
             {
                 private Vector3 _defaultLuminance = new(0.299f, 0.587f, 0.114f);
                 private bool _allowShaderPipelines = true;
-                private bool _useIntegerUniformsInShaders = true;
+                private bool _useIntegerUniformsInShaders = false;
                 private bool _optimizeTo4Weights = false;
                 private bool _optimizeWeightsIfPossible = true;
                 private bool _tickGroupedItemsInParallel = false;
@@ -229,6 +229,8 @@ namespace XREngine
                 public ColorF4 TransformCapsuleColor { get; set; } = ColorF4.LightOrange;
                 public bool AllowSkinning { get; set; } = true;
                 public bool AllowBlendshapes { get; set; } = true;
+                public bool RemapBlendshapeDeltas { get; set; } = false;
+                public bool UseAbsoluteBlendshapePositions { get; set; } = true;
             }
         }
     }

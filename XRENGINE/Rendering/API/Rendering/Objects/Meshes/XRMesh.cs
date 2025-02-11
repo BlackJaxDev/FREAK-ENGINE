@@ -1184,25 +1184,51 @@ namespace XREngine.Rendering
 
                 if (v.Blendshapes is not null && v.Blendshapes.Count > 0 && !vertexActions.ContainsKey(5) && Engine.Rendering.Settings.AllowBlendshapes)
                 {
-                    vertexActions.TryAdd(5, (i, x, vtx) =>
+                    bool absolute = Engine.Rendering.Settings.UseAbsoluteBlendshapePositions;
+                    if (absolute)
                     {
-                        if (vtx?.Blendshapes is null)
-                            return;
-
-                        foreach (KeyValuePair<string, VertexData> d in vtx.Blendshapes)
+                        vertexActions.TryAdd(5, (i, x, vtx) =>
                         {
-                            var data = d.Value;
-                            if (data is null)
-                                continue;
+                            if (vtx?.Blendshapes is null)
+                                return;
 
-                            if (positionDeltas is not null)
-                                positionDeltas[d.Key][i] = data.Position - vtx.Position;
-                            if (normalDeltas is not null && data.Normal is not null && vtx.Normal is not null)
-                                normalDeltas[d.Key][i] = data.Normal.Value - vtx.Normal.Value;
-                            if (tangentDeltas is not null && data.Tangent is not null && vtx.Tangent is not null)
-                                tangentDeltas[d.Key][i] = data.Tangent.Value - vtx.Tangent.Value;
-                        }
-                    });
+                            foreach (KeyValuePair<string, VertexData> d in vtx.Blendshapes)
+                            {
+                                var data = d.Value;
+                                if (data is null)
+                                    continue;
+
+                                if (positionDeltas is not null)
+                                    positionDeltas[d.Key][i] = data.Position;
+                                if (normalDeltas is not null && data.Normal is not null)
+                                    normalDeltas[d.Key][i] = data.Normal.Value;
+                                if (tangentDeltas is not null && data.Tangent is not null)
+                                    tangentDeltas[d.Key][i] = data.Tangent.Value;
+                            }
+                        });
+                    }
+                    else
+                    {
+                        vertexActions.TryAdd(5, (i, x, vtx) =>
+                        {
+                            if (vtx?.Blendshapes is null)
+                                return;
+
+                            foreach (KeyValuePair<string, VertexData> d in vtx.Blendshapes)
+                            {
+                                var data = d.Value;
+                                if (data is null)
+                                    continue;
+
+                                if (positionDeltas is not null)
+                                    positionDeltas[d.Key][i] = data.Position - vtx.Position;
+                                if (normalDeltas is not null && data.Normal is not null && vtx.Normal is not null)
+                                    normalDeltas[d.Key][i] = data.Normal.Value - vtx.Normal.Value;
+                                if (tangentDeltas is not null && data.Tangent is not null && vtx.Tangent is not null)
+                                    tangentDeltas[d.Key][i] = data.Tangent.Value - vtx.Tangent.Value;
+                            }
+                        });
+                    }
                 }
             }
 
@@ -1379,8 +1405,10 @@ namespace XREngine.Rendering
             ConcurrentDictionary<string, Vector3[]>? normalDeltas,
             ConcurrentDictionary<string, Vector3[]>? tangentDeltas)
         {
-            BlendshapeCounts = new XRDataBuffer(ECommonBufferType.BlendshapeCount.ToString(), EBufferTarget.ArrayBuffer, (uint)sourceList.Count, EComponentType.Int, 2, false, true);
-            BlendshapeWeights = new XRDataBuffer($"{ECommonBufferType.BlendshapeWeights}Buffer", EBufferTarget.ShaderStorageBuffer, BlendshapeCount, EComponentType.Float, 1, false, false)
+            bool intVarType = Engine.Rendering.Settings.UseIntegerUniformsInShaders;
+
+            BlendshapeCounts = new XRDataBuffer(ECommonBufferType.BlendshapeCount.ToString(), EBufferTarget.ArrayBuffer, (uint)sourceList.Count, intVarType ? EComponentType.Int : EComponentType.Float, 2, false, intVarType);
+            BlendshapeWeights = new XRDataBuffer($"{ECommonBufferType.BlendshapeWeights}Buffer", EBufferTarget.ShaderStorageBuffer, BlendshapeCount, EComponentType.Float, 1, true, false)
             {
                 Usage = EBufferUsage.StreamDraw
             };
@@ -1397,6 +1425,7 @@ namespace XREngine.Rendering
             int sourceCount = sourceList.Count;
             int blendshapeCount = mesh.MeshAnimationAttachmentCount;
             int* blendshapeCounts = (int*)BlendshapeCounts.Address;
+            float* blendshapeCountsFloat = (float*)BlendshapeCounts.Address;
             for (int i = 0; i < sourceCount; i++)
             {
                 int activeBlendshapeCountForThisVertex = 0;
@@ -1435,26 +1464,56 @@ namespace XREngine.Rendering
                         blendshapeIndices.Add(new IVector4(j, posInd, nrmInd, tanInd));
                     }
                 }
-                *blendshapeCounts++ = activeBlendshapeCountForThisVertex > 0 ? blendshapeDeltaIndicesIndex : 0;
-                *blendshapeCounts++ = activeBlendshapeCountForThisVertex;
+                if (intVarType)
+                {
+                    *blendshapeCounts++ = activeBlendshapeCountForThisVertex > 0 ? blendshapeDeltaIndicesIndex : 0;
+                    *blendshapeCounts++ = activeBlendshapeCountForThisVertex;
+                }
+                else
+                {
+                    *blendshapeCountsFloat++ = activeBlendshapeCountForThisVertex > 0 ? blendshapeDeltaIndicesIndex : 0;
+                    *blendshapeCountsFloat++ = activeBlendshapeCountForThisVertex;
+                }
                 blendshapeDeltaIndicesIndex += activeBlendshapeCountForThisVertex;
             }
 
-            BlendshapeIndices = new XRDataBuffer($"{ECommonBufferType.BlendshapeIndices}Buffer", EBufferTarget.ShaderStorageBuffer, (uint)blendshapeIndices.Count, EComponentType.Int, 4, false, true);
-            BlendshapeDeltasBuffer = new XRDataBuffer($"{ECommonBufferType.BlendshapeDeltas}Buffer", EBufferTarget.ShaderStorageBuffer, /*(uint)deltas.Count, EComponentType.Float, 4, false,*/ false);
-            //for (int i = 0; i < deltas.Count; i++)
-            //    BlendshapeDeltasBuffer!.Set((uint)i, deltas[i]);
-            //for (int i = 0; i < blendshapeIndices.Count; i++)
-            //    BlendshapeIndices!.Set((uint)i, blendshapeIndices[i]);
+            bool remapDeltas = Engine.Rendering.Settings.RemapBlendshapeDeltas;
 
-            var deltaRemap = BlendshapeDeltasBuffer!.SetDataRaw(deltas, true);
-            //Update the blendshape indices buffer with remapped delta indices
-            var remap = deltaRemap!.RemapTable!;
-            for (int i = 0; i < blendshapeIndices.Count; i++)
+            BlendshapeIndices = new XRDataBuffer($"{ECommonBufferType.BlendshapeIndices}Buffer", EBufferTarget.ShaderStorageBuffer, (uint)blendshapeIndices.Count, intVarType ? EComponentType.Int : EComponentType.Float, 4, false, intVarType);
+            if (remapDeltas)
             {
-                IVector4 indices = blendshapeIndices[i];
-                IVector4 newIndices = new(indices.X, remap[indices.Y], remap[indices.Z], remap[indices.W]);
-                BlendshapeIndices.Set((uint)i, newIndices);
+                BlendshapeDeltasBuffer = new XRDataBuffer($"{ECommonBufferType.BlendshapeDeltas}Buffer", EBufferTarget.ShaderStorageBuffer, false);
+
+                var deltaRemap = BlendshapeDeltasBuffer!.SetDataRaw(deltas, true);
+                //Update the blendshape indices buffer with remapped delta indices
+                var remap = deltaRemap!.RemapTable!;
+                for (int i = 0; i < blendshapeIndices.Count; i++)
+                {
+                    IVector4 indices = blendshapeIndices[i];
+                    if (intVarType)
+                    {
+                        IVector4 newIndices = new(indices.X, remap[indices.Y], remap[indices.Z], remap[indices.W]);
+                        BlendshapeIndices.Set((uint)i, newIndices);
+                    }
+                    else
+                    {
+                        Vector4 newIndices = new(indices.X, remap[indices.Y], remap[indices.Z], remap[indices.W]);
+                        BlendshapeIndices.Set((uint)i, newIndices);
+                    }
+                }
+            }
+            else
+            {
+                BlendshapeDeltasBuffer = new XRDataBuffer($"{ECommonBufferType.BlendshapeDeltas}Buffer", EBufferTarget.ShaderStorageBuffer, (uint)deltas.Count, EComponentType.Float, 4, false, false);
+                for (int i = 0; i < deltas.Count; i++)
+                    BlendshapeDeltasBuffer!.Set((uint)i, deltas[i]);
+                for (int i = 0; i < blendshapeIndices.Count; i++)
+                {
+                    if (intVarType)
+                        BlendshapeIndices!.Set((uint)i, blendshapeIndices[i]);
+                    else
+                        BlendshapeIndices.Set((uint)i, (Vector4)blendshapeIndices[i]);
+                }
             }
 
             Buffers.Add(BlendshapeCounts.BindingName, BlendshapeCounts);
@@ -1574,19 +1633,21 @@ namespace XREngine.Rendering
             //using var timer = Engine.Profiler.Start();
 
             uint vertCount = (uint)VertexCount;
+            bool intVarType = Engine.Rendering.Settings.UseIntegerUniformsInShaders;
+            EComponentType indexVarType = intVarType ? EComponentType.Int : EComponentType.Float;
 
             bool optimizeTo4Weights = Engine.Rendering.Settings.OptimizeSkinningTo4Weights || (Engine.Rendering.Settings.OptimizeSkinningWeightsIfPossible && MaxWeightCount <= 4);
             if (optimizeTo4Weights)
             {
                 //4 bone indices
-                BoneWeightOffsets = new XRDataBuffer(ECommonBufferType.BoneMatrixOffset.ToString(), EBufferTarget.ArrayBuffer, vertCount, EComponentType.Int, 4, false, true);
+                BoneWeightOffsets = new XRDataBuffer(ECommonBufferType.BoneMatrixOffset.ToString(), EBufferTarget.ArrayBuffer, vertCount, indexVarType, 4, false, intVarType);
                 //4 bone weights
                 BoneWeightCounts = new XRDataBuffer(ECommonBufferType.BoneMatrixCount.ToString(), EBufferTarget.ArrayBuffer, vertCount, EComponentType.Float, 4, false, false);
             }
             else
             {
-                BoneWeightOffsets = new XRDataBuffer(ECommonBufferType.BoneMatrixOffset.ToString(), EBufferTarget.ArrayBuffer, vertCount, EComponentType.Int, 1, false, true);
-                BoneWeightCounts = new XRDataBuffer(ECommonBufferType.BoneMatrixCount.ToString(), EBufferTarget.ArrayBuffer, vertCount, EComponentType.Int, 1, false, true);
+                BoneWeightOffsets = new XRDataBuffer(ECommonBufferType.BoneMatrixOffset.ToString(), EBufferTarget.ArrayBuffer, vertCount, indexVarType, 1, false, intVarType);
+                BoneWeightCounts = new XRDataBuffer(ECommonBufferType.BoneMatrixCount.ToString(), EBufferTarget.ArrayBuffer, vertCount, indexVarType, 1, false, intVarType);
             }
 
             PopulateWeightBuffers(boneToIndexTable, weightsPerVertex, optimizeTo4Weights, out List<int> boneIndices, out List<float> boneWeights);
@@ -1596,7 +1657,10 @@ namespace XREngine.Rendering
 
             if (!optimizeTo4Weights)
             {
-                BoneWeightIndices = Buffers.SetBufferRaw(boneIndices, $"{ECommonBufferType.BoneMatrixIndices}Buffer", false, true, false, 0, EBufferTarget.ShaderStorageBuffer);
+                if (intVarType)
+                    BoneWeightIndices = Buffers.SetBufferRaw(boneIndices, $"{ECommonBufferType.BoneMatrixIndices}Buffer", false, true, false, 0, EBufferTarget.ShaderStorageBuffer);
+                else
+                    BoneWeightIndices = Buffers.SetBufferRaw(boneIndices.Select(x => (float)x).ToArray(), $"{ECommonBufferType.BoneMatrixIndices}Buffer", false, false, false, 0, EBufferTarget.ShaderStorageBuffer);
                 BoneWeightValues = Buffers.SetBufferRaw(boneWeights, $"{ECommonBufferType.BoneMatrixWeights}Buffer", false, false, false, 0, EBufferTarget.ShaderStorageBuffer);
             }
         }
@@ -1612,6 +1676,7 @@ namespace XREngine.Rendering
             boneIndices = [];
             boneWeights = [];
             int offset = 0;
+            bool intVarType = Engine.Rendering.Settings.UseIntegerUniformsInShaders;
             for (uint vertexIndex = 0; vertexIndex < VertexCount; ++vertexIndex)
             {
                 var weightGroup = weightsPerVertex[vertexIndex];
@@ -1622,15 +1687,31 @@ namespace XREngine.Rendering
 
                 if (weightGroup is null)
                 {
-                    if (optimizeTo4Weights)
+                    if (intVarType)
                     {
-                        BoneWeightOffsets?.Set(vertexIndex, new IVector4());
-                        BoneWeightCounts?.Set(vertexIndex, new Vector4());
+                        if (optimizeTo4Weights)
+                        {
+                            BoneWeightOffsets?.Set(vertexIndex, new IVector4());
+                            BoneWeightCounts?.Set(vertexIndex, new Vector4());
+                        }
+                        else
+                        {
+                            BoneWeightOffsets?.Set(vertexIndex, offset);
+                            BoneWeightCounts?.Set(vertexIndex, 0);
+                        }
                     }
                     else
                     {
-                        BoneWeightOffsets?.Set(vertexIndex, offset);
-                        BoneWeightCounts?.Set(vertexIndex, 0);
+                        if (optimizeTo4Weights)
+                        {
+                            BoneWeightOffsets?.Set(vertexIndex, new Vector4());
+                            BoneWeightCounts?.Set(vertexIndex, new Vector4());
+                        }
+                        else
+                        {
+                            BoneWeightOffsets?.Set(vertexIndex, (float)offset);
+                            BoneWeightCounts?.Set(vertexIndex, 0.0f);
+                        }
                     }
                 }
                 else if (optimizeTo4Weights)
@@ -1656,7 +1737,10 @@ namespace XREngine.Rendering
                         i++;
                     }
 
-                    BoneWeightOffsets?.Set(vertexIndex, indices);
+                    if (intVarType)
+                        BoneWeightOffsets?.Set(vertexIndex, indices);
+                    else
+                        BoneWeightOffsets?.Set(vertexIndex, new Vector4(indices.X, indices.Y, indices.Z, indices.W));
                     BoneWeightCounts?.Set(vertexIndex, weights);
                 }
                 else
@@ -1678,8 +1762,16 @@ namespace XREngine.Rendering
                         boneIndices.Add(boneIndex + 1); //+1 because 0 is reserved for the identity matrix
                         boneWeights.Add(boneWeight);
                     }
-                    BoneWeightOffsets?.Set(vertexIndex, offset);
-                    BoneWeightCounts?.Set(vertexIndex, count);
+                    if (intVarType)
+                    {
+                        BoneWeightOffsets?.Set(vertexIndex, offset);
+                        BoneWeightCounts?.Set(vertexIndex, count);
+                    }
+                    else
+                    {
+                        BoneWeightOffsets?.Set(vertexIndex, (float)offset);
+                        BoneWeightCounts?.Set(vertexIndex, (float)count);
+                    }
                     offset += count;
                 }
             }
