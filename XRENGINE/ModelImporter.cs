@@ -271,13 +271,6 @@ namespace XREngine
                 _meshes.Add(xrMesh);
                 _materials.Add(xrMaterial);
 
-                if (xrMesh.HasBlendshapes)
-                    sceneNode.RegisterAnimationTick<SceneNode>(t =>
-                    {
-                        for (int i = 0; i < xrMesh.BlendshapeCount; i++)
-                            xrMesh.BlendshapeWeights?.Set((uint)i, MathF.Sin(Engine.ElapsedTime) * 0.5f + 0.5f);
-                    });
-
                 model.Meshes.Add(new SubMesh(xrMesh, xrMaterial) { Name = mesh.Name, RootTransform = rootTransform });
             }
 

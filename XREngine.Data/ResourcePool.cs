@@ -51,7 +51,8 @@ namespace XREngine.Core
                 item.OnPoolableReset();
                 return item;
             }
-            return _generator();
+            else
+                return _generator();
         }
         public void Release(T item)
         {

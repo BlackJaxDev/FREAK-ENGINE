@@ -2,6 +2,7 @@
 using Extensions;
 using SimpleScene.Util.ssBVH;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
@@ -684,7 +685,7 @@ namespace XREngine.Rendering
 
         #region Blendshape Buffers
         //Deltas for each blendshape on this mesh
-        public XRDataBuffer? BlendshapeDeltasBuffer { get; private set; }
+        public XRDataBuffer? BlendshapeDeltas { get; private set; }
         ///// <summary>
         ///// Remapped array of position deltas for all blendshapes on this mesh.
         ///// Static read-only buffer.
@@ -827,7 +828,7 @@ namespace XREngine.Rendering
 
         public XRMesh(IEnumerable<Vertex> vertices, List<ushort> triangleIndices)
         {
-            Engine.Profiler.Start(null, true, "XRMesh Constructor");
+            //using var t = Engine.Profiler.Start(null, true, "XRMesh Constructor");
 
             List<Vertex> triVertices = [];
 
@@ -931,7 +932,7 @@ namespace XREngine.Rendering
         /// <param name="type"></param>
         public XRMesh(IEnumerable<VertexPrimitive> primitives) : this()
         {
-            Engine.Profiler.Start(null, true, "XRMesh Constructor");
+            //Engine.Profiler.Start(null, true, "XRMesh Constructor");
 
             //TODO: convert triangles to tristrips and use primitive restart to render them all in one call? is this more efficient?
 
@@ -1112,7 +1113,7 @@ namespace XREngine.Rendering
             Dictionary<string, List<SceneNode>> nodeCache,
             Matrix4x4 invRootMatrix) : this()
         {
-            Engine.Profiler.Start(null, true, "XRMesh Assimp Constructor");
+            //using var t = Engine.Profiler.Start(null, true, "XRMesh Assimp Constructor");
 
             Matrix4x4 dataTransform = Matrix4x4.Identity;//parentTransform.InverseWorldMatrix;
 
@@ -1125,9 +1126,9 @@ namespace XREngine.Rendering
             List<Vertex> lines = [];
             List<Vertex> triangles = [];
 
-            ConcurrentDictionary<string, Vector3[]>? positionDeltas = null;
-            ConcurrentDictionary<string, Vector3[]>? normalDeltas = null;
-            ConcurrentDictionary<string, Vector3[]>? tangentDeltas = null;
+            //Vector3[][]? positionDeltas = null;
+            //Vector3[][]? normalDeltas = null;
+            //Vector3[][]? tangentDeltas = null;
 
             //Create an action for each vertex attribute to set the buffer data
             //This lets us avoid redundant LINQ code by looping through the vertices only once
@@ -1182,54 +1183,54 @@ namespace XREngine.Rendering
                     });
                 }
 
-                if (v.Blendshapes is not null && v.Blendshapes.Count > 0 && !vertexActions.ContainsKey(5) && Engine.Rendering.Settings.AllowBlendshapes)
-                {
-                    bool absolute = Engine.Rendering.Settings.UseAbsoluteBlendshapePositions;
-                    if (absolute)
-                    {
-                        vertexActions.TryAdd(5, (i, x, vtx) =>
-                        {
-                            if (vtx?.Blendshapes is null)
-                                return;
+                //if (v.Blendshapes is not null && v.Blendshapes.Count > 0 && !vertexActions.ContainsKey(5) && Engine.Rendering.Settings.AllowBlendshapes)
+                //{
+                //    bool absolute = Engine.Rendering.Settings.UseAbsoluteBlendshapePositions;
+                //    if (absolute)
+                //    {
+                //        vertexActions.TryAdd(5, (i, x, vtx) =>
+                //        {
+                //            if (vtx?.Blendshapes is null)
+                //                return;
 
-                            foreach (KeyValuePair<string, VertexData> d in vtx.Blendshapes)
-                            {
-                                var data = d.Value;
-                                if (data is null)
-                                    continue;
+                //            for (int r = 0; r < vtx.Blendshapes.Count; r++)
+                //            {
+                //                (string _, VertexData data) = vtx.Blendshapes[r];
+                //                if (data is null)
+                //                    continue;
 
-                                if (positionDeltas is not null)
-                                    positionDeltas[d.Key][i] = data.Position;
-                                if (normalDeltas is not null && data.Normal is not null)
-                                    normalDeltas[d.Key][i] = data.Normal.Value;
-                                if (tangentDeltas is not null && data.Tangent is not null)
-                                    tangentDeltas[d.Key][i] = data.Tangent.Value;
-                            }
-                        });
-                    }
-                    else
-                    {
-                        vertexActions.TryAdd(5, (i, x, vtx) =>
-                        {
-                            if (vtx?.Blendshapes is null)
-                                return;
+                //                if (positionDeltas is not null)
+                //                    positionDeltas[r][i] = data.Position;
+                //                if (normalDeltas is not null && data.Normal is not null)
+                //                    normalDeltas[r][i] = data.Normal.Value;
+                //                if (tangentDeltas is not null && data.Tangent is not null)
+                //                    tangentDeltas[r][i] = data.Tangent.Value;
+                //            }
+                //        });
+                //    }
+                //    else
+                //    {
+                //        vertexActions.TryAdd(5, (i, x, vtx) =>
+                //        {
+                //            if (vtx?.Blendshapes is null)
+                //                return;
 
-                            foreach (KeyValuePair<string, VertexData> d in vtx.Blendshapes)
-                            {
-                                var data = d.Value;
-                                if (data is null)
-                                    continue;
+                //            for (int r = 0; r < vtx.Blendshapes.Count; r++)
+                //            {
+                //                (string _, VertexData data) = vtx.Blendshapes[r];
+                //                if (data is null)
+                //                    continue;
 
-                                if (positionDeltas is not null)
-                                    positionDeltas[d.Key][i] = data.Position - vtx.Position;
-                                if (normalDeltas is not null && data.Normal is not null && vtx.Normal is not null)
-                                    normalDeltas[d.Key][i] = data.Normal.Value - vtx.Normal.Value;
-                                if (tangentDeltas is not null && data.Tangent is not null && vtx.Tangent is not null)
-                                    tangentDeltas[d.Key][i] = data.Tangent.Value - vtx.Tangent.Value;
-                            }
-                        });
-                    }
-                }
+                //                if (positionDeltas is not null)
+                //                    positionDeltas[r][i] = data.Position - vtx.Position;
+                //                if (normalDeltas is not null && data.Normal is not null && vtx.Normal is not null)
+                //                    normalDeltas[r][i] = data.Normal.Value - vtx.Normal.Value;
+                //                if (tangentDeltas is not null && data.Tangent is not null && vtx.Tangent is not null)
+                //                    tangentDeltas[r][i] = data.Tangent.Value - vtx.Tangent.Value;
+                //            }
+                //        });
+                //    }
+                //}
             }
 
             //Convert all primitives to simple primitives
@@ -1340,7 +1341,7 @@ namespace XREngine.Rendering
                 faceRemap,
                 sourceList);
 
-            bool hasBlendshapes = Engine.Rendering.Settings.AllowBlendshapes && mesh.HasMeshAnimationAttachments && vertexActions.ContainsKey(5);
+            bool hasBlendshapes = Engine.Rendering.Settings.AllowBlendshapes && mesh.HasMeshAnimationAttachments;
             BlendshapeCount = hasBlendshapes ? (uint)mesh.MeshAnimationAttachmentCount : 0u;
 
             InitMeshBuffers(
@@ -1349,40 +1350,18 @@ namespace XREngine.Rendering
                 maxColorCount,
                 maxTexCoordCount);
 
-            if (hasBlendshapes)
-            {
-                positionDeltas = [];
-                normalDeltas = [];
-                tangentDeltas = [];
-                for (int i = 0; i < mesh.MeshAnimationAttachmentCount; i++)
-                {
-                    string name = mesh.MeshAnimationAttachments[i].Name;
-
-                    if (positionDeltas.ContainsKey(name))
-                    {
-                        string newName = name + $"_{i}";
-                        positionDeltas.TryAdd(newName, new Vector3[count]);
-                    }
-                    else
-                        positionDeltas.TryAdd(name, new Vector3[count]);
-
-                    if (normalDeltas.ContainsKey(name))
-                    {
-                        string newName = name + $"_{i}";
-                        normalDeltas.TryAdd(newName, new Vector3[count]);
-                    }
-                    else
-                        normalDeltas.TryAdd(name, new Vector3[count]);
-
-                    if (tangentDeltas.ContainsKey(name))
-                    {
-                        string newName = name + $"_{i}";
-                        tangentDeltas.TryAdd(newName, new Vector3[count]);
-                    }
-                    else
-                        tangentDeltas.TryAdd(name, new Vector3[count]);
-                }
-            }
+            //if (hasBlendshapes)
+            //{
+            //    positionDeltas = new Vector3[mesh.MeshAnimationAttachmentCount][];
+            //    normalDeltas = new Vector3[mesh.MeshAnimationAttachmentCount][];
+            //    tangentDeltas = new Vector3[mesh.MeshAnimationAttachmentCount][];
+            //    for (int i = 0; i < mesh.MeshAnimationAttachmentCount; i++)
+            //    {
+            //        positionDeltas[i] = new Vector3[count];
+            //        normalDeltas[i] = new Vector3[count];
+            //        tangentDeltas[i] = new Vector3[count];
+            //    }
+            //}
 
             vertexActions.TryAdd(6, (i, x, vtx) => PositionsBuffer!.SetDataRawAtIndex((uint)i, Vector3.Transform(vtx?.Position ?? Vector3.Zero, dataTransform)));
 
@@ -1393,22 +1372,22 @@ namespace XREngine.Rendering
             PopulateVertexData(vertexActions.Values, sourceList, count, true);
 
             if (hasBlendshapes)
-                PopulateBlendshapeBuffers(sourceList, mesh, positionDeltas, normalDeltas, tangentDeltas);
+                PopulateBlendshapeBuffers(sourceList, mesh/*, positionDeltas, normalDeltas, tangentDeltas*/);
 
             _bounds = bounds ?? new AABB(Vector3.Zero, Vector3.Zero);
         }
 
         private unsafe void PopulateBlendshapeBuffers(
             List<Vertex> sourceList,
-            Mesh mesh,
-            ConcurrentDictionary<string, Vector3[]>? positionDeltas,
-            ConcurrentDictionary<string, Vector3[]>? normalDeltas,
-            ConcurrentDictionary<string, Vector3[]>? tangentDeltas)
+            Mesh mesh)//,
+            //Vector3[][]? positionDeltas,
+            //Vector3[][]? normalDeltas,
+            //Vector3[][]? tangentDeltas)
         {
             bool intVarType = Engine.Rendering.Settings.UseIntegerUniformsInShaders;
 
             BlendshapeCounts = new XRDataBuffer(ECommonBufferType.BlendshapeCount.ToString(), EBufferTarget.ArrayBuffer, (uint)sourceList.Count, intVarType ? EComponentType.Int : EComponentType.Float, 2, false, intVarType);
-            BlendshapeWeights = new XRDataBuffer($"{ECommonBufferType.BlendshapeWeights}Buffer", EBufferTarget.ShaderStorageBuffer, BlendshapeCount, EComponentType.Float, 1, true, false)
+            BlendshapeWeights = new XRDataBuffer($"{ECommonBufferType.BlendshapeWeights}Buffer", EBufferTarget.ShaderStorageBuffer, BlendshapeCount.Align(4), EComponentType.Float, 1, false, false)
             {
                 Usage = EBufferUsage.StreamDraw
             };
@@ -1417,11 +1396,12 @@ namespace XREngine.Rendering
             for (int i = 0; i < mesh.MeshAnimationAttachments.Count; i++)
                 BlendshapeWeights!.Set((uint)i, 0.0f);
 
-            List<Vector4> deltas = [Vector4.Zero]; //0 index is reserved for 0 delta
+            List<Vector3> deltas = [Vector3.Zero]; //0 index is reserved for 0 delta
             List<IVector4> blendshapeIndices = [];
 
+            bool remapDeltas = Engine.Rendering.Settings.RemapBlendshapeDeltas;
+
             int blendshapeDeltaIndicesIndex = 0;
-            int deltasIndex = 1;
             int sourceCount = sourceList.Count;
             int blendshapeCount = mesh.MeshAnimationAttachmentCount;
             int* blendshapeCounts = (int*)BlendshapeCounts.Address;
@@ -1429,103 +1409,150 @@ namespace XREngine.Rendering
             for (int i = 0; i < sourceCount; i++)
             {
                 int activeBlendshapeCountForThisVertex = 0;
-                for (int j = 0; j < blendshapeCount; j++)
+                Vertex vtx = sourceList[i];
+                if (vtx.Blendshapes is null)
                 {
-                    string name = mesh.MeshAnimationAttachments[j].Name;
+                    if (intVarType)
+                    {
+                        *blendshapeCounts++ = 0;
+                        *blendshapeCounts++ = 0;
+                    }
+                    else
+                    {
+                        *blendshapeCountsFloat++ = 0;
+                        *blendshapeCountsFloat++ = 0;
+                    }
+                    continue;
+                }
+                for (int bsInd = 0; bsInd < blendshapeCount; bsInd++)
+                {
+                    var (_, data) = vtx.Blendshapes[bsInd];
                     bool anyData = false;
-                    var posDeltas = positionDeltas?[name];
-                    var nrmDeltas = normalDeltas?[name];
-                    var tanDeltas = tangentDeltas?[name];
                     int posInd = 0;
                     int nrmInd = 0;
                     int tanInd = 0;
 
-                    if (posDeltas is not null && posDeltas[i].LengthSquared() > float.Epsilon)
+                    Vector3 posDt = data.Position - vtx.Position;
+                    Vector3 nrmDt = (data.Normal ?? Vector3.Zero) - (vtx.Normal ?? Vector3.Zero);
+                    Vector3 tanDt = (data.Tangent ?? Vector3.Zero) - (vtx.Tangent ?? Vector3.Zero);
+
+                    if (posDt.LengthSquared() > 0.0f)
                     {
-                        deltas.Add(new Vector4(posDeltas[i], 0.0f));
-                        posInd = deltasIndex++;
+                        posInd = deltas.Count;
+                        deltas.Add(posDt);
                         anyData = true;
                     }
-                    if (nrmDeltas is not null && nrmDeltas[i].LengthSquared() > float.Epsilon)
+                    if (nrmDt.LengthSquared() > 0.0f)
                     {
-                        deltas.Add(new Vector4(nrmDeltas[i], 0.0f));
-                        nrmInd = deltasIndex++;
+                        nrmInd = deltas.Count;
+                        deltas.Add(nrmDt);
                         anyData = true;
                     }
-                    if (tanDeltas is not null && tanDeltas[i].LengthSquared() > float.Epsilon)
+                    if (tanDt.LengthSquared() > 0.0f)
                     {
-                        deltas.Add(new Vector4(tanDeltas[i], 0.0f));
-                        tanInd = deltasIndex++;
+                        tanInd = deltas.Count;
+                        deltas.Add(tanDt);
                         anyData = true;
                     }
                     if (anyData)
                     {
                         ++activeBlendshapeCountForThisVertex;
-                        blendshapeIndices.Add(new IVector4(j, posInd, nrmInd, tanInd));
+                        blendshapeIndices.Add(new IVector4(bsInd, posInd, nrmInd, tanInd));
                     }
                 }
                 if (intVarType)
                 {
-                    *blendshapeCounts++ = activeBlendshapeCountForThisVertex > 0 ? blendshapeDeltaIndicesIndex : 0;
+                    *blendshapeCounts++ = blendshapeDeltaIndicesIndex;
                     *blendshapeCounts++ = activeBlendshapeCountForThisVertex;
                 }
                 else
                 {
-                    *blendshapeCountsFloat++ = activeBlendshapeCountForThisVertex > 0 ? blendshapeDeltaIndicesIndex : 0;
+                    *blendshapeCountsFloat++ = blendshapeDeltaIndicesIndex;
                     *blendshapeCountsFloat++ = activeBlendshapeCountForThisVertex;
                 }
                 blendshapeDeltaIndicesIndex += activeBlendshapeCountForThisVertex;
             }
 
-            bool remapDeltas = Engine.Rendering.Settings.RemapBlendshapeDeltas;
-
             BlendshapeIndices = new XRDataBuffer($"{ECommonBufferType.BlendshapeIndices}Buffer", EBufferTarget.ShaderStorageBuffer, (uint)blendshapeIndices.Count, intVarType ? EComponentType.Int : EComponentType.Float, 4, false, intVarType);
+            
             if (remapDeltas)
             {
-                BlendshapeDeltasBuffer = new XRDataBuffer($"{ECommonBufferType.BlendshapeDeltas}Buffer", EBufferTarget.ShaderStorageBuffer, false);
+                Remapper deltaRemap = new();
+                deltaRemap.Remap(deltas, null);
+                BlendshapeDeltas = new XRDataBuffer($"{ECommonBufferType.BlendshapeDeltas}Buffer", EBufferTarget.ShaderStorageBuffer, deltaRemap.ImplementationLength, EComponentType.Float, 4, false, false);
 
-                var deltaRemap = BlendshapeDeltasBuffer!.SetDataRaw(deltas, true);
+                float* deltaData = (float*)BlendshapeDeltas.Address;
+                for (int i = 0; i < deltaRemap.ImplementationLength; i++)
+                {
+                    Vector3 delta = deltas[deltaRemap.ImplementationTable![i]];
+                    *deltaData++ = delta.X;
+                    *deltaData++ = delta.Y;
+                    *deltaData++ = delta.Z;
+                    *deltaData++ = 0.0f;
+                }
+
                 //Update the blendshape indices buffer with remapped delta indices
                 var remap = deltaRemap!.RemapTable!;
+                int* indicesDataInt = (int*)BlendshapeIndices.Address;
+                float* indicesDataFloat = (float*)BlendshapeIndices.Address;
                 for (int i = 0; i < blendshapeIndices.Count; i++)
                 {
                     IVector4 indices = blendshapeIndices[i];
                     if (intVarType)
                     {
-                        IVector4 newIndices = new(indices.X, remap[indices.Y], remap[indices.Z], remap[indices.W]);
-                        BlendshapeIndices.Set((uint)i, newIndices);
+                        *indicesDataInt++ = indices.X;
+                        *indicesDataInt++ = remap[indices.Y];
+                        *indicesDataInt++ = remap[indices.Z];
+                        *indicesDataInt++ = remap[indices.W];
                     }
                     else
                     {
                         Vector4 newIndices = new(indices.X, remap[indices.Y], remap[indices.Z], remap[indices.W]);
-                        BlendshapeIndices.Set((uint)i, newIndices);
+                        *indicesDataFloat++ = indices.X;
+                        *indicesDataFloat++ = remap[indices.Y];
+                        *indicesDataFloat++ = remap[indices.Z];
+                        *indicesDataFloat++ = remap[indices.W];
                     }
                 }
             }
             else
             {
-                BlendshapeDeltasBuffer = new XRDataBuffer($"{ECommonBufferType.BlendshapeDeltas}Buffer", EBufferTarget.ShaderStorageBuffer, (uint)deltas.Count, EComponentType.Float, 4, false, false);
+                BlendshapeDeltas = new XRDataBuffer($"{ECommonBufferType.BlendshapeDeltas}Buffer", EBufferTarget.ShaderStorageBuffer, (uint)deltas.Count, EComponentType.Float, 4, false, false);
+                float* deltaData = (float*)BlendshapeDeltas.Address;
                 for (int i = 0; i < deltas.Count; i++)
-                    BlendshapeDeltasBuffer!.Set((uint)i, deltas[i]);
+                {
+                    Vector3 delta = deltas[i];
+                    *deltaData++ = delta.X;
+                    *deltaData++ = delta.Y;
+                    *deltaData++ = delta.Z;
+                    *deltaData++ = 0.0f;
+                }
+                int* indicesDataInt = (int*)BlendshapeIndices.Address;
+                float* indicesDataFloat = (float*)BlendshapeIndices.Address;
                 for (int i = 0; i < blendshapeIndices.Count; i++)
                 {
+                    IVector4 indices = blendshapeIndices[i];
                     if (intVarType)
-                        BlendshapeIndices!.Set((uint)i, blendshapeIndices[i]);
+                    {
+                        *indicesDataInt++ = indices.X;
+                        *indicesDataInt++ = indices.Y;
+                        *indicesDataInt++ = indices.Z;
+                        *indicesDataInt++ = indices.W;
+                    }
                     else
-                        BlendshapeIndices.Set((uint)i, (Vector4)blendshapeIndices[i]);
+                    {
+                        *indicesDataFloat++ = indices.X;
+                        *indicesDataFloat++ = indices.Y;
+                        *indicesDataFloat++ = indices.Z;
+                        *indicesDataFloat++ = indices.W;
+                    }
                 }
             }
 
             Buffers.Add(BlendshapeCounts.BindingName, BlendshapeCounts);
             Buffers.Add(BlendshapeWeights.BindingName, BlendshapeWeights);
             Buffers.Add(BlendshapeIndices.BindingName, BlendshapeIndices);
-            Buffers.Add(BlendshapeDeltasBuffer.BindingName, BlendshapeDeltasBuffer);
-
-            //BlendshapeOffsets.Generate();
-            //BlendshapeCounts.Generate();
-            //BlendshapeWeights.Generate();
-            //BlendshapeIndices.Generate();
-            //BlendshapeDeltasBuffer.Generate();
+            Buffers.Add(BlendshapeDeltas.BindingName, BlendshapeDeltas);
         }
 
         //private unsafe Matrix4x4 GetSingleBind(Mesh mesh, Dictionary<string, List<SceneNode>> nodeCache)
@@ -1778,6 +1805,12 @@ namespace XREngine.Rendering
 
             if (MaxWeightCount > 4)
                 Debug.Out($"Max weight count: {MaxWeightCount}");
+
+            //while (boneIndices.Count % 4 != 0)
+            //{
+            //    boneIndices.Add(-1);
+            //    boneWeights.Add(0.0f);
+            //}
         }
 
         //private static unsafe uint ResolveBone(Mesh* mesh, uint boneCount, int i, ref Bone* boneResolve)

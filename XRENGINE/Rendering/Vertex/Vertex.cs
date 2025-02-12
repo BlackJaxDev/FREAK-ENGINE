@@ -60,7 +60,7 @@ namespace XREngine.Data.Rendering
         /// Data this vertex can morph to, indexed by blendshape name.
         /// Data here is absolute, not deltas, for simplicity.
         /// </summary>
-        public Dictionary<string, VertexData>? Blendshapes { get; set; }
+        public List<(string name, VertexData data)>? Blendshapes { get; set; }
 
         public Vertex() { }
 
@@ -139,7 +139,7 @@ namespace XREngine.Data.Rendering
                 Tangent = Tangent,
                 TextureCoordinateSets = [.. TextureCoordinateSets],
                 ColorSets = [.. ColorSets],
-                Blendshapes = Blendshapes is null ? null : new Dictionary<string, VertexData>(Blendshapes),
+                Blendshapes = Blendshapes is null ? null : new(Blendshapes),
             };
 
         public static unsafe Vertex FromAssimp(Mesh mesh, int vertexIndex)
@@ -213,8 +213,6 @@ namespace XREngine.Data.Rendering
                 for (int i = 0; i < blendshapeCount; ++i)
                 {
                     var blendshape = mesh.MeshAnimationAttachments[i];
-                    if (blendshape.VertexCount == 0)
-                        continue;
 
                     VertexData data = new()
                     {
@@ -244,10 +242,7 @@ namespace XREngine.Data.Rendering
                         data.ColorSets.Add(color.ToNumerics());
                     }
 
-                    string shapeName = blendshape.Name;
-                    if (v.Blendshapes.ContainsKey(shapeName))
-                        shapeName += $"_{i}";
-                    v.Blendshapes.Add(shapeName, data);
+                    v.Blendshapes.Add((blendshape.Name, data));
                 }
             }
 

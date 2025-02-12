@@ -1,4 +1,5 @@
-﻿using Silk.NET.SDL;
+﻿using Extensions;
+using Silk.NET.SDL;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.InteropServices;
@@ -163,6 +164,13 @@ namespace XREngine.Rendering
         [YamlIgnore]
         public List<AbstractRenderAPIObject> ActivelyMapping { get; } = [];
 
+        private bool _padEndingToVec4 = true;
+        public bool PadEndingToVec4
+        {
+            get => _padEndingToVec4;
+            set => SetField(ref _padEndingToVec4, value);
+        }
+
         private bool _mapped = false;
         /// <summary>
         /// Determines if this buffer should be mapped when it is generated.
@@ -272,7 +280,14 @@ namespace XREngine.Rendering
         /// The total size in bytes of this buffer.
         /// </summary>
         [YamlIgnore]
-        public uint Length => ElementCount * ElementSize;
+        public uint Length
+        {
+            get
+            {
+                uint size = ElementCount * ElementSize;
+                return PadEndingToVec4 ? size.Align(0x10) : size;
+            }
+        }
 
         /// <summary>
         /// The size in bytes of a single element in the buffer.

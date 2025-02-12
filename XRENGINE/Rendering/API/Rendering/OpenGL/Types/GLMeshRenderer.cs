@@ -242,6 +242,7 @@ namespace XREngine.Rendering.OpenGL
                     {
                         b.Bind();
                         Api.BindBufferBase(ToGLEnum(EBufferTarget.ShaderStorageBuffer), resourceIndex, b.BindingId);
+                        //Api.ShaderStorageBlockBinding(vertexProgram.BindingId, resourceIndex, b.BindingId);
                         //b.PushSubData();
                         b.Unbind();
                     }

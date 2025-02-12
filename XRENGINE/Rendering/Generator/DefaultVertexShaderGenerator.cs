@@ -200,8 +200,26 @@ namespace XREngine.Rendering.Shaders.Generator
         /// </summary>
         private void WriteBufferBlocks()
         {
+            //These buffers have to be in this order to work - GPU boundary alignment is picky as f
+
             int binding = 0;
-            if (Mesh.HasSkinning && Engine.Rendering.Settings.AllowSkinning)
+            if (Mesh.BlendshapeCount > 0 && !Engine.Rendering.Settings.CalculateBlendshapesInComputeShader && Engine.Rendering.Settings.AllowBlendshapes)
+            {
+                EShaderVarType intVarType = Engine.Rendering.Settings.UseIntegerUniformsInShaders
+                    ? EShaderVarType._ivec4
+                    : EShaderVarType._vec4;
+
+                using (StartShaderStorageBufferBlock($"{ECommonBufferType.BlendshapeDeltas}Buffer", binding++))
+                    WriteUniform(EShaderVarType._vec4, ECommonBufferType.BlendshapeDeltas.ToString(), true);
+
+                using (StartShaderStorageBufferBlock($"{ECommonBufferType.BlendshapeIndices}Buffer", binding++))
+                    WriteUniform(intVarType, ECommonBufferType.BlendshapeIndices.ToString(), true);
+
+                using (StartShaderStorageBufferBlock($"{ECommonBufferType.BlendshapeWeights}Buffer", binding++))
+                    WriteUniform(EShaderVarType._float, ECommonBufferType.BlendshapeWeights.ToString(), true);
+            }
+            bool skinning = Mesh.HasSkinning && Engine.Rendering.Settings.AllowSkinning;
+            if (skinning)
             {
                 using (StartShaderStorageBufferBlock($"{ECommonBufferType.BoneMatrices}Buffer", binding++))
                     WriteUniform(EShaderVarType._mat4, ECommonBufferType.BoneMatrices.ToString(), true);
@@ -218,21 +236,6 @@ namespace XREngine.Rendering.Shaders.Generator
                     using (StartShaderStorageBufferBlock($"{ECommonBufferType.BoneMatrixWeights}Buffer", binding++))
                         WriteUniform(EShaderVarType._float, ECommonBufferType.BoneMatrixWeights.ToString(), true);
                 }
-            }
-            if (Mesh.BlendshapeCount > 0 && !Engine.Rendering.Settings.CalculateBlendshapesInComputeShader && Engine.Rendering.Settings.AllowBlendshapes)
-            {
-                EShaderVarType intVarType = Engine.Rendering.Settings.UseIntegerUniformsInShaders
-                    ? EShaderVarType._ivec4
-                    : EShaderVarType._vec4;
-
-                using (StartShaderStorageBufferBlock($"{ECommonBufferType.BlendshapeIndices}Buffer", binding++))
-                    WriteUniform(intVarType, ECommonBufferType.BlendshapeIndices.ToString(), true);
-
-                using (StartShaderStorageBufferBlock($"{ECommonBufferType.BlendshapeDeltas}Buffer", binding++))
-                    WriteUniform(EShaderVarType._vec4, ECommonBufferType.BlendshapeDeltas.ToString(), true);
-
-                using (StartShaderStorageBufferBlock($"{ECommonBufferType.BlendshapeWeights}Buffer", binding++))
-                    WriteUniform(EShaderVarType._float, ECommonBufferType.BlendshapeWeights.ToString(), true);
             }
         }
 
@@ -272,7 +275,7 @@ namespace XREngine.Rendering.Shaders.Generator
             bool hasTangents = Mesh.TangentsBuffer is not null;
 
             Line($"vec4 {FinalPositionName} = vec4(0.0f);");
-            Line($"vec4 {BasePositionName} = vec4({ECommonBufferType.Position}, 1.0f);");
+            Line($"vec3 {BasePositionName} = {ECommonBufferType.Position};");
 
             if (hasNormals)
             {
@@ -293,7 +296,7 @@ namespace XREngine.Rendering.Shaders.Generator
 
             if (!hasSkinning || !WriteSkinningCalc())
             {
-                Line($"{FinalPositionName} = {BasePositionName};");
+                Line($"{FinalPositionName} = vec4({BasePositionName}, 1.0f);");
                 if (hasNormals)
                     Line($"{FinalNormalName} = {BaseNormalName};");
                 if (hasTangents)
@@ -371,7 +374,7 @@ namespace XREngine.Rendering.Shaders.Generator
                     Line($"int boneIndex = int({ECommonBufferType.BoneMatrixOffset}[i]);");
                     Line($"float weight = {ECommonBufferType.BoneMatrixCount}[i];");
                     Line($"mat4 boneMatrix = {ECommonBufferType.BoneInvBindMatrices}[boneIndex] * {ECommonBufferType.BoneMatrices}[boneIndex] * {EEngineUniform.RootInvModelMatrix};");
-                    Line($"{FinalPositionName} += (boneMatrix * {BasePositionName}) * weight;");
+                    Line($"{FinalPositionName} += (boneMatrix * vec4({BasePositionName}, 1.0f)) * weight;");
                     Line("mat3 boneMatrix3 = adjoint(boneMatrix);");
                     Line($"{FinalNormalName} += (boneMatrix3 * {BaseNormalName}) * weight;");
                     Line($"{FinalTangentName} += (boneMatrix3 * {BaseTangentName}) * weight;");
@@ -386,7 +389,7 @@ namespace XREngine.Rendering.Shaders.Generator
                     Line($"int boneIndex = int({ECommonBufferType.BoneMatrixIndices}[index]);");
                     Line($"float weight = {ECommonBufferType.BoneMatrixWeights}[index];");
                     Line($"mat4 boneMatrix = {ECommonBufferType.BoneInvBindMatrices}[boneIndex] * {ECommonBufferType.BoneMatrices}[boneIndex] * {EEngineUniform.RootInvModelMatrix};");
-                    Line($"{FinalPositionName} += (boneMatrix * {BasePositionName}) * weight;");
+                    Line($"{FinalPositionName} += (boneMatrix * vec4({BasePositionName}, 1.0f)) * weight;");
                     Line("mat3 boneMatrix3 = adjoint(boneMatrix);");
                     Line($"{FinalNormalName} += (boneMatrix3 * {BaseNormalName}) * weight;");
                     Line($"{FinalTangentName} += (boneMatrix3 * {BaseTangentName}) * weight;");
@@ -403,26 +406,23 @@ namespace XREngine.Rendering.Shaders.Generator
 
             bool absolute = Engine.Rendering.Settings.UseAbsoluteBlendshapePositions;
 
-            const string minWeight = "0.01f";
+            const string minWeight = "0.0001f";
             if (Mesh.MaxBlendshapeAccumulation)
             {
                 // MAX blendshape accumulation
                 Line("vec3 maxPositionDelta = vec3(0.0f);");
                 Line("vec3 maxNormalDelta = vec3(0.0f);");
                 Line("vec3 maxTangentDelta = vec3(0.0f);");
-
                 Line($"for (int i = 0; i < int({ECommonBufferType.BlendshapeCount}.y); i++)");
                 using (OpenBracketState())
                 {
                     Line($"int index = int({ECommonBufferType.BlendshapeCount}.x) + i;");
-
                     if (Engine.Rendering.Settings.UseIntegerUniformsInShaders)
                         Line($"ivec4 blendshapeIndices = {ECommonBufferType.BlendshapeIndices}[index];");
                     else
                         Line($"vec4 blendshapeIndices = {ECommonBufferType.BlendshapeIndices}[index];");
-
-                    Line($"float weight = {ECommonBufferType.BlendshapeWeights}[int(blendshapeIndices.x)];");
-
+                    Line($"int blendshapeIndex = int(blendshapeIndices.x);");
+                    Line($"float weight = {ECommonBufferType.BlendshapeWeights}[blendshapeIndex];");
                     Line($"if (weight > {minWeight})");
                     using (OpenBracketState())
                     {
@@ -434,64 +434,34 @@ namespace XREngine.Rendering.Shaders.Generator
                         Line($"maxTangentDelta = max(maxTangentDelta, {ECommonBufferType.BlendshapeDeltas}[blendshapeDeltaTanIndex].xyz * weight);");
                     }
                 }
-
-                Line($"{BasePositionName} += vec4(maxPositionDelta, 0.0f);");
+                Line($"{BasePositionName} += maxPositionDelta;");
                 Line($"{BaseNormalName} += maxNormalDelta;");
                 Line($"{BaseTangentName} += maxTangentDelta;");
             }
             else
             {
-                if (absolute)
-                    Line("float allWeights = 0.0f;");
                 Line($"for (int i = 0; i < int({ECommonBufferType.BlendshapeCount}.y); i++)");
                 using (OpenBracketState())
                 {
                     Line($"int index = int({ECommonBufferType.BlendshapeCount}.x) + i;");
-
                     if (Engine.Rendering.Settings.UseIntegerUniformsInShaders)
                         Line($"ivec4 blendshapeIndices = {ECommonBufferType.BlendshapeIndices}[index];");
                     else
                         Line($"vec4 blendshapeIndices = {ECommonBufferType.BlendshapeIndices}[index];");
-
-                    Line($"float weight = {ECommonBufferType.BlendshapeWeights}[int(blendshapeIndices.x)];");
-
+                    Line($"int blendshapeIndex = int(blendshapeIndices.x);");
+                    Line($"int blendshapeDeltaPosIndex = int(blendshapeIndices.y);");
+                    Line($"int blendshapeDeltaNrmIndex = int(blendshapeIndices.z);");
+                    Line($"int blendshapeDeltaTanIndex = int(blendshapeIndices.w);");
+                    Line($"float weight = {ECommonBufferType.BlendshapeWeights}[blendshapeIndex];");
                     Line($"if (weight > {minWeight})");
                     using (OpenBracketState())
                     {
-                        Line($"int blendshapeDeltaPosIndex = int(blendshapeIndices.y);");
-                        Line($"int blendshapeDeltaNrmIndex = int(blendshapeIndices.z);");
-                        Line($"int blendshapeDeltaTanIndex = int(blendshapeIndices.w);");
-                        if (absolute)
-                        {
-                            Line($"{FinalPositionName} += vec4({ECommonBufferType.BlendshapeDeltas}[blendshapeDeltaPosIndex].xyz * weight, 0.0f);");
-                            Line($"{FinalNormalName} += {ECommonBufferType.BlendshapeDeltas}[blendshapeDeltaNrmIndex].xyz * weight;");
-                            Line($"{FinalTangentName} += {ECommonBufferType.BlendshapeDeltas}[blendshapeDeltaTanIndex].xyz * weight;");
-                            Line("allWeights += weight;");
-                        }
-                        else
-                        {
-                            Line($"{BasePositionName} += vec4({ECommonBufferType.BlendshapeDeltas}[blendshapeDeltaPosIndex].xyz * weight, 0.0f);");
-                            Line($"{BaseNormalName} += {ECommonBufferType.BlendshapeDeltas}[blendshapeDeltaNrmIndex].xyz * weight;");
-                            Line($"{BaseTangentName} += {ECommonBufferType.BlendshapeDeltas}[blendshapeDeltaTanIndex].xyz * weight;");
-                        }
+                        Line($"{BasePositionName} += {ECommonBufferType.BlendshapeDeltas}[blendshapeDeltaPosIndex].xyz * weight;");
+                        Line($"{BaseNormalName} += ({ECommonBufferType.BlendshapeDeltas}[blendshapeDeltaNrmIndex].xyz * weight);");
+                        Line($"{BaseTangentName} += ({ECommonBufferType.BlendshapeDeltas}[blendshapeDeltaTanIndex].xyz * weight);");
                     }
                 }
-                if (absolute)
-                {
-                    Line($"{FinalPositionName} += vec4({BasePositionName}.xyz * (1.0f - allWeights), 0.0f);");
-                    Line($"{FinalNormalName} += {BaseNormalName} * allWeights;");
-                    Line($"{FinalTangentName} += {BaseTangentName} * allWeights;");
-
-                    Line($"{BasePositionName} = {FinalPositionName};");
-                    Line($"{BaseNormalName} = {FinalNormalName};");
-                    Line($"{BaseTangentName} = {FinalTangentName};");
-
-                    Line($"{FinalPositionName} = vec4(0.0f);");
-                    Line($"{FinalNormalName} = vec3(0.0f);");
-                    Line($"{FinalTangentName} = vec3(0.0f);");
-                }
             }
-
             return true;
         }
 

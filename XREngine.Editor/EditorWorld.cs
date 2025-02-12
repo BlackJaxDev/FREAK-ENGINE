@@ -1,5 +1,5 @@
 ﻿using Assimp;
-using Extensions;
+using Assimp.Unmanaged;
 using Silk.NET.Input;
 using System.Collections.Concurrent;
 using System.Numerics;
@@ -67,7 +67,7 @@ public static class EditorWorld
     /// <returns></returns>
     public static XRWorld CreateUnitTestWorld()
     {
-        Engine.Rendering.Settings.AllowBlendshapes = false;
+        Engine.Rendering.Settings.AllowBlendshapes = true;
         Engine.Rendering.Settings.AllowSkinning = true;
 
         string desktopDir = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
@@ -740,16 +740,16 @@ public static class EditorWorld
 
         string fbxPathDesktop = Path.Combine(desktopDir, "misc", "jax.fbx");
 
-        var flags =
+        var flags = 
         PostProcessSteps.Triangulate |
-        //PostProcessSteps.JoinIdenticalVertices |
+        PostProcessSteps.JoinIdenticalVertices |
         PostProcessSteps.GenerateNormals |
-        PostProcessSteps.CalculateTangentSpace;
-        //PostProcessSteps.OptimizeGraph |
-        //PostProcessSteps.OptimizeMeshes |
-        //PostProcessSteps.SortByPrimitiveType |
-        //PostProcessSteps.ImproveCacheLocality |
-        //PostProcessSteps.RemoveRedundantMaterials;
+        PostProcessSteps.CalculateTangentSpace |
+        PostProcessSteps.OptimizeGraph |
+        PostProcessSteps.OptimizeMeshes |
+        PostProcessSteps.SortByPrimitiveType |
+        PostProcessSteps.ImproveCacheLocality |
+        PostProcessSteps.RemoveRedundantMaterials;
 
         //TODO: skinned models don't propogate world matrix changed to the skinned matrix buffers per mesh
         if (AnimatedModel)
@@ -835,6 +835,20 @@ public static class EditorWorld
             //{
             //    t.Translation = new Vector3(0, MathF.Sin(Engine.ElapsedTime), 0);
             //});
+
+            //For testing blendshape morphing
+            //Technically we should only register animation tick on scene node if any lods have blendshapes,
+            //but at this point the model's meshes are still loading. So we'll just be lazy and check in the animation tick since it's just for testing.
+            rootNode.IterateComponents<ModelComponent>(comp =>
+            {
+                comp.SceneNode.RegisterAnimationTick<SceneNode>(t =>
+                {
+                    var meshes = comp.Meshes.SelectMany(x => x.LODs).Select(x => x.Renderer.Mesh).Where(x => x?.HasBlendshapes ?? false);
+                    foreach (var xrMesh in meshes)
+                        for (int r = 0; r < xrMesh!.BlendshapeCount; r++)
+                            xrMesh.BlendshapeWeights?.Set((uint)r, MathF.Sin(Engine.ElapsedTime) * 0.5f + 0.5f);
+                });
+            }, true);
         }
 
         if (PhysicsChain)

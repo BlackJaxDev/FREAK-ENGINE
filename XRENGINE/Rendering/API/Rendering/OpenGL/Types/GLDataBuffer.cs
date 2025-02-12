@@ -115,6 +115,7 @@ namespace XREngine.Rendering.OpenGL
                                     Bind();
                                     //Api.BufferData(ToGLEnum(Data.Target), Data.Length, Data.Address.Pointer, ToGLEnum(Data.Usage));
                                     Api.BindBufferBase(ToGLEnum(Data.Target), index, BindingId);
+                                    //Api.ShaderStorageBlockBinding(renderer.VertexProgram.BindingId, index, BindingId);
                                     Unbind();
                                     break;
                             }
