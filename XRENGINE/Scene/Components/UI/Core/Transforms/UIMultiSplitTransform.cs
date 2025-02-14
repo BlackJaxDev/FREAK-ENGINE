@@ -98,9 +98,8 @@ namespace XREngine.Rendering.UI
     {
         public UIDockingRootTransform DockingTransform => TransformAs<UIDockingRootTransform>(true)!;
 
-        protected override void Constructing()
+        public UIDockingRootComponent()
         {
-            base.Constructing();
             for (var i = 0; i < 4; i++)
             {
                 var node = SceneNode.NewChild();

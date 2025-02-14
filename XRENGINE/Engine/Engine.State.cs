@@ -21,14 +21,14 @@ namespace XREngine
         public static T LoadOrGenerateGameSettings<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(Func<T>? generateFactory = null, string assetName = "startup") where T : GameStartupSettings, new()
             => LoadOrGenerateAsset(() => generateFactory?.Invoke() ?? new T(), assetName);
 
-        public static T LoadOrGenerateAsset<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(Func<T>? generateFactory, string assetName, params string[] folderPaths) where T : XRAsset, new()
+        public static T LoadOrGenerateAsset<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(Func<T>? generateFactory, string assetName, params string[] folderNames) where T : XRAsset, new()
         {
             var asset = Assets.LoadGameAsset<T>($"{assetName}.asset");
             if (asset != null)
                 return asset;
             asset = generateFactory?.Invoke() ?? Activator.CreateInstance<T>();
             asset.Name = assetName;
-            Assets.SaveGameAssetTo(asset);
+            Assets.SaveGameAssetTo(asset, folderNames);
             return asset;
         }
 

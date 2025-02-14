@@ -380,6 +380,5 @@ namespace XREngine.Audio
             => CalcInvDistGain(ClampDist(dist, refDist, maxDist), refDist, maxDist, rolloff);
         private static float CalcInvDistGain(float dist, float refDist, float maxDist, float rolloff)
             => refDist / (refDist + rolloff * (dist - refDist));
-
     }
 }

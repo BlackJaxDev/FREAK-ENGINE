@@ -46,5 +46,4 @@ public partial class EditorPanel : XRComponent
         floorMat.RenderPass = (int)EDefaultRenderPass.TransparentForward;
         return floorMat;
     }
-
 }

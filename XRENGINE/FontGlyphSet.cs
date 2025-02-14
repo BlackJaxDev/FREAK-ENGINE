@@ -585,6 +585,38 @@ namespace XREngine.Rendering
                 Engine.Rendering.Settings.DefaultFontFolder,
                 Engine.Rendering.Settings.DefaultFontFileName);
 
+        public Vector2 MeasureString(string str, float fontSize)
+        {
+            if (Glyphs is null)
+                throw new InvalidOperationException("Glyphs are not initialized.");
+
+            return MeasureString(str, Glyphs, fontSize);
+        }
+
+        public static Vector2 MeasureString(string str, Dictionary<string, Glyph> glyphs, float fontSize)
+        {
+            float width = 0.0f;
+            float height = 0.0f;
+            float xOffset = 0.0f;
+            for (int i = 0; i < str.Length; i++)
+            {
+                char ch = str[i];
+                string character = ch.ToString();
+                if (!glyphs.ContainsKey(character))
+                {
+                    // Handle missing glyphs (e.g., skip or substitute)
+                    continue;
+                }
+                Glyph glyph = glyphs[character];
+                float scale = fontSize / FontDrawSize;
+                xOffset += glyph.Bearing.X * scale;
+                width = Math.Max(width, xOffset + glyph.Size.X * scale);
+                height = Math.Max(height, glyph.Size.Y * scale);
+                xOffset += glyph.Size.X * scale;
+            }
+            return new Vector2(width, height);
+        }
+
         public class Glyph
         {
             public Vector2 Position;

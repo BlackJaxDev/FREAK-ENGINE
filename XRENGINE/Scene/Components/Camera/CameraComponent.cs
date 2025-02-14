@@ -77,12 +77,37 @@ namespace XREngine.Components
         private XRCamera CameraFactory()
         {
             var cam = new XRCamera(Transform);
-            //cam.PropertyChanged += CameraPropertyChanged;
+            cam.PropertyChanged += CameraPropertyChanged;
+            cam.ViewportAdded += ViewportAdded;
+            cam.ViewportRemoved += ViewportRemoved;
+            cam.Parameters.PropertyChanged += CameraParameterPropertyChanged;
+            if (cam.Viewports.Count > 0)
+            {
+                foreach (var vp in cam.Viewports)
+                    ViewportAdded(cam, vp);
+                ViewportResized(cam.Viewports[0]); //TODO: support rendering in screenspace to more than one viewport?
+            }
+            CameraResized(cam.Parameters);
             return cam;
         }
+
         public CameraComponent() : base()
         {
             _camera = new(CameraFactory, true);
+        }
+
+        protected override void OnDestroying()
+        {
+            if (!_camera.IsValueCreated)
+                return;
+
+            Camera.PropertyChanged -= CameraPropertyChanged;
+            Camera.ViewportAdded -= ViewportAdded;
+            Camera.ViewportRemoved -= ViewportRemoved;
+            Camera.Parameters.PropertyChanged -= CameraParameterPropertyChanged;
+            if (Camera.Viewports.Count > 0)
+                foreach (var vp in Camera.Viewports)
+                    ViewportRemoved(Camera, vp);
         }
 
         /// <summary>
@@ -104,7 +129,8 @@ namespace XREngine.Components
         protected override void OnTransformChanged()
         {
             base.OnTransformChanged();
-            Camera.Transform = Transform;
+            if (_camera.IsValueCreated)
+                Camera.Transform = Transform;
         }
 
         protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
@@ -180,41 +206,6 @@ namespace XREngine.Components
             }
         }
 
-        protected override void Constructing()
-        {
-            Camera.Transform = Transform;
-
-            Camera.PropertyChanged += CameraPropertyChanged;
-            Camera.ViewportAdded += ViewportAdded;
-            Camera.ViewportRemoved += ViewportRemoved;
-            Camera.Parameters.PropertyChanged += CameraParameterPropertyChanged;
-
-            SceneNode.PropertyChanged += SceneNodePropertyChanged;
-
-            if (Camera.Viewports.Count > 0)
-            {
-                foreach (var vp in Camera.Viewports)
-                    ViewportAdded(Camera, vp);
-                ViewportResized(Camera.Viewports[0]); //TODO: support rendering in screenspace to more than one viewport?
-            }
-
-            CameraResized(Camera.Parameters);
-        }
-
-        protected override void OnDestroying()
-        {
-            Camera.PropertyChanged -= CameraPropertyChanged;
-            Camera.ViewportAdded -= ViewportAdded;
-            Camera.ViewportRemoved -= ViewportRemoved;
-            Camera.Parameters.PropertyChanged -= CameraParameterPropertyChanged;
-
-            SceneNode.PropertyChanged -= SceneNodePropertyChanged;
-
-            if (Camera.Viewports.Count > 0)
-                foreach (var vp in Camera.Viewports)
-                    ViewportRemoved(Camera, vp);
-        }
-
         private void ViewportRemoved(XRCamera camera, XRViewport viewport)
         {
             viewport.Resized -= ViewportResized;
@@ -249,15 +240,35 @@ namespace XREngine.Components
             }
         }
 
-        private void SceneNodePropertyChanged(object? sender, IXRPropertyChangedEventArgs e)
-        {
-            switch (e.PropertyName)
-            {
-                case nameof(XREngine.Scene.SceneNode.Transform):
-                    Camera.Transform = Transform;
-                    break;
-            }
-        }
+        /// <summary>
+        /// Helper method to set the camera to orthographic projection.
+        /// </summary>
+        /// <param name="width"></param>
+        /// <param name="height"></param>
+        /// <param name="nearPlane"></param>
+        /// <param name="farPlane"></param>
+        public void SetOrthographic(float width, float height, float nearPlane, float farPlane)
+            => Camera.Parameters = new XROrthographicCameraParameters(width, height, nearPlane, farPlane);
+
+        /// <summary>
+        /// Helper method to set the camera to perspective projection.
+        /// </summary>
+        /// <param name="verticalFieldOfView"></param>
+        /// <param name="nearPlane"></param>
+        /// <param name="farPlane"></param>
+        /// <param name="aspectRatio"></param>
+        public void SetPerspective(float verticalFieldOfView, float nearPlane, float farPlane, float? aspectRatio = null)
+            => Camera.Parameters = new XRPerspectiveCameraParameters(verticalFieldOfView, aspectRatio, nearPlane, farPlane);
+
+        //private void SceneNodePropertyChanged(object? sender, IXRPropertyChangedEventArgs e)
+        //{
+        //    switch (e.PropertyName)
+        //    {
+        //        case nameof(XREngine.Scene.SceneNode.Transform):
+        //            Camera.Transform = Transform;
+        //            break;
+        //    }
+        //}
 
         //public List<View> CalculateMirrorBounces(int max = 4)
         //{

@@ -16,11 +16,9 @@ internal class Program
     {
         RenderInfo2D.ConstructorOverride = RenderInfo2DConstructor;
         RenderInfo3D.ConstructorOverride = RenderInfo3DConstructor;
-
-        var startup =/* Engine.LoadOrGenerateGameSettings(() => */GetEngineSettings(EditorWorld.CreateUnitTestWorld());//);
-
         CodeManager.Instance.CompileOnChange = true;
-        Engine.Run(startup, Engine.LoadOrGenerateGameState());
+
+        Engine.Run(/*Engine.LoadOrGenerateGameSettings(() => */GetEngineSettings(EditorWorld.CreateUnitTestWorld())/*)*/, Engine.LoadOrGenerateGameState());
     }
 
     static EditorRenderInfo2D RenderInfo2DConstructor(IRenderable owner, RenderCommand[] commands)
@@ -62,6 +60,7 @@ internal class Program
             },
             TargetUpdatesPerSecond = updateHz,
             FixedFramesPerSecond = fixedHz,
+            AppType = GameStartupSettings.EAppType.Client,
         };
         if (EditorWorld.VRPawn)
             EditorVR.ApplyVRSettings(settings);

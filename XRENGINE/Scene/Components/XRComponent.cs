@@ -43,16 +43,26 @@ namespace XREngine.Components
             if (t is null || !t.IsSubclassOf(typeof(XRComponent)))
                 return null;
 
+            //Specific order of operations to ensure the component is properly constructed:
+            //1. Get uninitialized object
+            //2. Call the private method to set the scene node
+            //3. Call the constructor with no parameters if it exists
+            //4. Call OnTransformChanged to allow the component to set up any events or transforms AFTER the constructor is called
+            //5. Set the world to the scene node's world to fully initialize the component in the scene
+            //6. Invoke the ComponentCreated event
+
 #pragma warning disable SYSLIB0050 // Type or member is obsolete
             object obj = FormatterServices.GetUninitializedObject(t);
 #pragma warning restore SYSLIB0050 // Type or member is obsolete
             Type t2 = obj!.GetType();
             var method = typeof(XRComponent).GetMethod(nameof(ConstructionSetSceneNode), BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
             method!.Invoke(obj, [node]);
+#pragma warning disable IL2075 // 'this' argument does not satisfy 'DynamicallyAccessedMembersAttribute' in call to target method. The return value of the source method does not have matching annotations.
             t2.GetConstructor(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.FlattenHierarchy, Type.EmptyTypes)?.Invoke(obj, null);
-            
+#pragma warning restore IL2075 // 'this' argument does not satisfy 'DynamicallyAccessedMembersAttribute' in call to target method. The return value of the source method does not have matching annotations.
+
             var component = (XRComponent)obj;
-            component.Constructing();
+            component.OnTransformChanged();
             component.World = component.SceneNode.World;
 
             ComponentCreated?.Invoke(component);
@@ -89,8 +99,6 @@ namespace XREngine.Components
             _sceneNode = node;
             _sceneNode.PropertyChanging += SceneNodePropertyChanging;
             _sceneNode.PropertyChanged += SceneNodePropertyChanged;
-            Transform.LocalMatrixChanged += OnTransformLocalMatrixChanged;
-            Transform.WorldMatrixChanged += OnTransformWorldMatrixChanged;
         }
 
         private SceneNode _sceneNode;
@@ -238,10 +246,6 @@ namespace XREngine.Components
             }
         }
 
-        /// <summary>
-        /// Called when the component is first created and attached to this scene node.
-        /// </summary>
-        protected virtual void Constructing() { }
         /// <summary>
         /// Called when the component is made active.
         /// This is where ticks should register and connections to the world should be established.

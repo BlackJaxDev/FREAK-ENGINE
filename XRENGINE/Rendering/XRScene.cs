@@ -8,6 +8,11 @@ namespace XREngine.Scene
     /// </summary>
     public class XRScene : XRAsset
     {
+        public XRScene() { }
+        public XRScene(string name) : base(name) { }
+        public XRScene(params SceneNode[] rootNodes) => RootNodes.AddRange(rootNodes);
+        public XRScene(string name, params SceneNode[] rootNodes) : base(name) => RootNodes.AddRange(rootNodes);
+
         private bool _isVisible = true;
         private List<SceneNode> _rootObjects = [];
         

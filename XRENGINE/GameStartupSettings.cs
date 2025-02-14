@@ -59,9 +59,25 @@ namespace XREngine
         }
         public enum EAppType
         {
+            /// <summary>
+            /// The application is a server.
+            /// Clients will connect to this server.
+            /// </summary>
             Server,
+            /// <summary>
+            /// The application is a client.
+            /// The client will connect to a server.
+            /// </summary>
             Client,
+            /// <summary>
+            /// The application is a peer-to-peer client.
+            /// The client will connect to other peer-to-peer clients.
+            /// </summary>
             P2PClient,
+            /// <summary>
+            /// The application is a local client.
+            /// No network connection is used.
+            /// </summary>
             Local,
         }
         public EAppType AppType

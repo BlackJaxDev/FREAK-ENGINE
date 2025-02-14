@@ -845,8 +845,11 @@ public static class EditorWorld
                 {
                     var meshes = comp.Meshes.SelectMany(x => x.LODs).Select(x => x.Renderer.Mesh).Where(x => x?.HasBlendshapes ?? false);
                     foreach (var xrMesh in meshes)
-                        for (int r = 0; r < xrMesh!.BlendshapeCount; r++)
-                            xrMesh.BlendshapeWeights?.Set((uint)r, MathF.Sin(Engine.ElapsedTime) * 0.5f + 0.5f);
+                    {
+                        //for (int r = 0; r < xrMesh!.BlendshapeCount; r++)
+                        int r = 0;
+                        xrMesh?.BlendshapeWeights?.Set((uint)r, MathF.Sin(Engine.ElapsedTime) * 0.5f + 0.5f);
+                    }
                 });
             }, true);
         }

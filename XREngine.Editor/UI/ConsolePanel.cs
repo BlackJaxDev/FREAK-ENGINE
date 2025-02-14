@@ -7,9 +7,8 @@ namespace XREngine.Editor.UI.Components
         public TraceListener TraceListener { get; } = new TraceListener();
         public UITextComponent? Text { get; private set; }
 
-        protected override void Constructing()
+        public ConsolePanel()
         {
-            base.Constructing();
             SceneNode.NewChild<UITextComponent>(out var text);
             text.WordWrap = true;
             text.HideOverflow = true;
