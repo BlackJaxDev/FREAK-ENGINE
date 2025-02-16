@@ -1,6 +1,4 @@
 ﻿using Extensions;
-using MathNet.Numerics.Distributions;
-using System.Collections.Concurrent;
 using System.IO.Compression;
 using System.Numerics;
 
@@ -14,6 +12,10 @@ namespace XREngine.Scene.Transforms
             => WorldTranslation.Distance(Parent?.WorldTranslation ?? Vector3.Zero);
 
         private float _replicationKeyframeIntervalSec = 5.0f;
+        /// <summary>
+        /// The interval in seconds between full keyframes sent to the network for this transform.
+        /// All other updates are sent as deltas.
+        /// </summary>
         public float ReplicationKeyframeIntervalSec
         {
             get => _replicationKeyframeIntervalSec;

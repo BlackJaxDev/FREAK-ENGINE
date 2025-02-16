@@ -1,10 +1,22 @@
-﻿using XREngine.Rendering.Commands;
+﻿using XREngine.Data.Rendering;
+using XREngine.Rendering.Commands;
 
 namespace XREngine.Rendering
 {
-    public class RenderCommandMethod2D(int renderPass, Action render) : RenderCommand2D(renderPass)
+    public class RenderCommandMethod2D : RenderCommand2D
     {
-        public Action Rendered { get; set; } = render;
-        public override void Render(bool shadowPass) => Rendered?.Invoke();
+        public RenderCommandMethod2D(int renderPass, Action render)
+            : base(renderPass) => Rendered += render;
+        public RenderCommandMethod2D(Action render)
+            : base((int)EDefaultRenderPass.OpaqueForward) => Rendered += render;
+        public RenderCommandMethod2D(int renderPass)
+            : base(renderPass) { }
+        public RenderCommandMethod2D()
+            : base((int)EDefaultRenderPass.OpaqueForward) { }
+
+        public event Action? Rendered;
+
+        public override void Render(bool shadowPass)
+            => Rendered?.Invoke();
     }
 }

@@ -1,9 +1,15 @@
 ﻿using Microsoft.DotNet.PlatformAbstractions;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Numerics;
 using System.Reflection;
 using XREngine.Core.Files;
 using XREngine.Data;
+using XREngine.Rendering.UI;
+using XREngine.Scene.Transforms;
+using YamlDotNet.Core;
+using YamlDotNet.Core.Events;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NodeDeserializers;
 
@@ -362,6 +368,37 @@ namespace XREngine
             LoadedAssetsByOriginalPathInternal.Clear();
         }
 
+        public static string VerifyAssetPath(XRAsset asset, string directory)
+        {
+            VerifyDirectoryExists(directory);
+            string name = string.IsNullOrWhiteSpace(asset.Name) ? asset.GetType().Name : asset.Name;
+            string fileName = $"{name}.{AssetExtension}";
+            string path = Path.Combine(directory, fileName);
+            return path;
+        }
+
+        public Func<string, bool>? AllowOverwriteCallback { get; set; } = path => true;
+
+        public static string GetUniqueAssetPath(string path)
+        {
+            if (!File.Exists(path))
+                return path;
+
+            string? dir = Path.GetDirectoryName(path);
+            if (dir is null)
+                return path;
+
+            string name = Path.GetFileNameWithoutExtension(path);
+            string ext = Path.GetExtension(path);
+            int i = 1;
+            string newPath;
+            do
+            {
+                newPath = Path.Combine(dir, $"{name} ({i++}){ext}");
+            } while (File.Exists(newPath));
+            return newPath;
+        }
+
         public event Action<XRAsset>? AssetLoaded;
         public event Action<XRAsset>? AssetSaved;
 
@@ -445,7 +482,11 @@ namespace XREngine
             try
             {
 #endif
+            Stopwatch sw = Stopwatch.StartNew();
+            Debug.Out($"Saving asset to '{asset.FilePath}'...");
             await File.WriteAllTextAsync(asset.FilePath, Serializer.Serialize(asset));
+            sw.Stop();
+            Debug.Out($"Saved asset to '{asset.FilePath}' in {sw.ElapsedMilliseconds}ms.");
             PostSaved(asset, false);
 #if !DEBUG
             }
@@ -467,7 +508,11 @@ namespace XREngine
             try
             {
 #endif
+            //Debug.Out($"Saving asset to '{asset.FilePath}'...");
+            Stopwatch sw = Stopwatch.StartNew();
             File.WriteAllText(asset.FilePath, Serializer.Serialize(asset));
+            sw.Stop();
+            Debug.Out($"Saved asset to '{asset.FilePath}' in {sw.ElapsedMilliseconds}ms.");
             PostSaved(asset, false);
 #if !DEBUG
             }
@@ -476,15 +521,6 @@ namespace XREngine
                 Debug.LogException(e, $"An error occurred while saving the asset at '{asset.FilePath}'.");
             }
 #endif
-        }
-
-        public static string VerifyAssetPath(XRAsset asset, string directory)
-        {
-            VerifyDirectoryExists(directory);
-            string name = string.IsNullOrWhiteSpace(asset.Name) ? asset.GetType().Name : asset.Name;
-            string fileName = $"{name}.{AssetExtension}";
-            string path = Path.Combine(directory, fileName);
-            return path;
         }
 
         public void SaveTo(XRAsset asset, Environment.SpecialFolder folder, params string[] folderNames)
@@ -497,11 +533,15 @@ namespace XREngine
 #endif
             string path = VerifyAssetPath(asset, directory);
 
-            if (!(AllowOverwriteCallback?.Invoke(path) ?? true))
+            if (File.Exists(path) && !(AllowOverwriteCallback?.Invoke(path) ?? true))
                 path = GetUniqueAssetPath(path);
 
             asset.FilePath = path;
+            //Debug.Out($"Saving asset to '{path}'...");
+            Stopwatch sw = Stopwatch.StartNew();
             File.WriteAllText(path, Serializer.Serialize(asset));
+            sw.Stop();
+            Debug.Out($"Saved asset to '{path}' in {sw.ElapsedMilliseconds}ms.");
             PostSaved(asset, true);
 #if !DEBUG
             }
@@ -510,28 +550,6 @@ namespace XREngine
                 Debug.LogException(e, $"An error occurred while saving the asset to '{directory}'.");
             }
 #endif
-        }
-
-        public Func<string, bool>? AllowOverwriteCallback { get; set; } = path => true;
-
-        public static string GetUniqueAssetPath(string path)
-        {
-            if (!File.Exists(path))
-                return path;
-
-            string? dir = Path.GetDirectoryName(path);
-            if (dir is null)
-                return path;
-
-            string name = Path.GetFileNameWithoutExtension(path);
-            string ext = Path.GetExtension(path);
-            int i = 1;
-            string newPath;
-            do
-            {
-                newPath = Path.Combine(dir, $"{name} ({i++}){ext}");
-            } while (File.Exists(newPath));
-            return newPath;
         }
 
         public Task SaveToAsync(XRAsset asset, Environment.SpecialFolder folder, params string[] folderNames)
@@ -543,9 +561,16 @@ namespace XREngine
             {
 #endif
             string path = VerifyAssetPath(asset, directory);
+
+            if (File.Exists(path) && !(AllowOverwriteCallback?.Invoke(path) ?? true))
+                path = GetUniqueAssetPath(path);
+
             asset.FilePath = path;
+            //Debug.Out($"Saving asset to '{path}'...");
+            Stopwatch sw = Stopwatch.StartNew();
             await File.WriteAllTextAsync(path, Serializer.Serialize(asset));
-            CacheAsset(asset);
+            sw.Stop();
+            Debug.Out($"Saved asset to '{path}' in {sw.ElapsedMilliseconds}ms.");
             PostSaved(asset, true);
 #if !DEBUG
             }
@@ -563,14 +588,35 @@ namespace XREngine
 
         public static readonly ISerializer Serializer = new SerializerBuilder()
             //.IgnoreFields()
+            .EnablePrivateConstructors() //TODO: probably avoid using this
             .EnsureRoundtrip()
             .WithEventEmitter(nextEmitter => new DepthTrackingEventEmitter(nextEmitter))
             //.WithTypeConverter(new XRAssetYamlConverter())
             .WithTypeConverter(new DataSourceYamlTypeConverter())
+            .WithTypeConverter(new Vector2YamlTypeConverter())
+            .WithTypeConverter(new Vector3YamlTypeConverter())
+            .WithTypeConverter(new Vector4YamlTypeConverter())
+            .WithTypeConverter(new QuaternionYamlTypeConverter())
+            .WithTypeConverter(new Matrix4x4YamlTypeConverter())
+            .IncludeNonPublicProperties()
+            //.WithTagMapping("!Transform", typeof(Transform))
+            //.WithTagMapping("!UIBoundableTransform", typeof(UIBoundableTransform))
+            //.WithTagMapping("!UITransform", typeof(UITransform))
+            .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull | DefaultValuesHandling.OmitDefaults | DefaultValuesHandling.OmitEmptyCollections)
             .Build();
 
         public static readonly IDeserializer Deserializer = new DeserializerBuilder()
             .IgnoreUnmatchedProperties()
+            .EnablePrivateConstructors()
+            .WithEnforceNullability()
+            .WithEnforceRequiredMembers()
+            .WithDuplicateKeyChecking()
+            .WithTypeConverter(new DataSourceYamlTypeConverter())
+            .WithTypeConverter(new Vector2YamlTypeConverter())
+            .WithTypeConverter(new Vector3YamlTypeConverter())
+            .WithTypeConverter(new Vector4YamlTypeConverter())
+            .WithTypeConverter(new QuaternionYamlTypeConverter())
+            .WithTypeConverter(new Matrix4x4YamlTypeConverter())
             .WithNodeDeserializer(
                 inner => new DepthTrackingNodeDeserializer(inner),
                 s => s.InsteadOf<ObjectNodeDeserializer>())
@@ -579,20 +625,62 @@ namespace XREngine
 
         private static T? Deserialize<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)] T>(string filePath) where T : XRAsset, new()
         {
+#if !DEBUG
+            try
+            {
+#endif
+            //Debug.Out($"Loading asset from '{filePath}'...");
+            Stopwatch sw = Stopwatch.StartNew();
             string ext = Path.GetExtension(filePath)[1..].ToLowerInvariant();
+            T? file;
             if (ext == AssetExtension)
-                return Deserializer.Deserialize<T>(File.ReadAllText(filePath));
+                file = Deserializer.Deserialize<T>(File.ReadAllText(filePath));
             else
-                return Load3rdParty<T>(filePath, ext);
+                file = Load3rdParty<T>(filePath, ext);
+            sw.Stop();
+            if (sw.ElapsedMilliseconds > 1000)
+                Debug.Out($"Loaded asset from '{filePath}' in {sw.Elapsed.TotalSeconds}sec (slow).");
+            else
+                Debug.Out($"Loaded asset from '{filePath}' in {sw.ElapsedMilliseconds}ms.");
+#if !DEBUG
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e, $"An error occurred while loading the asset at '{filePath}'.");
+                return null;
+            }
+#endif
+            return file;
         }
 
         private static async Task<T?> DeserializeAsync<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)] T>(string filePath) where T : XRAsset, new()
         {
+#if !DEBUG
+            try
+            {
+#endif
+            //Debug.Out($"Loading asset from '{filePath}'...");
+            Stopwatch sw = Stopwatch.StartNew();
             string ext = Path.GetExtension(filePath)[1..].ToLowerInvariant();
+            T? file;
             if (ext == AssetExtension)
-                return await Task.Run(async () => Deserializer.Deserialize<T>(await File.ReadAllTextAsync(filePath)));
+                file = await Task.Run(async () => Deserializer.Deserialize<T>(await File.ReadAllTextAsync(filePath)));
             else
-                return await Load3rdPartyAsync<T>(filePath, ext);
+                file = await Load3rdPartyAsync<T>(filePath, ext);
+            sw.Stop();
+            if (sw.ElapsedMilliseconds > 1000)
+                Debug.Out($"Loaded asset from '{filePath}' in {sw.Elapsed.TotalSeconds}sec (slow).");
+            else
+                Debug.Out($"Loaded asset from '{filePath}' in {sw.ElapsedMilliseconds}ms.");
+#if !DEBUG
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e, $"An error occurred while loading the asset at '{filePath}'.");
+                return null;
+            }
+#endif
+            return file;
         }
 
         private static T? Load3rdParty<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)] T>(string filePath, string ext) where T : XRAsset, new()

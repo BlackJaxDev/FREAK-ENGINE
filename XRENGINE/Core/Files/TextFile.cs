@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using XREngine.Data;
+using YamlDotNet.Serialization;
 
 namespace XREngine.Core.Files
 {
@@ -16,6 +17,7 @@ namespace XREngine.Core.Files
         }
 
         private Encoding _encoding = Encoding.Default;
+        [YamlIgnore]
         public Encoding Encoding
         {
             get
@@ -28,6 +30,12 @@ namespace XREngine.Core.Files
             {
                 _encoding = value;
             }
+        }
+
+        public int EncodingCodePage
+        {
+            get => Encoding.CodePage;
+            set => Encoding = Encoding.GetEncoding(value);
         }
 
         protected override void OnPropertyChanged<T>(string? propName, T prev, T field)

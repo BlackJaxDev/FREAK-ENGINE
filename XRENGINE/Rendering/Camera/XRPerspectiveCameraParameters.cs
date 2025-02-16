@@ -4,19 +4,35 @@ using XREngine.Data.Geometry;
 
 namespace XREngine.Rendering
 {
-    public class XRPerspectiveCameraParameters(float verticalFieldOfView, float? aspectRatio, float nearPlane, float farPlane) 
-        : XRCameraParameters(nearPlane, farPlane)
+    public class XRPerspectiveCameraParameters : XRCameraParameters
     {
-        private float _aspectRatio = aspectRatio ?? 1.0f;
-        private bool _inheritAspectRatio = aspectRatio is null;
+        private float _aspectRatio;
+        private bool _inheritAspectRatio;
+        private float _verticalFieldOfView;
+
+        public XRPerspectiveCameraParameters(float verticalFieldOfView, float? aspectRatio, float nearPlane, float farPlane) : base(nearPlane, farPlane)
+        {
+            _verticalFieldOfView = verticalFieldOfView;
+            _aspectRatio = aspectRatio ?? 1.0f;
+            _inheritAspectRatio = aspectRatio is null;
+        }
+
+        public XRPerspectiveCameraParameters(float nearPlane, float farPlane) : base(nearPlane, farPlane)
+        {
+            _verticalFieldOfView = 60.0f;
+            _aspectRatio = 1.0f;
+            _inheritAspectRatio = true;
+        }
+
+        public XRPerspectiveCameraParameters() : this(0.1f, 10000.0f) { }
 
         /// <summary>
         /// Field of view on the Y axis in degrees.
         /// </summary>
         public float VerticalFieldOfView
         {
-            get => verticalFieldOfView;
-            set => SetField(ref verticalFieldOfView, value);
+            get => _verticalFieldOfView;
+            set => SetField(ref _verticalFieldOfView, value);
         }
 
         /// <summary>

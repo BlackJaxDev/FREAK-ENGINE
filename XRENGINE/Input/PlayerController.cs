@@ -6,7 +6,7 @@ namespace XREngine.Input
 {
     public abstract class PlayerController<T> : PlayerControllerBase where T : InputInterface
     {
-        public PlayerController(T input) : base()
+        protected PlayerController(T input) : base()
         {
             _input = input;
             _input.InputRegistration += RegisterInput;

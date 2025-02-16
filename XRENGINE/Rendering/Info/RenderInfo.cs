@@ -3,6 +3,7 @@ using XREngine.Data.Core;
 using XREngine.Data.Rendering;
 using XREngine.Data.Trees;
 using XREngine.Rendering.Commands;
+using YamlDotNet.Serialization;
 
 namespace XREngine.Rendering.Info
 {
@@ -17,18 +18,33 @@ namespace XREngine.Rendering.Info
     public abstract class RenderInfo : XRBase, ITreeItem
     {
         public abstract ITreeNode? TreeNode { get; }
-        public IRenderable Owner { get; }
+
+        public IRenderable? Owner { get; set; }
 
         public override string ToString()
             => $"{Owner?.ToString() ?? "Unknown"}";
 
         public delegate void DelPreRenderCallback(RenderInfo info, RenderCommand command, XRCamera? camera, bool shadowPass);
-        public event DelPreRenderCallback? PreRenderCallback;
+        /// <summary>
+        /// This callback is called when the engine is collecting render commands for the render pass, and this render info is added.
+        /// </summary>
+        public event DelPreRenderCallback? CollectedForRenderCallback;
 
         public delegate void DelSwapBuffersCallback(RenderInfo info, RenderCommand command, bool shadowPass);
+        /// <summary>
+        /// This callback is called when the engine is swapping buffers - both the collect and render threads are currently in sync and waiting.
+        /// </summary>
         public event DelSwapBuffersCallback? SwapBuffersCallback;
 
-        protected RenderInfo(IRenderable owner, params RenderCommand[] renderCommands)
+        public delegate bool DelAddRenderCommandsCallback(RenderInfo info, RenderCommandCollection passes, XRCamera? camera);
+        /// <summary>
+        /// This callback is called before render commands are added to the render pass.
+        /// Return false to skip adding render commands.
+        /// </summary>
+        [YamlIgnore]
+        public DelAddRenderCommandsCallback? PreAddRenderCommandsCallback;
+
+        protected RenderInfo(IRenderable? owner, params RenderCommand[] renderCommands)
         {
             Owner = owner;
             RenderCommands.PostAnythingAdded += Added;
@@ -38,21 +54,21 @@ namespace XREngine.Rendering.Info
 
         private void Removed(RenderCommand item)
         {
-            item.OnPreRender -= PreRender;
+            item.OnCollectedForRender -= CollectedForRender;
             item.OnSwapBuffers -= SwapBuffers;
         }
 
         private void Added(RenderCommand item)
         {
-            item.OnPreRender += PreRender;
+            item.OnCollectedForRender += CollectedForRender;
             item.OnSwapBuffers += SwapBuffers;
         }
 
         private void SwapBuffers(RenderCommand command, bool swapBuffers)
             => SwapBuffersCallback?.Invoke(this, command, swapBuffers);
 
-        private void PreRender(RenderCommand command, XRCamera? camera, bool shadowPass)
-            => PreRenderCallback?.Invoke(this, command, camera, shadowPass);
+        private void CollectedForRender(RenderCommand command, XRCamera? camera, bool shadowPass)
+            => CollectedForRenderCallback?.Invoke(this, command, camera, shadowPass);
 
         private EventList<RenderCommand> _renderCommands = [];
         public EventList<RenderCommand> RenderCommands
@@ -78,8 +94,10 @@ namespace XREngine.Rendering.Info
 
         private XRWorldInstance? _worldInstance;
         /// <summary>
-        /// This is the world instance that this render info is part of. It is set automatically when the render info is added to a visual scene.
+        /// This is the world instance that this render info is part of.
+        /// It is set automatically when the render info is added to a 3D visual scene.
         /// </summary>
+        [YamlIgnore]
         public XRWorldInstance? WorldInstance
         {
             get => _worldInstance;
@@ -87,20 +105,17 @@ namespace XREngine.Rendering.Info
         }
 
         private UICanvasComponent? _userInterfaceCanvas;
+        /// <summary>
+        /// This is the user interface canvas that this render info is part of.
+        /// It is set automatically when the render info is added to a 2D visual scene.
+        /// </summary>
         public UICanvasComponent? UserInterfaceCanvas
         {
             get => _userInterfaceCanvas;
             set => SetField(ref _userInterfaceCanvas, value);
         }
 
-        public delegate bool DelAddRenderCommandsCallback(RenderInfo info, RenderCommandCollection passes, XRCamera? camera);
-
-        /// <summary>
-        /// This callback is called before render commands are added to the render pass.
-        /// Return false to skip adding render commands.
-        /// </summary>
-        public DelAddRenderCommandsCallback? PreAddRenderCommandsCallback { get; set; }
-        IRenderableBase ITreeItem.Owner => Owner;
+        IRenderableBase? ITreeItem.Owner => Owner;
 
         public void AddRenderCommands(RenderCommandCollection passes, XRCamera? camera, bool shadowPass)
         {
@@ -113,7 +128,7 @@ namespace XREngine.Rendering.Info
                 if (!cmd.Enabled)
                     continue;
 
-                cmd.PreRender(camera, shadowPass);
+                cmd.CollectedForRender(camera, shadowPass);
                 passes.Add(cmd);
             }
         }

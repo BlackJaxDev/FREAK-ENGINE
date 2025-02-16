@@ -66,6 +66,7 @@ namespace XREngine.Data.Core
         public XRBoolEvent<XRObjectBase> Destroying;
 
         private string? _name;
+        [YamlMember(Order = 0)]
         public string? Name
         {
             get => _name;

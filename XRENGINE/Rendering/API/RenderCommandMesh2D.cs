@@ -1,6 +1,7 @@
 ﻿using System.Numerics;
 using XREngine.Data.Geometry;
 using XREngine.Rendering.Commands;
+using YamlDotNet.Serialization;
 
 namespace XREngine.Rendering
 {
@@ -15,6 +16,7 @@ namespace XREngine.Rendering
         /// <summary>
         /// The mesh to render.
         /// </summary>
+        [YamlIgnore]
         public XRMeshRenderer? Mesh
         {
             get => _mesh;

@@ -5,6 +5,7 @@ using XREngine.Data.Core;
 using XREngine.Data.Geometry;
 using XREngine.Rendering.Info;
 using XREngine.Scene.Transforms;
+using YamlDotNet.Serialization;
 
 namespace XREngine.Rendering.UI
 {
@@ -371,6 +372,7 @@ namespace XREngine.Rendering.UI
         /// <summary>
         /// Assign this callback for components that can determine their own height.
         /// </summary>
+        [YamlIgnore]
         public Func<UIBoundableTransform, float>? CalcAutoHeightCallback
         {
             get => _calcAutoHeightCallback;
@@ -381,6 +383,7 @@ namespace XREngine.Rendering.UI
         /// <summary>
         /// Assign this callback for components that can determine their own width.
         /// </summary>
+        [YamlIgnore]
         public Func<UIBoundableTransform, float>? CalcAutoWidthCallback
         {
             get => _calcAutoWidthCallback;

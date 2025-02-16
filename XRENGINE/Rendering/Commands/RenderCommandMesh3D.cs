@@ -1,6 +1,7 @@
 ﻿using System.Numerics;
 using XREngine.Rendering;
 using XREngine.Rendering.Commands;
+using YamlDotNet.Serialization;
 
 namespace XREngine.Data.Rendering
 {
@@ -18,6 +19,7 @@ namespace XREngine.Data.Rendering
         private uint _renderInstances;
         private bool _renderWorldMatrixIsModelMatrix;
 
+        [YamlIgnore]
         public XRMeshRenderer? Mesh
         {
             get => _mesh;
@@ -61,9 +63,9 @@ namespace XREngine.Data.Rendering
         public override void Render(bool shadowPass)
             => _renderMesh?.Render(_renderWorldMatrixIsModelMatrix ? _renderWorldMatrix : Matrix4x4.Identity, _renderMaterialOverride, _renderInstances);
 
-        public override void PreRender(XRCamera? camera, bool shadowPass)
+        public override void CollectedForRender(XRCamera? camera, bool shadowPass)
         {
-            base.PreRender(camera, shadowPass);
+            base.CollectedForRender(camera, shadowPass);
             // Update render distance for proper sorting.
             // This is done in the collect visible thread - doesn't need to be thread safe.
             if (camera != null)

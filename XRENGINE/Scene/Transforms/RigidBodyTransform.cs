@@ -2,6 +2,7 @@
 using System.Numerics;
 using XREngine.Components;
 using XREngine.Data.Core;
+using YamlDotNet.Serialization;
 
 namespace XREngine.Scene.Transforms
 {
@@ -98,6 +99,12 @@ namespace XREngine.Scene.Transforms
         }
 
         private float _accumulatedTime;
+        private (Vector3 position, Quaternion rotation) _lastPhysicsTransform;
+        private Vector3 _lastPhysicsLinearVelocity;
+        private Vector3 _lastPhysicsAngularVelocity;
+        private Vector3 _lastPosition;
+        private Quaternion _lastRotation;
+
         private void OnUpdate()
         {
             float updateDelta = Engine.Delta;
@@ -132,11 +139,40 @@ namespace XREngine.Scene.Transforms
             }
         }
 
-        public (Vector3 position, Quaternion rotation) LastPhysicsTransform { get; set; }
-        public Vector3 LastPhysicsLinearVelocity { get; private set; }
-        public Vector3 LastPhysicsAngularVelocity { get; private set; }
-        public Vector3 LastPosition { get; private set; }
-        public Quaternion LastRotation { get; private set; }
+        [YamlIgnore]
+        public (Vector3 position, Quaternion rotation) LastPhysicsTransform
+        {
+            get => _lastPhysicsTransform;
+            private set => SetField(ref _lastPhysicsTransform, value);
+        }
+
+        [YamlIgnore]
+        public Vector3 LastPhysicsLinearVelocity
+        {
+            get => _lastPhysicsLinearVelocity;
+            private set => SetField(ref _lastPhysicsLinearVelocity, value);
+        }
+
+        [YamlIgnore]
+        public Vector3 LastPhysicsAngularVelocity
+        {
+            get => _lastPhysicsAngularVelocity;
+            private set => SetField(ref _lastPhysicsAngularVelocity, value);
+        }
+
+        [YamlIgnore]
+        public Vector3 LastPosition
+        {
+            get => _lastPosition;
+            private set => SetField(ref _lastPosition, value);
+        }
+
+        [YamlIgnore]
+        public Quaternion LastRotation
+        {
+            get => _lastRotation;
+            private set => SetField(ref _lastRotation, value);
+        }
 
         private void OnPhysicsStepped()
         {

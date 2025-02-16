@@ -5,22 +5,22 @@ namespace XREngine
     public static partial class Engine
     {
         /// <summary>
-        /// This delta is the time that has passed since the last frame, in seconds.
+        /// This delta is the time that has passed since the last update, in seconds.
         /// Not affected by time dilation.
         /// </summary>
         public static float UndilatedDelta => Time.Timer.Update.Delta;
         /// <summary>
-        /// This delta is the time that has passed since the last frame, in seconds.
+        /// This delta is the time that has passed since the last update, in seconds.
         /// Affected by time dilation.
         /// </summary>
         public static float Delta => Time.Timer.Update.DilatedDelta;
         /// <summary>
-        /// This delta is the time that has passed since the last frame, in seconds.
+        /// This delta is the time that has passed since the last update, in seconds.
         /// Smoothed and not affected by time dilation.
         /// </summary>
         public static float SmoothedUndilatedDelta => Time.Timer.Update.SmoothedDelta;
         /// <summary>
-        /// This delta is the time that has passed since the last frame, in seconds.
+        /// This delta is the time that has passed since the last update, in seconds.
         /// Smoothed and affected by time dilation.
         /// </summary>
         public static float SmoothedDelta => Time.Timer.Update.SmoothedDilatedDelta;

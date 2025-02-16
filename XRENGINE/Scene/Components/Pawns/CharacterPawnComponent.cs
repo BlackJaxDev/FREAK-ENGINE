@@ -123,6 +123,20 @@ namespace XREngine.Components
             set => SetField(ref _ignoreViewTransformYaw, value);
         }
 
+        private bool _movementAffectedByTimeDilation = true;
+        public bool MovementAffectedByTimeDilation
+        {
+            get => _movementAffectedByTimeDilation;
+            set => SetField(ref _movementAffectedByTimeDilation, value);
+        }
+
+        private bool _viewRotationAffectedByTimeDilation = true;
+        public bool ViewRotationAffectedByTimeDilation
+        {
+            get => _viewRotationAffectedByTimeDilation;
+            set => SetField(ref _viewRotationAffectedByTimeDilation, value);
+        }
+
         protected virtual void TickMovementInput()
         {
             var cam = GetCamera();
@@ -133,16 +147,16 @@ namespace XREngine.Components
             bool keyboardMovement = _keyboardMovementInput.X != 0.0f || _keyboardMovementInput.Y != 0.0f;
             bool gamepadMovement = _gamepadMovementInput.X != 0.0f || _gamepadMovementInput.Y != 0.0f;
 
+            float dt = MovementAffectedByTimeDilation ? Engine.Delta : Engine.UndilatedDelta;
             if (keyboardMovement)
             {
                 Vector3 input = forward * _keyboardMovementInput.Y + right * _keyboardMovementInput.X;
-                Movement.AddMovementInput(Engine.Delta * KeyboardMovementInputMultiplier * Vector3.Normalize(input));
+                Movement.AddMovementInput(dt * KeyboardMovementInputMultiplier * Vector3.Normalize(input));
             }
-
             if (gamepadMovement)
             {
                 Vector3 input = forward * _gamepadMovementInput.Y + right * _gamepadMovementInput.X;
-                Movement.AddMovementInput(Engine.Delta * GamePadMovementInputMultiplier * Vector3.Normalize(input));
+                Movement.AddMovementInput(dt * GamePadMovementInputMultiplier * Vector3.Normalize(input));
             }
 
             if (_keyboardLookInput != Vector2.Zero)
@@ -163,7 +177,7 @@ namespace XREngine.Components
         {
             forward = viewTransform.WorldForward;
             float dot = forward.Dot(Globals.Up);
-            if (Math.Abs(dot) >= 0.99f)
+            if (Math.Abs(dot) >= 0.5f)
             {
                 //if dot is 1, looking straight up. need to use camera down for forward
                 //if dot is -1, looking straight down. need to use camera up for forward
@@ -176,9 +190,19 @@ namespace XREngine.Components
             right = viewTransform.WorldRight;
         }
 
+        private bool _shouldHideCursor = true;
+        public bool ShouldHideCursor
+        {
+            get => _shouldHideCursor;
+            set => SetField(ref _shouldHideCursor, value);
+        }
+
         public override void RegisterInput(InputInterface input)
         {
-            input.HideCursor = !input.Unregister;
+            if (ShouldHideCursor)
+                input.HideCursor = !input.Unregister;
+            else if (input.HideCursor)
+                input.HideCursor = false;
 
             input.RegisterMouseMove(MouseLook, EMouseMoveType.Relative);
 
@@ -273,13 +297,8 @@ namespace XREngine.Components
         protected virtual void Quit()
             => Engine.ShutDown();
 
-        //protected virtual void Jump()
-        //    => Movement.Jump(true);
-
         private void Jump(bool pressed)
-        {
-            Movement.Jump(pressed);
-        }
+            => Movement.Jump(pressed);
 
         protected virtual void ToggleCrouch()
             => Movement.CrouchState = Movement.CrouchState == CharacterMovement3DComponent.ECrouchState.Crouched
@@ -314,29 +333,33 @@ namespace XREngine.Components
         protected virtual void MoveForward(float value)
             => _gamepadMovementInput.Y = value;
 
-        protected virtual void MouseLook(float x, float y)
+        protected virtual void MouseLook(float dx, float dy)
         {
-            _viewRotation.Pitch += Engine.Delta * y * MouseYLookInputMultiplier;
-            _viewRotation.Yaw -= Engine.Delta * x * MouseXLookInputMultiplier;
+            float dt = ViewRotationAffectedByTimeDilation ? Engine.Delta : Engine.UndilatedDelta;
+            _viewRotation.Pitch += dt * dy * MouseYLookInputMultiplier;
+            _viewRotation.Yaw -= dt * dx * MouseXLookInputMultiplier;
             ClampPitch();
             RemapYaw();
         }
-        protected virtual void KeyboardLook(float x, float y)
+        protected virtual void KeyboardLook(float dx, float dy)
         {
-            _viewRotation.Pitch += Engine.Delta * y * KeyboardLookYInputMultiplier;
-            _viewRotation.Yaw -= Engine.Delta * x * KeyboardLookXInputMultiplier;
+            float dt = ViewRotationAffectedByTimeDilation ? Engine.Delta : Engine.UndilatedDelta;
+            _viewRotation.Pitch += dt * dy * KeyboardLookYInputMultiplier;
+            _viewRotation.Yaw -= dt * dx * KeyboardLookXInputMultiplier;
             ClampPitch();
             RemapYaw();
         }
 
-        protected virtual void LookRight(float value)
+        protected virtual void LookRight(float dx)
         {
-            _viewRotation.Yaw -= Engine.Delta * value * GamePadXLookInputMultiplier;
+            float dt = ViewRotationAffectedByTimeDilation ? Engine.Delta : Engine.UndilatedDelta;
+            _viewRotation.Yaw -= dt * dx * GamePadXLookInputMultiplier;
             RemapYaw();
         }
-        protected virtual void LookUp(float value)
+        protected virtual void LookUp(float dy)
         {
-            _viewRotation.Pitch += Engine.Delta * value * GamePadYLookInputMultiplier;
+            float dt = ViewRotationAffectedByTimeDilation ? Engine.Delta : Engine.UndilatedDelta;
+            _viewRotation.Pitch += dt * dy * GamePadYLookInputMultiplier;
             ClampPitch();
         }
 

@@ -29,6 +29,7 @@ namespace XREngine.Input.Devices
             get => _localPlayerIndex;
             set => SetField(ref _localPlayerIndex, value);
         }
+
         public override bool HideCursor
         {
             get => Mouse?.HideCursor ?? false;
@@ -42,6 +43,10 @@ namespace XREngine.Input.Devices
         public LocalInputInterface(int localPlayerIndex) : base(localPlayerIndex)
         {
             LocalPlayerIndex = localPlayerIndex;
+        }
+        public LocalInputInterface() : base(0)
+        {
+
         }
 
         public override void TryRegisterInput()

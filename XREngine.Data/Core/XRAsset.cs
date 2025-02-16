@@ -38,6 +38,7 @@ namespace XREngine.Core.Files
         /// <summary>
         /// The absolute origin of this asset in the file system.
         /// </summary>
+        [YamlIgnore]
         public string? FilePath
         {
             get => _sourceAsset is null || _sourceAsset == this ? _filePath : _sourceAsset.FilePath;

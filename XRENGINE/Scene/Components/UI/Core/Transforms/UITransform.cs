@@ -90,7 +90,6 @@ namespace XREngine.Rendering.UI
             set => RotationRadians = XRMath.DegToRad(value);
         }
 
-        public RenderCommandMethod2D _debugRC;
         public RenderInfo2D DebugRenderInfo2D { get; private set; }
 
         public UITransform() : this(null) { }
@@ -106,6 +105,9 @@ namespace XREngine.Rendering.UI
             Children.PostAnythingAdded -= OnChildAdded;
             Children.PostAnythingRemoved -= OnChildRemoved;
         }
+
+        private RenderCommandMethod2D _debugRC;
+        public RenderCommandMethod2D DebugRenderCommand => _debugRC;
 
         protected override RenderInfo[] GetDebugRenderInfo()
             => [DebugRenderInfo2D = RenderInfo2D.New(this, 

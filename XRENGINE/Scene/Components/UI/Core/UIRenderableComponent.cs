@@ -5,6 +5,7 @@ using XREngine.Data.Rendering;
 using XREngine.Rendering.Commands;
 using XREngine.Rendering.Info;
 using XREngine.Scene.Transforms;
+using YamlDotNet.Serialization;
 
 namespace XREngine.Rendering.UI
 {
@@ -67,6 +68,7 @@ namespace XREngine.Rendering.UI
             set => SetField(ref _material, value);
         }
 
+        [YamlIgnore]
         public int RenderPass
         {
             get => RenderCommand3D.RenderPass;
@@ -81,6 +83,7 @@ namespace XREngine.Rendering.UI
         public RenderCommandMesh3D RenderCommand3D { get; } = new RenderCommandMesh3D(EDefaultRenderPass.OpaqueForward);
         public RenderCommandMesh2D RenderCommand2D { get; } = new RenderCommandMesh2D((int)EDefaultRenderPass.OpaqueForward);
         public RenderInfo[] RenderedObjects { get; }
+        [YamlIgnore]
         public XRMeshRenderer? Mesh
         {
             get => RenderCommand3D.Mesh;

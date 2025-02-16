@@ -1,9 +1,13 @@
 ﻿using Extensions;
+using System.ComponentModel;
+using System.Globalization;
 using System.Numerics;
 using XREngine.Components;
 using XREngine.Data;
 using XREngine.Data.Core;
+using XREngine.Data.Core.TypeConverters;
 using XREngine.Data.Transforms.Rotations;
+using YamlDotNet.Serialization;
 
 namespace XREngine.Scene.Transforms
 {
@@ -12,12 +16,9 @@ namespace XREngine.Scene.Transforms
     /// Can transform the node in any order of translation, scale and rotation.
     /// T-R-S is default (translation, rotated at that point, and then scaled in that coordinate system).
     /// </summary>
+    [Serializable]
     public class Transform : TransformBase
     {
-        private Vector3 _prevScale = Vector3.One;
-        private Vector3 _prevTranslation = Vector3.Zero;
-        private Quaternion _prevRotation = Quaternion.Identity;
-
         public override string ToString()
             => $"{Name} | T:[{Translation}], R:[{Rotation}], S:[{Scale}]";
 
@@ -63,6 +64,8 @@ namespace XREngine.Scene.Transforms
             : this(Quaternion.Identity, parent, order) { }
 
         private Vector3 _scale = Vector3.One;
+        //[TypeConverter(typeof(Vector3TypeConverter))]
+        //[DefaultValue(typeof(Vector3), "1 1 1")]
         public Vector3 Scale
         {
             get => _scale;
@@ -76,6 +79,7 @@ namespace XREngine.Scene.Transforms
             set => SetField(ref _translation, value);
         }
 
+        [YamlIgnore]
         public Rotator Rotator
         {
             get => Rotator.FromQuaternion(Rotation);
@@ -83,6 +87,8 @@ namespace XREngine.Scene.Transforms
         }
 
         private Quaternion _rotation = Quaternion.Identity;
+        //[DefaultValue(typeof(Quaternion), "0 0 0 1")]
+        //[TypeConverter(typeof(QuaternionTypeConverter))]
         public Quaternion Rotation
         {
             get => _rotation;
@@ -101,6 +107,7 @@ namespace XREngine.Scene.Transforms
         /// How fast to interpolate to the target values.
         /// A value of 0.0f will snap to the target, whereas 1.0f will take 1 second to reach the target.
         /// </summary>
+        [DefaultValue(0.1f)]
         public float SmoothingSpeed
         {
             get => _smoothingSpeed;
@@ -112,6 +119,7 @@ namespace XREngine.Scene.Transforms
         /// If set, the transform will interpolate to this scale at the specified smoothing speed.
         /// Used for network replication.
         /// </summary>
+        [YamlIgnore]
         public Vector3? TargetScale
         {
             get => _targetScale;
@@ -122,6 +130,7 @@ namespace XREngine.Scene.Transforms
         /// If set, the transform will interpolate to this translation at the specified smoothing speed.
         /// Used for network replication.
         /// </summary>
+        [YamlIgnore]
         public Vector3? TargetTranslation
         {
             get => _targetTranslation;
@@ -132,6 +141,7 @@ namespace XREngine.Scene.Transforms
         /// If set, the transform will interpolate to this rotation at the specified smoothing speed.
         /// Used for network replication.
         /// </summary>
+        [YamlIgnore]
         public Quaternion? TargetRotation
         {
             get => _targetRotation;
@@ -272,6 +282,10 @@ namespace XREngine.Scene.Transforms
             //Scale = new Vector3(value.M11, value.M22, value.M33);
             //Rotation = Quaternion.CreateFromRotationMatrix(value);
         }
+
+        private Vector3 _prevScale = Vector3.One;
+        private Vector3 _prevTranslation = Vector3.Zero;
+        private Quaternion _prevRotation = Quaternion.Identity;
 
         public override byte[] EncodeToBytes(bool delta)
         {

@@ -9,6 +9,7 @@ using XREngine.Data.Rendering;
 using XREngine.Rendering.Commands;
 using XREngine.Rendering.Info;
 using XREngine.Rendering.UI;
+using YamlDotNet.Serialization;
 
 namespace XREngine.Scene.Transforms
 {
@@ -17,9 +18,11 @@ namespace XREngine.Scene.Transforms
     /// Inherit from this class to create custom transformation implementations, or use the Transform class for default functionality.
     /// This class is thread-safe.
     /// </summary>
-    public abstract partial class TransformBase : XRWorldObjectBase, IList, IList<TransformBase>, IEnumerable<TransformBase>, IRenderable
+    [Serializable]
+    public abstract partial class TransformBase : XRWorldObjectBase, IRenderable
     {
         public RenderInfo[] RenderedObjects { get; }
+        [YamlIgnore]
         public bool HasChanged { get; protected set; } = false;
 
         public override string ToString()
@@ -31,6 +34,7 @@ namespace XREngine.Scene.Transforms
         public event Action<TransformBase>? InverseWorldMatrixChanged;
 
         private float _selectionRadius = 0.01f;
+        [YamlIgnore]
         public float SelectionRadius
         {
             get => _selectionRadius;
@@ -38,6 +42,7 @@ namespace XREngine.Scene.Transforms
         }
 
         private Capsule _capsule = new(Vector3.Zero, Vector3.UnitY, 0.015f, 0.5f);
+        [YamlIgnore]
         public Capsule Capsule
         {
             get => _capsule;
@@ -75,6 +80,7 @@ namespace XREngine.Scene.Transforms
             Capsule = new Capsule(center, dir, SelectionRadius, halfHeight);
         }
 
+        [YamlIgnore]
         public bool DebugRender
         {
             get => RenderedObjects.TryGet(0)?.IsVisible ?? false;
@@ -138,6 +144,7 @@ namespace XREngine.Scene.Transforms
         }
 
         private int _depth = 0;
+        [YamlIgnore]
         public int Depth 
         {
             get => _depth;
@@ -153,6 +160,20 @@ namespace XREngine.Scene.Transforms
         {
             get => _parent;
             set => SetField(ref _parent, value);
+        }
+
+        private EventList<TransformBase> _children;
+        [YamlIgnore]
+        public EventList<TransformBase> Children
+        {
+            get => _children;
+            set => SetField(ref _children, value);
+        }
+
+        public TransformBase[] ChildrenSerialized
+        {
+            get => [.. _children];
+            set => _children = [.. value];
         }
 
         public void AddChild(TransformBase child, bool childPreservesWorldTransform, bool now)
@@ -197,6 +218,19 @@ namespace XREngine.Scene.Transforms
                     case nameof(Parent):
                         _parent?._children.Remove(this);
                         break;
+                    case nameof(Children):
+                        _children.PostAnythingAdded -= ChildAdded;
+                        _children.PostAnythingRemoved -= ChildRemoved;
+                        lock (_children)
+                        {
+                            foreach (var child in _children)
+                                if (child is not null)
+                                {
+                                    child.Parent = null;
+                                    child.World = null;
+                                }
+                        }
+                        break;
                 }
             }
             return change;
@@ -211,6 +245,7 @@ namespace XREngine.Scene.Transforms
                     {
                         Depth = _parent.Depth + 1;
                         _parent._children.Add(this);
+                        World ??= _parent.World;
                     }
                     else
                         Depth = 0;
@@ -236,6 +271,19 @@ namespace XREngine.Scene.Transforms
                                 child.World = World;
                     }
                     break;
+                case nameof(Children):
+                    _children.PostAnythingAdded += ChildAdded;
+                    _children.PostAnythingRemoved += ChildRemoved;
+                    lock (_children)
+                    {
+                        foreach (var child in _children)
+                            if (child is not null)
+                            {
+                                child.Parent = this;
+                                child.World = World;
+                            }
+                    }
+                    break;
             }
         }
 
@@ -246,17 +294,6 @@ namespace XREngine.Scene.Transforms
                 if (t.child is not null && t.child.Parent != t.newParent)
                     t.child.SetParent(t.newParent, t.preserveWorldTransform, true);
         }
-
-        public interface IBoneTransformDependent
-        {
-
-        }
-
-        /// <summary>
-        /// These objects depend on the bone transform and will be updated when the bone transform is updated.
-        /// Use these to verify the bone is on screen and should be updated.
-        /// </summary>
-        public EventList<IBoneTransformDependent> Dependencies { get; } = [];
 
         /// <summary>
         /// Recalculates the local and world matrices for this transform and all children.
@@ -301,9 +338,6 @@ namespace XREngine.Scene.Transforms
             return wasDepthAdded;
             
         }
-
-        private readonly EventList<TransformBase> _children;
-        public IEventListReadOnly<TransformBase> Children => _children;
 
         public TransformBase? FindChild(string name, StringComparison comp = StringComparison.Ordinal)
         {
@@ -687,33 +721,29 @@ namespace XREngine.Scene.Transforms
             //ClearTicks();
         }
 
-        #region Interfaces
-        public int Count => ((ICollection<TransformBase>)Children).Count;
-        public bool IsReadOnly => ((ICollection<TransformBase>)Children).IsReadOnly;
-        public bool IsFixedSize => ((IList)Children).IsFixedSize;
-        public bool IsSynchronized => ((ICollection)Children).IsSynchronized;
-        public object SyncRoot => ((ICollection)Children).SyncRoot;
-
-        object? IList.this[int index] { get => ((IList)Children)[index]; set => ((IList)Children)[index] = value; }
-        public TransformBase this[int index] { get => ((IList<TransformBase>)Children)[index]; set => ((IList<TransformBase>)Children)[index] = value; }
-
-        public IEnumerator<TransformBase> GetEnumerator() => ((IEnumerable<TransformBase>)Children).GetEnumerator();
-        IEnumerator IEnumerable.GetEnumerator() => ((IEnumerable)Children).GetEnumerator();
-        public int IndexOf(TransformBase item) => ((IList<TransformBase>)Children).IndexOf(item);
-        public void Insert(int index, TransformBase item) => ((IList<TransformBase>)Children).Insert(index, item);
-        public void RemoveAt(int index) => ((IList<TransformBase>)Children).RemoveAt(index);
-        public void Add(TransformBase item) => ((ICollection<TransformBase>)Children).Add(item);
-        public void Clear() => ((ICollection<TransformBase>)Children).Clear();
-        public bool Contains(TransformBase item) => ((ICollection<TransformBase>)Children).Contains(item);
-        public void CopyTo(TransformBase[] array, int arrayIndex) => ((ICollection<TransformBase>)Children).CopyTo(array, arrayIndex);
-        public bool Remove(TransformBase item) => ((ICollection<TransformBase>)Children).Remove(item);
-        public int Add(object? value) => ((IList)Children).Add(value);
-        public bool Contains(object? value) => ((IList)Children).Contains(value);
-        public int IndexOf(object? value) => ((IList)Children).IndexOf(value);
-        public void Insert(int index, object? value) => ((IList)Children).Insert(index, value);
-        public void Remove(object? value) => ((IList)Children).Remove(value);
-        public void CopyTo(Array array, int index) => ((ICollection)Children).CopyTo(array, index);
-        #endregion
+        public int ChildCount
+            => _children.Count;
+        public TransformBase this[int index]
+        {
+            get => _children[index];
+            set => _children[index] = value;
+        }
+        public int IndexOf(TransformBase item)
+            => _children.IndexOf(item);
+        public void Insert(int index, TransformBase item)
+            => _children.Insert(index, item);
+        public void RemoveAt(int index)
+            => _children.RemoveAt(index);
+        public void Clear()
+            => _children.Clear();
+        public bool Contains(TransformBase item)
+            => _children.Contains(item);
+        public void CopyTo(TransformBase[] array, int arrayIndex)
+            => _children.CopyTo(array, arrayIndex);
+        public void Add(TransformBase item)
+            => _children.Add(item);
+        public bool Remove(TransformBase item)
+            => _children.Remove(item);
 
         /// <summary>
         /// Used to verify if the placement info for a child is the right type before being returned to the requester.

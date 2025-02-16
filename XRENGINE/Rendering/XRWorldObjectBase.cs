@@ -3,6 +3,7 @@ using System.Reflection;
 using XREngine.Components;
 using XREngine.Data.Core;
 using XREngine.Rendering;
+using YamlDotNet.Serialization;
 
 namespace XREngine
 {
@@ -59,6 +60,7 @@ namespace XREngine
         /// If true, this object has authority over its properties and will replicate them to the network.
         /// If false, this object will not replicate its properties to the network and will only receive updates.
         /// </summary>
+        [YamlIgnore]
         public bool HasNetworkAuthority 
         {
             get => _hasNetworkAuthority;
@@ -92,12 +94,12 @@ namespace XREngine
                 ReplicationInfo? repl = null;
                 foreach (var prop in props)
                 {
-                    if (prop.GetCustomAttribute(typeof(ReplicateOnChangeAttribute), true) is ReplicateOnChangeAttribute changeAttr)
+                    if (prop.GetCustomAttribute<ReplicateOnChangeAttribute>(true) is ReplicateOnChangeAttribute changeAttr)
                     {
                         repl ??= new ReplicationInfo();
                         repl._replicateOnChangeProperties.Add(prop.Name, (prop, changeAttr.UDP));
                     }
-                    if (prop.GetCustomAttribute(typeof(ReplicateOnTickAttribute), true) is ReplicateOnTickAttribute)
+                    if (prop.GetCustomAttribute<ReplicateOnTickAttribute>(true) is not null)
                     {
                         repl ??= new ReplicationInfo();
                         repl._replicateOnTickProperties.Add(prop.Name, prop);
@@ -111,6 +113,7 @@ namespace XREngine
         }
 
         internal XRWorldInstance? _world = null;
+        [YamlIgnore]
         public XRWorldInstance? World 
         {
             get => _world;

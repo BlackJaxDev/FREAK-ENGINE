@@ -1,12 +1,10 @@
-﻿using System.Collections;
-using System.ComponentModel;
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 using XREngine.Components;
-using XREngine.Core;
 using XREngine.Core.Attributes;
 using XREngine.Data.Core;
 using XREngine.Rendering;
 using XREngine.Scene.Transforms;
+using YamlDotNet.Serialization;
 
 namespace XREngine.Scene
 {
@@ -19,45 +17,51 @@ namespace XREngine.Scene
 
         public const string DefaultName = "New Scene Node";
 
-        public SceneNode() : this(DefaultName) { }
-        public SceneNode(TransformBase transform) : this(DefaultName, transform) { }
-        public SceneNode(XRScene scene) : this(scene, DefaultName) { }
-        public SceneNode(SceneNode parent) : this(parent, DefaultName) { }
+        public SceneNode()
+            : this(DefaultName) { }
+        public SceneNode(TransformBase transform)
+            : this(DefaultName, transform) { }
+        //public SceneNode(XRScene scene)
+        //    : this(scene, DefaultName) { }
+        public SceneNode(SceneNode parent)
+            : this(parent, DefaultName) { }
+        public SceneNode(SceneNode parent, TransformBase? transform = null)
+            : this(parent, DefaultName, transform) { }
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
         public SceneNode(SceneNode parent, string name, TransformBase? transform = null)
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
         {
-            if (transform != null)
-                SetTransform(transform, ETransformSetFlags.None);
-
+            Transform = transform ?? new Transform();
             Transform.Parent = parent?.Transform;
             Name = name;
         }
-
-        public SceneNode(SceneNode parent, TransformBase? transform = null)
-            : this(parent, DefaultName, transform) { }
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
         public SceneNode(string name, TransformBase? transform = null)
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
         {
-            if (transform != null)
-                SetTransform(transform, ETransformSetFlags.None);
+            Transform = transform ?? new Transform();
 
-            Transform.Parent = null;
             Name = name;
             ComponentsInternal.PostAnythingAdded += ComponentAdded;
             ComponentsInternal.PostAnythingRemoved += ComponentRemoved;
         }
-        public SceneNode(XRScene scene, string name, TransformBase? transform = null)
-        {
-            if (transform != null)
-                SetTransform(transform, ETransformSetFlags.None);
+//#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
+//        public SceneNode(XRScene scene, string name, TransformBase? transform = null)
+//#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
+//        {
+//            Transform = transform ?? new Transform();
 
-            scene.RootNodes.Add(this);
-            Name = name;
-            ComponentsInternal.PostAnythingAdded += ComponentAdded;
-            ComponentsInternal.PostAnythingRemoved += ComponentRemoved;
-        }
+//            scene.RootNodes.Add(this);
+
+//            Name = name;
+//            ComponentsInternal.PostAnythingAdded += ComponentAdded;
+//            ComponentsInternal.PostAnythingRemoved += ComponentRemoved;
+//        }
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
         public SceneNode(XRWorldInstance? world, string? name = null, TransformBase? transform = null)
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
         {
-            if (transform != null)
-                SetTransform(transform, ETransformSetFlags.None);
+            Transform = transform ?? new Transform();
 
             World = world;
             Name = name ?? DefaultName;
@@ -72,6 +76,17 @@ namespace XREngine.Scene
 
         private readonly EventList<XRComponent> _components = [];
         private EventList<XRComponent> ComponentsInternal => _components;
+
+        [YamlMember(Order = 0)]
+        public EventList<XRComponent> ComponentsSerialized
+        {
+            get => _components;
+            set
+            {
+                _components.Clear();
+                _components.AddRange(value);
+            }
+        }
 
         private bool _isActiveSelf = true;
         /// <summary>
@@ -91,6 +106,7 @@ namespace XREngine.Scene
         /// When setting to true, if the scene node has a parent, it will set the parent's IsActiveInHierarchy property to true, recursively. 
         /// When setting to false, it will set the IsActiveSelf property to false.
         /// </summary>
+        [YamlIgnore]
         public bool IsActiveInHierarchy
         {
             get
@@ -233,19 +249,14 @@ namespace XREngine.Scene
         /// </summary>
         public IEventListReadOnly<XRComponent> Components => ComponentsInternal;
 
-        private TransformBase? _transform = null;
+        private TransformBase _transform;
         /// <summary>
         /// The transform of this scene node.
         /// Will never be null, because scene nodes all have transformations in the scene.
         /// </summary>
         public TransformBase Transform
         {
-            get
-            {
-                if (_transform is null)
-                    SetTransform<Transform>();
-                return _transform!;
-            }
+            get => _transform ?? SetTransform<Transform>();
             private set => SetField(ref _transform, value);
         }
 
@@ -300,6 +311,10 @@ namespace XREngine.Scene
             /// The children of the current transform will be retained when setting the new transform.
             /// </summary>
             RetainCurrentChildren = 8,
+            /// <summary>
+            /// The children of the current transform will be retained and their world transforms will be maintained.
+            /// </summary>
+            RetainedChildrenMaintainWorldTransform = 16,
 
             /// <summary>
             /// Retain the current parent, clear the new children, and retain the current children.
@@ -322,15 +337,14 @@ namespace XREngine.Scene
             if (flags.HasFlag(ETransformSetFlags.RetainCurrentParent))
                 transform.SetParent(_transform?.Parent, flags.HasFlag(ETransformSetFlags.RetainWorldTransform), true);
 
-            if (flags.HasFlag(ETransformSetFlags.RetainCurrentChildren))
+            if (flags.HasFlag(ETransformSetFlags.RetainCurrentChildren) && _transform is not null)
             {
-                if (_transform is not null)
+                var list = _transform.Children;
+                bool maintainWorldTransform = flags.HasFlag(ETransformSetFlags.RetainedChildrenMaintainWorldTransform);
+                lock (list)
                 {
-                    lock (_transform.Children)
-                    {
-                        foreach (var child in _transform)
-                            transform.Add(child);
-                    }
+                    foreach (var child in list)
+                        transform.AddChild(child, maintainWorldTransform, true);
                 }
             }
 
@@ -353,6 +367,7 @@ namespace XREngine.Scene
         /// <summary>
         /// The immediate ancestor of this scene node, or null if this scene node is the root of the scene.
         /// </summary>
+        [YamlIgnore]
         public SceneNode? Parent
         {
             get => _transform?.Parent?.SceneNode;
@@ -696,6 +711,19 @@ namespace XREngine.Scene
         }
 
         /// <summary>
+        /// Returns the component at the given index.
+        /// </summary>
+        /// <param name="index"></param>
+        /// <returns></returns>
+        public XRComponent? GetComponentAtIndex(int index)
+        {
+            lock (Components)
+            {
+                return ComponentsInternal.ElementAtOrDefault(index);
+            }
+        }
+
+        /// <summary>
         /// Returns the last component of type attached to the scene node.
         /// </summary>
         /// <param name="type"></param>
@@ -721,20 +749,13 @@ namespace XREngine.Scene
             }
         }
 
-        public XRComponent this[int index]
-        {
-            get
-            {
-                lock (Components)
-                {
-                    return ComponentsInternal.ElementAtOrDefault(index) ?? throw new IndexOutOfRangeException();
-                }
-            }
-        }
-        public XRComponent? this[Type type] => GetComponent(type);
+        public XRComponent? this[Type type]
+            => GetComponent(type);
+        public XRComponent? this[int index]
+            => GetComponentAtIndex(index);
 
-        public event Action<SceneNode> Activated;
-        public event Action<SceneNode> Deactivated;
+        public event Action<SceneNode>? Activated;
+        public event Action<SceneNode>? Deactivated;
 
         /// <summary>
         /// Called when the scene node is added to a world or activated.

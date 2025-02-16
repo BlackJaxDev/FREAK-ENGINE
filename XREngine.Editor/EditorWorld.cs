@@ -1,5 +1,4 @@
 ﻿using Assimp;
-using Assimp.Unmanaged;
 using Silk.NET.Input;
 using System.Collections.Concurrent;
 using System.Numerics;
@@ -79,10 +78,9 @@ public static class EditorWorld
         //    var anims = UnityConverter.ConvertFloatAnimation(anim);
         //}
 
-        var world = new XRWorld() { Name = "TestWorld" };
-        var scene = new XRScene() { Name = "TestScene" };
-        world.Scenes.Add(scene);
-        var rootNode = new SceneNode(scene) { Name = "TestRootNode" };
+        var scene = new XRScene("Main Scene");
+        var rootNode = new SceneNode("Root Node");
+        scene.RootNodes.Add(rootNode);
 
         if (VisualizeOctree)
             rootNode.AddComponent<DebugVisualizeOctreeComponent>();
@@ -140,7 +138,8 @@ public static class EditorWorld
         if (DeferredDecal)
             AddDeferredDecal(rootNode);
         ImportModels(desktopDir, rootNode, characterPawnNode ?? rootNode);
-        return world;
+        
+        return new XRWorld("Default World", scene);
     }
 
     //Pawns are what the player controls in the game world.
@@ -303,7 +302,7 @@ public static class EditorWorld
 
     private static SceneNode CreateCamera(SceneNode parentNode, out CameraComponent? camComp, bool smoothed = true)
     {
-        var cameraNode = new SceneNode(parentNode) { Name = "TestCameraNode" };
+        var cameraNode = new SceneNode(parentNode, "TestCameraNode");
 
         if (smoothed)
         {
@@ -313,13 +312,8 @@ public static class EditorWorld
             laggedTransform.ScaleSmoothingSpeed = 30.0f;
         }
 
-        if (cameraNode.TryAddComponent<CameraComponent>(out var cameraComp))
-        {
-            cameraComp!.Name = "TestCamera";
-            cameraComp.Camera.Parameters = new XRPerspectiveCameraParameters(60.0f, null, 0.1f, 100000.0f);
-            cameraComp.CullWithFrustum = true;
-            camComp = cameraComp;
-        }
+        if (cameraNode.TryAddComponent(out camComp, "TestCamera"))
+            camComp!.SetPerspective(60.0f, 0.1f, 100000.0f, null);
         else
             camComp = null;
 

@@ -2,6 +2,7 @@
 
 namespace XREngine.Components.Scene.Mesh
 {
+    [Serializable]
     public abstract class RenderableComponent : XRComponent, IRenderable
     {
         public RenderableComponent()

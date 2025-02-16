@@ -18,10 +18,12 @@ namespace XREngine.Rendering.Info
 
         public static Func<IRenderable, RenderCommand[], RenderInfo2D>? ConstructorOverride { get; set; } = null;
 
+        private RenderInfo2D() : base(null) { }
+
         public static RenderInfo2D New(IRenderable owner, params RenderCommand[] renderCommands)
             => ConstructorOverride?.Invoke(owner, renderCommands) ?? new RenderInfo2D(owner, renderCommands);
 
-        protected RenderInfo2D(IRenderable owner, params RenderCommand[] renderCommands)
+        protected RenderInfo2D(IRenderable? owner, params RenderCommand[] renderCommands)
             : base(owner, renderCommands) { }
 
         /// <summary>

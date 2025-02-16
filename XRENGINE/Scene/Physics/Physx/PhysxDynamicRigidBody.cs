@@ -100,13 +100,17 @@ namespace XREngine.Rendering.Physics.Physx
             set => _obj->SetSolverIterationCountsMut(value.minPositionIters, value.minVelocityIters);
         }
 
-        public PhysxDynamicRigidBody(PxRigidDynamic* obj)
+        public PhysxDynamicRigidBody()
+            : this(null, null) { }
+
+        internal PhysxDynamicRigidBody(PxRigidDynamic* obj)
         {
             _obj = obj;
             AllActors.Add((nint)_obj, this);
             AllRigidActors.Add((nint)_obj, this);
             AllDynamic.Add((nint)_obj, this);
         }
+
         public PhysxDynamicRigidBody(
             PhysxMaterial material,
             IAbstractPhysicsGeometry geometry,
@@ -124,6 +128,7 @@ namespace XREngine.Rendering.Physics.Physx
             AllRigidActors.Add((nint)_obj, this);
             AllDynamic.Add((nint)_obj, this);
         }
+
         public PhysxDynamicRigidBody(
             PhysxShape shape,
             float density,
@@ -136,9 +141,10 @@ namespace XREngine.Rendering.Physics.Physx
             AllRigidActors.Add((nint)_obj, this);
             AllDynamic.Add((nint)_obj, this);
         }
+
         public PhysxDynamicRigidBody(
-            Vector3? position = null,
-            Quaternion? rotation = null)
+            Vector3? position,
+            Quaternion? rotation)
         {
             var tfm = PhysxScene.MakeTransform(position, rotation);
             _obj = PhysxScene.PhysicsPtr->CreateRigidDynamicMut(&tfm);

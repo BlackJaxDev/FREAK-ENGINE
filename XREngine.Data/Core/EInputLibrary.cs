@@ -4,5 +4,7 @@
     {
         XInput,
         Windows,
+        SDL,
+        GLFW,
     }
 }

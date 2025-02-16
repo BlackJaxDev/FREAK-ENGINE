@@ -9,7 +9,7 @@ namespace XREngine.Rendering.Commands
         public RenderCommand(int renderPass) => RenderPass = renderPass;
 
         public delegate void DelPreRender(RenderCommand command, XRCamera? camera, bool shadowPass);
-        public event DelPreRender? OnPreRender;
+        public event DelPreRender? OnCollectedForRender;
 
         public delegate void DelSwapBuffers(RenderCommand command, bool shadowPass);
         public event DelSwapBuffers? OnSwapBuffers;
@@ -41,8 +41,8 @@ namespace XREngine.Rendering.Commands
         /// </summary>
         /// <param name="camera"></param>
         /// <param name="shadowPass"></param>
-        public virtual void PreRender(XRCamera? camera, bool shadowPass)
-            => OnPreRender?.Invoke(this, camera, shadowPass);
+        public virtual void CollectedForRender(XRCamera? camera, bool shadowPass)
+            => OnCollectedForRender?.Invoke(this, camera, shadowPass);
 
         /// <summary>
         /// Called when the engine is swapping buffers - both the collect and render threads are waiting.

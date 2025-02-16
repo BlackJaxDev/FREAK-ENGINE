@@ -10,6 +10,8 @@ namespace XREngine.Rendering
     {
         private XRMaterial? _material;
 
+        public XRMaterialFrameBuffer() { }
+
         public XRMaterialFrameBuffer(XRMaterial? material)
         {
             _material = material;

@@ -13,7 +13,10 @@ namespace XREngine.Rendering.Physics.Physx
         public static PhysxStaticRigidBody? GetStaticBody(PxRigidStatic* ptr)
             => AllStaticRigidBodies.TryGetValue((nint)ptr, out var body) ? body : null;
 
-        public PhysxStaticRigidBody(PxRigidStatic* obj)
+        public PhysxStaticRigidBody()
+            : this(null, null) { }
+
+        internal PhysxStaticRigidBody(PxRigidStatic* obj)
         {
             _obj = obj;
             AllActors.Add((nint)_obj, this);
@@ -22,8 +25,8 @@ namespace XREngine.Rendering.Physics.Physx
         }
 
         public PhysxStaticRigidBody(
-            Vector3? position = null,
-            Quaternion? rotation = null)
+            Vector3? position,
+            Quaternion? rotation)
         {
             var tfm = PhysxScene.MakeTransform(position, rotation);
             _obj = PhysxScene.PhysicsPtr->CreateRigidStaticMut(&tfm);
@@ -67,7 +70,7 @@ namespace XREngine.Rendering.Physics.Physx
         public static PhysxStaticRigidBody CreatePlane(Vector3 normal, float distance, PhysxMaterial material)
             => CreatePlane(PxPlane_new_1(normal.X, normal.Y, normal.Z, distance), material);
         public static PhysxStaticRigidBody CreatePlane(PhysxPlane plane, PhysxMaterial material)
-            => CreatePlane(plane.InternalPlane.n, plane.InternalPlane.d, material);
+            => CreatePlane(plane.InternalPlane, material);
 
         public override unsafe PxRigidActor* RigidActorPtr => (PxRigidActor*)_obj;
         public override unsafe PxActor* ActorPtr => (PxActor*)_obj;

@@ -1,5 +1,4 @@
-﻿using XREngine.Components;
-using XREngine.Input.Devices;
+﻿using XREngine.Input.Devices;
 using XREngine.Rendering;
 
 namespace XREngine.Input
@@ -7,28 +6,37 @@ namespace XREngine.Input
     //TODO: handle sending controller input packets to the server
     public class LocalPlayerController : PlayerController<LocalInputInterface>
     {
-        public ELocalPlayerIndex LocalPlayerIndex => _index;
+        private ELocalPlayerIndex _index = ELocalPlayerIndex.One;
+        public ELocalPlayerIndex LocalPlayerIndex
+        {
+            get => _index;
+            internal set => SetField(ref _index, value);
+        }
 
         private XRViewport? _viewport = null;
-        private readonly ELocalPlayerIndex _index;
-
-        public LocalPlayerController(ELocalPlayerIndex index) : base(new LocalInputInterface((int)index))
-        {
-            _index = index;
-            Engine.VRState.ActionsChanged += OnActionsChanged;
-        }
-
-        private void OnActionsChanged(Dictionary<string, Dictionary<string, OpenVR.NET.Input.Action>> dictionary)
-        {
-            UpdateViewportCamera();
-        }
-
         public XRViewport? Viewport
         {
             get => _viewport;
             internal set => SetField(ref _viewport, value);
         }
 
+        public LocalPlayerController(ELocalPlayerIndex index) : base(new LocalInputInterface((int)index))
+        {
+            _index = index;
+            Engine.VRState.ActionsChanged += OnActionsChanged;
+        }
+        public LocalPlayerController() : base(new LocalInputInterface(0))
+        {
+            Engine.VRState.ActionsChanged += OnActionsChanged;
+        }
+
+        private void OnActionsChanged(Dictionary<string, Dictionary<string, OpenVR.NET.Input.Action>> dictionary)
+            => UpdateViewportCamera();
+
+        protected override bool OnPropertyChanging<T2>(string? propName, T2 field, T2 @new)
+        {
+            return base.OnPropertyChanging(propName, field, @new);
+        }
         protected override void OnPropertyChanged<T2>(string? propName, T2 prev, T2 field)
         {
             base.OnPropertyChanged(propName, prev, field);
@@ -36,7 +44,11 @@ namespace XREngine.Input
             {
                 case nameof(Viewport):
                 case nameof(ControlledPawn):
+                case nameof(Input):
                     UpdateViewportCamera();
+                    break;
+                case nameof(LocalPlayerIndex):
+                    Input.LocalPlayerIndex = (int)_index;
                     break;
             }
         }
@@ -55,11 +67,13 @@ namespace XREngine.Input
             else
                 Input.UpdateDevices(null, Engine.VRState.Actions);
         }
+
         protected override void RegisterInput(InputInterface input)
         {
             //input.RegisterButtonEvent(EKey.Escape, ButtonInputType.Pressed, OnTogglePause);
             //input.RegisterButtonEvent(GamePadButton.SpecialRight, ButtonInputType.Pressed, OnTogglePause);
         }
+
         protected override void OnDestroying()
         {
             base.OnDestroying();

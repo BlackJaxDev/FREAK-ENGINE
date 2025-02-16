@@ -1,13 +1,16 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
 using XREngine.Components;
+using XREngine.Components.Scene;
 using XREngine.Data.Colors;
 using XREngine.Data.Rendering;
+using XREngine.Editor;
 using XREngine.Native;
-using XREngine.Rendering.Models.Materials;
 using XREngine.Rendering;
+using XREngine.Rendering.Models.Materials;
 using XREngine.Rendering.UI;
 using XREngine.Scene;
+using XREngine.Scene.Transforms;
 using static XREngine.GameStartupSettings;
 
 namespace XREngine.Networking
@@ -40,22 +43,58 @@ namespace XREngine.Networking
 
         private static void Main(string[] args)
         {
-            Engine.Run(Engine.LoadOrGenerateGameSettings(() => GetEngineSettings(CreateServerDebugWorld())), Engine.LoadOrGenerateGameState());
+            Engine.Run(/*Engine.LoadOrGenerateGameSettings(() => */GetEngineSettings(CreateServerDebugWorld())/*, "startup", false)*/, Engine.LoadOrGenerateGameState());
         }
 
         static XRWorld CreateServerDebugWorld()
         {
             string desktopDir = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
 
-            var scene = new XRScene("ServerScene");
-            var rootNode = new SceneNode(scene) { Name = "ServerRootNode" };
+            var scene = new XRScene("Server Console Scene");
+            var rootNode = new SceneNode("Root Node");
+            scene.RootNodes.Add(rootNode);
 
-            var uiNode = new SceneNode(rootNode, "ServerCameraNode");
+            SceneNode cameraNode = CreateCamera(rootNode, out var camComp);
+            var pawn = CreateDesktopViewerPawn(cameraNode);
+            CreateConsoleUI(rootNode, camComp!, pawn);
 
-            var cameraComp = uiNode.AddComponent<CameraComponent>()!;
-            cameraComp.SetOrthographic(1920, 1080, -0.5f, 0.5f);
+            return new XRWorld("Server World", scene);
+        }
+        private static SceneNode CreateCamera(SceneNode parentNode, out CameraComponent? camComp, bool smoothed = true)
+        {
+            var cameraNode = new SceneNode(parentNode, "TestCameraNode");
 
-            var uiCanvas = uiNode.AddComponent<UICanvasComponent>()!;
+            if (smoothed)
+            {
+                var laggedTransform = cameraNode.GetTransformAs<SmoothedTransform>(true)!;
+                laggedTransform.RotationSmoothingSpeed = 30.0f;
+                laggedTransform.TranslationSmoothingSpeed = 30.0f;
+                laggedTransform.ScaleSmoothingSpeed = 30.0f;
+            }
+
+            if (cameraNode.TryAddComponent(out camComp, "TestCamera"))
+                camComp!.SetPerspective(60.0f, 0.1f, 100000.0f, null);
+            else
+                camComp = null;
+
+            return cameraNode;
+        }
+        private static EditorFlyingCameraPawnComponent CreateDesktopViewerPawn(SceneNode cameraNode)
+        {
+            var pawnComp = cameraNode.AddComponent<EditorFlyingCameraPawnComponent>();
+            var listener = cameraNode.AddComponent<AudioListenerComponent>()!;
+            //listener.Gain = 1.0f;
+            //listener.DistanceModel = DistanceModel.LinearDistanceClamped;
+
+            pawnComp!.Name = "TestPawn";
+            pawnComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
+            return pawnComp;
+        }
+        //The full editor UI - includes a toolbar, inspector, viewport and scene hierarchy.
+        private static void CreateConsoleUI(SceneNode parent, CameraComponent camComp, PawnComponent? pawnForInput = null)
+        {
+            var rootCanvasNode = new SceneNode(parent) { Name = "Root Server UI Node" };
+            var uiCanvas = rootCanvasNode.AddComponent<UICanvasComponent>("Console Canvas")!;
             var canvasTfm = uiCanvas.CanvasTransform;
             canvasTfm.DrawSpace = ECanvasDrawSpace.Screen;
             canvasTfm.Width = 1920.0f;
@@ -63,18 +102,60 @@ namespace XREngine.Networking
             canvasTfm.CameraDrawSpaceDistance = 10.0f;
             canvasTfm.Padding = new Vector4(0.0f);
 
-            var outputLogNode = uiNode.NewChild(out UIMaterialComponent outputLogBackground);
+            if (camComp is not null)
+                camComp.UserInterface = uiCanvas;
+
+            AddFPSText(null, rootCanvasNode);
+
+            //Add input handler
+            var input = rootCanvasNode.AddComponent<UIInputComponent>()!;
+            input.OwningPawn = pawnForInput;
+
+            var outputLogNode = rootCanvasNode.NewChild(out UIMaterialComponent outputLogBackground);
             outputLogBackground.Material = BackgroundMaterial;
 
-            var logTextNode = outputLogNode.NewChild(out VirtualizedConsoleUIComponent outputLogComp);
-            outputLogComp.AddItem("Test Item");
+            var logTextNode = outputLogNode.NewChild(out UITextComponent outputLogComp);
+            outputLogComp.HorizontalAlignment = EHorizontalAlignment.Left;
+            outputLogComp.VerticalAlignment = EVerticalAlignment.Top;
+            //outputLogComp.WordWrap = true;
+            //outputLogComp.TopOffset = 0.0f;
+            outputLogComp.Text = "Test Text";
+            //outputLogComp.AddItem("Test Item");
+            outputLogComp.Color = new ColorF4(1.0f, 1.0f, 1.0f, 1.0f);
+            outputLogComp.FontSize = 20;
             var logTfm = outputLogComp.BoundableTransform;
             logTfm.MinAnchor = new Vector2(0.0f, 0.0f);
             logTfm.MaxAnchor = new Vector2(1.0f, 1.0f);
 
-            Trace.Listeners.Add(new OutputLogListener(outputLogComp!));
+            //Trace.Listeners.Add(new OutputLogListener(outputLogComp!));
 
-            return new XRWorld("ServerWorld", scene);
+        }
+        //Simple FPS counter in the bottom right for debugging.
+        private static UITextComponent AddFPSText(FontGlyphSet? font, SceneNode parentNode)
+        {
+            SceneNode textNode = new(parentNode) { Name = "TestTextNode" };
+            UITextComponent text = textNode.AddComponent<UITextComponent>()!;
+            text.Font = font;
+            text.FontSize = 22;
+            text.Color = new ColorF4(1.0f, 1.0f, 1.0f, 1.0f);
+            text.RegisterAnimationTick<UITextComponent>(TickFPS);
+            var textTransform = textNode.GetTransformAs<UIBoundableTransform>(true)!;
+            textTransform.MinAnchor = new Vector2(1.0f, 0.0f);
+            textTransform.MaxAnchor = new Vector2(1.0f, 0.0f);
+            textTransform.NormalizedPivot = new Vector2(1.0f, 0.0f);
+            textTransform.Width = null;
+            textTransform.Height = null;
+            textTransform.Margins = new Vector4(10.0f, 10.0f, 10.0f, 10.0f);
+            textTransform.Scale = new Vector3(1.0f);
+            return text;
+        }
+        private static readonly Queue<float> _fpsAvg = new();
+        private static void TickFPS(UITextComponent t)
+        {
+            _fpsAvg.Enqueue(1.0f / Engine.Time.Timer.Update.SmoothedDelta);
+            if (_fpsAvg.Count > 60)
+                _fpsAvg.Dequeue();
+            t.Text = $"Update: {MathF.Round(_fpsAvg.Sum() / _fpsAvg.Count)}hz";
         }
 
         private static XRMaterial? _backgroundMaterial;

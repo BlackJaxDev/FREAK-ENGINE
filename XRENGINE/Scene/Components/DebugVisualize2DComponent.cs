@@ -29,12 +29,12 @@ namespace XREngine.Data.Components
         public DebugVisualize2DComponent()
         {
             RenderedObjects = [_renderInfo = RenderInfo2D.New(this, _rc = new((int)EDefaultRenderPass.OnTopForward, Render))];
-            _renderInfo.PreRenderCallback += RenderInfo_PreRenderCallback;
+            _renderInfo.CollectedForRenderCallback += RenderInfo_PreRenderCallback;
             _renderInfo.SwapBuffersCallback += RenderInfo_SwapBuffersCallback;
         }
         ~DebugVisualize2DComponent()
         {
-            _renderInfo.PreRenderCallback -= RenderInfo_PreRenderCallback;
+            _renderInfo.CollectedForRenderCallback -= RenderInfo_PreRenderCallback;
             _renderInfo.SwapBuffersCallback -= RenderInfo_SwapBuffersCallback;
         }
 

@@ -11,24 +11,46 @@ namespace XREngine
         public static bool IsEditor { get; private set; } = true;
         public static bool IsPlaying { get; private set; } = true;
 
-        public static GameState LoadOrGenerateGameState(Func<GameState>? generateFactory = null, string assetName = "state")
-            => LoadOrGenerateAsset(() => generateFactory?.Invoke() ?? new GameState(), assetName);
-        public static GameStartupSettings LoadOrGenerateGameSettings(Func<GameStartupSettings>? generateFactory = null, string assetName = "startup")
-            => LoadOrGenerateAsset(() => generateFactory?.Invoke() ?? GenerateGameSettings(), assetName);
+        public static GameState LoadOrGenerateGameState(
+            Func<GameState>? generateFactory = null,
+            string assetName = "state",
+            bool allowLoading = true)
+            => LoadOrGenerateAsset(() => generateFactory?.Invoke() ?? new GameState(), assetName, allowLoading);
 
-        public static T LoadOrGenerateGameState<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(Func<T>? generateFactory = null, string assetName = "state") where T : GameState, new()
-            => LoadOrGenerateAsset(() => generateFactory?.Invoke() ?? new T(), assetName);
-        public static T LoadOrGenerateGameSettings<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(Func<T>? generateFactory = null, string assetName = "startup") where T : GameStartupSettings, new()
-            => LoadOrGenerateAsset(() => generateFactory?.Invoke() ?? new T(), assetName);
+        public static GameStartupSettings LoadOrGenerateGameSettings(
+            Func<GameStartupSettings>? generateFactory = null,
+            string assetName = "startup",
+            bool allowLoading = true)
+            => LoadOrGenerateAsset(() => generateFactory?.Invoke() ?? GenerateGameSettings(), assetName, allowLoading);
 
-        public static T LoadOrGenerateAsset<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(Func<T>? generateFactory, string assetName, params string[] folderNames) where T : XRAsset, new()
+        public static T LoadOrGenerateGameState<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(
+            Func<T>? generateFactory = null,
+            string assetName = "state",
+            bool allowLoading = true) where T : GameState, new()
+            => LoadOrGenerateAsset(() => generateFactory?.Invoke() ?? new T(), assetName, allowLoading);
+
+        public static T LoadOrGenerateGameSettings<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(
+            Func<T>? generateFactory = null,
+            string assetName = "startup",
+            bool allowLoading = true) where T : GameStartupSettings, new()
+            => LoadOrGenerateAsset(() => generateFactory?.Invoke() ?? new T(), assetName, allowLoading);
+
+        public static T LoadOrGenerateAsset<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(
+            Func<T>? generateFactory,
+            string assetName,
+            bool allowLoading,
+            params string[] folderNames) where T : XRAsset, new()
         {
-            var asset = Assets.LoadGameAsset<T>($"{assetName}.asset");
-            if (asset != null)
-                return asset;
+            T? asset = null;
+            if (allowLoading)
+            {
+                asset = Assets.LoadGameAsset<T>($"{assetName}.asset");
+                if (asset != null)
+                    return asset;
+            }
             asset = generateFactory?.Invoke() ?? Activator.CreateInstance<T>();
             asset.Name = assetName;
-            Assets.SaveGameAssetTo(asset, folderNames);
+            Task.Run(() => Assets.SaveGameAssetTo(asset, folderNames));
             return asset;
         }
 
@@ -36,9 +58,9 @@ namespace XREngine
         {
             int w = 1920;
             int h = 1080;
-            float updateHz = 60.0f;
+            float updateHz = 90.0f;
             float renderHz = 90.0f;
-            float fixedHz = 90.0f;
+            float fixedHz = 45.0f;
 
             int primaryX = NativeMethods.GetSystemMetrics(0);
             int primaryY = NativeMethods.GetSystemMetrics(1);

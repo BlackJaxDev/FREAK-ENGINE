@@ -8,6 +8,7 @@ using XREngine.Rendering.Info;
 using XREngine.Rendering.Models.Materials;
 using XREngine.Scene.Transforms;
 using XREngine.Timers;
+using YamlDotNet.Serialization;
 
 namespace XREngine.Components.Lights
 {
@@ -61,7 +62,7 @@ namespace XREngine.Components.Lights
         private XRCubeFrameBuffer? _prefilterFBO;
         private XRTextureCube? _irradianceTexture;
         private XRTextureCube? _prefilterTexture;
-        private XRMeshRenderer? _irradianceSphere;
+        private XRMeshRenderer? _previewSphere;
 
         public XRTextureCube? IrradianceTexture
         {
@@ -73,10 +74,11 @@ namespace XREngine.Components.Lights
             get => _prefilterTexture;
             private set => SetField(ref _prefilterTexture, value);
         }
+        [YamlIgnore]
         public XRMeshRenderer? PreviewSphere
         {
-            get => _irradianceSphere;
-            private set => SetField(ref _irradianceSphere, value);
+            get => _previewSphere;
+            private set => SetField(ref _previewSphere, value);
         }
 
         public enum ERenderPreview

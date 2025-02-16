@@ -5,6 +5,7 @@ using XREngine.Rendering.Models;
 
 namespace XREngine.Components.Scene.Mesh
 {
+    [Serializable]
     public class ModelComponent : RenderableComponent
     {
         private readonly ConcurrentDictionary<SubMesh, RenderableMesh> _meshLinks = new();

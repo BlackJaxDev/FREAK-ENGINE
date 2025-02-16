@@ -8,6 +8,7 @@ using XREngine.Data.Vectors;
 using XREngine.Input;
 using XREngine.Rendering.Info;
 using XREngine.Rendering.UI;
+using YamlDotNet.Serialization;
 using State = XREngine.Engine.Rendering.State;
 
 namespace XREngine.Rendering
@@ -71,6 +72,7 @@ namespace XREngine.Rendering
         /// The local player associated with this viewport.
         /// Usually player 1 unless the game supports multiple players.
         /// </summary>
+        [YamlIgnore]
         public LocalPlayerController? AssociatedPlayer
         {
             get => _associatedPlayer;

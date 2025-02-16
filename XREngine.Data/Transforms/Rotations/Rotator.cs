@@ -5,6 +5,7 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Xml.Serialization;
 using XREngine.Data.Core;
+using YamlDotNet.Serialization;
 
 namespace XREngine.Data.Transforms.Rotations
 {
@@ -316,7 +317,7 @@ namespace XREngine.Data.Transforms.Rotations
         }
 
         [Browsable(false)]
-        [XmlIgnore]
+        [YamlIgnore]
         public Vector2 YawPitch
         {
             readonly get => new(Yaw, Pitch);
@@ -327,28 +328,28 @@ namespace XREngine.Data.Transforms.Rotations
             }
         }
         [Category("Rotator")]
-        [XmlIgnore]
+        [YamlIgnore]
         public float Yaw
         {
             readonly get => _pyr.Y;
             set => _pyr.Y = value;
         }
         [Category("Rotator")]
-        [XmlIgnore]
+        [YamlIgnore]
         public float Pitch
         {
             readonly get => _pyr.X;
             set => _pyr.X = value;
         }
         [Category("Rotator")]
-        [XmlIgnore]
+        [YamlIgnore]
         public float Roll
         {
             readonly get => _pyr.Z;
             set => _pyr.Z = value;
         }
         [Browsable(false)]
-        [XmlIgnore]
+        [YamlIgnore]
         public Vector2 YawRoll
         {
             readonly get => new(Yaw, Roll);
@@ -359,7 +360,7 @@ namespace XREngine.Data.Transforms.Rotations
             }
         }
         [Browsable(false)]
-        [XmlIgnore]
+        [YamlIgnore]
         public Vector2 PitchYaw
         {
             readonly get => new(Pitch, Yaw);
@@ -370,7 +371,7 @@ namespace XREngine.Data.Transforms.Rotations
             }
         }
         [Browsable(false)]
-        [XmlIgnore]
+        [YamlIgnore]
         public Vector2 PitchRoll
         {
             readonly get => new(Pitch, Roll);
@@ -381,7 +382,7 @@ namespace XREngine.Data.Transforms.Rotations
             }
         }
         [Browsable(false)]
-        [XmlIgnore]
+        [YamlIgnore]
         public Vector2 RollYaw
         {
             readonly get => new(Roll, Yaw);
@@ -392,7 +393,7 @@ namespace XREngine.Data.Transforms.Rotations
             }
         }
         [Browsable(false)]
-        [XmlIgnore]
+        [YamlIgnore]
         public Vector2 RollPitch
         {
             readonly get => new(Roll, Pitch);
@@ -403,7 +404,7 @@ namespace XREngine.Data.Transforms.Rotations
             }
         }
         [Browsable(false)]
-        [XmlIgnore]
+        [YamlIgnore]
         public Vector3 YawPitchRoll
         {
             readonly get => new(Yaw, Pitch, Roll);
@@ -415,7 +416,7 @@ namespace XREngine.Data.Transforms.Rotations
             }
         }
         [Browsable(false)]
-        [XmlIgnore]
+        [YamlIgnore]
         public Vector3 YawRollPitch
         {
             readonly get => new(Yaw, Roll, Pitch);
@@ -427,7 +428,7 @@ namespace XREngine.Data.Transforms.Rotations
             }
         }
         [Browsable(false)]
-        [XmlIgnore]
+        [YamlIgnore]
         public Vector3 PitchRollYaw
         {
             readonly get => new(Pitch, Roll, Yaw);
@@ -439,7 +440,7 @@ namespace XREngine.Data.Transforms.Rotations
             }
         }
         [Browsable(false)]
-        [XmlIgnore]
+        [YamlIgnore]
         public Vector3 RollYawPitch
         {
             readonly get => new(Roll, Yaw, Pitch);
@@ -451,7 +452,7 @@ namespace XREngine.Data.Transforms.Rotations
             }
         }
         [Browsable(false)]
-        [XmlIgnore]
+        [YamlIgnore]
         public Vector3 RollPitchYaw
         {
             readonly get => new(Roll, Pitch, Yaw);
@@ -489,7 +490,7 @@ namespace XREngine.Data.Transforms.Rotations
                 float.Parse(parts[0][1..^1]),
                 float.Parse(parts[1][..^1]),
                 float.Parse(parts[2][..^1]),
-                (ERotationOrder)Enum.Parse(typeof(ERotationOrder), parts[3].AsSpan(0, parts[3].Length - 1)));
+                Enum.Parse<ERotationOrder>(parts[3].AsSpan(0, parts[3].Length - 1)));
         }
 
         public static Rotator Parse(string value, ERotationOrder order)

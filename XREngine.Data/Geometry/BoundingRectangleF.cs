@@ -2,6 +2,7 @@
 using System.Drawing;
 using System.Numerics;
 using XREngine.Data.Vectors;
+using YamlDotNet.Serialization;
 
 namespace XREngine.Data.Geometry
 {
@@ -39,6 +40,7 @@ namespace XREngine.Data.Geometry
         /// <summary>
         /// The actual translation of the origin of this rectangle, relative to the bottom left.
         /// </summary>
+        [YamlIgnore]
         [Description(@"The actual translation of the origin of this rectangle, relative to the bottom left.")]
         public Vector2 LocalOrigin
         {
@@ -49,6 +51,7 @@ namespace XREngine.Data.Geometry
         /// The location of the origin of this rectangle as a world point relative to the bottom left (0, 0).
         /// Bottom left point of this rectangle is Position - LocalOrigin.
         /// </summary>
+        [YamlIgnore]
         [Description(@"The location of the origin of this rectangle as a world point relative to the bottom left (0, 0).
 Bottom left point of this rectangle is Position - LocalOrigin.")]
         public Vector2 OriginTranslation
@@ -73,6 +76,7 @@ Bottom left point of this rectangle is Position - LocalOrigin.")]
         /// <summary>
         /// The horizontal translation of this rectangle's position. 0 is fully left, positive values are right.
         /// </summary>
+        [YamlIgnore]
         public float X
         {
             readonly get => OriginTranslation.X;
@@ -82,6 +86,7 @@ Bottom left point of this rectangle is Position - LocalOrigin.")]
         /// <summary>
         /// The vertical translation of this rectangle's position. 0 is fully down, positive values are up.
         /// </summary>
+        [YamlIgnore]
         public float Y
         {
             readonly get => OriginTranslation.Y;
@@ -91,6 +96,7 @@ Bottom left point of this rectangle is Position - LocalOrigin.")]
         /// <summary>
         /// The width of this rectangle.
         /// </summary>
+        [YamlIgnore]
         public float Width
         {
             readonly get => _bounds.X;
@@ -104,6 +110,7 @@ Bottom left point of this rectangle is Position - LocalOrigin.")]
         /// <summary>
         /// The height of this rectangle.
         /// </summary>
+        [YamlIgnore]
         public float Height
         {
             readonly get => _bounds.Y;
@@ -118,6 +125,7 @@ Bottom left point of this rectangle is Position - LocalOrigin.")]
         /// The X value of the right boundary line.
         /// Only moves the right edge by resizing width.
         /// </summary>
+        [YamlIgnore]
         public float MaxX
         {
             readonly get => _translation.X + (Width < 0 ? 0 : Width);
@@ -132,6 +140,7 @@ Bottom left point of this rectangle is Position - LocalOrigin.")]
         /// The Y value of the top boundary line.
         /// Only moves the top edge by resizing height.
         /// </summary>
+        [YamlIgnore]
         public float MaxY
         {
             readonly get => _translation.Y + (Height < 0 ? 0 : Height);
@@ -146,6 +155,7 @@ Bottom left point of this rectangle is Position - LocalOrigin.")]
         /// The X value of the left boundary line.
         /// Only moves the left edge by resizing width.
         /// </summary>
+        [YamlIgnore]
         public float MinX
         {
             readonly get => _translation.X + (Width < 0 ? Width : 0);
@@ -158,6 +168,7 @@ Bottom left point of this rectangle is Position - LocalOrigin.")]
             }
         }
 
+        [YamlIgnore]
         public Vector2 Min
         {
             readonly get => _translation + new Vector2(Width < 0 ? Width : 0, Height < 0 ? Height : 0);
@@ -170,6 +181,7 @@ Bottom left point of this rectangle is Position - LocalOrigin.")]
             }
         }
 
+        [YamlIgnore]
         public Vector2 Max
         {
             readonly get => _translation + new Vector2(Width > 0 ? Width : 0, Height > 0 ? Height : 0);
@@ -180,6 +192,7 @@ Bottom left point of this rectangle is Position - LocalOrigin.")]
             }
         }
 
+        [YamlIgnore]
         /// <summary>
         /// The Y value of the bottom boundary line.
         /// Only moves the bottom edge by resizing height.
@@ -196,6 +209,7 @@ Bottom left point of this rectangle is Position - LocalOrigin.")]
             }
         }
 
+        [YamlIgnore]
         /// <summary>
         /// The world position of the center point of the rectangle (regardless of the local origin).
         /// </summary>
@@ -222,9 +236,11 @@ Bottom left point of this rectangle is Position - LocalOrigin.")]
             readonly get => _translation;
             set => _translation = value;
         }
+
         /// <summary>
         /// Bottom left point in world space regardless of width or height being negative.
         /// </summary>
+        [YamlIgnore]
         public Vector2 BottomLeft
         {
             readonly get => new(MinX, MinY);
@@ -236,6 +252,8 @@ Bottom left point of this rectangle is Position - LocalOrigin.")]
                 _bounds = upper - _translation;
             }
         }
+
+        [YamlIgnore]
         /// <summary>
         /// Top right point in world space regardless of width or height being negative.
         /// </summary>
@@ -248,6 +266,8 @@ Bottom left point of this rectangle is Position - LocalOrigin.")]
                 _bounds = value - _translation;
             }
         }
+
+        [YamlIgnore]
         /// <summary>
         /// Bottom right point in world space regardless of width or height being negative.
         /// </summary>
@@ -273,6 +293,7 @@ Bottom left point of this rectangle is Position - LocalOrigin.")]
         /// <summary>
         /// Top left point in world space regardless of width or height being negative.
         /// </summary>
+        [YamlIgnore]
         public Vector2 TopLeft
         {
             readonly get => new(MinX, MaxY);
@@ -285,38 +306,47 @@ Bottom left point of this rectangle is Position - LocalOrigin.")]
                 _bounds.Y = value.Y - _translation.Y;
             }
         }
+
         /// <summary>
         /// The horizontal location of this rectangle's origin, as an integer value floored from float value. 0 is fully left, positive values are right.
         /// </summary>
+        [YamlIgnore]
         public int IntX
         {
             readonly get => (int)X;
             set => X = value;
         }
+
         /// <summary>
         /// The vertical location of this rectangle's origin, as an integer value floored from float value. 0 is fully down, positive values are up.
         /// </summary>
+        [YamlIgnore]
         public int IntY
         {
             readonly get => (int)Y;
             set => Y = value;
         }
+
         /// <summary>
         /// The width of this rectangle, as an integer value floored from float value.
         /// </summary>
+        [YamlIgnore]
         public int IntWidth
         {
             readonly get => (int)Width;
             set => Width = value;
         }
+
         /// <summary>
         /// The height of this rectangle, as an integer value floored from float value.
         /// </summary>
+        [YamlIgnore]
         public int IntHeight
         {
             readonly get => (int)Height;
             set => Height = value;
         }
+
         /// <summary>
         /// Translates this rectangle relative to the current translation using an offset.
         /// </summary>
@@ -329,6 +359,7 @@ Bottom left point of this rectangle is Position - LocalOrigin.")]
             => new(_translation + offset, _bounds, _localOriginPercentage);
         public readonly BoundingRectangleF Translated(float x, float y)
             => new(_translation + new Vector2(x, y), _bounds, _localOriginPercentage);
+
         /// <summary>
         /// Checks that the width and height are positive values. Will move the location of the rectangle to fix this.
         /// </summary>
@@ -361,7 +392,6 @@ Bottom left point of this rectangle is Position - LocalOrigin.")]
                 local.Y <= Height;
         }
 
-
         /// <summary>
         /// Determines if this rectangle is contained within another.
         /// </summary>
@@ -375,12 +405,12 @@ Bottom left point of this rectangle is Position - LocalOrigin.")]
         /// </summary>
         /// <param name="other">The other rectangle.</param>
         /// <returns>EContainment.Disjoint if not intersecting. EContainment.Intersecting if intersecting, but not fully contained. EContainment.Contains if fully contained.</returns>
-        public readonly EContainment ContainmentOf(BoundingRectangleF other)
-        {
-            if (Intersects(other))
-                return EContainment.Intersects;
-            return Contains(other) ? EContainment.Contains : EContainment.Disjoint;
-        }
+        public readonly EContainment ContainmentOf(BoundingRectangleF other) =>
+            Intersects(other) 
+            ? EContainment.Intersects 
+            : Contains(other) 
+                ? EContainment.Contains
+                : EContainment.Disjoint;
 
         public readonly bool DisjointWith(float width, float height)
         {

@@ -15,7 +15,6 @@ namespace XREngine
         //Preferred libraries - will use whichever is available if the preferred one is not.
         private ERenderLibrary _renderLibrary = ERenderLibrary.OpenGL;
         private EAudioLibrary _audioLibrary = EAudioLibrary.OpenAL;
-        private EInputLibrary _inputLibrary = EInputLibrary.XInput;
         private EPhysicsLibrary _physicsLibrary = EPhysicsLibrary.PhysX;
 
         private float? _targetFramesPerSecond = 90.0f;
@@ -50,11 +49,6 @@ namespace XREngine
         {
             get => _audioLibrary;
             set => SetField(ref _audioLibrary, value);
-        }
-        public EInputLibrary InputLibrary
-        {
-            get => _inputLibrary;
-            set => SetField(ref _inputLibrary, value);
         }
         public EPhysicsLibrary PhysicsLibrary
         {

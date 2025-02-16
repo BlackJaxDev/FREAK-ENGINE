@@ -97,7 +97,7 @@ public class ToolbarButton : ToolbarItemBase
     {
         Action?.Invoke(component);
         var interTfm = InteractableComponent?.Transform;
-        if (interTfm?.Count >= 2)
+        if (interTfm?.ChildCount >= 2)
             ChildOptionsVisible = !ChildOptionsVisible;
         else
         {
@@ -153,7 +153,7 @@ public class ToolbarButton : ToolbarItemBase
             case nameof(ChildOptionsVisible):
 
                 var interTfm = InteractableComponent?.Transform;
-                if (interTfm?.Count < 2)
+                if (interTfm?.ChildCount < 2)
                     break;
 
                 var submenuTfm = InteractableComponent?.Transform?.LastChild() as UIBoundableTransform;
