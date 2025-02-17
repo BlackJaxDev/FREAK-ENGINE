@@ -47,14 +47,14 @@ namespace XREngine.Rendering.UI
             set => SetField(ref _glyphRelativeTransforms, value);
         }
 
-        private EVerticalAlignment _verticalAlignment = EVerticalAlignment.Center;
+        private EVerticalAlignment _verticalAlignment = EVerticalAlignment.Bottom;
         public EVerticalAlignment VerticalAlignment
         {
             get => _verticalAlignment;
             set => SetField(ref _verticalAlignment, value);
         }
 
-        private EHorizontalAlignment _horizontalAlignment = EHorizontalAlignment.Center;
+        private EHorizontalAlignment _horizontalAlignment = EHorizontalAlignment.Left;
         public EHorizontalAlignment HorizontalAlignment
         {
             get => _horizontalAlignment;
@@ -248,7 +248,7 @@ namespace XREngine.Rendering.UI
         /// Verifies that the mesh is created and the font atlas is loaded.
         /// </summary>
         /// <param name="forceRemake"></param>
-        private void UpdateText(bool forceRemake, bool invalidateLayout = true)
+        protected virtual void UpdateText(bool forceRemake, bool invalidateLayout = true)
         {
             Font ??= FontGlyphSet.LoadDefaultFont();
             VerifyCreated(forceRemake, Font.Atlas);
@@ -258,7 +258,7 @@ namespace XREngine.Rendering.UI
                 var tfm = BoundableTransform;
                 float w = tfm.ActualWidth;
                 float h = tfm.ActualHeight;
-                Font.GetQuads(Text, _glyphs, FontSize, w, h, WordWrap, 5.0f);
+                Font.GetQuads(Text, _glyphs, FontSize, w, h, WordWrap, 5.0f, 2.0f);
                 AlignQuads(tfm, w, h);
                 count = (uint)(_glyphs?.Count ?? 0);
             }
@@ -280,8 +280,9 @@ namespace XREngine.Rendering.UI
             //Calc offset, which is a percentage of the remaining space not taken up by the text
             float offset = HorizontalAlignment switch
             {
-                EHorizontalAlignment.Right => w - textW,
-                EHorizontalAlignment.Center => (w - textW) / 2.0f,
+                EHorizontalAlignment.Right => w - textW - BoundableTransform.Margins.Z,
+                EHorizontalAlignment.Center => (w - textW - BoundableTransform.Margins.Z) / 2.0f,
+                EHorizontalAlignment.Left => 0.0f,
                 _ => 0.0f
             };
             for (int i = 0; i < _glyphs.Count; i++)
@@ -298,8 +299,9 @@ namespace XREngine.Rendering.UI
             //Calc offset, which is a percentage of the remaining space not taken up by the text
             float offset = VerticalAlignment switch
             {
-                EVerticalAlignment.Top => (h - textH),
-                EVerticalAlignment.Center => (h - textH) / 2.0f,
+                EVerticalAlignment.Top => (h - textH - BoundableTransform.Margins.W),
+                EVerticalAlignment.Center => (h - textH - BoundableTransform.Margins.W) / 2.0f,
+                EVerticalAlignment.Bottom => 0.0f,
                 _ => 0.0f
             };
             for (int i = 0; i < _glyphs.Count; i++)
@@ -376,7 +378,7 @@ namespace XREngine.Rendering.UI
         /// <returns></returns>
         protected virtual XRMaterial CreateMaterial(XRTexture2D atlas)
         {
-            XRShader vertexShader = XRShader.EngineShader(Path.Combine("Common", "Text.vs"), EShaderType.Vertex);
+            XRShader vertexShader = XRShader.EngineShader(Path.Combine("Common", AnimatableTransforms ? "TextRotatable.vs" : "Text.vs"), EShaderType.Vertex);
             XRShader[] nonVertexShaders = NonVertexShadersOverride ?? [XRShader.EngineShader(Path.Combine("Common", "Text.fs"), EShaderType.Fragment)];
             return new([new ShaderVector4(Color, TextColorUniformName)], [atlas], new XRShader[] { vertexShader }.Concat(nonVertexShaders))
             {

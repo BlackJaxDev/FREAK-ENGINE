@@ -231,8 +231,15 @@ namespace XREngine.Rendering
             string? str,
             List<(Vector4 transform, Vector4 uvs)> quads,
             float fontSize,
-            float spacing = 0.0f)
-            => GetQuads(str, quads, Vector2.Zero, fontSize, spacing);
+            float spacing = 5.0f,
+            float lineSpacing = 5.0f)
+            => GetQuads(
+                str,
+                quads,
+                Vector2.Zero,
+                fontSize,
+                spacing,
+                lineSpacing);
 
         /// <summary>
         /// Retrieves quads for rendering a string of text.
@@ -248,7 +255,8 @@ namespace XREngine.Rendering
             List<(Vector4 transform, Vector4 uvs)> quads,
             Vector2 offset,
             float fontSize,
-            float spacing = 0.0f)
+            float spacing = 5.0f,
+            float lineSpacing = 5.0f)
         {
             if (Glyphs is null)
                 throw new InvalidOperationException("Glyphs are not initialized.");
@@ -256,7 +264,15 @@ namespace XREngine.Rendering
             if (Atlas is null)
                 throw new InvalidOperationException("Atlas is not initialized.");
 
-            GetQuads(str, Glyphs, new IVector2((int)Atlas.Width, (int)Atlas.Height), quads, offset, fontSize, spacing);
+            GetQuads(
+                str,
+                Glyphs,
+                new IVector2((int)Atlas.Width, (int)Atlas.Height),
+                quads,
+                offset,
+                fontSize,
+                spacing,
+                lineSpacing);
         }
 
         /// <summary>
@@ -276,7 +292,7 @@ namespace XREngine.Rendering
             List<(Vector4 transform, Vector4 uvs)> quads,
             Vector2 offset,
             float fontSize,
-            float spacing = 0.0f)
+            float spacing = 5.0f)
         {
             quads.Clear();
             if (str is null)
@@ -345,8 +361,18 @@ namespace XREngine.Rendering
             float maxWidth,
             float maxHeight,
             bool wordWrap = false,
-            float spacing = 0.0f)
-            => GetQuads(str, quads, Vector2.Zero, fontSize, maxWidth, maxHeight, wordWrap, spacing);
+            float spacing = 5.0f,
+            float lineSpacing = 5.0f)
+            => GetQuads(
+                str,
+                quads,
+                Vector2.Zero,
+                fontSize,
+                maxWidth,
+                maxHeight,
+                wordWrap,
+                spacing,
+                lineSpacing);
 
         /// <summary>
         /// Retrieves quads for rendering a string of text.
@@ -368,7 +394,8 @@ namespace XREngine.Rendering
             float maxWidth,
             float maxHeight,
             bool wordWrap = false,
-            float spacing = 0.0f)
+            float spacing = 5.0f,
+            float lineSpacing = 5.0f)
         {
             if (Glyphs is null)
                 throw new InvalidOperationException("Glyphs are not initialized.");
@@ -386,7 +413,8 @@ namespace XREngine.Rendering
                 maxWidth,
                 maxHeight,
                 wordWrap,
-                spacing);
+                spacing,
+                lineSpacing);
         }
 
         /// <summary>
@@ -412,18 +440,19 @@ namespace XREngine.Rendering
             float maxWidth,
             float maxHeight,
             bool wordWrap = false,
-            float spacing = 0.0f)
+            float spacing = 5.0f,
+            float lineSpacing = 5.0f)
         {
             quads.Clear();
             if (str is null)
                 return;
 
-            float largestHeight = 0.0f;
             float xOffset = offset.X;
             float yOffset = offset.Y;
             float lineHeight = 0.0f;
             float spaceWidth = 30.0f;
 
+            float scale = (fontSize ?? 1.0f) / FontDrawSize;
             for (int i = 0; i < str.Length; i++)
             {
                 bool last = i == str.Length - 1;
@@ -436,6 +465,20 @@ namespace XREngine.Rendering
                     xOffset += spaceWidth;
                     continue;
                 }
+                if (character == "\n")
+                {
+                    xOffset = offset.X;
+                    //update y translation on all previous characters
+                    for (int j = quads.Count - 1; j >= 0; j--)
+                    {
+                        Vector4 t = quads[j].transform;
+                        t.Y += lineHeight + lineSpacing;
+                        quads[j] = (t, quads[j].uvs);
+                    }
+                    //yOffset += lineHeight + 30.0f;
+                    lineHeight = 0.0f;
+                    continue;
+                }
                 if (!glyphs.ContainsKey(character))
                 {
                     // Handle missing glyphs (e.g., skip or substitute)
@@ -443,7 +486,6 @@ namespace XREngine.Rendering
                 }
 
                 Glyph glyph = glyphs[character];
-                float scale = (fontSize ?? 1.0f) / FontDrawSize;
                 float translateX = (xOffset + glyph.Bearing.X) * scale;
                 if (first)
                 {
@@ -457,7 +499,14 @@ namespace XREngine.Rendering
                 if (wordWrap && (translateX + scaleX) > maxWidth)
                 {
                     xOffset = offset.X;
-                    yOffset += lineHeight;
+                    //update y translation on all previous characters
+                    for (int j = quads.Count - 1; j >= 0; j--)
+                    {
+                        Vector4 t = quads[j].transform;
+                        t.Y += lineHeight + lineSpacing;
+                        quads[j] = (t, quads[j].uvs);
+                    }
+                    //yOffset += lineHeight + 30.0f;
                     lineHeight = 0.0f;
                     translateX = (xOffset + glyph.Bearing.X) * scale;
                     translateY = (yOffset + glyph.Bearing.Y) * scale;
@@ -488,8 +537,7 @@ namespace XREngine.Rendering
                 if (!last)
                     xOffset += spacing;
 
-                largestHeight = Math.Max(largestHeight, scaleY);
-                lineHeight = Math.Max(lineHeight, scaleY);
+                lineHeight = Math.Max(lineHeight, -scaleY);
             }
 
             if (fontSize is null)
@@ -500,14 +548,14 @@ namespace XREngine.Rendering
                 float boundsY = maxHeight;
                 float widthScale = boundsX / maxX;
                 float heightScale = boundsY / maxY;
-                float scale = Math.Min(widthScale, heightScale);
+                float minScale = Math.Min(widthScale, heightScale);
                 for (int i = 0; i < quads.Count; i++)
                 {
                     Vector4 transform = quads[i].transform;
-                    transform.X *= scale;
-                    transform.Y *= scale;
-                    transform.Z *= scale;
-                    transform.W *= scale;
+                    transform.X *= minScale;
+                    transform.Y *= minScale;
+                    transform.Z *= minScale;
+                    transform.W *= minScale;
                     quads[i] = (transform, quads[i].uvs);
                 }
             }

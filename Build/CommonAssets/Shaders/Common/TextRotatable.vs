@@ -12,6 +12,10 @@ layout(std430, binding = 1) buffer GlyphTexCoordsBuffer
 {
     vec4 GlyphTexCoords[];
 };
+layout(std430, binding = 1) buffer GlyphRotationsBuffer
+{
+    float GlyphRotations[];
+};
 
 uniform mat4 ModelMatrix;
 uniform mat4 InverseViewMatrix;
@@ -40,10 +44,19 @@ mat3 adjoint(mat4 m)
 
 const float PI = 3.14f;
 
+mat2 rotationMatrix(float angle)
+{
+	angle *= PI / 180.0f;
+    float sine = sin(angle), cosine = cos(angle);
+    return mat2(cosine, -sine,
+                sine,    cosine);
+}
+
 void main()
 {
     vec4 tfm = GlyphTransforms[gl_InstanceID];
     vec4 uv = GlyphTexCoords[gl_InstanceID];
+	float rot = GlyphRotations[gl_InstanceID];
 
 	mat4 ViewMatrix = inverse(InverseViewMatrix);
 	mat4 mvMatrix = ViewMatrix * ModelMatrix;
@@ -51,7 +64,7 @@ void main()
 	mat4 vpMatrix = ProjMatrix * ViewMatrix;
 	mat3 normalMatrix = adjoint(ModelMatrix);
 	
-	vec4 position = vec4((tfm.xy + (TexCoord0.xy * tfm.zw)), 0.0f, 1.0f);
+	vec4 position = vec4((tfm.xy + (TexCoord0.xy * tfm.zw)) * rotationMatrix(rot), 0.0f, 1.0f);
 
 	vec3 normal = Normal;
 	

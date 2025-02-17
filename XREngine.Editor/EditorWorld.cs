@@ -51,7 +51,7 @@ public static class EditorWorld
     public const bool DeferredDecal = false; //Adds a deferred decal to the scene.
     public const bool StaticModel = false; //Imports a scene model to be rendered.
     public const bool AnimatedModel = true; //Imports a character model to be animated.
-    public const bool AddEditorUI = false; //Adds the full editor UI to the camera. Probably don't use this one a character pawn.
+    public const bool AddEditorUI = true; //Adds the full editor UI to the camera. Probably don't use this one a character pawn.
     public const bool VRPawn = false; //Enables VR input and pawn.
     public const bool CharacterPawn = false; //Enables the player to physically locomote in the world. Requires a physical floor.
     public const bool ThirdPersonPawn = false; //If on desktop and character pawn is enabled, this will add a third person camera instead of first person.
@@ -722,7 +722,7 @@ public static class EditorWorld
     //Tests for importing models and animations.
     #region Models
 
-    private static async void ImportModels(string desktopDir, SceneNode rootNode, SceneNode characterParentNode)
+    private static void ImportModels(string desktopDir, SceneNode rootNode, SceneNode characterParentNode)
     {
         var importedModelsNode = new SceneNode(rootNode) { Name = "TestImportedModelsNode" };
         //importedModelsNode.GetTransformAs<Transform>()?.ApplyScale(new Vector3(0.1f));

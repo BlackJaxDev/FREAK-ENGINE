@@ -73,6 +73,8 @@ namespace XREngine.Networking
         {
             if (_items.Count > 0)
                 _items[^1] += message ?? "";
+            else
+                AddItem(message);
             if (IsVisible(_items.Count - 1))
                 UpdateVisibleText();
         }
@@ -109,6 +111,15 @@ namespace XREngine.Networking
             }
         }
 
+        private bool _allowUpdate = true;
+        protected override void UpdateText(bool forceRemake, bool invalidateLayout = true)
+        {
+            if (!_allowUpdate)
+                return;
+            UpdateVisibleText();
+            base.UpdateText(forceRemake, invalidateLayout);
+        }
+
         private void UpdateVisibleText()
         {
             string text = "";
@@ -118,9 +129,13 @@ namespace XREngine.Networking
             {
                 int index = _visibleItemMinIndex + i;
                 _visibleItems.Add(index);
-                text += _items[index] + Environment.NewLine;
+                text += _items[index];
+                if (i < max - 1)
+                    text += "\n";
             }
+            _allowUpdate = false;
             Text = text;
+            _allowUpdate = true;
         }
 
         /// <summary>
