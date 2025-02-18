@@ -102,7 +102,7 @@ public class InspectorPanel : EditorPanel
                 if (first)
                     matching.Add(prop);
                 else
-                    matching = matching.Intersect([prop]).ToList();
+                    matching = [.. matching.Intersect([prop])];
             }
             first = false;
         }
@@ -515,6 +515,7 @@ public class InspectorPanel : EditorPanel
     {
         static void DefaultEditor(SceneNode n, PropertyInfo prop, object?[]? objects)
         {
+            Debug.Out($"No editor for type {prop.PropertyType}");
             var text = TextEditor<UITextInputComponent>(n, prop, objects);
         }
         return DefaultEditor;

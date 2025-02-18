@@ -118,17 +118,12 @@ namespace XREngine.Networking
             var logTextNode = outputLogNode.NewChild(out VirtualizedConsoleUIComponent outputLogComp);
             outputLogComp.HorizontalAlignment = EHorizontalAlignment.Left;
             outputLogComp.VerticalAlignment = EVerticalAlignment.Top;
-            //outputLogComp.WordWrap = true;
-            //outputLogComp.TopOffset = 0.0f;
-            //outputLogComp.Text = "Test Text";
-            //outputLogComp.AddItem("FIRST ITEM");
-            //outputLogComp.AddItem("Test Item 2");
-            //outputLogComp.AddItem("Test Item 3 YEP THIS IS THE LAST ONE");
+            outputLogComp.WrapMode = FontGlyphSet.EWrapMode.Character;
             outputLogComp.Color = new ColorF4(0.8f, 0.8f, 0.8f, 1.0f);
-            outputLogComp.FontSize = 14;
+            outputLogComp.FontSize = 16;
             var logTfm = outputLogComp.BoundableTransform;
             logTfm.MinAnchor = new Vector2(0.0f, 0.0f);
-            logTfm.MaxAnchor = new Vector2(0.0f, 1.0f);
+            logTfm.MaxAnchor = new Vector2(1.0f, 1.0f);
             logTfm.Margins = new Vector4(10.0f, 10.0f, 10.0f, 10.0f);
 
             //Trace.Listeners.Add(new OutputLogListener(outputLogComp!));

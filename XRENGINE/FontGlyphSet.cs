@@ -3,6 +3,7 @@ using SkiaSharp;
 using System.Numerics;
 using XREngine.Core.Files;
 using XREngine.Data;
+using XREngine.Data.Rendering;
 using XREngine.Data.Vectors;
 
 namespace XREngine.Rendering
@@ -112,18 +113,18 @@ namespace XREngine.Rendering
                 Color = SKColors.White,
                 Style = style,
                 StrokeWidth = strokeWidth,
-                //IsDither = true,
-                //BlendMode = SKBlendMode.SrcOver,
-                //IsAntialias = true,
+                IsDither = true,
+                BlendMode = SKBlendMode.SrcOver,
+                IsAntialias = true,
             };
 
             using SKFont font = new(typeface, textSize);
-            //font.BaselineSnap = true;
-            //font.Edging = SKFontEdging.SubpixelAntialias;
-            //font.ForceAutoHinting = true;
-            //font.Subpixel = true;
+            font.BaselineSnap = true;
+            font.Edging = SKFontEdging.SubpixelAntialias;
+            font.ForceAutoHinting = true;
+            font.Subpixel = true;
             font.Embolden = embolden;
-            //font.Hinting = SKFontHinting.Full;
+            font.Hinting = SKFontHinting.Full;
 
             // Process each character
             foreach (string character in characters)
@@ -213,11 +214,37 @@ namespace XREngine.Rendering
                 data.SaveTo(stream);
             }
 
-            Atlas = new XRTexture2D(outputAtlasPath);
+            Atlas = new XRTexture2D(outputAtlasPath)
+            {
+                Resizable = false,
+                AutoGenerateMipmaps = true,
+                UWrap = ETexWrapMode.MirroredRepeat,
+                VWrap = ETexWrapMode.MirroredRepeat,
+                MinFilter = ETexMinFilter.LinearMipmapLinear,
+                MagFilter = ETexMagFilter.Linear,
+                SizedInternalFormat = ESizedInternalFormat.R8,
+            };
+
             Glyphs = glyphInfos.ToDictionary(g => g.character, g => g.info);
 
             foreach (var bitmap in glyphBitmaps)
                 bitmap.Dispose();
+        }
+
+        public enum EWrapMode
+        {
+            /// <summary>
+            /// No wrapping is applied.
+            /// </summary>
+            None,
+            /// <summary>
+            /// Wrap at the character level.
+            /// </summary>
+            Character,
+            /// <summary>
+            /// Wrap at the word level.
+            /// </summary>
+            Word,
         }
 
         /// <summary>
@@ -352,7 +379,7 @@ namespace XREngine.Rendering
         /// <param name="fontSize"></param>
         /// <param name="maxWidth"></param>
         /// <param name="maxHeight"></param>
-        /// <param name="wordWrap"></param>
+        /// <param name="wrap"></param>
         /// <param name="spacing"></param>
         public void GetQuads(
             string? str,
@@ -360,7 +387,7 @@ namespace XREngine.Rendering
             float? fontSize,
             float maxWidth,
             float maxHeight,
-            bool wordWrap = false,
+            EWrapMode wrap = EWrapMode.None,
             float spacing = 5.0f,
             float lineSpacing = 5.0f)
             => GetQuads(
@@ -370,7 +397,7 @@ namespace XREngine.Rendering
                 fontSize,
                 maxWidth,
                 maxHeight,
-                wordWrap,
+                wrap,
                 spacing,
                 lineSpacing);
 
@@ -383,7 +410,7 @@ namespace XREngine.Rendering
         /// <param name="fontSize"></param>
         /// <param name="maxWidth"></param>
         /// <param name="maxHeight"></param>
-        /// <param name="wordWrap"></param>
+        /// <param name="wrap"></param>
         /// <param name="spacing"></param>
         /// <exception cref="InvalidOperationException"></exception>
         public void GetQuads(
@@ -393,7 +420,7 @@ namespace XREngine.Rendering
             float? fontSize,
             float maxWidth,
             float maxHeight,
-            bool wordWrap = false,
+            EWrapMode wrap = EWrapMode.None,
             float spacing = 5.0f,
             float lineSpacing = 5.0f)
         {
@@ -412,7 +439,7 @@ namespace XREngine.Rendering
                 fontSize,
                 maxWidth,
                 maxHeight,
-                wordWrap,
+                wrap,
                 spacing,
                 lineSpacing);
         }
@@ -428,7 +455,7 @@ namespace XREngine.Rendering
         /// <param name="fontSize"></param>
         /// <param name="maxWidth"></param>
         /// <param name="maxHeight"></param>
-        /// <param name="wordWrap"></param>
+        /// <param name="wrap"></param>
         /// <param name="spacing"></param>
         private static void GetQuads(
             string? str,
@@ -439,7 +466,7 @@ namespace XREngine.Rendering
             float? fontSize,
             float maxWidth,
             float maxHeight,
-            bool wordWrap = false,
+            EWrapMode wrap = EWrapMode.None,
             float spacing = 5.0f,
             float lineSpacing = 5.0f)
         {
@@ -496,7 +523,7 @@ namespace XREngine.Rendering
                 float scaleX = glyph.Size.X * scale;
                 float scaleY = -glyph.Size.Y * scale;
 
-                if (wordWrap && (translateX + scaleX) > maxWidth)
+                if (wrap != EWrapMode.None && (translateX + scaleX) > maxWidth && maxWidth > 0.0f)
                 {
                     xOffset = offset.X;
                     //update y translation on all previous characters

@@ -476,6 +476,7 @@ public static class EditorWorld
         UITextComponent text = textNode.AddComponent<UITextComponent>()!;
         text.Font = font;
         text.FontSize = 22;
+        text.WrapMode = FontGlyphSet.EWrapMode.None;
         text.RegisterAnimationTick<UITextComponent>(TickFPS);
         var textTransform = textNode.GetTransformAs<UIBoundableTransform>(true)!;
         textTransform.MinAnchor = new Vector2(1.0f, 0.0f);

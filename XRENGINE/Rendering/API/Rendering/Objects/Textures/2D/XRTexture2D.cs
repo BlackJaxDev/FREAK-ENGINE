@@ -247,11 +247,30 @@ namespace XREngine.Rendering
         /// <summary>
         /// Set on construction
         /// </summary>
-        public bool Rectangle { get; internal set; } = false;
+        public bool Rectangle { get; set; } = false;
+        public bool MultiSample => MultiSampleCount > 1;
+
+        private uint _multiSampleCount = 1;
         /// <summary>
         /// Set on construction
         /// </summary>
-        public bool MultiSample { get; internal set; } = false;
+        public uint MultiSampleCount
+        {
+            get => _multiSampleCount;
+            set => SetField(ref _multiSampleCount, value);
+        }
+
+        private bool _fixedSampleLocations = true;
+        /// <summary>
+        /// Specifies whether the image will use identical sample locations 
+        /// and the same number of samples for all texels in the image,
+        /// and the sample locations will not depend on the internal format or size of the image.
+        /// </summary>
+        public bool FixedSampleLocations
+        {
+            get => _fixedSampleLocations;
+            set => SetField(ref _fixedSampleLocations, value);
+        }
 
         public bool ExclusiveSharing
         {

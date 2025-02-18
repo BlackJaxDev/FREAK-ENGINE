@@ -91,11 +91,11 @@ namespace XREngine.Rendering.UI
             set => SetField(ref _animatableTransforms, value);
         }
 
-        private bool _wordWrap = false;
+        private FontGlyphSet.EWrapMode _wordWrap = FontGlyphSet.EWrapMode.Character;
         /// <summary>
         /// If true, the text will wrap to the next line when it reaches the width of the text box.
         /// </summary>
-        public bool WordWrap
+        public FontGlyphSet.EWrapMode WrapMode
         {
             get => _wordWrap;
             set => SetField(ref _wordWrap, value);
@@ -159,7 +159,7 @@ namespace XREngine.Rendering.UI
         public static float MeasureWidth(string name, FontGlyphSet font, float fontSize)
         {
             List<(Vector4 transform, Vector4 uvs)> glyphs = [];
-            font.GetQuads(name, glyphs, fontSize, float.MaxValue, float.MaxValue, false, 5.0f);
+            font.GetQuads(name, glyphs, fontSize, float.MaxValue, float.MaxValue, FontGlyphSet.EWrapMode.None, 5.0f);
             var (transform, _) = glyphs[^1];
             return transform.X + transform.Z;
         }
@@ -173,7 +173,7 @@ namespace XREngine.Rendering.UI
                 if (_glyphs is null || _glyphs.Count == 0)
                     return 0.0f;
 
-                if (WordWrap)
+                if (WrapMode != FontGlyphSet.EWrapMode.None)
                     return _glyphs.Max(g => g.transform.X + g.transform.Z);
                 else
                 {
@@ -258,7 +258,7 @@ namespace XREngine.Rendering.UI
                 var tfm = BoundableTransform;
                 float w = tfm.ActualWidth;
                 float h = tfm.ActualHeight;
-                Font.GetQuads(Text, _glyphs, FontSize, w, h, WordWrap, 5.0f, 2.0f);
+                Font.GetQuads(Text, _glyphs, FontSize, w, h, WrapMode, 5.0f, 2.0f);
                 AlignQuads(tfm, w, h);
                 count = (uint)(_glyphs?.Count ?? 0);
             }

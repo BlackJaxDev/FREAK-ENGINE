@@ -10,7 +10,7 @@ namespace XREngine.Editor.UI.Components
         public ConsolePanel()
         {
             SceneNode.NewChild<UITextComponent>(out var text);
-            text.WordWrap = true;
+            text.WrapMode = Rendering.FontGlyphSet.EWrapMode.Character;
             text.HideOverflow = true;
             text.FontSize = 14;
             text.VerticalAlignment = EVerticalAlignment.Top;

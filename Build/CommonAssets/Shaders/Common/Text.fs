@@ -10,7 +10,8 @@ uniform vec4 TextColor;
 
 void main()
 {
-    vec4 color = texture(Texture0, FragUV0);
-    color *= TextColor;
+    float intensity = texture(Texture0, FragUV0).r;
+    vec4 color = TextColor * intensity; //Pre-multiply alpha
+    color.a *= intensity;
     FragColor = color;
 }

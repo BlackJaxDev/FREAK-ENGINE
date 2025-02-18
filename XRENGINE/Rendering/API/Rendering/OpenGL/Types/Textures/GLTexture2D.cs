@@ -93,7 +93,7 @@ namespace XREngine.Rendering.OpenGL
             Invalidate();
         }
 
-        public override ETextureTarget TextureTarget { get; } = ETextureTarget.Texture2D;
+        public override ETextureTarget TextureTarget => Data.MultiSample ? ETextureTarget.Texture2DMultisample : ETextureTarget.Texture2D;
 
         protected override void UnlinkData()
         {
@@ -164,7 +164,10 @@ namespace XREngine.Rendering.OpenGL
                 EPixelInternalFormat? internalFormatForce = null;
                 if (!Data.Resizable && !_storageSet)
                 {
-                    Api.TextureStorage2D(BindingId, (uint)Data.SmallestMipmapLevel, ToGLEnum(Data.SizedInternalFormat), Data.Width, Data.Height);
+                    if (Data.MultiSample)
+                        Api.TextureStorage2DMultisample(BindingId, Data.MultiSampleCount, ToGLEnum(Data.SizedInternalFormat), Data.Width, Data.Height, Data.FixedSampleLocations);
+                    else
+                        Api.TextureStorage2D(BindingId, (uint)Data.SmallestMipmapLevel, ToGLEnum(Data.SizedInternalFormat), Data.Width, Data.Height);
                     internalFormatForce = ToBaseInternalFormat(Data.SizedInternalFormat);
                     _storageSet = true;
                 }
@@ -184,8 +187,12 @@ namespace XREngine.Rendering.OpenGL
 
                 Api.TextureParameterI(BindingId, GLEnum.TextureBaseLevel, in baseLevel);
                 Api.TextureParameterI(BindingId, GLEnum.TextureMaxLevel, in maxLevel);
-                Api.TextureParameterI(BindingId, GLEnum.TextureMinLod, in minLOD);
-                Api.TextureParameterI(BindingId, GLEnum.TextureMaxLod, in maxLOD);
+
+                if (!IsMultisampleTarget)
+                {
+                    Api.TextureParameterI(BindingId, GLEnum.TextureMinLod, in minLOD);
+                    Api.TextureParameterI(BindingId, GLEnum.TextureMaxLod, in maxLOD);
+                }
 
                 if (Data.AutoGenerateMipmaps)
                     GenerateMipmaps();
@@ -275,22 +282,25 @@ namespace XREngine.Rendering.OpenGL
 
         protected override void SetParameters()
         {
-            Api.TextureParameter(BindingId, GLEnum.TextureLodBias, Data.LodBias);
+            if (!IsMultisampleTarget)
+            {
+                Api.TextureParameter(BindingId, GLEnum.TextureLodBias, Data.LodBias);
 
-            //int dsmode = Data.DepthStencilFormat == EDepthStencilFmt.Stencil ? (int)GLEnum.StencilIndex : (int)GLEnum.DepthComponent;
-            //Api.TextureParameterI(BindingId, GLEnum.DepthStencilTextureMode, in dsmode);
+                //int dsmode = Data.DepthStencilFormat == EDepthStencilFmt.Stencil ? (int)GLEnum.StencilIndex : (int)GLEnum.DepthComponent;
+                //Api.TextureParameterI(BindingId, GLEnum.DepthStencilTextureMode, in dsmode);
 
-            int magFilter = (int)ToGLEnum(Data.MagFilter);
-            Api.TextureParameterI(BindingId, GLEnum.TextureMagFilter, in magFilter);
+                int magFilter = (int)ToGLEnum(Data.MagFilter);
+                Api.TextureParameterI(BindingId, GLEnum.TextureMagFilter, in magFilter);
 
-            int minFilter = (int)ToGLEnum(Data.MinFilter);
-            Api.TextureParameterI(BindingId, GLEnum.TextureMinFilter, in minFilter);
+                int minFilter = (int)ToGLEnum(Data.MinFilter);
+                Api.TextureParameterI(BindingId, GLEnum.TextureMinFilter, in minFilter);
 
-            int uWrap = (int)ToGLEnum(Data.UWrap);
-            Api.TextureParameterI(BindingId, GLEnum.TextureWrapS, in uWrap);
+                int uWrap = (int)ToGLEnum(Data.UWrap);
+                Api.TextureParameterI(BindingId, GLEnum.TextureWrapS, in uWrap);
 
-            int vWrap = (int)ToGLEnum(Data.VWrap);
-            Api.TextureParameterI(BindingId, GLEnum.TextureWrapT, in vWrap);
+                int vWrap = (int)ToGLEnum(Data.VWrap);
+                Api.TextureParameterI(BindingId, GLEnum.TextureWrapT, in vWrap);
+            }
 
             base.SetParameters();
         }

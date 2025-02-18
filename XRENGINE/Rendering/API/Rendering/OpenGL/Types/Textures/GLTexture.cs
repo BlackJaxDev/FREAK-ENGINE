@@ -83,13 +83,24 @@ namespace XREngine.Rendering.OpenGL
             }
         }
 
+        public bool IsMultisampleTarget =>
+            TextureTarget == ETextureTarget.Texture2DMultisample ||
+            TextureTarget == ETextureTarget.Texture2DMultisampleArray ||
+            TextureTarget == ETextureTarget.ProxyTexture2DMultisample ||
+            TextureTarget == ETextureTarget.ProxyTexture2DMultisampleArray;
+
         protected virtual void SetParameters()
         {
-            int param = Data.MinLOD;
-            Api.TextureParameterI(BindingId, TextureParameterName.TextureMinLod, ref param);
+            int param;
 
-            param = Data.MaxLOD;
-            Api.TextureParameterI(BindingId, TextureParameterName.TextureMaxLod, ref param);
+            if (!IsMultisampleTarget)
+            {
+                param = Data.MinLOD;
+                Api.TextureParameterI(BindingId, TextureParameterName.TextureMinLod, ref param);
+
+                param = Data.MaxLOD;
+                Api.TextureParameterI(BindingId, TextureParameterName.TextureMaxLod, ref param);
+            }
 
             param = Data.LargestMipmapLevel;
             Api.TextureParameterI(BindingId, TextureParameterName.TextureBaseLevel, ref param);
@@ -178,7 +189,10 @@ namespace XREngine.Rendering.OpenGL
         }
 
         public void GenerateMipmaps()
-            => Api.GenerateTextureMipmap(BindingId);
+        {
+            if (!IsMultisampleTarget)
+                Api.GenerateTextureMipmap(BindingId);
+        }
 
         protected override uint CreateObject()
             => Api.GenTexture();

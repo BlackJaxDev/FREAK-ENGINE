@@ -44,6 +44,11 @@ namespace XREngine
             {
                 Dequeue();
                 //float time = ElapsedTime;
+                //Use tasks
+                //Task[] tasks = new Task[_methods.Count];
+                //for (int i = 0; i < _methods.Count; i++)
+                //    tasks[i] = Task.Run(() => ExecTick(_methods[i]));
+                //Task.WaitAll(tasks);
                 _methods.ForEachParallelIList(ExecTick);
                 //Debug.Out($"TickList Parallel: {Math.Round((ElapsedTime - time) * 1000.0f, 2)} ms");
             }
