@@ -17,8 +17,17 @@ namespace XREngine.Rendering
         private static readonly Stack<XRFrameBuffer> _writeStack = new();
         private static readonly Stack<XRFrameBuffer> _bindStack = new();
 
+        /// <summary>
+        /// The currently bound framebuffer for reading.
+        /// </summary>
         public static XRFrameBuffer? BoundForReading => _readStack.Count > 0 ? _readStack.Peek() : null;
+        /// <summary>
+        /// The currently bound framebuffer for writing.
+        /// </summary>
         public static XRFrameBuffer? BoundForWriting => _writeStack.Count > 0 ? _writeStack.Peek() : null;
+        /// <summary>
+        /// The currently bound framebuffer for general use.
+        /// </summary>
         public static XRFrameBuffer? CurrentlyBound => _bindStack.Count > 0 ? _bindStack.Peek() : null;
 
         public uint Width => Targets?.FirstOrDefault().Target?.Width ?? 0u;

@@ -133,18 +133,39 @@ namespace XREngine.Components
             input.RegisterButtonPressed(EGamePadButton.LeftBumper, MoveDown);
         }
 
+        public bool AllowKeyboardInput
+            => LocalPlayerController?.FocusedUIComponent is null;
+
         protected virtual void MoveDown(bool pressed)
-            => _incUp += KeyboardTranslateSpeed * (pressed ? -1.0f : 1.0f);
+        {
+            if (AllowKeyboardInput)
+                _incUp += KeyboardTranslateSpeed * (pressed ? -1.0f : 1.0f);
+        }
         protected virtual void MoveUp(bool pressed)
-            => _incUp += KeyboardTranslateSpeed * (pressed ? 1.0f : -1.0f);
+        {
+            if (AllowKeyboardInput)
+                _incUp += KeyboardTranslateSpeed * (pressed ? 1.0f : -1.0f);
+        }
         protected virtual void MoveLeft(bool pressed)
-            => _incRight += KeyboardTranslateSpeed * (pressed ? -1.0f : 1.0f);
+        {
+            if (AllowKeyboardInput)
+                _incRight += KeyboardTranslateSpeed * (pressed ? -1.0f : 1.0f);
+        }
         protected virtual void MoveRight(bool pressed)
-            => _incRight += KeyboardTranslateSpeed * (pressed ? 1.0f : -1.0f);
+        {
+            if (AllowKeyboardInput)
+                _incRight += KeyboardTranslateSpeed * (pressed ? 1.0f : -1.0f);
+        }
         protected virtual void MoveBackward(bool pressed)
-            => _incForward += KeyboardTranslateSpeed * (pressed ? -1.0f : 1.0f);
+        {
+            if (AllowKeyboardInput)
+                _incForward += KeyboardTranslateSpeed * (pressed ? -1.0f : 1.0f);
+        }
         protected virtual void MoveForward(bool pressed)
-            => _incForward += KeyboardTranslateSpeed * (pressed ? 1.0f : -1.0f);
+        {
+            if (AllowKeyboardInput)
+                _incForward += KeyboardTranslateSpeed * (pressed ? 1.0f : -1.0f);
+        }
 
         protected virtual void OnLeftStickX(float value)
             => _incRight = value * GamepadTranslateSpeed;
@@ -156,18 +177,37 @@ namespace XREngine.Components
             => _incPitch = value * GamepadRotateSpeed;
 
         protected virtual void YawRight(bool pressed)
-            => _incYaw -= KeyboardRotateSpeed * (pressed ? 1.0f : -1.0f);
+        {
+            if (AllowKeyboardInput)
+                _incYaw -= KeyboardRotateSpeed * (pressed ? 1.0f : -1.0f);
+        }
         protected virtual void YawLeft(bool pressed)
-            => _incYaw += KeyboardRotateSpeed * (pressed ? 1.0f : -1.0f);
+        {
+            if (AllowKeyboardInput)
+                _incYaw += KeyboardRotateSpeed * (pressed ? 1.0f : -1.0f);
+        }
         protected virtual void PitchDown(bool pressed)
-            => _incPitch -= KeyboardRotateSpeed * (pressed ? 1.0f : -1.0f);
+        {
+            if (AllowKeyboardInput)
+                _incPitch -= KeyboardRotateSpeed * (pressed ? 1.0f : -1.0f);
+        }
         protected virtual void PitchUp(bool pressed)
-            => _incPitch += KeyboardRotateSpeed * (pressed ? 1.0f : -1.0f);
+        {
+            if (AllowKeyboardInput)
+                _incPitch += KeyboardRotateSpeed * (pressed ? 1.0f : -1.0f);
+        }
 
         protected void OnShift(bool pressed)
-            => ShiftPressed = pressed;
+        {
+            if (AllowKeyboardInput)
+                ShiftPressed = pressed;
+        }
         private void OnControl(bool pressed)
-            => CtrlPressed = pressed;
+        {
+            if (AllowKeyboardInput)
+                CtrlPressed = pressed;
+        }
+
         protected virtual void OnRightClick(bool pressed)
             => RightClickPressed = pressed;
         protected virtual void OnLeftClick(bool pressed)

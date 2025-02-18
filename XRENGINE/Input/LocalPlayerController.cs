@@ -1,5 +1,6 @@
 ﻿using XREngine.Input.Devices;
 using XREngine.Rendering;
+using XREngine.Rendering.UI;
 
 namespace XREngine.Input
 {
@@ -18,6 +19,17 @@ namespace XREngine.Input
         {
             get => _viewport;
             internal set => SetField(ref _viewport, value);
+        }
+
+        private UIInteractableComponent? _focusedUIComponent = null;
+        /// <summary>
+        /// The UI component that currently has focus by this local player.
+        /// Use for allowing or denying inputs to other components.
+        /// </summary>
+        public UIInteractableComponent? FocusedUIComponent
+        {
+            get => _focusedUIComponent;
+            internal set => SetField(ref _focusedUIComponent, value);
         }
 
         public LocalPlayerController(ELocalPlayerIndex index) : base(new LocalInputInterface((int)index))

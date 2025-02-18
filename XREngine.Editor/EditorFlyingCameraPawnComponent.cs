@@ -3,7 +3,6 @@ using ImageMagick;
 using System.Numerics;
 using XREngine.Actors.Types;
 using XREngine.Components;
-using XREngine.Core;
 using XREngine.Data.Colors;
 using XREngine.Data.Core;
 using XREngine.Data.Geometry;

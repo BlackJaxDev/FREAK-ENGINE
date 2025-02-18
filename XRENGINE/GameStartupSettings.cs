@@ -15,11 +15,12 @@ namespace XREngine
         private string _texturesFolder = "";
         private float? _targetUpdatesPerSecond = 90.0f;
         private float _fixedFramesPerSecond = 90.0f;
+        private bool _runVRInPlace = false;
 
         private string _udpMulticastGroupIP = "239.0.0.222";
-        private int _udpMulticastServerPort = 5000;
-        private string _tcpListenerIP = "0.0.0.0";
-        private int _tcpListenerPort = 5001;
+        private int _udpMulticastPort = 5000;
+        //private string _tcpListenerIP = "0.0.0.0";
+        //private int _tcpListenerPort = 5001;
         private string _serverIP = "127.0.0.1";
 
         public List<GameWindowStartupSettings> StartupWindows
@@ -90,21 +91,33 @@ namespace XREngine
             get => _udpMulticastGroupIP;
             set => SetField(ref _udpMulticastGroupIP, value);
         }
-        public int UdpMulticastServerPort
+        public int UdpMulticastPort
         {
-            get => _udpMulticastServerPort;
-            set => SetField(ref _udpMulticastServerPort, value);
+            get => _udpMulticastPort;
+            set => SetField(ref _udpMulticastPort, value);
         }
-        public string TcpListenerIP
+        private int _udpClientReceivePort = 5002;
+        public int UdpClientRecievePort
         {
-            get => _tcpListenerIP;
-            set => SetField(ref _tcpListenerIP, value);
+            get => _udpClientReceivePort;
+            set => SetField(ref _udpClientReceivePort, value);
         }
-        public int TcpListenerPort
+        private int _udpServerSendPort = 5002;
+        public int UdpServerSendPort
         {
-            get => _tcpListenerPort;
-            set => SetField(ref _tcpListenerPort, value);
+            get => _udpServerSendPort;
+            set => SetField(ref _udpServerSendPort, value);
         }
+        //public string TcpListenerIP
+        //{
+        //    get => _tcpListenerIP;
+        //    set => SetField(ref _tcpListenerIP, value);
+        //}
+        //public int TcpListenerPort
+        //{
+        //    get => _tcpListenerPort;
+        //    set => SetField(ref _tcpListenerPort, value);
+        //}
         public string ServerIP
         {
             get => _serverIP;
@@ -119,6 +132,15 @@ namespace XREngine
         {
             get => _fixedFramesPerSecond;
             set => SetField(ref _fixedFramesPerSecond, value);
+        }
+        /// <summary>
+        /// If true, the VR system will start in the same application as the game itself.
+        /// This means VR cannot be turned off without restarting the game.
+        /// </summary>
+        public bool RunVRInPlace
+        {
+            get => _runVRInPlace;
+            set => SetField(ref _runVRInPlace, value);
         }
     }
 }

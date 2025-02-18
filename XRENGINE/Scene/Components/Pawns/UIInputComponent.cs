@@ -69,7 +69,14 @@ namespace XREngine.Components
                         if (_focusedComponent is not null)
                         {
                             //_focusedComponent.IsFocused = false;
-                            _focusedComponent.PropertyChanged -= FocusedComponentPropertyChanged;
+                            //_focusedComponent.PropertyChanged -= FocusedComponentPropertyChanged;
+                            //var input = _owningPawn!.LocalPlayerController!.Input;
+                            //if (_focusedComponent.RegisterInputsOnFocus)
+                            //{
+                            //    input.Unregister = true;
+                            //    _focusedComponent.RegisterInput(input);
+                            //    input.Unregister = false;
+                            //}
                         }
                         break;
                 }
@@ -89,22 +96,25 @@ namespace XREngine.Components
                     {
                         _focusedComponent.IsFocused = true;
                         _focusedComponent.PropertyChanged += FocusedComponentPropertyChanged;
-                        var input = _owningPawn!.LocalPlayerController!.Input;
-                        if (_focusedComponent.RegisterInputsOnFocus)
+                        var input = _owningPawn?.LocalPlayerController?.Input;
+                        if (input is not null && _focusedComponent.RegisterInputsOnFocus)
                             _focusedComponent.RegisterInput(input);
                     }
                     if (prev is UIInteractableComponent prevInteractable)
                     {
                         prevInteractable.IsFocused = false;
-                        var input = _owningPawn!.LocalPlayerController!.Input;
-                        if (prevInteractable.RegisterInputsOnFocus)
+                        prevInteractable.PropertyChanged -= FocusedComponentPropertyChanged;
+                        var input = _owningPawn?.LocalPlayerController?.Input;
+                        if (input is not null && prevInteractable.RegisterInputsOnFocus)
                         {
                             input.Unregister = true;
                             prevInteractable.RegisterInput(input);
                             input.Unregister = false;
                         }
-                        //prevInteractable.PropertyChanged -= FocusedComponentPropertyChanged;
                     }
+                    var localPlayerController = _owningPawn?.LocalPlayerController;
+                    if (localPlayerController is not null)
+                        localPlayerController.FocusedUIComponent = _focusedComponent;
                     break;
             }
         }

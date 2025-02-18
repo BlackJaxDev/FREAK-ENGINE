@@ -274,11 +274,12 @@ public class InspectorPanel : EditorPanel
         textInput.Targets = objects;
 
         textComp!.FontSize = 14;
-        textComp.Color = ColorF4.White;
+        textComp.Color = ColorF4.Gray;
         textComp.HorizontalAlignment = EHorizontalAlignment.Left;
         textComp.VerticalAlignment = EVerticalAlignment.Center;
         textComp.BoundableTransform.Margins = new Vector4(5.0f, 2.0f, 5.0f, 2.0f);
         textComp.ClipToBounds = true;
+        textComp.WrapMode = FontGlyphSet.EWrapMode.None;
 
         textDriver!.Property = prop;
         textDriver.Sources = objects;

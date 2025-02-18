@@ -13,10 +13,7 @@ public partial class EditorPanel : XRComponent
 {
     public UIBoundableTransform BoundableTransform => SceneNode.GetTransformAs<UIBoundableTransform>()!;
 
-    public EditorPanel()
-    {
-
-    }
+    public EditorPanel() { }
 
     /// <summary>
     /// The window that this panel is displayed in.

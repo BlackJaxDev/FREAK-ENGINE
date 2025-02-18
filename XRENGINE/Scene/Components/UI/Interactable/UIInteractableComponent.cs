@@ -58,6 +58,9 @@ namespace XREngine.Rendering.UI
         public event Action<UIInteractableComponent>? GamepadNavigateLeave;
 
         private bool _registerInputsOnFocus = true;
+        /// <summary>
+        /// When true, this component will register inputs when it gains focus and unregister inputs when it loses focus.
+        /// </summary>
         public bool RegisterInputsOnFocus
         {
             get => _registerInputsOnFocus;

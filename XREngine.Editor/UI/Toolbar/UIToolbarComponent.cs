@@ -117,7 +117,7 @@ public partial class UIToolbarComponent : UIComponent
 
             text.FontSize = 14;
             text.Text = menuItem.Text;
-            text.Color = ColorF4.LightGray;
+            //text.Color = ColorF4.LightGray;
 
             if (menuItem.ChildOptions.Count <= 0)
                 continue;

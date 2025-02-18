@@ -1,4 +1,7 @@
-﻿using System.Diagnostics;
+﻿using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using System.Numerics;
 using System.Text;
 using XREngine.Components;
@@ -42,9 +45,43 @@ namespace XREngine.Networking
         //    await _loadBalancer.Start();
         //}
 
+        public static Task? WebAppTask { get; private set; }
+
         private static void Main(string[] args)
         {
+            WebAppTask = BuildWebApi();
             Engine.Run(/*Engine.LoadOrGenerateGameSettings(() => */GetEngineSettings(CreateServerDebugWorld())/*, "startup", false)*/, Engine.LoadOrGenerateGameState());
+        }
+
+        private static Task BuildWebApi()
+        {
+            var builder = WebApplication.CreateBuilder();
+
+            builder.Services.AddControllers();
+            builder.Services.AddResponseCompression(opts =>
+            {
+                opts.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(["application/octet-stream"]);
+            });
+            var app = builder.Build();
+
+            app.UseResponseCompression();
+
+            // Configure the HTTP request pipeline.
+            if (app.Environment.IsDevelopment())
+                app.UseDeveloperExceptionPage();
+            else
+            {
+                app.UseExceptionHandler("/Error");
+                app.UseHsts();
+            }
+
+            app.UseHttpsRedirection();
+            app.UseStaticFiles();
+            app.UseRouting();
+            app.UseAuthorization();
+            app.MapControllers();
+
+            return app.RunAsync();
         }
 
         static XRWorld CreateServerDebugWorld()
@@ -119,7 +156,7 @@ namespace XREngine.Networking
             outputLogComp.HorizontalAlignment = EHorizontalAlignment.Left;
             outputLogComp.VerticalAlignment = EVerticalAlignment.Top;
             outputLogComp.WrapMode = FontGlyphSet.EWrapMode.Character;
-            outputLogComp.Color = new ColorF4(0.8f, 0.8f, 0.8f, 1.0f);
+            outputLogComp.Color = new ColorF4(1.0f, 1.0f, 1.0f, 1.0f);
             outputLogComp.FontSize = 16;
             var logTfm = outputLogComp.BoundableTransform;
             logTfm.MinAnchor = new Vector2(0.0f, 0.0f);
@@ -138,6 +175,7 @@ namespace XREngine.Networking
             text.Font = font;
             text.FontSize = 22;
             text.Color = new ColorF4(1.0f, 1.0f, 1.0f, 1.0f);
+            text.WrapMode = FontGlyphSet.EWrapMode.None;
             text.RegisterAnimationTick<UITextComponent>(TickFPS);
             var textTransform = textNode.GetTransformAs<UIBoundableTransform>(true)!;
             textTransform.MinAnchor = new Vector2(1.0f, 0.0f);

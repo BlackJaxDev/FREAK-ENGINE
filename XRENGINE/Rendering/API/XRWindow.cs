@@ -137,8 +137,8 @@ namespace XREngine.Rendering
 
         private void RenderFrame()
         {
-            Window.DoRender();
             Window.DoEvents();
+            Window.DoRender();
         }
 
         public event Action? RenderViewportsCallback;
@@ -170,9 +170,15 @@ namespace XREngine.Rendering
 
         private void FramebufferResizeCallback(Vector2D<int> obj)
         {
+            //Debug.Out("Window resized to {0}x{1}", obj.X, obj.Y);
             Renderer.FrameBufferInvalidated();
             Viewports.ForEach(vp => vp.Resize((uint)obj.X, (uint)obj.Y, false));
-            RenderFrame();
+
+            var timer = Engine.Time.Timer;
+            //timer.DispatchUpdate();
+            timer.DispatchCollectVisible();
+            timer.DispatchSwapBuffers();
+            timer.DispatchRender();
         }
 
         public XRViewport GetOrAddViewportForPlayer(LocalPlayerController controller, bool autoSizeAllViewports)
@@ -240,10 +246,10 @@ namespace XREngine.Rendering
         {
             _viewports.CollectionChanged += ViewportsChanged;
             Silk.NET.Windowing.Window.PrioritizeGlfw();
-            //options.WindowBorder = WindowBorder.Hidden;
             Window = Silk.NET.Windowing.Window.Create(options);
             LinkWindow();
             Window.Initialize();
+            //Window.IsEventDriven = true;
             Renderer = Window.API.API switch
             {
                 ContextAPI.OpenGL => new OpenGLRenderer(this, true),
@@ -285,7 +291,7 @@ namespace XREngine.Rendering
             Engine.RemoveWindow(this);
         }
 
-        private void Window_Resize(Vector2D<int> obj)
+        private void ResizeViewports(Vector2D<int> obj)
         {
             void SetSize(XRViewport vp)
             {
@@ -297,6 +303,6 @@ namespace XREngine.Rendering
         }
 
         public void UpdateViewportSizes()
-            => Window_Resize(Window.Size);
+            => ResizeViewports(Window.Size);
     }
 }

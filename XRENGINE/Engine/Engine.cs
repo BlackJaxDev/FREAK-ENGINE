@@ -73,7 +73,7 @@ namespace XREngine
         /// <summary>
         /// All networking-related functions.
         /// </summary>
-        public static NetworkingManager Networking { get; } = new();
+        public static BaseNetworkingManager? Networking { get; private set; }
         /// <summary>
         /// Audio manager for playing and streaming sounds and music.
         /// </summary>
@@ -137,34 +137,9 @@ namespace XREngine
             if (state.Worlds is not null)
                 _worldInstances.AddRange(state.Worlds);
 
-            CreateWindows(startupSettings.StartupWindows);
-
-            var appType = startupSettings.AppType;
-
-            bool p2p = appType == GameStartupSettings.EAppType.P2PClient;
-            Networking.PeerToPeer = p2p;
-
-            if (appType == GameStartupSettings.EAppType.Server || p2p)
-                Networking.StartServer(
-                    IPAddress.Parse(startupSettings.UdpMulticastGroupIP),
-                    startupSettings.UdpMulticastServerPort,
-                    IPAddress.Parse(startupSettings.TcpListenerIP),
-                    startupSettings.TcpListenerPort);
-
-            if (appType == GameStartupSettings.EAppType.Client || p2p)
-                Networking.StartClient(
-                    IPAddress.Parse(startupSettings.UdpMulticastGroupIP),
-                    IPAddress.Parse(startupSettings.ServerIP),
-                    startupSettings.UdpMulticastServerPort,
-                    startupSettings.TcpListenerPort);
-
-            if (startupSettings is IVRGameStartupSettings vrSettings && vrSettings.VRManifest is not null && vrSettings.ActionManifest is not null)
-            {
-                if (startupSettings.AppType == GameStartupSettings.EAppType.Local)
-                    VRState.InitializeLocal(vrSettings.ActionManifest, vrSettings.VRManifest, _windows[0]);
-                else
-                    VRState.IninitializeClient(vrSettings.ActionManifest, vrSettings.VRManifest);
-            }
+            InitializeWindows(startupSettings.StartupWindows);
+            InitializeNetworking(startupSettings);
+            InitializeVR(startupSettings as IVRGameStartupSettings, startupSettings.RunVRInPlace);
 
             Time.Timer.SwapBuffers += SwapBuffers;
             Time.Timer.RenderFrame += DequeueMainThreadTasks;
@@ -173,6 +148,46 @@ namespace XREngine
 
             if (beginPlayingAllWorlds)
                 BeginPlayAllWorlds();
+        }
+
+        private static void InitializeVR(IVRGameStartupSettings? vrSettings, bool runVRInPlace)
+        {
+            if (vrSettings is null ||
+                vrSettings.VRManifest is null || 
+                vrSettings.ActionManifest is null)
+                return;
+            
+            if (runVRInPlace)
+                VRState.InitializeLocal(vrSettings.ActionManifest, vrSettings.VRManifest, _windows[0]);
+            else
+                VRState.IninitializeClient(vrSettings.ActionManifest, vrSettings.VRManifest);
+        }
+
+        private static void InitializeNetworking(GameStartupSettings startupSettings)
+        {
+            var appType = startupSettings.AppType;
+            switch (appType)
+            {
+                default:
+                case GameStartupSettings.EAppType.Local:
+                    Networking = null;
+                    break;
+                case GameStartupSettings.EAppType.Server:
+                    var server = new ServerNetworkingManager();
+                    Networking = server;
+                    server.Start(IPAddress.Parse(startupSettings.UdpMulticastGroupIP), startupSettings.UdpMulticastPort, startupSettings.UdpClientRecievePort);
+                    break;
+                case GameStartupSettings.EAppType.Client:
+                    var client = new ClientNetworkingManager();
+                    Networking = client;
+                    client.Start(IPAddress.Parse(startupSettings.UdpMulticastGroupIP), startupSettings.UdpMulticastPort, IPAddress.Parse(startupSettings.ServerIP), startupSettings.UdpServerSendPort);
+                    break;
+                case GameStartupSettings.EAppType.P2PClient:
+                    var p2pClient = new PeerToPeerNetworkingManager();
+                    Networking = p2pClient;
+                    p2pClient.Start(IPAddress.Parse(startupSettings.UdpMulticastGroupIP), startupSettings.UdpMulticastPort, IPAddress.Parse(startupSettings.ServerIP));
+                    break;
+            }
         }
 
         public static void BeginPlayAllWorlds()
@@ -206,7 +221,7 @@ namespace XREngine
             sw.Stop();
         }
 
-        public static void CreateWindows(List<GameWindowStartupSettings> windows)
+        public static void InitializeWindows(List<GameWindowStartupSettings> windows)
         {
             foreach (var windowSettings in windows)
                 CreateWindow(windowSettings);
@@ -284,7 +299,11 @@ namespace XREngine
                 24,
                 8,
                 null,
-                true);
+                true,
+                false,
+                false,
+                null,
+                1);
         }
 
         public static XRWorldInstance GetOrInitWorld(XRWorld targetWorld)

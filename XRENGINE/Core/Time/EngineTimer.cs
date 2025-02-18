@@ -176,6 +176,14 @@ namespace XREngine.Timers
             _renderDone.Set();
         }
 
+        public bool IsCollectVisibleDone
+            => _collectVisibleDone.IsSet;
+
+        public void ResetCollectVisible()
+        {
+            _collectVisibleDone.Reset();
+        }
+
         public void SetRenderDone()
         {
             _renderDone.Set();
@@ -211,7 +219,7 @@ namespace XREngine.Timers
         /// <returns></returns>
         public float Time() => (float)_watch.Elapsed.TotalSeconds;
 
-        private bool DispatchRender()
+        public bool DispatchRender()
         {
             try
             {
@@ -238,7 +246,7 @@ namespace XREngine.Timers
             }
         }
 
-        private void DispatchCollectVisible()
+        public void DispatchCollectVisible()
         {
             try
             {
@@ -256,13 +264,13 @@ namespace XREngine.Timers
             }
         }
 
-        private void DispatchSwapBuffers()
+        public void DispatchSwapBuffers()
             => SwapBuffers?.Invoke();
 
         private void DispatchFixedUpdate()
             => FixedUpdate?.Invoke();
 
-        private void DispatchUpdate()
+        public void DispatchUpdate()
         {
             try
             {

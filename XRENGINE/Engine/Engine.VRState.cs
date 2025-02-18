@@ -442,8 +442,8 @@ namespace XREngine
                 return hasError;
             }
 
-            public static NamedPipeServerStream? PipeServer { get; private set; } = new("VRInputPipe", PipeDirection.In, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
-            public static NamedPipeClientStream? PipeClient { get; private set; } = new(".", "VRInputPipe", PipeDirection.Out, PipeOptions.Asynchronous);
+            public static NamedPipeServerStream? PipeServer { get; private set; }
+            public static NamedPipeClientStream? PipeClient { get; private set; }
             public static void StartInputClient()
             {
                 PipeClient = new(".", "VRInputPipe", PipeDirection.Out, PipeOptions.Asynchronous);
@@ -527,6 +527,7 @@ namespace XREngine
                 Debug.Out("Waiting for VR input connection...");
                 try
                 {
+                    PipeServer = new("VRInputPipe", PipeDirection.In, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
                     _waitingForInput = true;
                     await PipeServer!.WaitForConnectionAsync();
                     _waitingForInput = false;
