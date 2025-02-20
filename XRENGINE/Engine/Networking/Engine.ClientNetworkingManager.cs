@@ -7,10 +7,16 @@ namespace XREngine
     {
         public class ClientNetworkingManager : BaseNetworkingManager
         {
+            public override bool IsServer => false;
+            public override bool IsClient => true;
+            public override bool IsP2P => false;
+
+            /// <summary>
+            /// The server IP to send to.
+            /// </summary>
             public IPEndPoint? ServerIP { get; set; }
             /// <summary>
             /// Sends from client to server.
-            /// Not used in a p2p scenario.
             /// </summary>
             public UdpClient? UdpSender { get; set; }
 
@@ -29,14 +35,13 @@ namespace XREngine
             {
                 UdpSender = new UdpClient();
                 ServerIP = new IPEndPoint(serverIP, udpMulticastServerPort);
-                UdpSender.Connect(ServerIP);
+                //UdpSender.Connect(ServerIP);
             }
 
-            protected override void SendUDP()
+            protected override async Task SendUDP()
             {
                 //Send to server
-                if (UdpSender is not null && ServerIP is not null)
-                    ConsumeAndSendUDPQueue(UdpSender, ServerIP);
+                await ConsumeAndSendUDPQueue(UdpSender, ServerIP);
             }
         }
     }

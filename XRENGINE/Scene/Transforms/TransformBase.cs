@@ -325,15 +325,14 @@ namespace XREngine.Scene.Transforms
 
             bool wasDepthAdded = false;
 
-            Task[] tasks = recalcChildrenNow
-                ? _children.Select(child => Task.Run(() => child.RecalculateMatrices(recalcChildrenNow))).ToArray()
+            Task.WaitAll(recalcChildrenNow
+                ? _children.Select(child => Task.Run(() => 
+                    child.RecalculateMatrices(recalcChildrenNow)))
                 : _children.Select(child => Task.Run(() =>
                 {
                     child._worldMatrix.NeedsRecalc = true;
                     world.AddDirtyTransform(child, ref wasDepthAdded, true);
-                })).ToArray();
-
-            Task.WaitAll(tasks);
+                })));
 
             return wasDepthAdded;
             

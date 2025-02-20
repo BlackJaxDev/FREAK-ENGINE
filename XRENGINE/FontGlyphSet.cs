@@ -476,7 +476,7 @@ namespace XREngine.Rendering
 
             float xOffset = offset.X;
             float yOffset = offset.Y;
-            float lineHeight = 0.0f;
+            float lineHeight = fontSize ?? 0.0f;
             float spaceWidth = 30.0f;
 
             float scale = (fontSize ?? 1.0f) / FontDrawSize;
@@ -503,7 +503,9 @@ namespace XREngine.Rendering
                         quads[j] = (t, quads[j].uvs);
                     }
                     //yOffset += lineHeight + 30.0f;
-                    lineHeight = 0.0f;
+                    //Debug.Out($"Line height: {lineHeight}");
+                    if (fontSize is null)
+                        lineHeight = 0.0f;
                     continue;
                 }
                 if (!glyphs.ContainsKey(character))
@@ -534,7 +536,9 @@ namespace XREngine.Rendering
                         quads[j] = (t, quads[j].uvs);
                     }
                     //yOffset += lineHeight + 30.0f;
-                    lineHeight = 0.0f;
+                    //Debug.Out($"Line height: {lineHeight}");
+                    if (fontSize is null)
+                        lineHeight = 0.0f;
                     translateX = (xOffset + glyph.Bearing.X) * scale;
                     translateY = (yOffset + glyph.Bearing.Y) * scale;
                 }
@@ -564,7 +568,8 @@ namespace XREngine.Rendering
                 if (!last)
                     xOffset += spacing;
 
-                lineHeight = Math.Max(lineHeight, -scaleY);
+                if (fontSize is null)
+                    lineHeight = Math.Max(lineHeight, -scaleY);
             }
 
             if (fontSize is null)

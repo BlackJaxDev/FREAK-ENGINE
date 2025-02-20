@@ -38,6 +38,16 @@ namespace XREngine.Scene.Transforms
             else
                 return EncodeToBytes(true);
         }
+
+        /// <summary>
+        /// Encodes the transform to a byte array for network replication.
+        /// By default, this will encode the full matrix if delta is false 
+        /// or the difference between the current and last replicated matrix if delta is true.
+        /// The receiving end will then call DeriveLocalMatrix to apply the received matrix.
+        /// You should override this method and DecodeFromBytes to compress the data as much as possible manually.
+        /// </summary>
+        /// <param name="delta"></param>
+        /// <returns></returns>
         public virtual byte[] EncodeToBytes(bool delta)
         {
             using var memoryStream = new MemoryStream();
@@ -62,6 +72,32 @@ namespace XREngine.Scene.Transforms
             return memoryStream.ToArray();
         }
 
+        /// <summary>
+        /// Decodes the transform from a byte array received from network replication.
+        /// By default, this will decode the full matrix if delta is false
+        /// or the difference between the received and current matrix if delta is true.
+        /// This method will then call DeriveLocalMatrix to apply the received matrix.
+        /// You should override this method and EncodeToBytes to compress the data as much as possible manually.
+        /// </summary>
+        /// <param name="arr"></param>
+        public virtual void DecodeFromBytes(byte[] arr)
+        {
+            using var memoryStream = new MemoryStream(arr);
+            using var gzipStream = new GZipStream(memoryStream, CompressionMode.Decompress);
+            var deltaBytes = new byte[sizeof(bool)];
+            gzipStream.ReadExactly(deltaBytes);
+            bool delta = BitConverter.ToBoolean(deltaBytes, 0);
+
+            var matrixBytes = new byte[16 * sizeof(float)];
+            gzipStream.ReadExactly(matrixBytes);
+            var matrix = BytesToMatrix(matrixBytes);
+
+            if (delta)
+                DeriveLocalMatrix(_localMatrix.Matrix + matrix);
+            else
+                DeriveLocalMatrix(matrix);
+        }
+
         private static byte[] MatrixToBytes(Matrix4x4 matrix)
         {
             var bytes = new byte[16 * sizeof(float)];
@@ -73,24 +109,6 @@ namespace XREngine.Scene.Transforms
                 matrix.M41, matrix.M42, matrix.M43, matrix.M44
             }, 0, bytes, 0, bytes.Length);
             return bytes;
-        }
-
-        public virtual void DecodeFromBytes(byte[] arr)
-        {
-            using var memoryStream = new MemoryStream(arr);
-            using var gzipStream = new GZipStream(memoryStream, CompressionMode.Decompress);
-            var deltaBytes = new byte[sizeof(bool)];
-            gzipStream.Read(deltaBytes, 0, deltaBytes.Length);
-            bool delta = BitConverter.ToBoolean(deltaBytes, 0);
-
-            var matrixBytes = new byte[16 * sizeof(float)];
-            gzipStream.Read(matrixBytes, 0, matrixBytes.Length);
-            var matrix = BytesToMatrix(matrixBytes);
-
-            if (delta)
-                _localMatrix.Matrix += matrix;
-            else
-                _localMatrix.Matrix = matrix;
         }
 
         private static Matrix4x4 BytesToMatrix(byte[] bytes)

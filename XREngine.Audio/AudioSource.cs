@@ -52,7 +52,7 @@ namespace XREngine.Audio
             }
         }
 
-        private List<AudioBuffer> _currentStreamingBuffers = [];
+        private readonly List<AudioBuffer> _currentStreamingBuffers = [];
         public IReadOnlyList<AudioBuffer> CurrentStreamingBuffers => _currentStreamingBuffers;
 
         public unsafe void QueueBuffers(params AudioBuffer[] buffers)

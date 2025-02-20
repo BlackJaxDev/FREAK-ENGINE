@@ -91,7 +91,7 @@ namespace XREngine.Rendering.UI
             set => SetField(ref _animatableTransforms, value);
         }
 
-        private FontGlyphSet.EWrapMode _wordWrap = FontGlyphSet.EWrapMode.Character;
+        private FontGlyphSet.EWrapMode _wordWrap = FontGlyphSet.EWrapMode.None;
         /// <summary>
         /// If true, the text will wrap to the next line when it reaches the width of the text box.
         /// </summary>
@@ -173,13 +173,13 @@ namespace XREngine.Rendering.UI
                 if (_glyphs is null || _glyphs.Count == 0)
                     return 0.0f;
 
-                if (WrapMode != FontGlyphSet.EWrapMode.None)
+                //if (WrapMode != FontGlyphSet.EWrapMode.None)
                     return _glyphs.Max(g => g.transform.X + g.transform.Z);
-                else
-                {
-                    var last = _glyphs[^1];
-                    return last.transform.X + last.transform.Z;
-                }
+                //else
+                //{
+                //    var last = _glyphs[^1];
+                //    return last.transform.X + last.transform.Z;
+                //}
             }
         }
 

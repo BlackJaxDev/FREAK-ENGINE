@@ -18,20 +18,52 @@ namespace XREngine.Data
             return Decompress(bytes);
         }
 
-        public static byte[] Decompress(byte[] bytes)
+        public static unsafe byte[] Compress(byte[] arr)
+        {
+            SevenZip.Compression.LZMA.Encoder encoder = new();
+            using MemoryStream inStream = new(arr);
+            using MemoryStream outStream = new();
+            encoder.WriteCoderProperties(outStream);
+            outStream.Write(BitConverter.GetBytes(arr.Length), 0, 4);
+            encoder.Code(inStream, outStream, arr.Length, -1, null);
+            return outStream.ToArray();
+        }
+        public static int Decompress(byte[] inBuf, int inOffset, int inLength, byte[] outBuf, int outOffset)
         {
             SevenZip.Compression.LZMA.Decoder decoder = new();
-            MemoryStream inStream = new(bytes);
-            MemoryStream outStream = new();
+            using MemoryStream inStream = new(inBuf, inOffset, inLength);
+            using MemoryStream outStream = new(outBuf, outOffset, outBuf.Length - outOffset);
+
             inStream.Seek(0, SeekOrigin.Begin);
-            decoder.SetDecoderProperties(inStream.ToArray());
-            inStream.Seek(5, SeekOrigin.Begin);
             byte[] properties = new byte[5];
             inStream.Read(properties, 0, 5);
             byte[] lengthBytes = new byte[4];
             inStream.Read(lengthBytes, 0, 4);
+
+            decoder.SetDecoderProperties(properties);
             int len = BitConverter.ToInt32(lengthBytes, 0);
+
             decoder.Code(inStream, outStream, inStream.Length - 9, len, null);
+
+            return len;
+        }
+        public static byte[] Decompress(byte[] bytes)
+        {
+            SevenZip.Compression.LZMA.Decoder decoder = new();
+            using MemoryStream inStream = new(bytes);
+            using MemoryStream outStream = new();
+
+            inStream.Seek(0, SeekOrigin.Begin);
+            byte[] properties = new byte[5];
+            inStream.Read(properties, 0, 5);
+            byte[] lengthBytes = new byte[4];
+            inStream.Read(lengthBytes, 0, 4);
+
+            decoder.SetDecoderProperties(properties);
+            int len = BitConverter.ToInt32(lengthBytes, 0);
+
+            decoder.Code(inStream, outStream, inStream.Length - 9, len, null);
+
             return outStream.ToArray();
         }
 
@@ -51,17 +83,6 @@ namespace XREngine.Data
             foreach (byte b in compressed)
                 sb.Append(b.ToString("X2"));
             return sb.ToString();
-        }
-
-        public static unsafe byte[] Compress(byte[] arr)
-        {
-            SevenZip.Compression.LZMA.Encoder encoder = new();
-            MemoryStream inStream = new(arr);
-            MemoryStream outStream = new();
-            encoder.WriteCoderProperties(outStream);
-            outStream.Write(BitConverter.GetBytes(arr.Length), 0, 4);
-            encoder.Code(inStream, outStream, arr.Length, -1, null);
-            return outStream.ToArray();
         }
 
         /// <summary>
@@ -268,23 +289,6 @@ namespace XREngine.Data
             }
             bytes[^1] |= (byte)(sign ? 0x80 : 0);
             return bytes;
-        }
-
-        public static int Decompress(byte[] inBuf, int inOffset, int inLength, byte[] outBuf, int outOffset)
-        {
-            SevenZip.Compression.LZMA.Decoder decoder = new();
-            MemoryStream inStream = new(inBuf, inOffset, inLength);
-            MemoryStream outStream = new(outBuf, outOffset, outBuf.Length - outOffset);
-            inStream.Seek(0, SeekOrigin.Begin);
-            decoder.SetDecoderProperties(inStream.ToArray());
-            inStream.Seek(5, SeekOrigin.Begin);
-            byte[] properties = new byte[5];
-            inStream.Read(properties, 0, 5);
-            byte[] lengthBytes = new byte[4];
-            inStream.Read(lengthBytes, 0, 4);
-            int len = BitConverter.ToInt32(lengthBytes, 0);
-            decoder.Code(inStream, outStream, inStream.Length - 9, len, null);
-            return len;
         }
     }
 }

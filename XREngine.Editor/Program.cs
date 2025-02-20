@@ -18,7 +18,7 @@ internal class Program
         RenderInfo3D.ConstructorOverride = RenderInfo3DConstructor;
         CodeManager.Instance.CompileOnChange = true;
 
-        Engine.Run(/*Engine.LoadOrGenerateGameSettings(() => */GetEngineSettings(EditorWorld.CreateUnitTestWorld()/*), "startup", false*/), Engine.LoadOrGenerateGameState());
+        Engine.Run(/*Engine.LoadOrGenerateGameSettings(() => */GetEngineSettings(EditorWorld.CreateUnitTestWorld(true, false)/*), "startup", false*/), Engine.LoadOrGenerateGameState());
     }
 
     static EditorRenderInfo2D RenderInfo2DConstructor(IRenderable owner, RenderCommand[] commands)

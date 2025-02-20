@@ -1,31 +1,63 @@
 ﻿using NAudio.Wave;
-using XREngine.Core.Attributes;
 
 namespace XREngine.Components.Scene
 {
-    [RequireComponents(typeof(AudioSourceComponent))]
+    //[RequireComponents(typeof(AudioSourceComponent))]
     public class MicrophoneComponent : XRComponent
     {
         private const int DefaultBufferCapacity = 16;
 
+        public AudioSourceComponent? AudioSourceComponent(bool forceCreate)
+            => GetSiblingComponent<AudioSourceComponent>(forceCreate);
+
         private WaveInEvent? _waveIn;
         private int _deviceIndex = 0;
-        private int _bufferMs = 100;
+        private int _bufferMs = 30;
         private int _sampleRate = 44100;
         private int _bits = 8;
+        private bool _receive = true;
+        private bool _capture = true;
 
-        public Queue<byte[]> BufferQueue { get; } = new Queue<byte[]>();
+        private byte[] _currentBuffer = [];
+        private int _currentBufferIndex = 0;
+        private bool _muted = false;
 
+        /// <summary>
+        /// Whether to capture and broadcast audio from the local microphone.
+        /// </summary>
+        public bool Capture
+        {
+            get => _capture;
+            set => SetField(ref _capture, value);
+        }
+        /// <summary>
+        /// Whether to receive audio from the remote microphone.
+        /// </summary>
+        public bool Receive
+        {
+            get => _receive;
+            set => SetField(ref _receive, value);
+        }
+        /// <summary>
+        /// The index of the audio device to capture from.
+        /// Device 0 is the default device set in Windows.
+        /// </summary>
         public int DeviceIndex
         {
             get => _deviceIndex;
             set => SetField(ref _deviceIndex, value);
         }
+        /// <summary>
+        /// The size of the buffer in milliseconds.
+        /// </summary>
         public int BufferMs
         {
             get => _bufferMs;
             set => SetField(ref _bufferMs, value);
         }
+        /// <summary>
+        /// The sample rate of the audio.
+        /// </summary>
         public int SampleRate
         {
             get => _sampleRate;
@@ -36,6 +68,18 @@ namespace XREngine.Components.Scene
         //    get => _bits;
         //    set => SetField(ref _bits, value);
         //}
+        /// <summary>
+        /// Whether the microphone is muted.
+        /// Separate from Capture to allow for receiving audio while not broadcasting - faster than re-initializing the capture device.
+        /// If enabled on the sending end, the audio will still be captured but not broadcast.
+        /// If enabled on the receiving end, the audio will be received but not played.
+        /// TODO: also notify the sending end to not send audio to this client if muted - wasted bandwidth.
+        /// </summary>
+        public bool Muted
+        {
+            get => _muted;
+            set => SetField(ref _muted, value);
+        }
 
         public bool IsCapturing => _waveIn is not null;
 
@@ -47,11 +91,22 @@ namespace XREngine.Components.Scene
                 case nameof(DeviceIndex):
                 case nameof(BufferMs):
                 case nameof(SampleRate):
+                case nameof(Capture):
                 //case nameof(Bits):
-                    if (IsCapturing)
+                    if (IsCapturing && Capture)
                         StartCapture();
+                    else
+                        StopCapture();
                     break;
             }
+        }
+
+        public static string[] GetInputDeviceNames()
+        {
+            List<string> devices = [];
+            for (int i = 0; i < WaveInEvent.DeviceCount; i++)
+                devices.Add(WaveInEvent.GetCapabilities(i).ProductName);
+            return [.. devices];
         }
 
         public void StartCapture()
@@ -88,11 +143,11 @@ namespace XREngine.Components.Scene
             //InputDevice.StopCapture();
         }
 
-        private byte[] _currentBuffer = [];
-        private int _currentBufferIndex = 0;
         private void WaveIn_DataAvailable(object? sender, WaveInEventArgs e)
         {
-            bool buffersQueued = false;
+            if (Muted)
+                return;
+
             int remainingByteCount = e.BytesRecorded;
             int offset = 0;
             while (remainingByteCount > 0)
@@ -105,12 +160,9 @@ namespace XREngine.Components.Scene
                     _currentBufferIndex += remainingByteCount;
                     remainingByteCount = 0;
 
-                    //If the buffer is full, queue it
+                    //If the buffer happens to be perfectly filled (edge case), queue it
                     if (_currentBufferIndex == _currentBuffer.Length)
-                    {
-                        buffersQueued = true;
-                        Queue();
-                    }
+                        ReplicateCurrentBuffer();
                 }
                 else
                 {
@@ -122,27 +174,37 @@ namespace XREngine.Components.Scene
                     if (remainingSpace > 0)
                         Buffer.BlockCopy(e.Buffer, 0, _currentBuffer, _currentBufferIndex, remainingSpace);
 
-                    buffersQueued = true;
-                    Queue();
+                    ReplicateCurrentBuffer();
                 }
             }
-
-            if (buffersQueued)
-                EnqueuePropertyReplication(nameof(BufferQueue), BufferQueue, true);
         }
 
-        private void Queue()
+        private void ReplicateCurrentBuffer()
         {
-            BufferQueue.Enqueue(_currentBuffer);
-            NewBufferQueued?.Invoke();
-            _currentBuffer = new byte[_currentBuffer.Length];
+            EnqueueDataReplication(nameof(_currentBuffer), _currentBuffer.ToArray(), false);
             _currentBufferIndex = 0;
-
-            var comp = GetSiblingComponent<AudioSourceComponent>(true)!;
-            comp.EnqueueStreamingBuffers(SampleRate, false, _currentBuffer);
         }
 
-        public event Action? NewBufferQueued;
+        public override void ReceiveData(string id, object data)
+        {
+            switch (id)
+            {
+                case nameof(_currentBuffer):
+                    if (Receive && !Muted && data is byte[] buffer)
+                    {
+                        BufferReceived?.Invoke(buffer);
+                        var audioSource = AudioSourceComponent(true)!;
+                        if (audioSource.Type != Audio.AudioSource.ESourceType.Streaming)
+                            audioSource.Type = Audio.AudioSource.ESourceType.Streaming;
+                        audioSource.EnqueueStreamingBuffers(SampleRate, false, buffer);
+                        audioSource.Play();
+                    }
+                    break;
+            }
+
+        }
+
+        public event Action<byte[]>? BufferReceived;
 
         //public byte[] GetByteBuffer()
         //{
@@ -178,8 +240,20 @@ namespace XREngine.Components.Scene
         protected internal override void OnComponentActivated()
         {
             base.OnComponentActivated();
-            GetSiblingComponent<AudioSourceComponent>(true)!.Type = Audio.AudioSource.ESourceType.Streaming;
-            StartCapture();
+
+            string[] devices = GetInputDeviceNames();
+            if (devices.Length == 0)
+            {
+                Debug.Out("No audio input devices found.");
+                return;
+            }
+            else
+                Debug.Out($"Available audio input devices:{Environment.NewLine}{string.Join(Environment.NewLine, devices)}");
+
+            DeviceIndex = Math.Clamp(DeviceIndex, 0, devices.Length - 1);
+
+            if (Capture)
+                StartCapture();
         }
         protected internal override void OnComponentDeactivated()
         {

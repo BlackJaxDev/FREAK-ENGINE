@@ -1,5 +1,6 @@
 ﻿using Assimp;
 using Silk.NET.Input;
+using Silk.NET.OpenAL;
 using System.Collections.Concurrent;
 using System.Numerics;
 using XREngine.Actors.Types;
@@ -44,7 +45,7 @@ public static class EditorWorld
     public const bool SpotLight = false;
     public const bool DirLight2 = false;
     public const bool PointLight = false;
-    public const bool SoundNode = true;
+    public const bool SoundNode = false;
     public const bool LightProbe = true; //Adds a test light probe to the scene for PBR lighting.
     public const bool Skybox = true;
     public const bool Spline = false; //Adds a 3D spline to the scene.
@@ -56,15 +57,15 @@ public static class EditorWorld
     public const bool CharacterPawn = false; //Enables the player to physically locomote in the world. Requires a physical floor.
     public const bool ThirdPersonPawn = false; //If on desktop and character pawn is enabled, this will add a third person camera instead of first person.
     public const bool TestAnimation = true; //Adds test animations to the character pawn.
-    public const bool PhysicsChain = false; //Adds a jiggle physics chain to the character pawn.
-    public const bool TransformTool = false; //Adds the transform tool to the scene for testing dragging and rotating etc.
+    public const bool PhysicsChain = true; //Adds a jiggle physics chain to the character pawn.
+    public const bool TransformTool = true; //Adds the transform tool to the scene for testing dragging and rotating etc.
     public const bool AllowEditingInVR = false; //Allows the user to edit the scene from desktop in VR.
 
     /// <summary>
     /// Creates a test world with a variety of objects for testing purposes.
     /// </summary>
     /// <returns></returns>
-    public static XRWorld CreateUnitTestWorld()
+    public static XRWorld CreateUnitTestWorld(bool setUI, bool isServer)
     {
         Engine.Rendering.Settings.AllowBlendshapes = true;
         Engine.Rendering.Settings.AllowSkinning = true;
@@ -90,24 +91,26 @@ public static class EditorWorld
         {
             if (CharacterPawn)
             {
-                characterPawnNode = CreateCharacterVRPawn(rootNode);
+                characterPawnNode = CreateCharacterVRPawn(rootNode, setUI);
                 if (AllowEditingInVR)
                 {
                     SceneNode cameraNode = CreateCamera(rootNode, out var camComp);
-                    var pawn = CreateDesktopViewerPawn(cameraNode);
-                    CreateEditorUI(rootNode, camComp!, pawn);
+                    var pawn = CreateDesktopViewerPawn(cameraNode, isServer);
+                    if (setUI)
+                        CreateEditorUI(rootNode, camComp!, pawn);
                 }
             }
             else
-                CreateFlyingVRPawn(rootNode);
+                CreateFlyingVRPawn(rootNode, setUI);
         }
         else if (CharacterPawn)
-            characterPawnNode = CreateDesktopCharacterPawn(rootNode);
+            characterPawnNode = CreateDesktopCharacterPawn(rootNode, setUI);
         else
         {
             SceneNode cameraNode = CreateCamera(rootNode, out var camComp);
-            var pawn = CreateDesktopViewerPawn(cameraNode);
-            CreateEditorUI(rootNode, camComp!, pawn);
+            var pawn = CreateDesktopViewerPawn(cameraNode, isServer);
+            if (setUI)
+                CreateEditorUI(rootNode, camComp!, pawn);
         }
 
         if (DirLight)
@@ -147,7 +150,7 @@ public static class EditorWorld
 
     #region VR
 
-    private static SceneNode CreateCharacterVRPawn(SceneNode rootNode)
+    private static SceneNode CreateCharacterVRPawn(SceneNode rootNode, bool setUI)
     {
         SceneNode vrPlayspaceNode = new(rootNode) { Name = "VRPlayspaceNode" };
         var characterTfm = vrPlayspaceNode.SetTransform<RigidBodyTransform>();
@@ -166,7 +169,7 @@ public static class EditorWorld
         characterComp.IgnoreViewTransformPitch = true;
         characterComp.RotationTransform = localRotationTfm;
 
-        var headsetNode = AddHeadsetNode(localRotationNode, characterComp);
+        var headsetNode = AddHeadsetNode(localRotationNode, setUI, characterComp);
         characterComp.ViewTransform = headsetNode.Transform;
 
         AddHandControllerNode(localRotationNode, true);
@@ -194,11 +197,11 @@ public static class EditorWorld
         var leftControllerModel = leftControllerNode.AddComponent<VRControllerModelComponent>()!;
         leftControllerModel.LeftHand = left;
     }
-    private static void CreateFlyingVRPawn(SceneNode rootNode)
+    private static void CreateFlyingVRPawn(SceneNode rootNode, bool setUI)
     {
         SceneNode vrPlayspaceNode = new(rootNode) { Name = "VRPlayspaceNode" };
         var playspaceTfm = vrPlayspaceNode.SetTransform<Transform>();
-        AddHeadsetNode(vrPlayspaceNode);
+        AddHeadsetNode(vrPlayspaceNode, setUI);
         AddHandControllerNode(vrPlayspaceNode, true);
         AddHandControllerNode(vrPlayspaceNode, false);
         AddTrackerCollectionNode(vrPlayspaceNode);
@@ -208,7 +211,7 @@ public static class EditorWorld
         SceneNode trackerNode = new(vrPlayspaceNode) { Name = "VRTrackerNode" };
         trackerNode.AddComponent<VRTrackerCollectionComponent>();
     }
-    private static SceneNode AddHeadsetNode(SceneNode parentNode, PawnComponent? pawn = null)
+    private static SceneNode AddHeadsetNode(SceneNode parentNode, bool setUI, PawnComponent? pawn = null)
     {
         SceneNode vrHeadsetNode = new(parentNode) { Name = "VRHeadsetNode" };
         vrHeadsetNode.AddComponent<AudioListenerComponent>();
@@ -236,7 +239,8 @@ public static class EditorWorld
                 firstPersonCam.SetAsPlayerView(ELocalPlayerIndex.One);
             else
                 pawn.CameraComponent = firstPersonCam;
-            CreateEditorUI(vrHeadsetNode, firstPersonCam);
+            if (setUI)
+                CreateEditorUI(vrHeadsetNode, firstPersonCam);
         }
 
         return vrHeadsetNode;
@@ -245,19 +249,24 @@ public static class EditorWorld
 
     #region Desktop
 
-    private static EditorFlyingCameraPawnComponent CreateDesktopViewerPawn(SceneNode cameraNode)
+    private static EditorFlyingCameraPawnComponent CreateDesktopViewerPawn(SceneNode cameraNode, bool isServer)
     {
-        var pawnComp = cameraNode.AddComponent<EditorFlyingCameraPawnComponent>();
         var listener = cameraNode.AddComponent<AudioListenerComponent>()!;
-        //listener.Gain = 1.0f;
-        //listener.DistanceModel = DistanceModel.LinearDistanceClamped;
+        listener.Gain = 1.0f;
+        listener.DistanceModel = DistanceModel.LinearDistanceClamped;
 
+        var microphone = cameraNode.AddComponent<MicrophoneComponent>()!;
+        microphone.Capture = !isServer;
+        microphone.Receive = isServer;
+
+        var pawnComp = cameraNode.AddComponent<EditorFlyingCameraPawnComponent>();
         pawnComp!.Name = "TestPawn";
         pawnComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
+
         return pawnComp;
     }
 
-    private static SceneNode CreateDesktopCharacterPawn(SceneNode rootNode)
+    private static SceneNode CreateDesktopCharacterPawn(SceneNode rootNode, bool setUI)
     {
         SceneNode characterNode = new(rootNode) { Name = "TestPlayerNode" };
         var characterTfm = characterNode.SetTransform<RigidBodyTransform>();
@@ -293,7 +302,7 @@ public static class EditorWorld
         var movementComp = characterNode.AddComponent<CharacterMovement3DComponent>()!;
         InitMovement(movementComp);
         characterComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
-        if (camComp is not null)
+        if (camComp is not null && setUI)
             CreateEditorUI(characterNode, camComp);
         return characterNode;
     }
@@ -466,7 +475,11 @@ public static class EditorWorld
         _fpsAvg.Enqueue(1.0f / Engine.Time.Timer.Render.SmoothedDelta);
         if (_fpsAvg.Count > 60)
             _fpsAvg.Dequeue();
-        t.Text = $"{MathF.Round(_fpsAvg.Sum() / _fpsAvg.Count)}hz";
+        string str = $"{MathF.Round(_fpsAvg.Sum() / _fpsAvg.Count)}hz";
+        var net = Engine.Networking;
+        if ((net?.AverageRoundTripTimeMs ?? 0) > 0)
+            str += $"\n{net!.AverageRoundTripTimeMs}ms";
+        t.Text = str;
     }
 
     //Simple FPS counter in the bottom right for debugging.
@@ -709,9 +722,9 @@ public static class EditorWorld
         data.ConvertToMono(); //Convert to mono for 3D audio - stereo will just play equally in both ears
         soundComp.RelativeToListener = false;
         soundComp.ReferenceDistance = 1.0f;
-        soundComp.MaxDistance = 100.0f;
+        //soundComp.MaxDistance = 100.0f;
         soundComp.RolloffFactor = 1.0f;
-        soundComp.Gain = 1.0f;
+        soundComp.Gain = 10.0f;
         soundComp.Loop = true;
         soundComp.Type = ESourceType.Static;
         soundComp.StaticBuffer = data;

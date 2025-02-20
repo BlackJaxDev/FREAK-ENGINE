@@ -1,11 +1,46 @@
 ﻿using Extensions;
+using System.Diagnostics;
 using System.Numerics;
+using System.Text;
 using XREngine.Rendering.UI;
 
 namespace XREngine.Networking
 {
     public class VirtualizedConsoleUIComponent : UITextComponent
     {
+        public class ConsoleWriter(VirtualizedConsoleUIComponent comp) : TextWriter
+        {
+            public VirtualizedConsoleUIComponent Component { get; } = comp;
+
+            public override Encoding Encoding { get; } = Encoding.UTF8;
+            public override void Write(char value)
+            {
+                bool newLine = value == '\n';
+                if (newLine)
+                    Component.AddItem("");
+                else
+                    Component.AddToLastItem(value.ToString());
+            }
+        }
+        public class TraceWriter(VirtualizedConsoleUIComponent comp) : System.Diagnostics.TraceListener
+        {
+            public VirtualizedConsoleUIComponent Component { get; } = comp;
+
+            public override void Write(string? message)
+            {
+                var lines = message?.Split('\n');
+                if (lines is null || lines.Length == 0)
+                    return;
+
+                Component.AddToLastItem(lines[0]);
+                for (int i = 1; i < lines.Length; i++)
+                    Component.AddItem(lines[i]);
+            }
+
+            public override void WriteLine(string? message)
+                => Write($"{message}\n");
+        }
+
         private readonly List<string> _items = [];
         public List<string> Items => _items;
 
@@ -120,17 +155,26 @@ namespace XREngine.Networking
             base.UpdateText(forceRemake, invalidateLayout);
         }
 
+        private (int min, int count) _visibleItemRange = (0, 0);
+        public (int min, int count) VisibleItemRange => _visibleItemRange;
+
         private void UpdateVisibleText()
         {
+            var lastRange = _visibleItemRange;
+            int min = _visibleItemMinIndex;
+            int count = Math.Min(_items.Count - _visibleItemMinIndex, MaxVisibleItemCount);
+            _visibleItemRange = (min, count);
+            if (lastRange == _visibleItemRange)
+                return;
+
             string text = "";
             _visibleItems.Clear();
-            int max = Math.Min(_items.Count - _visibleItemMinIndex, MaxVisibleItemCount);
-            for (int i = 0; i < max; i++)
+            for (int i = 0; i < count; i++)
             {
                 int index = _visibleItemMinIndex + i;
                 _visibleItems.Add(index);
                 text += _items[index];
-                if (i < max - 1)
+                if (i < count - 1)
                     text += "\n";
             }
             _allowUpdate = false;
@@ -153,5 +197,30 @@ namespace XREngine.Networking
         /// <returns></returns>
         public bool AnyItemsOffscreenLower()
             => (_items.Count - _visibleItemMinIndex) > MaxVisibleItemCount;
+
+        /// <summary>
+        /// Helper method to tell the console to output to this component.
+        /// Note that this will overwrite the current console output.
+        /// </summary>
+        public void SetAsConsoleOut()
+            => Console.SetOut(new ConsoleWriter(this));
+        public void RemoveAsConsoleOut()
+        {
+            var writer = Console.Out as ConsoleWriter;
+            if (writer?.Component == this)
+                Console.SetOut(TextWriter.Null);
+        }
+        /// <summary>
+        /// Helper method to tell trace to output to this component.
+        /// Adds as a listener to the trace listeners.
+        /// </summary>
+        public void AddAsTraceOut()
+            => Trace.Listeners.Add(new TraceWriter(this));
+        public void RemoveAsTraceOut()
+        {
+            var match = Trace.Listeners.OfType<TraceWriter>().FirstOrDefault(x => x.Component == this);
+            if (match is not null)
+                Trace.Listeners.Remove(match);
+        }
     }
 }

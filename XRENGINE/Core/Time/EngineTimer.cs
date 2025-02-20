@@ -339,17 +339,17 @@ namespace XREngine.Timers
             {
                 if (value < 1.0f)
                 {
-                    _targetRenderPeriod = 0.0f;
+                    SetField(ref _targetRenderPeriod, 0.0f);
                     Debug.Out("Target render frequency set to unrestricted.");
                 }
                 else if (value < MaxFrequency)
                 {
-                    _targetRenderPeriod = 1.0f / value;
+                    SetField(ref _targetRenderPeriod, 1.0f / value);
                     Debug.Out("Target render frequency set to {0}Hz.", value.ToString());
                 }
                 else
                 {
-                    _targetRenderPeriod = 1.0f / MaxFrequency;
+                    SetField(ref _targetRenderPeriod, 1.0f / MaxFrequency);
                     Debug.Out("Target render frequency clamped to {0}Hz.", MaxFrequency.ToString());
                 }
             }
@@ -369,17 +369,17 @@ namespace XREngine.Timers
             {
                 if (value < 1.0f / MaxFrequency)
                 {
-                    _targetRenderPeriod = 0.0f;
+                    SetField(ref _targetRenderPeriod, 0.0f);
                     Debug.Out("Target render frequency set to unrestricted.");
                 }
                 else if (value < 1.0f)
                 {
-                    _targetRenderPeriod = value;
+                    SetField(ref _targetRenderPeriod, value);
                     Debug.Out("Target render frequency set to {0}Hz.", TargetRenderFrequency.ToString());
                 }
                 else
                 {
-                    _targetRenderPeriod = 1.0f;
+                    SetField(ref _targetRenderPeriod, 1.0f);
                     Debug.Out("Target render frequency clamped to 1Hz.");
                 }
             }
@@ -400,17 +400,17 @@ namespace XREngine.Timers
             {
                 if (value < 1.0)
                 {
-                    _targetUpdatePeriod = 0.0f;
+                    SetField(ref _targetUpdatePeriod, 0.0f);
                     Debug.Out("Target update frequency set to unrestricted.");
                 }
                 else if (value < MaxFrequency)
                 {
-                    _targetUpdatePeriod = 1.0f / value;
+                    SetField(ref _targetUpdatePeriod, 1.0f / value);
                     Debug.Out("Target update frequency set to {0}Hz.", value);
                 }
                 else
                 {
-                    _targetUpdatePeriod = 1.0f / MaxFrequency;
+                    SetField(ref _targetUpdatePeriod, 1.0f / MaxFrequency);
                     Debug.Out("Target update frequency clamped to {0}Hz.", MaxFrequency);
                 }
             }
@@ -430,17 +430,17 @@ namespace XREngine.Timers
             {
                 if (value < 1.0f / MaxFrequency)
                 {
-                    _targetUpdatePeriod = 0.0f;
+                    SetField(ref _targetUpdatePeriod, 0.0f);
                     Debug.Out("Target update frequency set to unrestricted.");
                 }
                 else if (value < 1.0)
                 {
-                    _targetUpdatePeriod = value;
+                    SetField(ref _targetUpdatePeriod, value);
                     Debug.Out("Target update frequency set to {0}Hz.", TargetUpdateFrequency);
                 }
                 else
                 {
-                    _targetUpdatePeriod = 1.0f;
+                    SetField(ref _targetUpdatePeriod, 1.0f);
                     Debug.Out("Target update frequency clamped to 1Hz.");
                 }
             }
@@ -450,7 +450,7 @@ namespace XREngine.Timers
         public EVSyncMode VSync
         {
             get => _vSync;
-            set => _vSync = value;
+            set => SetField(ref _vSync, value);
         }
     }
 }

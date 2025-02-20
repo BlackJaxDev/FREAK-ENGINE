@@ -299,7 +299,7 @@ namespace XREngine
                 24,
                 8,
                 null,
-                true,
+                windowSettings.TransparentFramebuffer,
                 false,
                 false,
                 null,

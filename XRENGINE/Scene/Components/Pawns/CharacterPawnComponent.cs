@@ -10,6 +10,7 @@ namespace XREngine.Components
     /// <summary>
     /// Pawn used for moveable player characters.
     /// Converts inputs into kinematic rigid body movements and provides inputs for a camera view.
+    /// Requires CharacterMovement3DComponent to apply movement inputs.
     /// </summary>
     [RequireComponents(typeof(CharacterMovement3DComponent))]
     public class CharacterPawnComponent : PawnComponent

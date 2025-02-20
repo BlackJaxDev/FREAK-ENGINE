@@ -2,8 +2,8 @@
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Silk.NET.OpenAL;
 using System.Numerics;
-using System.Text;
 using XREngine.Components;
 using XREngine.Components.Scene;
 using XREngine.Data.Colors;
@@ -50,7 +50,9 @@ namespace XREngine.Networking
         private static void Main(string[] args)
         {
             WebAppTask = BuildWebApi();
-            Engine.Run(/*Engine.LoadOrGenerateGameSettings(() => */GetEngineSettings(CreateServerDebugWorld())/*, "startup", false)*/, Engine.LoadOrGenerateGameState());
+            var unitTestWorld = EditorWorld.CreateUnitTestWorld(false, true);
+            CreateConsoleUI(unitTestWorld.Scenes[0].RootNodes[0]);
+            Engine.Run(/*Engine.LoadOrGenerateGameSettings(() => */GetEngineSettings(unitTestWorld)/*, "startup", false)*/, Engine.LoadOrGenerateGameState());
         }
 
         private static Task BuildWebApi()
@@ -98,6 +100,7 @@ namespace XREngine.Networking
 
             return new XRWorld("Server World", scene);
         }
+
         private static SceneNode CreateCamera(SceneNode parentNode, out CameraComponent? camComp, bool smoothed = true)
         {
             var cameraNode = new SceneNode(parentNode, "TestCameraNode");
@@ -117,22 +120,23 @@ namespace XREngine.Networking
 
             return cameraNode;
         }
+
         private static EditorFlyingCameraPawnComponent CreateDesktopViewerPawn(SceneNode cameraNode)
         {
             var pawnComp = cameraNode.AddComponent<EditorFlyingCameraPawnComponent>();
             var listener = cameraNode.AddComponent<AudioListenerComponent>()!;
-            //listener.Gain = 1.0f;
-            //listener.DistanceModel = DistanceModel.LinearDistanceClamped;
+            listener.Gain = 1.0f;
+            listener.DistanceModel = DistanceModel.LinearDistanceClamped;
 
             pawnComp!.Name = "TestPawn";
             pawnComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
             return pawnComp;
         }
-        //The full editor UI - includes a toolbar, inspector, viewport and scene hierarchy.
-        private static void CreateConsoleUI(SceneNode parent, CameraComponent camComp, PawnComponent? pawnForInput = null)
+
+        private static void CreateConsoleUI(SceneNode rootNode, out UICanvasComponent uiCanvas, out UIInputComponent input)
         {
-            var rootCanvasNode = new SceneNode(parent) { Name = "Root Server UI Node" };
-            var uiCanvas = rootCanvasNode.AddComponent<UICanvasComponent>("Console Canvas")!;
+            var rootCanvasNode = new SceneNode(rootNode) { Name = "Root Server UI Node" };
+            uiCanvas = rootCanvasNode.AddComponent<UICanvasComponent>("Console Canvas")!;
             var canvasTfm = uiCanvas.CanvasTransform;
             canvasTfm.DrawSpace = ECanvasDrawSpace.Screen;
             canvasTfm.Width = 1920.0f;
@@ -140,33 +144,56 @@ namespace XREngine.Networking
             canvasTfm.CameraDrawSpaceDistance = 10.0f;
             canvasTfm.Padding = new Vector4(0.0f);
 
-            if (camComp is not null)
-                camComp.UserInterface = uiCanvas;
-
             AddFPSText(null, rootCanvasNode);
 
             //Add input handler
-            var input = rootCanvasNode.AddComponent<UIInputComponent>()!;
-            input.OwningPawn = pawnForInput;
-
+            input = rootCanvasNode.AddComponent<UIInputComponent>()!;
             var outputLogNode = rootCanvasNode.NewChild(out UIMaterialComponent outputLogBackground);
             outputLogBackground.Material = BackgroundMaterial;
 
             var logTextNode = outputLogNode.NewChild(out VirtualizedConsoleUIComponent outputLogComp);
             outputLogComp.HorizontalAlignment = EHorizontalAlignment.Left;
             outputLogComp.VerticalAlignment = EVerticalAlignment.Top;
-            outputLogComp.WrapMode = FontGlyphSet.EWrapMode.Character;
-            outputLogComp.Color = new ColorF4(1.0f, 1.0f, 1.0f, 1.0f);
+            outputLogComp.WrapMode = FontGlyphSet.EWrapMode.None;
+            outputLogComp.Color = new ColorF4(0.0f, 0.0f, 0.0f, 1.0f);
             outputLogComp.FontSize = 16;
+            outputLogComp.SetAsConsoleOut();
             var logTfm = outputLogComp.BoundableTransform;
             logTfm.MinAnchor = new Vector2(0.0f, 0.0f);
             logTfm.MaxAnchor = new Vector2(1.0f, 1.0f);
             logTfm.Margins = new Vector4(10.0f, 10.0f, 10.0f, 10.0f);
-
-            //Trace.Listeners.Add(new OutputLogListener(outputLogComp!));
-            Console.SetOut(new OutputLogWriter(outputLogComp!));
-
         }
+
+        /// <summary>
+        /// Creates a console UI for the server and sets the UI and input components to the main player's camera and pawn.
+        /// </summary>
+        /// <param name="rootNode"></param>
+        private static void CreateConsoleUI(SceneNode rootNode)
+        {
+            CreateConsoleUI(rootNode, out UICanvasComponent uiCanvas, out UIInputComponent input);
+
+            var pawnForInput = Engine.State.MainPlayer.ControlledPawn;
+            var pawnCam = pawnForInput?.GetSiblingComponent<CameraComponent>(false);
+            if (pawnCam is not null)
+                pawnCam.UserInterface = uiCanvas;
+            input.OwningPawn = pawnForInput;
+        }
+
+        /// <summary>
+        /// Creates a console UI for the server and sets the UI and input components to the given camera and pawn.
+        /// </summary>
+        /// <param name="rootNode"></param>
+        /// <param name="camComp"></param>
+        /// <param name="pawnForInput"></param>
+        private static void CreateConsoleUI(SceneNode rootNode, CameraComponent camComp, PawnComponent? pawnForInput = null)
+        {
+            CreateConsoleUI(rootNode, out UICanvasComponent uiCanvas, out UIInputComponent input);
+
+            if (camComp is not null)
+                camComp.UserInterface = uiCanvas;
+            input.OwningPawn = pawnForInput;
+        }
+
         //Simple FPS counter in the bottom right for debugging.
         private static UITextComponent AddFPSText(FontGlyphSet? font, SceneNode parentNode)
         {
@@ -174,7 +201,7 @@ namespace XREngine.Networking
             UITextComponent text = textNode.AddComponent<UITextComponent>()!;
             text.Font = font;
             text.FontSize = 22;
-            text.Color = new ColorF4(1.0f, 1.0f, 1.0f, 1.0f);
+            text.Color = new ColorF4(0.0f, 0.0f, 0.0f, 1.0f);
             text.WrapMode = FontGlyphSet.EWrapMode.None;
             text.RegisterAnimationTick<UITextComponent>(TickFPS);
             var textTransform = textNode.GetTransformAs<UIBoundableTransform>(true)!;
@@ -187,6 +214,7 @@ namespace XREngine.Networking
             textTransform.Scale = new Vector3(1.0f);
             return text;
         }
+
         private static readonly Queue<float> _fpsAvg = new();
         private static void TickFPS(UITextComponent t)
         {
@@ -224,9 +252,9 @@ namespace XREngine.Networking
         {
             int w = 1920;
             int h = 1080;
-            float updateHz = 90.0f;
+            float updateHz = 0.0f;
             float renderHz = 30.0f;
-            float fixedHz = 90.0f;
+            float fixedHz = 30.0f;
 
             int primaryX = NativeMethods.GetSystemMetrics(0);
             int primaryY = NativeMethods.GetSystemMetrics(1);
@@ -257,12 +285,5 @@ namespace XREngine.Networking
                 FixedFramesPerSecond = fixedHz,
             };
         }
-    }
-
-    internal class OutputLogWriter(VirtualizedConsoleUIComponent consoleComponent) : TextWriter
-    {
-        public override Encoding Encoding { get; } = Encoding.UTF8;
-        public override void Write(char value)
-            => consoleComponent.AddToLastItem(value.ToString());
     }
 }

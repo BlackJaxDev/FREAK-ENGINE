@@ -6,6 +6,10 @@ namespace XREngine
     {
         public class PeerToPeerNetworkingManager : BaseNetworkingManager
         {
+            public override bool IsServer => false;
+            public override bool IsClient => false;
+            public override bool IsP2P => true;
+
             public void Start(
                 IPAddress udpMulticastGroupIP,
                 int udpMulticastPort,
@@ -16,11 +20,10 @@ namespace XREngine
                 StartUdpMulticastSender(udpMulticastGroupIP, udpMulticastPort);
             }
 
-            protected override void SendUDP()
+            protected override async Task SendUDP()
             {
                 //Send to all peers
-                if (UdpMulticastSender is not null && MulticastEndPoint is not null)
-                    ConsumeAndSendUDPQueue(UdpMulticastSender, MulticastEndPoint);
+                await ConsumeAndSendUDPQueue(UdpMulticastSender, MulticastEndPoint);
             }
         }
     }

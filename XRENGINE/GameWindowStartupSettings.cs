@@ -6,22 +6,25 @@ namespace XREngine
     public class GameWindowStartupSettings : XRBase
     {
         private EWindowState _windowState = EWindowState.Windowed;
-        private string? windowTitle;
+        private string? _windowTitle;
         private int _width = 1920;
         private int _height = 1080;
         private XRWorld? _targetWorld;
         private ELocalPlayerIndexMask _localPlayers = ELocalPlayerIndexMask.One;
+        private int _x = 0;
+        private int _y = 0;
+        private bool _vsync = false;
+        private bool _transparentFramebuffer = false;
 
         public ELocalPlayerIndexMask LocalPlayers
         {
             get => _localPlayers;
             set => SetField(ref _localPlayers, value);
         }
-
         public string? WindowTitle
         {
-            get => windowTitle;
-            set => SetField(ref windowTitle, value);
+            get => _windowTitle;
+            set => SetField(ref _windowTitle, value);
         }
         public int Width
         {
@@ -43,8 +46,25 @@ namespace XREngine
             get => _windowState;
             set => SetField(ref _windowState, value);
         }
-        public int X { get; set; }
-        public int Y { get; set; }
-        public bool VSync { get; set; } = false;
+        public int X
+        {
+            get => _x;
+            set => SetField(ref _x, value);
+        }
+        public int Y
+        {
+            get => _y;
+            set => SetField(ref _y, value);
+        }
+        public bool VSync
+        {
+            get => _vsync;
+            set => SetField(ref _vsync, value);
+        }
+        public bool TransparentFramebuffer
+        {
+            get => _transparentFramebuffer;
+            set => SetField(ref _transparentFramebuffer, value);
+        }
     }
 }

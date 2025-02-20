@@ -9,26 +9,26 @@ namespace XREngine
 {
     /// <summary>
     /// Indicates that this property should be replicated to the network on every tick.
-    /// Use for properties that change frequently - UDP protocol will be used.
+    /// Recommended for properties that change frequently.
     /// The SetField method is not required to change the property value.
     /// </summary>
     /// <param name="udp"></param>
     [AttributeUsage(AttributeTargets.Property)]
-    public class ReplicateOnTickAttribute : Attribute 
+    public class ReplicateOnTickAttribute(bool compress = false) : Attribute 
     {
-
+        public bool Compress { get; } = compress;
     }
 
     /// <summary>
     /// Indicates that this property should be replicated to the network when it changes.
-    /// Use for properties that change infrequently - UDP or TCP protocol can be used.
+    /// Recommended for properties that change infrequently.
     /// MUST use the SetField method to change the property value.
     /// </summary>
     /// <param name="udp"></param>
     [AttributeUsage(AttributeTargets.Property)]
-    public class ReplicateOnChangeAttribute(bool udp = true) : Attribute
+    public class ReplicateOnChangeAttribute(bool compress = false) : Attribute
     {
-        public bool UDP { get; } = udp;
+        public bool Compress { get; } = compress;
     }
 
     [Serializable]
@@ -40,11 +40,13 @@ namespace XREngine
         private static readonly ConcurrentDictionary<Type, ReplicationInfo> _replicatedTypes = [];
         public class ReplicationInfo
         {
-            internal readonly Dictionary<string, (PropertyInfo prop, bool udp)> _replicateOnChangeProperties = [];
+            internal readonly Dictionary<string, PropertyInfo> _replicateOnChangeProperties = [];
             internal readonly Dictionary<string, PropertyInfo> _replicateOnTickProperties = [];
+            internal List<string> _compressedPropertyNames = [];
 
-            public IReadOnlyDictionary<string, (PropertyInfo prop, bool udp)> ReplicateOnChangeProperties => _replicateOnChangeProperties;
+            public IReadOnlyDictionary<string, PropertyInfo> ReplicateOnChangeProperties => _replicateOnChangeProperties;
             public IReadOnlyDictionary<string, PropertyInfo> ReplicateOnTickProperties => _replicateOnTickProperties;
+            public List<string> CompressedPropertyNames => _compressedPropertyNames;
         }
 
         public ReplicationInfo? GetReplicationInfo()
@@ -55,17 +57,27 @@ namespace XREngine
         public bool IsReplicateOnTickProperty(string propName)
             => _replicatedTypes.TryGetValue(GetType(), out var repl) && repl.ReplicateOnTickProperties.ContainsKey(propName);
 
-        private bool _hasNetworkAuthority = true;
+        private int _owningServerPlayerIndex = -1;
+        [YamlIgnore]
+        public int OwningPlayerServerIndex
+        {
+            get => _owningServerPlayerIndex;
+            set => SetField(ref _owningServerPlayerIndex, value);
+        }
+
         /// <summary>
-        /// If true, this object has authority over its properties and will replicate them to the network.
-        /// If false, this object will not replicate its properties to the network and will only receive updates.
+        /// If true, this object has authority over its properties and will replicate them to all clients, either through the server if a client, or directly if the server or a p2p client.
+        /// If false, this object will not replicate its properties to the network and will only receive updates from the server.
         /// </summary>
         [YamlIgnore]
-        public bool HasNetworkAuthority 
-        {
-            get => _hasNetworkAuthority;
-            internal set => SetField(ref _hasNetworkAuthority, value);
-        }
+        public bool HasNetworkAuthority
+            => IsNotAClient() || ALocalClientPlayerOwnsThis();
+
+        private bool ALocalClientPlayerOwnsThis()
+            => Engine.State.LocalPlayers.Any(p => p is not null && OwningPlayerServerIndex >= 0 && OwningPlayerServerIndex == p.PlayerInfo.ServerIndex);
+
+        private static bool IsNotAClient()
+            => !(Engine.Networking?.IsClient ?? true);
 
         static XRWorldObjectBase()
         {
@@ -97,12 +109,16 @@ namespace XREngine
                     if (prop.GetCustomAttribute<ReplicateOnChangeAttribute>(true) is ReplicateOnChangeAttribute changeAttr)
                     {
                         repl ??= new ReplicationInfo();
-                        repl._replicateOnChangeProperties.Add(prop.Name, (prop, changeAttr.UDP));
+                        repl._replicateOnChangeProperties.Add(prop.Name, prop);
+                        if (changeAttr.Compress)
+                            repl.CompressedPropertyNames.Add(prop.Name);
                     }
-                    if (prop.GetCustomAttribute<ReplicateOnTickAttribute>(true) is not null)
+                    if (prop.GetCustomAttribute<ReplicateOnTickAttribute>(true) is ReplicateOnTickAttribute tickAttr)
                     {
                         repl ??= new ReplicationInfo();
                         repl._replicateOnTickProperties.Add(prop.Name, prop);
+                        if (tickAttr.Compress)
+                            repl.CompressedPropertyNames.Add(prop.Name);
                     }
                 }
 
@@ -114,7 +130,7 @@ namespace XREngine
 
         internal XRWorldInstance? _world = null;
         [YamlIgnore]
-        public XRWorldInstance? World 
+        public XRWorldInstance? World
         {
             get => _world;
             internal set => SetField(ref _world, value);
@@ -140,7 +156,7 @@ namespace XREngine
                 return;
 
             if (propName is not null && repl.ReplicateOnChangeProperties.TryGetValue(propName, out var pair))
-                EnqueuePropertyReplication(propName, field, pair.udp);
+                EnqueuePropertyReplication(propName, field, repl.CompressedPropertyNames.Contains(propName));
         }
 
         private void BroadcastTickedProperties()
@@ -150,7 +166,7 @@ namespace XREngine
                 return;
 
             foreach (var prop in repl.ReplicateOnTickProperties.Values)
-                EnqueuePropertyReplication(prop.Name, prop.GetValue(this), true);
+                EnqueuePropertyReplication(prop.Name, prop.GetValue(this), repl.CompressedPropertyNames.Contains(prop.Name));
         }
 
         protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
@@ -209,8 +225,8 @@ namespace XREngine
         /// Tells the engine to replicate this object to the network.
         /// </summary>
         /// <param name="udp"></param>
-        public void EnqueueSelfReplication(bool udp)
-            => Engine.Networking.Broadcast(this, udp);
+        public void EnqueueSelfReplication(bool compress = true)
+            => Engine.Networking?.Broadcast(this, compress);
         /// <summary>
         /// Tells the engine to replicate a specific property to the network.
         /// </summary>
@@ -218,19 +234,20 @@ namespace XREngine
         /// <param name="propName"></param>
         /// <param name="value"></param>
         /// <param name="udp"></param>
-        public void EnqueuePropertyReplication<T>(string? propName, T value, bool udp)
-            => Engine.Networking.BroadcastPropertyUpdated(this, propName, value, udp);
+        public void EnqueuePropertyReplication<T>(string? propName, T value, bool compress)
+            => Engine.Networking?.BroadcastPropertyUpdated(this, propName, value, compress);
         /// <summary>
         /// Tells the engine to replicate some data to the network.
         /// </summary>
         /// <param name="id"></param>
         /// <param name="data"></param>
         /// <param name="udp"></param>
-        public void EnqueueDataReplication(string id, object data, bool udp)
-            => Engine.Networking.BroadcastData(this, data, id, udp);
+        public void EnqueueDataReplication(string id, object data, bool compress)
+            => Engine.Networking?.BroadcastData(this, data, id, compress);
 
         /// <summary>
         /// Called by data replication to receive generic data from the network.
+        /// Must be overridden to handle the data.
         /// </summary>
         /// <param name="id"></param>
         /// <param name="data"></param>
@@ -245,7 +262,15 @@ namespace XREngine
         /// <param name="newObj"></param>
         public virtual void CopyFrom(XRWorldObjectBase newObj)
         {
+            var type = GetType();
+            var newObjsType = newObj.GetType();
+            if (newObjsType != type)
+                return;
 
+            var props = type.GetProperties(BindingFlags.Instance | BindingFlags.Public);
+            foreach (var prop in props)
+                if (prop.CanRead && prop.CanWrite && prop.GetSetMethod(true) is not null)
+                    prop.SetValue(this, prop.GetValue(newObj));
         }
 
         /// <summary>
@@ -259,11 +284,11 @@ namespace XREngine
             if (repl is null)
                 return;
 
-            if (repl.ReplicateOnChangeProperties.TryGetValue(propName, out var pair) && 
-                pair.prop.PropertyType.IsAssignableFrom(value.GetType()))
-                pair.prop.SetValue(this, value);
-            
-            if (repl.ReplicateOnTickProperties.TryGetValue(propName, out var prop) && 
+            if (repl.ReplicateOnChangeProperties.TryGetValue(propName, out var pair) &&
+                pair.PropertyType.IsAssignableFrom(value.GetType()))
+                pair.SetValue(this, value);
+
+            if (repl.ReplicateOnTickProperties.TryGetValue(propName, out var prop) &&
                 prop.PropertyType.IsAssignableFrom(value.GetType()))
                 prop.SetValue(this, value);
         }

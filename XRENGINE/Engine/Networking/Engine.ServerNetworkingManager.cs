@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using System.Net.Sockets;
 
 namespace XREngine
 {
@@ -6,6 +7,10 @@ namespace XREngine
     {
         public class ServerNetworkingManager : BaseNetworkingManager
         {
+            public override bool IsServer => true;
+            public override bool IsClient => false;
+            public override bool IsP2P => false;
+
             public void Start(
                 IPAddress udpMulticastGroupIP,
                 int udpMulticastPort,
@@ -16,11 +21,22 @@ namespace XREngine
                 StartUdpReceiver(udpRecievePort);
             }
 
-            protected override void SendUDP()
+            /// <summary>
+            /// Run on the server - receives from clients
+            /// </summary>
+            /// <param name="udpPort"></param>
+            protected void StartUdpReceiver(int udpPort)
+            {
+                UdpClient listener = new();
+                //listener.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                listener.Client.Bind(new IPEndPoint(IPAddress.Any, udpPort));
+                UdpReceiver = listener;
+            }
+
+            protected override async Task SendUDP()
             {
                 //Send to clients
-                if (UdpMulticastSender is not null && MulticastEndPoint is not null)
-                    ConsumeAndSendUDPQueue(UdpMulticastSender, MulticastEndPoint);
+                await ConsumeAndSendUDPQueue(UdpMulticastSender, MulticastEndPoint);
             }
         }
     }

@@ -7,10 +7,10 @@ namespace XREngine.Players
         /// <summary>
         /// Every player has a unique server ID
         /// </summary>
-        public int ServerIndex { get; set; }
+        public int ServerIndex { get; set; } = -1;
         /// <summary>
         /// If the player is a local player, this is the index of the player on the local machine.
         /// </summary>
-        public ELocalPlayerIndex? LocalIndex { get; set; }
+        public ELocalPlayerIndex? LocalIndex { get; set; } = null;
     }
 }

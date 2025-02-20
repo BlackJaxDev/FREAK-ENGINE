@@ -17,12 +17,27 @@ namespace XREngine.Scene.Transforms
 
         public enum EInterpolationMode
         {
+            /// <summary>
+            /// No interpolation or extrapolation. Stays still until next physics update.
+            /// </summary>
             Discrete,
+            /// <summary>
+            /// Smoothly interpolate between physics the last physics update and the most recent physics update. Looks smooth, but 1-frame delay.
+            /// </summary>
             Interpolate,
+            /// <summary>
+            /// Predict the next physics update based on the current velocity. Keeps up, but looks inaccurate on sharp velocity changes.
+            /// </summary>
             Extrapolate
         }
 
         private EInterpolationMode _interpolationMode = EInterpolationMode.Discrete;
+        /// <summary>
+        /// Determines how this transform should update between physics updates.
+        /// Discrete: No interpolation or extrapolation. Stays still until next physics update.
+        /// Interpolate: Smoothly interpolate between physics the last physics update and the most recent physics update. Looks smooth, but 1-frame delay.
+        /// Extrapolate: Predict the next physics update based on the current velocity. Keeps up, but looks inaccurate on sharp velocity changes.
+        /// </summary>
         public EInterpolationMode InterpolationMode
         {
             get => _interpolationMode;
@@ -30,6 +45,10 @@ namespace XREngine.Scene.Transforms
         }
 
         private Vector3 _position;
+        /// <summary>
+        /// The position of this transform in *world* space.
+        /// Set by the physics engine.
+        /// </summary>
         public Vector3 Position
         {
             get => _position;
@@ -37,20 +56,41 @@ namespace XREngine.Scene.Transforms
         }
 
         private Quaternion _rotation;
+        /// <summary>
+        /// The rotation of this transform in *world* space.
+        /// Set by the physics engine.
+        /// </summary>
         public Quaternion Rotation
         {
             get => _rotation;
             private set => SetField(ref _rotation, value);
         }
 
-        private Quaternion _rotationOffset = Quaternion.CreateFromAxisAngle(Globals.Backward, XRMath.DegToRad(-90.0f));
+        private Quaternion _preRotationOffset = Quaternion.Identity;
+        /// <summary>
+        /// The rotation offset to apply to the rotation of this transform *before* the physics engine sets it.
+        /// Use-case would be uncommon, and is probably not needed.
+        /// </summary>
+        public Quaternion PreRotationOffset
+        {
+            get => _preRotationOffset;
+            set => SetField(ref _preRotationOffset, value);
+        }
+
+        private Quaternion _postRotationOffset = Quaternion.CreateFromAxisAngle(Globals.Backward, XRMath.DegToRad(-90.0f));
+        /// <summary>
+        /// The rotation offset to apply to the rotation of this transform *after* the physics engine sets it.
+        /// </summary>
         public Quaternion PostRotationOffset
         {
-            get => _rotationOffset;
-            set => SetField(ref _rotationOffset, value);
+            get => _postRotationOffset;
+            set => SetField(ref _postRotationOffset, value);
         }
 
         private Vector3 _positionOffset = Vector3.Zero;
+        /// <summary>
+        /// The position offset to apply to the position of this transform.
+        /// </summary>
         public Vector3 PositionOffset
         {
             get => _positionOffset;
@@ -98,13 +138,7 @@ namespace XREngine.Scene.Transforms
             }
         }
 
-        private float _accumulatedTime;
-        private (Vector3 position, Quaternion rotation) _lastPhysicsTransform;
-        private Vector3 _lastPhysicsLinearVelocity;
-        private Vector3 _lastPhysicsAngularVelocity;
-        private Vector3 _lastPosition;
-        private Quaternion _lastRotation;
-
+        private float _accumulatedTime = 0.0f;
         private void OnUpdate()
         {
             float updateDelta = Engine.Delta;
@@ -139,6 +173,10 @@ namespace XREngine.Scene.Transforms
             }
         }
 
+        private (Vector3 position, Quaternion rotation) _lastPhysicsTransform;
+        /// <summary>
+        /// The transform of this object at the last physics update.
+        /// </summary>
         [YamlIgnore]
         public (Vector3 position, Quaternion rotation) LastPhysicsTransform
         {
@@ -146,6 +184,10 @@ namespace XREngine.Scene.Transforms
             private set => SetField(ref _lastPhysicsTransform, value);
         }
 
+        private Vector3 _lastPhysicsLinearVelocity;
+        /// <summary>
+        /// The linear velocity of this transform at the last physics update.
+        /// </summary>
         [YamlIgnore]
         public Vector3 LastPhysicsLinearVelocity
         {
@@ -153,6 +195,10 @@ namespace XREngine.Scene.Transforms
             private set => SetField(ref _lastPhysicsLinearVelocity, value);
         }
 
+        private Vector3 _lastPhysicsAngularVelocity;
+        /// <summary>
+        /// The angular velocity of this transform at the last physics update.
+        /// </summary>
         [YamlIgnore]
         public Vector3 LastPhysicsAngularVelocity
         {
@@ -160,6 +206,11 @@ namespace XREngine.Scene.Transforms
             private set => SetField(ref _lastPhysicsAngularVelocity, value);
         }
 
+        private Vector3 _lastPosition;
+        /// <summary>
+        /// The position of this transform at the last physics update.
+        /// Not used when InterpolationMode is set to Discrete, or when normal update ticks are running slower than the fixed update ticks.
+        /// </summary>
         [YamlIgnore]
         public Vector3 LastPosition
         {
@@ -167,6 +218,11 @@ namespace XREngine.Scene.Transforms
             private set => SetField(ref _lastPosition, value);
         }
 
+        private Quaternion _lastRotation;
+        /// <summary>
+        /// The rotation of this transform at the last physics update.
+        /// Not used when InterpolationMode is set to Discrete, or when normal update ticks are running slower than the fixed update ticks.
+        /// </summary>
         [YamlIgnore]
         public Quaternion LastRotation
         {
@@ -201,6 +257,6 @@ namespace XREngine.Scene.Transforms
         protected override Matrix4x4 CreateLocalMatrix()
             => Matrix4x4.Identity;
         protected override Matrix4x4 CreateWorldMatrix()
-            => Matrix4x4.CreateFromQuaternion(PostRotationOffset * Rotation) * Matrix4x4.CreateTranslation(PositionOffset + Position);
+            => Matrix4x4.CreateFromQuaternion(PostRotationOffset * Rotation * PreRotationOffset) * Matrix4x4.CreateTranslation(PositionOffset + Position);
     }
 }
