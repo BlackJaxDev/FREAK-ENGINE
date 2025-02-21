@@ -90,6 +90,11 @@ namespace XREngine.Rendering
         protected virtual void BeginPlayInternal()
         {
             VisualScene.GenericRenderTree.Swap();
+
+            //Recalculate all transforms before activating nodes
+            foreach (SceneNode node in RootNodes)
+                node.Transform.RecalculateMatrices(true);
+            
             foreach (SceneNode node in RootNodes)
                 if (node.IsActiveSelf)
                     node.OnActivated();
@@ -286,22 +291,39 @@ namespace XREngine.Rendering
         public XRWorld? TargetWorld
         {
             get => _targetWorld;
-            set
+            set => SetField(ref _targetWorld, value);
+        }
+
+        protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
+        {
+            bool change = base.OnPropertyChanging(propName, field, @new);
+            if (change)
             {
-                if (_targetWorld != null)
-                    foreach (var scene in _targetWorld.Scenes)
-                        UnloadScene(scene);
-
-                _targetWorld = value;
-
-                if (_targetWorld != null)
+                switch (propName)
                 {
-                    foreach (var scene in _targetWorld.Scenes)
-                        LoadScene(scene);
-
-                    if (VisualScene.GenericRenderTree is I3DRenderTree tree)
-                        tree.Remake(_targetWorld.Settings.Bounds);
+                    case nameof(TargetWorld):
+                        if (TargetWorld != null)
+                            foreach (var scene in TargetWorld.Scenes)
+                                UnloadScene(scene);
+                        break;
                 }
+            }
+            return change;
+        }
+        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+        {
+            base.OnPropertyChanged(propName, prev, field);
+            switch (propName)
+            {
+                case nameof(TargetWorld):
+                    if (TargetWorld != null)
+                    {
+                        foreach (var scene in TargetWorld.Scenes)
+                            LoadScene(scene);
+                        if (VisualScene.GenericRenderTree is I3DRenderTree tree)
+                            tree.Remake(TargetWorld.Settings.Bounds);
+                    }
+                    break;
             }
         }
 

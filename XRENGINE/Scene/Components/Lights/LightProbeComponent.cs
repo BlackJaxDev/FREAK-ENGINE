@@ -41,6 +41,12 @@ namespace XREngine.Components.Lights
 
         private readonly GameTimer _realtimeCaptureTimer;
 
+        public TimeSpan? StopRealtimeCaptureAfter
+        {
+            get => _realtimeCaptureTimer.StopMultiFireAfter;
+            set => _realtimeCaptureTimer.StopMultiFireAfter = value;
+        }
+
         private bool _realtime = false;
         /// <summary>
         /// If true, the light probe will update in real time.
@@ -51,7 +57,7 @@ namespace XREngine.Components.Lights
             set => SetField(ref _realtime, value);
         }
 
-        private TimeSpan? _realTimeUpdateInterval = TimeSpan.FromMilliseconds(1000.0f);
+        private TimeSpan? _realTimeUpdateInterval = TimeSpan.FromMilliseconds(100.0f);
         public TimeSpan? RealTimeCaptureUpdateInterval 
         {
             get => _realTimeUpdateInterval;

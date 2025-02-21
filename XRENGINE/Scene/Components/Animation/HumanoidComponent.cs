@@ -1,13 +1,11 @@
-﻿using Extensions;
-using OpenVR.NET.Devices;
-using System.Numerics;
+﻿using System.Numerics;
 using XREngine.Components;
 using XREngine.Data.Colors;
 using XREngine.Data.Core;
 using XREngine.Data.Rendering;
-using XREngine.Data.Transforms.Rotations;
 using XREngine.Rendering.Info;
 using XREngine.Scene.Transforms;
+using static XREngine.Scene.Components.Animation.InverseKinematics;
 
 namespace XREngine.Scene.Components.Animation
 {
@@ -43,6 +41,23 @@ namespace XREngine.Scene.Components.Animation
             }
         }
 
+        private void SolveFullBodyIK()
+        {
+            InverseKinematics.SolveFullBodyIK(
+                GetHipToHeadChain(),
+                GetLeftLegToAnkleChain(),
+                GetRightLegToAnkleChain(),
+                GetLeftShoulderToWristChain(),
+                GetRightShoulderToWristChain(),
+                HeadTarget,
+                HipsTarget,
+                LeftHandTarget,
+                RightHandTarget,
+                LeftFootTarget,
+                RightFootTarget,
+                10);
+        }
+
         protected internal override void AddedToSceneNode(SceneNode sceneNode)
         {
             base.AddedToSceneNode(sceneNode);
@@ -67,71 +82,35 @@ namespace XREngine.Scene.Components.Animation
                 return;
 
             foreach (var bone in GetHipToHeadChain())
-                Engine.Rendering.Debug.RenderPoint(bone.WorldPosition, ColorF4.Red, false);
+                Engine.Rendering.Debug.RenderPoint(bone.WorldPosSolve, ColorF4.Red, false);
 
             foreach (var bone in GetLeftShoulderToWristChain())
-                Engine.Rendering.Debug.RenderPoint(bone.WorldPosition, ColorF4.Red, false);
+                Engine.Rendering.Debug.RenderPoint(bone.WorldPosSolve, ColorF4.Red, false);
 
             foreach (var bone in GetRightShoulderToWristChain())
-                Engine.Rendering.Debug.RenderPoint(bone.WorldPosition, ColorF4.Red, false);
+                Engine.Rendering.Debug.RenderPoint(bone.WorldPosSolve, ColorF4.Red, false);
 
             foreach (var bone in GetLeftLegToAnkleChain())
-                Engine.Rendering.Debug.RenderPoint(bone.WorldPosition, ColorF4.Red, false);
+                Engine.Rendering.Debug.RenderPoint(bone.WorldPosSolve, ColorF4.Red, false);
 
             foreach (var bone in GetRightLegToAnkleChain())
-                Engine.Rendering.Debug.RenderPoint(bone.WorldPosition, ColorF4.Red, false);
+                Engine.Rendering.Debug.RenderPoint(bone.WorldPosSolve, ColorF4.Red, false);
         }
 
         public class BoneDef : XRBase
         {
-            private Rotator? _minRotation;
-            private Rotator? _maxRotation;
-            private Vector3 _minPositionOffset;
-            private Vector3 _maxPositionOffset;
-            private bool _isRoot;
-            private bool _isMovable = false;
             private SceneNode? _node;
-
             public SceneNode? Node
             {
                 get => _node;
                 set => SetField(ref _node, value);
             }
-            public Rotator? MinRotation
+
+            private BoneIKConstraints? _constraints;
+            public BoneIKConstraints? Constraints
             {
-                get => _minRotation;
-                set => SetField(ref _minRotation, value);
-            }
-            public Rotator? MaxRotation
-            {
-                get => _maxRotation;
-                set => SetField(ref _maxRotation, value);
-            }
-            public Vector3 MinPositionOffset
-            {
-                get => _minPositionOffset;
-                set => SetField(ref _minPositionOffset, value);
-            }
-            public Vector3 MaxPositionOffset
-            {
-                get => _maxPositionOffset;
-                set => SetField(ref _maxPositionOffset, value);
-            }
-            /// <summary>
-            /// Indicates if this is a user-guided bone
-            /// </summary>
-            public bool IsRoot
-            {
-                get => _isRoot;
-                set => SetField(ref _isRoot, value);
-            }
-            /// <summary>
-            /// Indicates if the bone is allowed to move during solving
-            /// </summary>
-            public bool IsMovable
-            {
-                get => _isMovable;
-                set => SetField(ref _isMovable, value);
+                get => _constraints;
+                set => SetField(ref _constraints, value);
             }
         }
 
@@ -189,32 +168,18 @@ namespace XREngine.Scene.Components.Animation
         public BoneChainItem[]? _rightShoulderToWristChain = null;
 
         private static BoneChainItem[] Link(BoneDef[] bones)
-        {
-            BoneChainItem[] chain = new BoneChainItem[bones.Length];
-            for (int i = 0; i < bones.Length; i++)
-            {
-                chain[i] = bones[i];
-                if (i > 0)
-                {
-                    chain[i].ParentPrev = chain[i - 1];
-                    chain[i - 1].ChildNext = chain[i];
-                }
-            }
-            return chain;
-        }
+            => bones.Any(bone => bone.Node is null) 
+            ? [] 
+            : [.. bones.Select(bone => new BoneChainItem(bone.Node!, bone.Constraints))];
 
         public BoneChainItem[] GetHipToHeadChain()
             => _hipToHeadChain ??= Link([Hips, Spine, Chest, Neck, Head]);
-
         public BoneChainItem[] GetLeftLegToAnkleChain()
             => _leftLegToAnkleChain ??= Link([Left.Leg, Left.Knee, Left.Foot]);
-
         public BoneChainItem[] GetRightLegToAnkleChain()
             => _rightLegToAnkleChain ??= Link([Right.Leg, Right.Knee, Right.Foot]);
-
         public BoneChainItem[] GetLeftShoulderToWristChain()
             => _leftShoulderToWristChain ??= Link([Left.Shoulder, Left.Arm, Left.Elbow, Left.Wrist]);
-
         public BoneChainItem[] GetRightShoulderToWristChain()
             => _rightShoulderToWristChain ??= Link([Right.Shoulder, Right.Arm, Right.Elbow, Right.Wrist]);
 
@@ -237,372 +202,15 @@ namespace XREngine.Scene.Components.Animation
 
         public RenderInfo[] RenderedObjects { get; }
 
-        public void SolveFullBodyIK()
-        {
-            //using var d = Engine.Profiler.Start();
-
-            int maxIterations = 10;
-            for (int i = 0; i < maxIterations; i++)
-            {
-                if (HeadTarget.tfm is not null && HipsTarget.tfm is not null)
-                    SolveWithFixedEnds(
-                        GetHipToHeadChain(),
-                        HipsTarget.offset * HipsTarget.tfm.WorldMatrix,
-                        HeadTarget.offset * HeadTarget.tfm.WorldMatrix);
-
-                if (LeftHandTarget.tfm is not null)
-                    Solve(
-                        GetLeftShoulderToWristChain(),
-                        LeftHandTarget.offset * LeftHandTarget.tfm.WorldMatrix);
-
-                if (RightHandTarget.tfm is not null)
-                    Solve(
-                        GetRightShoulderToWristChain(),
-                        RightHandTarget.offset * RightHandTarget.tfm.WorldMatrix);
-
-                if (LeftFootTarget.tfm is not null)
-                    Solve(
-                        GetLeftLegToAnkleChain(),
-                        LeftFootTarget.offset * LeftFootTarget.tfm.WorldMatrix);
-
-                if (RightFootTarget.tfm is not null)
-                    Solve(
-                        GetRightLegToAnkleChain(),
-                        RightFootTarget.offset * RightFootTarget.tfm.WorldMatrix);
-            }
-        }
-
-        public static void AdjustRootConstraints(BoneChainItem rootBone, Vector3 overallMovement)
-        {
-            // Example: Allow more movement if the target is far away
-            float distance = overallMovement.Length();
-
-            rootBone.Def.MaxPositionOffset = new Vector3(distance * 0.1f, distance * 0.1f, distance * 0.1f);
-            rootBone.Def.MinPositionOffset = -rootBone.Def.MaxPositionOffset;
-        }
-        public class BoneChainItem(BoneDef def) : XRBase
-        {
-            public static implicit operator BoneChainItem(BoneDef def) => new(def);
-
-            private BoneChainItem? _parentPrev;
-            private BoneChainItem? _childNext;
-            private BoneDef _def = def;
-            private Vector3 _worldAxis;
-            private Vector3 _worldPosition = Vector3.Zero;
-            private float _length;
-
-            public BoneChainItem? ParentPrev
-            {
-                get => _parentPrev;
-                set => SetField(ref _parentPrev, value);
-            }
-            public BoneChainItem? ChildNext
-            {
-                get => _childNext;
-                set => SetField(ref _childNext, value);
-            }
-            public BoneDef Def
-            {
-                get => _def;
-                set => SetField(ref _def, value);
-            }
-
-            //protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
-            //{
-            //    base.OnPropertyChanged(propName, prev, field);
-            //    switch (propName)
-            //    {
-            //        case nameof(ChildNext):
-            //            WorldAxis = (ChildPositionWorld - WorldPosition).Normalize();
-            //            //Debug.Out($"Local axis set to {WorldAxis}");
-            //            break;
-            //    }
-            //}
-
-            public Vector3 LocalDirToChild
-                => (ChildPositionLocal - LocalPosition).Normalized();
-
-            public Vector3 WorldDirToChild
-                => (ChildPositionWorld - WorldPosition).Normalized();
-
-            public Vector3 ChildPositionLocal
-                => Vector3.Transform(ChildNext?.WorldPosition ?? Vector3.Zero, Transform?.InverseWorldMatrix ?? Matrix4x4.Identity);
-
-            public Vector3 ChildPositionWorld
-                => ChildNext?.WorldPosition ?? Vector3.Zero;
-
-            public Vector3 WorldPosition
-            {
-                get => _worldPosition;
-                set => SetField(ref _worldPosition, value);
-            }
-
-            public Vector3 LocalPosition
-            {
-                get => Transform?.Translation ?? Vector3.Zero;
-                set
-                {
-                    if (Transform is not null)
-                        Transform.Translation = value;
-                }
-            }
-            public Rotator LocalRotator
-            {
-                get => Transform?.Rotator ?? Rotator.GetZero();
-                set
-                {
-                    if (Transform is not null)
-                        Transform.Rotator = value;
-                }
-            }
-            public Quaternion LocalRotation
-            {
-                get => Transform?.Rotation?? Quaternion.Identity;
-                set
-                {
-                    if (Transform is not null)
-                        Transform.Rotation = value;
-                }
-            }
-            /// <summary>
-            /// Distance to the next child bone in the chain.
-            /// </summary>
-            public float Length
-            {
-                get => _length;
-                set => SetField(ref _length, value);
-            }
-            public Transform? Transform => SceneNode?.GetTransformAs<Transform>(true);
-            public SceneNode? SceneNode => Def.Node;
-            public Vector3 WorldAxis
-            {
-                get => _worldAxis;
-                set => SetField(ref _worldAxis, value);
-            }
-        }
-        public static void Solve(
-            BoneChainItem[] chain,
-            Matrix4x4 target,
-            float tolerance = 0.001f,
-            int maxIterations = 10)
-        {
-            if (chain.Length < 2)
-            {
-                Debug.LogWarning("The chain must have at least two bones.");
-                return;
-            }
-
-            Vector3 targetPos = target.Translation;
-            float totalLength = Init(chain);
-            bool hasMovableRoot = chain[0].Def.IsMovable;
-            Vector3 originalRootPosition = chain[0].WorldPosition;
-            float distanceToTarget = Vector3.Distance(originalRootPosition, targetPos);
-
-            //if (distanceToTarget > totalLength)
-            //{
-            //    //TODO: if any bones are movable, move them as much as possible to reach the target.
-            //}
-
-            int iterations = 0;
-            float diff = Vector3.Distance(chain[^1].WorldPosition, targetPos);
-
-            while (diff > tolerance && iterations < maxIterations)
-            {
-                // **Forward Reaching Phase**
-
-                // Move end effector to the target
-                chain[^1].WorldPosition = targetPos;
-
-                // Iterate backwards through the chain
-                for (int i = chain.Length - 2; i >= 0; i--)
-                {
-                    BoneChainItem parent = chain[i];
-                    BoneChainItem child = chain[i + 1];
-
-                    // If the bone is movable
-                    if (parent.Def.IsMovable)
-                        parent.WorldPosition = child.WorldPosition - DirFromTo(parent.WorldPosition, child.WorldPosition) * parent.Length;
-                    else
-                        break;
-                }
-
-                // **Backward Reaching Phase**
-
-                // If root is movable, constrain its movement
-                chain[0].WorldPosition = hasMovableRoot
-                    ? ConstrainPosition(chain[0], originalRootPosition)
-                    : originalRootPosition;
-
-                for (int i = 0; i < chain.Length - 1; i++)
-                {
-                    BoneChainItem parent = chain[i];
-                    BoneChainItem child = chain[i + 1];
-                    child.WorldPosition = parent.WorldPosition + DirFromTo(parent.WorldPosition, child.WorldPosition) * parent.Length;
-                }
-
-                diff = Vector3.Distance(chain[^1].WorldPosition, targetPos);
-                iterations++;
-            }
-
-            UpdateBones(chain);
-        }
-
-        private static Vector3 DirFromTo(Vector3 from, Vector3 to)
-        {
-            Vector3 dir = to - from;
-            return dir.Normalized();
-        }
-
-        private static float Init(BoneChainItem[] chain)
-        {
-            //Set the current positions of all bones
-            for (int i = 0; i < chain.Length; i++)
-            {
-                var tfm = chain[i].Transform;
-                if (tfm is not null)
-                    chain[i].WorldPosition = tfm.WorldTranslation;
-                else
-                    Debug.LogWarning($"Bone {i} has no transform.");
-            }
-
-            // Calculate total length
-            float totalLength = 0;
-            chain[^1].Length = 0; // Last bone has no length
-            for (int i = 0; i < chain.Length - 1; i++)
-            {
-                var bone = chain[i];
-                var nextBone = chain[i + 1];
-                bone.WorldAxis = (nextBone.WorldPosition - bone.WorldPosition).Normalized();
-                totalLength += bone.Length = bone.WorldPosition.Distance(nextBone?.WorldPosition ?? Vector3.Zero);
-            }
-            return totalLength;
-        }
-
-        public static void SolveWithFixedEnds(
-            BoneChainItem[] chain,
-            Matrix4x4 startPosition,
-            Matrix4x4 endPosition,
-            float tolerance = 0.001f,
-            int maxIterations = 10)
-        {
-            int numBones = chain.Length;
-            if (numBones < 2)
-            {
-                Debug.LogWarning("The chain must have at least two bones.");
-                return;
-            }
-
-            Vector3 endPos = endPosition.Translation;
-            Vector3 startPos = startPosition.Translation;
-            float totalLength = Init(chain);
-
-            chain[0].WorldPosition = startPos;
-            chain[numBones - 1].WorldPosition = endPos;
-
-            // Distance between the fixed points
-            if (Vector3.DistanceSquared(startPos, endPos) > totalLength * totalLength)
-            {
-                //Debug.LogWarning("The fixed points are too far apart to be connected by the chain.");
-                //Stretch the chain to reach both points
-                //TODO: implement stretching factors for each bone.
-                for (int i = 1; i < numBones - 1; i++)
-                    chain[i].WorldPosition = Vector3.Lerp(startPos, endPos, (float)i / (numBones - 1));
-            }
-            else
-            {
-                int iterations = 0;
-                float diff = float.MaxValue;
-                while (diff > tolerance && iterations < maxIterations)
-                {
-                    //Store positions to check for convergence
-                    Vector3[] prevPositions = new Vector3[numBones];
-                    for (int i = 0; i < numBones; i++)
-                        prevPositions[i] = chain[i].WorldPosition;
-                    
-                    // **Forward Reaching Phase**
-                    chain[0].WorldPosition = startPos;
-                    for (int i = 0; i < numBones - 1; i++)
-                    {
-                        float length = chain[i].Length;
-                        Vector3 dir = (chain[i + 1].WorldPosition - chain[i].WorldPosition).Normalized();
-                        chain[i + 1].WorldPosition = chain[i].WorldPosition + dir * length;
-                    }
-
-                    // **Backward Reaching Phase**
-                    chain[numBones - 1].WorldPosition = endPos;
-                    for (int i = numBones - 2; i >= 0; i--)
-                    {
-                        float length = chain[i].Length;
-                        Vector3 dir = (chain[i].WorldPosition - chain[i + 1].WorldPosition).Normalized();
-                        chain[i].WorldPosition = chain[i + 1].WorldPosition + dir * length;
-                    }
-
-                    //Enforce the start position again
-                    chain[0].WorldPosition = startPos;
-
-                    //Compute the maximum change in positions
-                    diff = 0;
-                    for (int i = 0; i < numBones; i++)
-                    {
-                        float dist = Vector3.Distance(chain[i].WorldPosition, prevPositions[i]);
-                        if (dist > diff)
-                            diff = dist;
-                    }
-
-                    iterations++;
-                }
-            }
-
-            // Update rotations after positions are set
-            UpdateBones(chain);
-        }
-
-        public static Vector3 ConstrainPosition(BoneChainItem bone, Vector3 originalPosition)
-            => ApplyDistanceCurve(originalPosition, bone.WorldPosition, 1.0f, AnimationCurve.EaseOut);
-
-        public static void UpdateBones(BoneChainItem[] chain)
-        {
-            for (int i = 0; i < chain.Length - 1; i++)
-            {
-                BoneChainItem parent = chain[i];
-                //parent.LocalPosition = parent.Transform?.WorldTranslation ?? Vector3.Zero;
-                Quaternion worldRotation = XRMath.RotationBetweenVectors(parent.WorldAxis, parent.WorldDirToChild);
-                Quaternion localRotation = Quaternion.Inverse((parent.Transform?.Parent as Transform)?.Rotation ?? Quaternion.Identity) * worldRotation;
-                parent.LocalRotation = localRotation;
-            }
-        }
-        //public static Quaternion ApplyJointConstraints(BoneChainItem bone, Quaternion desiredRotation)
+        //public static void AdjustRootConstraints(BoneChainItem rootBone, Vector3 overallMovement)
         //{
-        //    //Rotator euler = Rotator.FromQuaternion(desiredRotation);
-        //    //euler.NormalizeRotations180();
-            
-        //    //var max = bone.Def.MaxRotation;
-        //    //var min = bone.Def.MinRotation;
+        //    // Example: Allow more movement if the target is far away
+        //    float distance = overallMovement.Length();
 
-        //    //// Clamp each axis based on bone's rotation limits
-        //    //if (min is not null && max is not null)
-        //    //{
-        //    //    euler.Yaw = euler.Yaw.Clamp(min.Value.Yaw, max.Value.Yaw);
-        //    //    euler.Pitch = euler.Pitch.Clamp(min.Value.Pitch, max.Value.Pitch);
-        //    //    euler.Roll = euler.Roll.Clamp(min.Value.Roll, max.Value.Roll);
-        //    //}
-        //    //else if (min is not null)
-        //    //{
-        //    //    euler.Yaw = euler.Yaw.ClampMin(min.Value.Yaw);
-        //    //    euler.Pitch = euler.Pitch.ClampMin(min.Value.Pitch);
-        //    //    euler.Roll = euler.Roll.ClampMin(min.Value.Roll);
-        //    //}
-        //    //else if (max is not null)
-        //    //{
-        //    //    euler.Yaw = euler.Yaw.ClampMax(max.Value.Yaw);
-        //    //    euler.Pitch = euler.Pitch.ClampMax(max.Value.Pitch);
-        //    //    euler.Roll = euler.Roll.ClampMax(max.Value.Roll);
-        //    //}
-        //    return desiredRotation;
+        //    rootBone.Def.MaxPositionOffset = new Vector3(distance * 0.1f, distance * 0.1f, distance * 0.1f);
+        //    rootBone.Def.MinPositionOffset = -rootBone.Def.MaxPositionOffset;
         //}
-        public static Vector3 ApplyDistanceCurve(Vector3 originalPosition, Vector3 currentPosition, float maxDistance, AnimationCurve curve)
-            => originalPosition + (currentPosition - originalPosition) * curve.Evaluate(Vector3.Distance(originalPosition, currentPosition) / maxDistance);
-
+        
         public void SetFromNode()
         {
             //Debug.Out(SceneNode.PrintTree());
@@ -787,7 +395,10 @@ namespace XREngine.Scene.Components.Animation
                     def.Node = node;
         }
 
-        public void ResetPose()
+        /// <summary>
+        /// Removes all IK targets, effectively disabling IK.
+        /// </summary>
+        public void ClearIKTargets()
         {
             HeadTarget = (null, Matrix4x4.Identity);
             LeftHandTarget = (null, Matrix4x4.Identity);
@@ -800,6 +411,14 @@ namespace XREngine.Scene.Components.Animation
             RightElbowTarget = (null, Matrix4x4.Identity);
             LeftKneeTarget = (null, Matrix4x4.Identity);
             RightKneeTarget = (null, Matrix4x4.Identity);
+        }
+
+        /// <summary>
+        /// Resets the pose of the humanoid to the default pose (T-pose).
+        /// </summary>
+        public void ResetPose()
+        {
+
         }
     }
 }

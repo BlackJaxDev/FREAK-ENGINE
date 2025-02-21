@@ -20,6 +20,15 @@ namespace XREngine.Timers
             set => SetField(ref _timeBetweenFires, value);
         }
 
+        private TimeSpan? _stopMultiFireAfter = null;
+        public TimeSpan? StopMultiFireAfter
+        {
+            get => _stopMultiFireAfter;
+            set => SetField(ref _stopMultiFireAfter, value);
+        }
+
+        public TimeSpan TotalElapsedTime => _totalElapsedTime;
+
         //Set on start
         private MultiFireAction? _multiMethod;
         private Action? _singleMethod;
@@ -30,14 +39,14 @@ namespace XREngine.Timers
         //State
         private int _fireNumber;
         private bool _isRunning;
-        private TimeSpan _totalElapsed;
+        private TimeSpan _totalElapsedTime;
         private TimeSpan _elapsedSinceLastFire;
 
         private void Reset()
         {
             _fireNumber = 0;
             _fireMax = -1;
-            _totalElapsed = TimeSpan.Zero;
+            _totalElapsedTime = TimeSpan.Zero;
             _elapsedSinceLastFire = TimeSpan.Zero;
             _timeBetweenFires = TimeSpan.Zero;
             _currentTimeBetweenFires = TimeSpan.Zero;
@@ -156,25 +165,25 @@ namespace XREngine.Timers
         private void TickMulti()
         {
             var delta = TimeSpan.FromSeconds(Engine.Delta);
-            _totalElapsed += delta;
+            _totalElapsedTime += delta;
             _elapsedSinceLastFire += delta;
 
             if (_elapsedSinceLastFire <= _currentTimeBetweenFires)
                 return;
             
             _currentTimeBetweenFires = _timeBetweenFires;
-            _multiMethod?.Invoke(_totalElapsed, _fireNumber++);
+            _multiMethod?.Invoke(_totalElapsedTime, _fireNumber++);
             _singleMethod?.Invoke();
             _elapsedSinceLastFire = TimeSpan.Zero;
 
-            if (_fireMax >= 0 && _fireNumber >= _fireMax)
+            if ((_fireMax >= 0 && _fireNumber >= _fireMax) || (_stopMultiFireAfter.HasValue && _totalElapsedTime >= _stopMultiFireAfter))
                 Cancel();
         }
 
         private void TickSingle()
         {
             var delta = TimeSpan.FromSeconds(Engine.Delta);
-            _totalElapsed += delta;
+            _totalElapsedTime += delta;
             _elapsedSinceLastFire += delta;
 
             if (_elapsedSinceLastFire <= _currentTimeBetweenFires)

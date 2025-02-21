@@ -37,7 +37,7 @@ namespace XREngine
                 private bool _useIntegerUniformsInShaders = true;
                 private bool _optimizeTo4Weights = false;
                 private bool _optimizeWeightsIfPossible = true;
-                private bool _tickGroupedItemsInParallel = false;
+                private bool _tickGroupedItemsInParallel = true;
                 private uint _lightProbeResolution = 512u;
                 private bool _lightProbesCaptureDepth = false;
                 private uint _lightProbeDepthResolution = 256u;

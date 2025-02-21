@@ -922,6 +922,8 @@ namespace XREngine.Rendering
             //Fill the buffers with the vertex data using the command list
             //We can do this in parallel since each vertex is independent
             PopulateVertexData(vertexActions.Values, triVertices, VertexCount, true);
+
+            Vertices = [.. vertices];
         }
 
         /// <summary>
@@ -1104,6 +1106,8 @@ namespace XREngine.Rendering
 
             //if (weights is not null)
             //    SetBoneWeights(weights, );
+
+            Vertices = sourceList;
         }
 
         public unsafe XRMesh(
@@ -1375,6 +1379,15 @@ namespace XREngine.Rendering
                 PopulateBlendshapeBuffers(sourceList, mesh/*, positionDeltas, normalDeltas, tangentDeltas*/);
 
             _bounds = bounds ?? new AABB(Vector3.Zero, Vector3.Zero);
+
+            Vertices = sourceList;
+        }
+
+        private List<Vertex> _vertices = [];
+        public List<Vertex> Vertices
+        {
+            get => _vertices;
+            private set => SetField(ref _vertices, value);
         }
 
         private unsafe void PopulateBlendshapeBuffers(

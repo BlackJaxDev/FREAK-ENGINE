@@ -850,22 +850,22 @@ public class PhysicsChainComponent : XRComponent, IRenderable
     {
         for (int i = 1; i < pt._particles.Count; ++i)
         {
-            Particle p = pt._particles[i];
-            Particle p0 = pt._particles[p._parentIndex];
+            Particle child = pt._particles[i];
+            Particle parent = pt._particles[child._parentIndex];
 
-            if (p0._childCount <= 1 && p0._transform is not null) // do not modify bone orientation if has more then one child
+            if (parent._childCount <= 1 && parent._transform is not null) // do not modify bone orientation if has more then one child
             {
-                Vector3 localPos = p._transform is not null
-                    ? p._transform.LocalTranslation
-                    : p._endOffset;
+                Vector3 localPos = child._transform is not null
+                    ? child._transform.LocalTranslation
+                    : child._endOffset;
 
-                Vector3 v0 = p0._transform.TransformDirection(localPos);
-                Vector3 v1 = p._position - p0._position;
+                Vector3 v0 = parent._transform.TransformDirection(localPos);
+                Vector3 v1 = child._position - parent._position;
                 Quaternion rot = XRMath.RotationBetweenVectors(v0, v1);
-                p0._transform.SetWorldRotation(rot * p0._transform.WorldRotation);
+                parent._transform.SetWorldRotation(rot * parent._transform.WorldRotation);
             }
 
-            p._transform?.SetWorldTranslation(p._position);
+            child._transform?.SetWorldTranslation(child._position);
         }
     }
 

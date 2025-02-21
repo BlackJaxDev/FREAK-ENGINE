@@ -134,18 +134,20 @@ namespace XREngine
 
             private void ClearOldRTTs()
             {
-                if (_rttBuffer.Count <= 0)
+                if (_rttBuffer.IsEmpty)
                     return;
                 
                 float oldest = Engine.ElapsedTime - MaxRoundTripSec;
                 ushort[] keys = new ushort[_rttBuffer.Count];
                 _rttBuffer.Keys.CopyTo(keys, 0);
                 foreach (ushort key in keys)
-                    if (_rttBuffer[key] < oldest)
-                    {
-                        Debug.Out($"Packet sequence failed to return: {key}");
-                        _rttBuffer.TryRemove(key, out _);
-                    }
+                {
+                    if (!_rttBuffer.TryGetValue(key, out float time) || time >= oldest)
+                        continue;
+                    
+                    Debug.Out($"Packet sequence failed to return: {key}");
+                    _rttBuffer.TryRemove(key, out _);
+                }
             }
 
             public enum EBroadcastType : byte

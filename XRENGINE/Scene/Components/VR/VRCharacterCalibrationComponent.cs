@@ -1,9 +1,10 @@
 ﻿using Extensions;
-using FFmpeg.AutoGen;
 using OpenVR.NET.Devices;
 using System.Numerics;
 using XREngine.Components;
+using XREngine.Components.Scene.Mesh;
 using XREngine.Data.Components.Scene;
+using XREngine.Rendering.Models;
 using XREngine.Scene.Components.Animation;
 using XREngine.Scene.Transforms;
 
@@ -11,6 +12,36 @@ namespace XREngine.Scene.Components.VR
 {
     public class VRCharacterCalibrationComponent : XRComponent
     {
+        private float _calibrationRadius = 0.3f;
+        /// <summary>
+        /// The maximum distance from a tracker to a bone for it to be considered a match during calibration.
+        /// </summary>
+        public float CalibrationRadius
+        {
+            get => _calibrationRadius;
+            set => SetField(ref _calibrationRadius, value);
+        }
+
+        private Matrix4x4 _leftControllerOffset = Matrix4x4.Identity;
+        /// <summary>
+        /// The manually-set offset from the left controller to the left hand bone.
+        /// </summary>
+        public Matrix4x4 LeftControllerOffset
+        {
+            get => _leftControllerOffset;
+            set => SetField(ref _leftControllerOffset, value);
+        }
+
+        private Matrix4x4 _rightControllerOffset = Matrix4x4.Identity;
+        /// <summary>
+        /// The manually-set offset from the right controller to the right hand bone.
+        /// </summary>
+        public Matrix4x4 RightControllerOffset
+        {
+            get => _rightControllerOffset;
+            set => SetField(ref _rightControllerOffset, value);
+        }
+
         private HumanoidComponent? _humanoidComponent;
         public HumanoidComponent? HumanoidComponent
         {
@@ -40,10 +71,44 @@ namespace XREngine.Scene.Components.VR
         }
 
         private VRControllerTransform? _rightController;
+
         public VRControllerTransform? RightController
         {
             get => _rightController;
             set => SetField(ref _rightController, value);
+        }
+
+        private ModelComponent? _eyesModel;
+        /// <summary>
+        /// Used to calculate floor-to-eye height.
+        /// Eye meshes should be rigged to bones that contain the word "eye" in their name.
+        /// Or you can set the bone names manually with EyeLBoneName and EyeRBoneName.
+        /// </summary>
+        public ModelComponent? EyesModel
+        {
+            get => _eyesModel;
+            set => SetField(ref _eyesModel, value);
+        }
+
+        private string? _eyeLBoneName;
+        public string? EyeLBoneName
+        {
+            get => _eyeLBoneName;
+            set => SetField(ref _eyeLBoneName, value);
+        }
+
+        private string? _eyeRBoneName;
+        public string? EyeRBoneName
+        {
+            get => _eyeRBoneName;
+            set => SetField(ref _eyeRBoneName, value);
+        }
+
+        private Vector3 _eyeOffsetFromHead = Vector3.Zero;
+        public Vector3 EyeOffsetFromHead
+        {
+            get => _eyeOffsetFromHead;
+            set => SetField(ref _eyeOffsetFromHead, value);
         }
 
         public HumanoidComponent? GetHumanoid()
@@ -60,6 +125,8 @@ namespace XREngine.Scene.Components.VR
             if (h is null)
                 return;
 
+            EyeOffsetFromHead = CalculateEyeOffsetFromHead();
+
             h.HeadTarget = (Headset, Matrix4x4.Identity);
             h.LeftHandTarget = (LeftController, Matrix4x4.Identity);
             h.RightHandTarget = (RightController, Matrix4x4.Identity);
@@ -73,6 +140,124 @@ namespace XREngine.Scene.Components.VR
             h.RightKneeTarget = (null, Matrix4x4.Identity);
         }
 
+        /// <summary>
+        /// Calculates the average position of all vertices rigged to bones that contain the word "eye" in their name and returns the difference from the head bone.
+        /// </summary>
+        /// <returns></returns>
+        private Vector3 CalculateEyeOffsetFromHead()
+        {
+            if (EyesModel is null)
+                return Vector3.Zero;
+
+            var h = GetHumanoid();
+            if (h is null)
+                return Vector3.Zero;
+
+            var headNode = h.Head.Node;
+            if (headNode is null)
+                return Vector3.Zero;
+
+            //Collect all vertices rigged to bones that contain the word "eye"
+            EventList<SubMesh>? meshes = EyesModel.Model?.Meshes; //TODO: use submeshes, or renderable meshes?
+            if (meshes is null || meshes.Count == 0)
+                return Vector3.Zero;
+
+            var lod = meshes[0].LODs.FirstOrDefault(); //TODO: verify first is the highest LOD
+            if (lod is null)
+                return Vector3.Zero;
+
+            var bones = lod.Mesh?.UtilizedBones;
+            if (bones is null || bones.Length == 0)
+                return Vector3.Zero;
+
+            if (!SumEyeVertexPositions(lod, out Vector3 eyePosWorldAvg) && 
+                !SumEyeBonePositions(bones, out eyePosWorldAvg))
+                return Vector3.Zero;
+
+            return eyePosWorldAvg - headNode.Transform.WorldTranslation;
+        }
+
+        private bool SumEyeBonePositions((TransformBase tfm, Matrix4x4 invBindWorldMtx)[] bones, out Vector3 eyePosWorldAvg)
+        {
+            int counted = 0;
+            eyePosWorldAvg = Vector3.Zero;
+
+            foreach (var (tfm, invBindWorldMtx) in bones)
+            {
+                if (!IsEyeBone(tfm))
+                    continue;
+
+                eyePosWorldAvg += tfm.WorldTranslation;
+                counted++;
+            }
+
+            bool any = counted > 0;
+            if (any)
+                eyePosWorldAvg /= counted;
+            return any;
+        }
+
+        // Helper method for atomic addition on float
+        private static float AtomicAdd(ref float target, float value)
+        {
+            float initialValue, computedValue;
+            do
+            {
+                initialValue = target;
+                computedValue = initialValue + value;
+            }
+            while (Interlocked.CompareExchange(ref target, computedValue, initialValue) != initialValue);
+            return computedValue;
+        }
+
+        private bool SumEyeVertexPositions(SubMeshLOD? lod, out Vector3 eyePosWorldAvg)
+        {
+            eyePosWorldAvg = Vector3.Zero;
+            if (lod?.Mesh?.Vertices is null)
+                return false;
+
+            float sumX = 0f, sumY = 0f, sumZ = 0f;
+            int counted = 0;
+
+            Parallel.ForEach(lod.Mesh.Vertices, vertex =>
+            {
+                var weights = vertex.Weights;
+                if (weights is null)
+                    return;
+
+                bool hasEyeBone = weights.Any(w => IsEyeBone(w.Key));
+                if (!hasEyeBone)
+                    return;
+
+                Vector3 pos = vertex.GetWorldPosition();
+                AtomicAdd(ref sumX, pos.X);
+                AtomicAdd(ref sumY, pos.Y);
+                AtomicAdd(ref sumZ, pos.Z);
+                Interlocked.Increment(ref counted);
+            });
+
+            eyePosWorldAvg = new Vector3(sumX, sumY, sumZ);
+            bool any = counted > 0;
+            if (any)
+                eyePosWorldAvg /= counted;
+            return any;
+        }
+
+        private bool IsEyeBone(TransformBase tfm)
+        {
+            string? name = tfm.Name;
+            if (name is null)
+                return false;
+
+            if (EyeLBoneName is not null && name.Contains(EyeLBoneName, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            if (EyeRBoneName is not null && name.Contains(EyeRBoneName, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            return name.Contains("eye", StringComparison.OrdinalIgnoreCase);
+        }
+
         protected internal override void OnComponentDeactivated()
         {
             base.OnComponentDeactivated();
@@ -81,10 +266,10 @@ namespace XREngine.Scene.Components.VR
             if (h is null)
                 return;
 
-            h.ResetPose();
+            h.ClearIKTargets();
         }
 
-        private void UpdateRootTransform(TransformBase t)
+        private void UpdateRootTransform(TransformBase headsetEyeTfm)
         {
             var h = GetHumanoid();
             if (h is null)
@@ -93,8 +278,8 @@ namespace XREngine.Scene.Components.VR
             if (headNode is null)
                 return;
             var rootNode = h.SceneNode;
-            var rootToHead = headNode.Transform.WorldTranslation - rootNode.Transform.WorldTranslation;
-            Matrix4x4 translation = Matrix4x4.CreateTranslation(t.WorldTranslation - rootToHead);
+            var rootToEye = headNode.Transform.WorldTranslation + EyeOffsetFromHead - rootNode.Transform.WorldTranslation;
+            Matrix4x4 rootPos = Matrix4x4.CreateTranslation(headsetEyeTfm.WorldTranslation - rootToEye);
             //yaw to face the direction of the headset
             var fwd = headNode.Transform.WorldForward;
             switch (fwd.Dot(Globals.Up))
@@ -109,7 +294,7 @@ namespace XREngine.Scene.Components.VR
             fwd.Y = 0.0f;
             fwd = Vector3.Normalize(fwd);
             float yaw = (float)Math.Atan2(fwd.X, fwd.Z);
-            rootNode.Transform.DeriveWorldMatrix(Matrix4x4.CreateRotationY(yaw) * translation);
+            rootNode.Transform.DeriveWorldMatrix(Matrix4x4.CreateRotationY(yaw) * rootPos);
         }
 
         public bool BeginCalibration()
@@ -129,41 +314,54 @@ namespace XREngine.Scene.Components.VR
             if (trackers is null) //No need to calibrate if there are no trackers
                 return false;
 
+            //Tell the humanoid to stop solving IK while we calibrate
+
+            //Root transform should follow the headset
             Headset.WorldMatrixChanged += UpdateRootTransform;
-            HeadTarget = h.HeadTarget;
-            HipsTarget = h.HipsTarget;
-            LeftHandTarget = h.LeftHandTarget;
-            RightHandTarget = h.RightHandTarget;
-            LeftFootTarget = h.LeftFootTarget;
-            RightFootTarget = h.RightFootTarget;
-            ChestTarget = h.ChestTarget;
-            LeftElbowTarget = h.LeftElbowTarget;
-            RightElbowTarget = h.RightElbowTarget;
-            LeftKneeTarget = h.LeftKneeTarget;
-            RightKneeTarget = h.RightKneeTarget;
-            h.ResetPose();
+
+            //Save the current targets before they're cleared
+            LastHeadTarget = h.HeadTarget;
+            LastHipsTarget = h.HipsTarget;
+            LastLeftHandTarget = h.LeftHandTarget;
+            LastRightHandTarget = h.RightHandTarget;
+            LastLeftFootTarget = h.LeftFootTarget;
+            LastRightFootTarget = h.RightFootTarget;
+            LastChestTarget = h.ChestTarget;
+            LastLeftElbowTarget = h.LeftElbowTarget;
+            LastRightElbowTarget = h.RightElbowTarget;
+            LastLeftKneeTarget = h.LeftKneeTarget;
+            LastRightKneeTarget = h.RightKneeTarget;
+
+            //Stop solving
             h.SolveIK = false;
+
+            //Clear all targets
+            h.ClearIKTargets();
+
+            //Reset the pose to T-pose
+            h.ResetPose();
+
             return true;
         }
 
-        public (TransformBase? tfm, Matrix4x4 offset) HeadTarget { get; set; } = (null, Matrix4x4.Identity);
-        public (TransformBase? tfm, Matrix4x4 offset) HipsTarget { get; set; } = (null, Matrix4x4.Identity);
+        #region Last state for canceling calibration
+        public (TransformBase? tfm, Matrix4x4 offset) LastHeadTarget { get; set; } = (null, Matrix4x4.Identity);
+        public (TransformBase? tfm, Matrix4x4 offset) LastHipsTarget { get; set; } = (null, Matrix4x4.Identity);
 
-        public (TransformBase? tfm, Matrix4x4 offset) LeftHandTarget { get; set; } = (null, Matrix4x4.Identity);
-        public (TransformBase? tfm, Matrix4x4 offset) RightHandTarget { get; set; } = (null, Matrix4x4.Identity);
+        public (TransformBase? tfm, Matrix4x4 offset) LastLeftHandTarget { get; set; } = (null, Matrix4x4.Identity);
+        public (TransformBase? tfm, Matrix4x4 offset) LastRightHandTarget { get; set; } = (null, Matrix4x4.Identity);
 
-        public (TransformBase? tfm, Matrix4x4 offset) LeftFootTarget { get; set; } = (null, Matrix4x4.Identity);
-        public (TransformBase? tfm, Matrix4x4 offset) RightFootTarget { get; set; } = (null, Matrix4x4.Identity);
+        public (TransformBase? tfm, Matrix4x4 offset) LastLeftFootTarget { get; set; } = (null, Matrix4x4.Identity);
+        public (TransformBase? tfm, Matrix4x4 offset) LastRightFootTarget { get; set; } = (null, Matrix4x4.Identity);
 
-        public (TransformBase? tfm, Matrix4x4 offset) LeftElbowTarget { get; set; } = (null, Matrix4x4.Identity);
-        public (TransformBase? tfm, Matrix4x4 offset) RightElbowTarget { get; set; } = (null, Matrix4x4.Identity);
+        public (TransformBase? tfm, Matrix4x4 offset) LastLeftElbowTarget { get; set; } = (null, Matrix4x4.Identity);
+        public (TransformBase? tfm, Matrix4x4 offset) LastRightElbowTarget { get; set; } = (null, Matrix4x4.Identity);
 
-        public (TransformBase? tfm, Matrix4x4 offset) LeftKneeTarget { get; set; } = (null, Matrix4x4.Identity);
-        public (TransformBase? tfm, Matrix4x4 offset) RightKneeTarget { get; set; } = (null, Matrix4x4.Identity);
+        public (TransformBase? tfm, Matrix4x4 offset) LastLeftKneeTarget { get; set; } = (null, Matrix4x4.Identity);
+        public (TransformBase? tfm, Matrix4x4 offset) LastRightKneeTarget { get; set; } = (null, Matrix4x4.Identity);
 
-        public (TransformBase? tfm, Matrix4x4 offset) ChestTarget { get; set; } = (null, Matrix4x4.Identity);
-
-        public float CalibrationRadius { get; set; } = 0.3f;
+        public (TransformBase? tfm, Matrix4x4 offset) LastChestTarget { get; set; } = (null, Matrix4x4.Identity);
+        #endregion
 
         public void EndCalibration()
         {
@@ -174,9 +372,9 @@ namespace XREngine.Scene.Components.VR
             if (h is null)
                 return;
 
-            h.HeadTarget = (Headset, Matrix4x4.Identity);
-            h.LeftHandTarget = (LeftController, Matrix4x4.Identity);
-            h.RightHandTarget = (RightController, Matrix4x4.Identity);
+            h.HeadTarget = (Headset, Matrix4x4.CreateTranslation(-EyeOffsetFromHead));
+            h.LeftHandTarget = (LeftController, LeftControllerOffset);
+            h.RightHandTarget = (RightController, RightControllerOffset);
 
             var t = GetTrackerCollection();
             if (t is not null)
@@ -227,8 +425,10 @@ namespace XREngine.Scene.Components.VR
         {
             closestTracker = null;
             offset = Matrix4x4.Identity;
+
             if (humanoidTfm is null)
                 return;
+
             var bodyPos = humanoidTfm.WorldTranslation;
             float closestDist = float.MaxValue;
             foreach ((VrDevice dev, VRTrackerTransform tracker) in trackerCollection.Trackers.Values)
@@ -253,17 +453,17 @@ namespace XREngine.Scene.Components.VR
             if (h is null)
                 return;
 
-            h.HeadTarget = HeadTarget;
-            h.LeftHandTarget = LeftHandTarget;
-            h.RightHandTarget = RightHandTarget;
-            h.HipsTarget = HipsTarget;
-            h.LeftFootTarget = LeftFootTarget;
-            h.RightFootTarget = RightFootTarget;
-            h.ChestTarget = ChestTarget;
-            h.LeftElbowTarget = LeftElbowTarget;
-            h.RightElbowTarget = RightElbowTarget;
-            h.LeftKneeTarget = LeftKneeTarget;
-            h.RightKneeTarget = RightKneeTarget;
+            h.HeadTarget = LastHeadTarget;
+            h.LeftHandTarget = LastLeftHandTarget;
+            h.RightHandTarget = LastRightHandTarget;
+            h.HipsTarget = LastHipsTarget;
+            h.LeftFootTarget = LastLeftFootTarget;
+            h.RightFootTarget = LastRightFootTarget;
+            h.ChestTarget = LastChestTarget;
+            h.LeftElbowTarget = LastLeftElbowTarget;
+            h.RightElbowTarget = LastRightElbowTarget;
+            h.LeftKneeTarget = LastLeftKneeTarget;
+            h.RightKneeTarget = LastRightKneeTarget;
             h.SolveIK = true;
         }
     }

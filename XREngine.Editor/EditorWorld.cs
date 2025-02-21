@@ -40,7 +40,7 @@ public static class EditorWorld
     //Unit testing toggles
     public const bool VisualizeOctree = false;
     public const bool VisualizeQuadtree = false;
-    public const bool Physics = true;
+    public const bool Physics = false;
     public const bool DirLight = true;
     public const bool SpotLight = false;
     public const bool DirLight2 = false;
@@ -51,15 +51,17 @@ public static class EditorWorld
     public const bool Spline = false; //Adds a 3D spline to the scene.
     public const bool DeferredDecal = false; //Adds a deferred decal to the scene.
     public const bool StaticModel = false; //Imports a scene model to be rendered.
-    public const bool AnimatedModel = true; //Imports a character model to be animated.
-    public const bool AddEditorUI = true; //Adds the full editor UI to the camera. Probably don't use this one a character pawn.
+    public const bool AnimatedModel = false; //Imports a character model to be animated.
+    public const bool AddEditorUI = false; //Adds the full editor UI to the camera. Probably don't use this one a character pawn.
     public const bool VRPawn = false; //Enables VR input and pawn.
     public const bool CharacterPawn = false; //Enables the player to physically locomote in the world. Requires a physical floor.
     public const bool ThirdPersonPawn = false; //If on desktop and character pawn is enabled, this will add a third person camera instead of first person.
     public const bool TestAnimation = true; //Adds test animations to the character pawn.
     public const bool PhysicsChain = true; //Adds a jiggle physics chain to the character pawn.
-    public const bool TransformTool = true; //Adds the transform tool to the scene for testing dragging and rotating etc.
+    public const bool TransformTool = false; //Adds the transform tool to the scene for testing dragging and rotating etc.
     public const bool AllowEditingInVR = false; //Allows the user to edit the scene from desktop in VR.
+    public const bool IKTest = true; //Adds an simple IK test tree to the scene.
+    public const bool Microphone = false; //Adds a microphone to the scene for testing audio capture.
 
     /// <summary>
     /// Creates a test world with a variety of objects for testing purposes.
@@ -69,6 +71,8 @@ public static class EditorWorld
     {
         Engine.Rendering.Settings.AllowBlendshapes = true;
         Engine.Rendering.Settings.AllowSkinning = true;
+        Engine.Rendering.Settings.RenderTransformLines = true;
+        Engine.Rendering.Settings.RenderTransformDebugInfo = true;
 
         string desktopDir = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
         //UnityPackageExtractor.ExtractAsync(Path.Combine(desktopDir, "Animations.unitypackage"), Path.Combine(desktopDir, "Extracted"), true);
@@ -123,6 +127,8 @@ public static class EditorWorld
             AddPointLight(rootNode);
         if (SoundNode)
             AddSoundNode(rootNode);
+        if (IKTest)
+            AddIKTest(rootNode);
         if (LightProbe || Skybox)
         {
             string[] names = [/*"warm_restaurant_4k",*/ "overcast_soil_puresky_4k", /*"studio_small_09_4k",*/ "klippad_sunrise_2_4k", "satara_night_4k"];
@@ -143,6 +149,37 @@ public static class EditorWorld
         ImportModels(desktopDir, rootNode, characterPawnNode ?? rootNode);
         
         return new XRWorld("Default World", scene);
+    }
+
+    private static void AddIKTest(SceneNode rootNode)
+    {
+        SceneNode ikTestRootNode = rootNode.NewChild();
+        ikTestRootNode.Name = "IKTestRootNode";
+        Transform tfmRoot = ikTestRootNode.GetTransformAs<Transform>(true)!;
+        tfmRoot.Translation = new Vector3(-2.0f, 0.0f, 0.0f);
+
+        SceneNode ikTest1Node = ikTestRootNode.NewChild();
+        ikTest1Node.Name = "IKTest1Node";
+        Transform tfm1 = ikTest1Node.GetTransformAs<Transform>(true)!;
+        tfm1.Translation = new Vector3(0.0f, 5.0f, 0.0f);
+
+        SceneNode ikTest2Node = ikTest1Node.NewChild();
+        ikTest2Node.Name = "IKTest2Node";
+        Transform tfm2 = ikTest2Node.GetTransformAs<Transform>(true)!;
+        tfm2.Translation = new Vector3(0.0f, 5.0f, 0.0f);
+
+        var comp = ikTestRootNode.AddComponent<SingleTargetIKComponent>()!;
+
+        var targetNode = rootNode.NewChild();
+        var targetTfm = targetNode.GetTransformAs<Transform>(true)!;
+        targetTfm.Translation = new Vector3(2.0f, 5.0f, 0.0f);
+        comp.TargetTransform = targetNode.Transform;
+
+        //Let the user move the target
+        EnableTransformToolForNode(targetNode, ETransformType.Translate);
+
+        string tree = ikTestRootNode.PrintTree();
+        Debug.Out(tree);
     }
 
     //Pawns are what the player controls in the game world.
@@ -255,9 +292,12 @@ public static class EditorWorld
         listener.Gain = 1.0f;
         listener.DistanceModel = DistanceModel.LinearDistanceClamped;
 
-        var microphone = cameraNode.AddComponent<MicrophoneComponent>()!;
-        microphone.Capture = !isServer;
-        microphone.Receive = isServer;
+        if (Microphone)
+        {
+            var microphone = cameraNode.AddComponent<MicrophoneComponent>()!;
+            microphone.Capture = !isServer;
+            microphone.Receive = isServer;
+        }
 
         var pawnComp = cameraNode.AddComponent<EditorFlyingCameraPawnComponent>();
         pawnComp!.Name = "TestPawn";
@@ -349,7 +389,8 @@ public static class EditorWorld
         probeComp.SetCaptureResolution(128, false);
         probeComp.RealtimeCapture = true;
         probeComp.PreviewDisplay = LightProbeComponent.ERenderPreview.Irradiance;
-        probeComp.RealTimeCaptureUpdateInterval = TimeSpan.FromSeconds(1.0f);
+        probeComp.RealTimeCaptureUpdateInterval = TimeSpan.FromMilliseconds(100.0f);
+        probeComp.StopRealtimeCaptureAfter = TimeSpan.FromSeconds(2.0f);
     }
 
     private static void AddDirLight(SceneNode rootNode)
@@ -888,25 +929,33 @@ public static class EditorWorld
         if (TransformTool)
         {
             //Put the transform tool on the head for testing
-            var head = comp!.Head?.Node?.Transform;
+            var head = comp!.Head?.Node?.Transform?.SceneNode;
             if (head is null)
                 return;
-            
-            //we have to wait for the scene node to be activated in the instance of the world before we can attach the transform tool
-            static void Edit(SceneNode x)
-            {
-                TransformTool3D.GetInstance(x.Transform, ETransformType.Translate);
-                x.Activated -= Edit;
-            }
-            if (head.SceneNode is not null)
-            {
-                if (head.SceneNode.IsActiveInHierarchy && head.SceneNode.World is not null)
-                    TransformTool3D.GetInstance(head, ETransformType.Translate);
-                else
-                    head.SceneNode.Activated += Edit;
-            }
+
+            EnableTransformToolForNode(head);
+            return;
         }
     }
+
+    private static void EnableTransformToolForNode(SceneNode? node, ETransformType transformType = ETransformType.Translate)
+    {
+        if (node is null)
+            return;
+        
+        //we have to wait for the scene node to be activated in the instance of the world before we can attach the transform tool
+        void Edit(SceneNode x)
+        {
+            TransformTool3D.GetInstance(x.Transform, transformType);
+            x.Activated -= Edit;
+        }
+
+        if (node.IsActiveInHierarchy && node.World is not null)
+            TransformTool3D.GetInstance(node.Transform, transformType);
+        else
+            node.Activated += Edit;
+    }
+
     private static readonly ConcurrentDictionary<string, XRTexture2D> _textureCache = new();
 
     public static XRMaterial MaterialFactory(string modelFilePath, string name, List<TextureSlot> textures, TextureFlags flags, ShadingMode mode, Dictionary<string, List<MaterialProperty>> properties)

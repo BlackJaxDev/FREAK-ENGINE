@@ -66,6 +66,9 @@ namespace XREngine.Scene.Transforms
         private Vector3 _scale = Vector3.One;
         //[TypeConverter(typeof(Vector3TypeConverter))]
         //[DefaultValue(typeof(Vector3), "1 1 1")]
+        /// <summary>
+        /// The local scale of this transform relative to its parent.
+        /// </summary>
         public Vector3 Scale
         {
             get => _scale;
@@ -73,12 +76,18 @@ namespace XREngine.Scene.Transforms
         }
 
         private Vector3 _translation = Vector3.Zero;
+        /// <summary>
+        /// The local translation of this transform relative to its parent.
+        /// </summary>
         public Vector3 Translation
         {
             get => _translation;
             set => SetField(ref _translation, value);
         }
 
+        /// <summary>
+        /// The local rotation of this transform relative to its parent, as a rotator (yaw, pitch and roll are separated).
+        /// </summary>
         [YamlIgnore]
         public Rotator Rotator
         {
@@ -89,6 +98,9 @@ namespace XREngine.Scene.Transforms
         private Quaternion _rotation = Quaternion.Identity;
         //[DefaultValue(typeof(Quaternion), "0 0 0 1")]
         //[TypeConverter(typeof(QuaternionTypeConverter))]
+        /// <summary>
+        /// The local rotation of this transform relative to its parent.
+        /// </summary>
         public Quaternion Rotation
         {
             get => _rotation;
@@ -96,6 +108,9 @@ namespace XREngine.Scene.Transforms
         }
 
         private EOrder _order = EOrder.TRS;
+        /// <summary>
+        /// The order of operations to calculate the final local matrix from translation, rotation and scale.
+        /// </summary>
         public EOrder Order
         {
             get => _order;

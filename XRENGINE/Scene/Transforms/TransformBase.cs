@@ -335,7 +335,6 @@ namespace XREngine.Scene.Transforms
                 })));
 
             return wasDepthAdded;
-            
         }
 
         public TransformBase? FindChild(string name, StringComparison comp = StringComparison.Ordinal)
