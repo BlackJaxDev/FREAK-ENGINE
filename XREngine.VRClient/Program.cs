@@ -13,7 +13,7 @@ namespace XREngine.VRClient
     {
         static void Main(string[] args)
         {
-            IVRGameStartupSettings settings = GenerateGameSettings();
+            IVRGameStartupSettings settings = GenerateSettings();
 
             // Check if this is already running
             var exists = Process.GetProcessesByName(Path.GetFileNameWithoutExtension(Assembly.GetEntryAssembly()?.Location)).Length > 1;
@@ -51,7 +51,7 @@ namespace XREngine.VRClient
             Engine.Run((GameStartupSettings)settings, new GameState());
         }
 
-        private static IVRGameStartupSettings GenerateGameSettings()
+        private static IVRGameStartupSettings GenerateSettings()
         {
             ModuleBuilder moduleBuilder = MakeDynamicAssemblyModule("DynamicEnums");
 
@@ -87,10 +87,8 @@ namespace XREngine.VRClient
 
             var gameProcess = Process.GetProcessesByName(name).FirstOrDefault();
             if (gameProcess != null)
-            {
                 return true;
-            }
-
+            
             var searchPaths = settings.GameSearchPaths;
             foreach (var (folder, relativePath) in searchPaths)
             {
@@ -133,7 +131,7 @@ namespace XREngine.VRClient
                 GameName = "FreakEngineGame",
                 GameSearchPaths =
                 [
-                        (Environment.SpecialFolder.ProgramFiles, "MyGameFolder")
+                    (Environment.SpecialFolder.ProgramFiles, "MyGameFolder")
                 ],
                 VRManifest = new VrManifest()
                 {
@@ -171,11 +169,11 @@ namespace XREngine.VRClient
             return settings;
         }
 
-        private static System.Collections.Generic.List<OpenVR.NET.Manifest.Action<TActionCategory, TGameAction>> GetActions<TActionCategory, TGameAction>()
+        private static List<OpenVR.NET.Manifest.Action<TActionCategory, TGameAction>> GetActions<TActionCategory, TGameAction>()
             where TActionCategory : struct, Enum
             where TGameAction : struct, Enum
         {
-            return new System.Collections.Generic.List<OpenVR.NET.Manifest.Action<TActionCategory, TGameAction>>();
+            return [];
         }
 
         private static XRWorld CreateFillerWorld()

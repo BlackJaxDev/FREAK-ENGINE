@@ -1,6 +1,4 @@
 ﻿using MathNet.Numerics.IntegralTransforms;
-using NAudio.Wave;
-using SevenZip.Buffer;
 using Silk.NET.OpenAL;
 using Silk.NET.OpenAL.Extensions.EXT;
 using System.Numerics;
@@ -13,13 +11,14 @@ namespace XREngine.Audio
     public sealed class AudioBuffer : XRBase, IDisposable, IPoolable
     {
         public ListenerContext ParentListener { get; }
-        public static AL Api => ListenerContext.Api;
+        public AL Api { get; }
         public uint Handle { get; private set; }
 
         internal AudioBuffer(ListenerContext parentListener)
         {
             ParentListener = parentListener;
-            Handle = ListenerContext.Api.GenBuffer();
+            Api = parentListener.Api;
+            Handle = Api.GenBuffer();
             ParentListener.VerifyError();
         }
 
@@ -91,7 +90,7 @@ namespace XREngine.Audio
             (float upperRange, EMagAccumMethod accum) treble)
         {
             int sampleCount = samples.Length;
-            Complex[] complexBuffer = samples.Select(x => new Complex(x, 0.0)).ToArray();
+            Complex[] complexBuffer = [.. samples.Select(x => new Complex(x, 0.0))];
             Fourier.Forward(complexBuffer, FourierOptions.Matlab);
 
             // Analyze the frequency bands
@@ -191,7 +190,7 @@ namespace XREngine.Audio
 
         void IPoolable.OnPoolableReset()
         {
-            Handle = ListenerContext.Api.GenBuffer();
+            Handle = Api.GenBuffer();
             //The user should call SetData to set the data for the buffer after taking it from the pool.
         }
 

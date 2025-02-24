@@ -19,10 +19,10 @@ internal static class EditorVR
             DefaultBindings =
             [
                 new DefaultBinding()
-                    {
-                        ControllerType = "knuckles",
-                        Path = "bindings_knuckles.json"
-                    }
+                {
+                    ControllerType = "knuckles",
+                    Path = "bindings_knuckles.json"
+                }
             ],
         };
         settings.VRManifest = new VrManifest()

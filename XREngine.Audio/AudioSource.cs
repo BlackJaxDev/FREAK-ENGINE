@@ -10,12 +10,13 @@ namespace XREngine.Audio
         internal AudioSource(ListenerContext parentListener)
         {
             ParentListener = parentListener;
-            Handle = ListenerContext.Api.GenSource();
+            Api = parentListener.Api;
+            Handle = Api.GenSource();
             ParentListener.VerifyError();
         }
 
         public ListenerContext ParentListener { get; }
-        public static AL Api => ListenerContext.Api;
+        public AL Api { get; }
         public uint Handle { get; private set; }
 
         public void Dispose()
@@ -224,11 +225,12 @@ namespace XREngine.Audio
 
         /// <summary>
         /// The type of the source, either Static, Streaming, or undetermined.
+        /// Source is set to Streaming if one or more buffers have been attached using SourceQueueBuffers.
         /// </summary>
         public ESourceType SourceType
         {
             get => ConvSourceType((SourceType)GetSourceType());
-            set => SetSourceType((int)ConvSourceType(value));
+            //set => SetSourceType((int)ConvSourceType(value));
         }
         /// <summary>
         /// If true, the source's position is relative to the listener.
@@ -460,11 +462,13 @@ namespace XREngine.Audio
             Api.SetSourceProperty(Handle, SourceInteger.Buffer, buffer);
             ParentListener.VerifyError();
         }
-        private void SetSourceType(int type)
-        {
-            Api.SetSourceProperty(Handle, SourceInteger.SourceType, type);
-            ParentListener.VerifyError();
-        }
+
+        //SourceType is read-only
+        //private void SetSourceType(int type)
+        //{
+        //    Api.SetSourceProperty(Handle, SourceInteger.SourceType, type);
+        //    ParentListener.VerifyError();
+        //}
 
         private Vector3 GetPosition()
         {
@@ -813,7 +817,7 @@ namespace XREngine.Audio
 
         void IPoolable.OnPoolableReset()
         {
-            Handle = ListenerContext.Api.GenSource();
+            Handle = Api.GenSource();
             ParentListener.VerifyError();
         }
 

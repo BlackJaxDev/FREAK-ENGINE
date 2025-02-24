@@ -14,8 +14,8 @@ namespace XREngine.Audio
         //destroy sources with lower priority first to make room for higher priority sources.
         //0 is the lowest priority, 255 is the highest priority.
 
-        public static AL Api { get; } = AL.GetApi();
-        public static ALContext Context { get; } = ALContext.GetApi(true);
+        public AL Api { get; } = AL.GetApi();
+        public ALContext Context { get; }
 
         internal Device* DeviceHandle { get; }
         internal Context* ContextHandle { get; }
@@ -38,9 +38,6 @@ namespace XREngine.Audio
 
         internal ListenerContext()
         {
-            SourcePool = new ResourcePool<AudioSource>(() => new AudioSource(this));
-            BufferPool = new ResourcePool<AudioBuffer>(() => new AudioBuffer(this));
-
             if (Api.TryGetExtension<VorbisFormat>(out var vorbisFormat))
                 VorbisFormat = vorbisFormat;
             if (Api.TryGetExtension<MP3Format>(out var mp3Format))
@@ -63,24 +60,29 @@ namespace XREngine.Audio
             if (Api.TryGetExtension<XRam>(out var xram))
                 XRam = xram;
 
-            string deviceSpecifier = "";
-            if (Context.TryGetExtension<Enumeration>(null, out var e))
-            {
-                var stringList = e.GetStringList(GetEnumerationContextStringList.DeviceSpecifiers);
-                foreach (var device in stringList)
-                {
-                    Debug.WriteLine($"Found audio device \"{device}\"");
-                    deviceSpecifier = device;
-                }
-                e.Dispose();
-            }
+            Context = ALContext.GetApi(false);
+
+            //string deviceSpecifier = "";
+            //if (Context.TryGetExtension<Enumeration>(null, out var e))
+            //{
+            //    var stringList = e.GetStringList(GetEnumerationContextStringList.DeviceSpecifiers);
+            //    foreach (var device in stringList)
+            //    {
+            //        Debug.WriteLine($"Found audio device \"{device}\"");
+            //        deviceSpecifier = device;
+            //    }
+            //    e.Dispose();
+            //}
 
             DeviceHandle = Context.OpenDevice(null);
             ContextHandle = Context.CreateContext(DeviceHandle, null);
-            if (Context.TryGetExtension<Capture>(DeviceHandle, out var captureExtension))
-                Capture = captureExtension;
+            //if (Context.TryGetExtension<Capture>(DeviceHandle, out var captureExtension))
+            //    Capture = captureExtension;
             MakeCurrent();
             VerifyError();
+
+            SourcePool = new ResourcePool<AudioSource>(() => new AudioSource(this));
+            BufferPool = new ResourcePool<AudioBuffer>(() => new AudioBuffer(this));
         }
 
         public static ListenerContext? CurrentContext { get; private set; }

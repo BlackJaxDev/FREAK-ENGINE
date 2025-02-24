@@ -40,12 +40,12 @@ public static class EditorWorld
     //Unit testing toggles
     public const bool VisualizeOctree = false;
     public const bool VisualizeQuadtree = false;
-    public const bool Physics = false;
+    public const bool Physics = true;
     public const bool DirLight = true;
     public const bool SpotLight = false;
     public const bool DirLight2 = false;
     public const bool PointLight = false;
-    public const bool SoundNode = false;
+    public const bool SoundNode = true;
     public const bool LightProbe = true; //Adds a test light probe to the scene for PBR lighting.
     public const bool Skybox = true;
     public const bool Spline = false; //Adds a 3D spline to the scene.
@@ -54,7 +54,7 @@ public static class EditorWorld
     public const bool AnimatedModel = false; //Imports a character model to be animated.
     public const bool AddEditorUI = false; //Adds the full editor UI to the camera. Probably don't use this one a character pawn.
     public const bool VRPawn = false; //Enables VR input and pawn.
-    public const bool CharacterPawn = false; //Enables the player to physically locomote in the world. Requires a physical floor.
+    public const bool CharacterPawn = true; //Enables the player to physically locomote in the world. Requires a physical floor.
     public const bool ThirdPersonPawn = false; //If on desktop and character pawn is enabled, this will add a third person camera instead of first person.
     public const bool TestAnimation = true; //Adds test animations to the character pawn.
     public const bool PhysicsChain = true; //Adds a jiggle physics chain to the character pawn.
@@ -766,7 +766,7 @@ public static class EditorWorld
         soundComp.ReferenceDistance = 1.0f;
         //soundComp.MaxDistance = 100.0f;
         soundComp.RolloffFactor = 1.0f;
-        soundComp.Gain = 10.0f;
+        soundComp.Gain = 0.1f;
         soundComp.Loop = true;
         soundComp.Type = ESourceType.Static;
         soundComp.StaticBuffer = data;

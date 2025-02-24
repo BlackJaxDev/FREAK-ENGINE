@@ -354,109 +354,106 @@ namespace XREngine.Components.Scene
         protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
         {
             base.OnPropertyChanged(propName, prev, field);
-            //Engine.EnqueueMainThreadTask(() =>
-            //{
-                switch (propName)
-                {
-                    case nameof(RolloffFactor):
-                        lock (ActiveListeners)
-                        {
-                            foreach (var source in ActiveListeners.Values)
-                                source.RolloffFactor = RolloffFactor;
-                        }
-                        break;
-                    case nameof(ReferenceDistance):
-                        lock (ActiveListeners)
-                        {
-                            foreach (var source in ActiveListeners.Values)
-                                source.ReferenceDistance = ReferenceDistance;
-                        }
-                        break;
-                    case nameof(MaxDistance):
-                        lock (ActiveListeners)
-                        {
-                            foreach (var source in ActiveListeners.Values)
-                                source.MaxDistance = MaxDistance;
-                        }
-                        break;
-                    case nameof(RelativeToListener):
-                        lock (ActiveListeners)
-                        {
-                            foreach (var source in ActiveListeners.Values)
-                                source.RelativeToListener = RelativeToListener;
-                        }
-                        break;
-                case nameof(Type):
+            switch (propName)
+            {
+                case nameof(RolloffFactor):
                     lock (ActiveListeners)
                     {
                         foreach (var source in ActiveListeners.Values)
-                            source.SourceType = Type;
+                            source.RolloffFactor = RolloffFactor;
                     }
                     break;
-                case nameof(Loop):
-                        lock (ActiveListeners)
-                        {
-                            foreach (var source in ActiveListeners.Values)
-                                source.Looping = Loop;
-                        }
-                        break;
-                    case nameof(Pitch):
-                        lock (ActiveListeners)
-                        {
-                            foreach (var source in ActiveListeners.Values)
-                                source.Pitch = Pitch;
-                        }
-                        break;
-                    case nameof(MinGain):
-                        lock (ActiveListeners)
-                        {
-                            foreach (var source in ActiveListeners.Values)
-                                source.MinGain = MinGain;
-                        }
-                        break;
-                    case nameof(MaxGain):
-                        lock (ActiveListeners)
-                        {
-                            foreach (var source in ActiveListeners.Values)
-                                source.MaxGain = MaxGain;
-                        }
-                        break;
-                    case nameof(Gain):
-                        lock (ActiveListeners)
-                        {
-                            foreach (var source in ActiveListeners.Values)
-                                source.Gain = Gain;
-                        }
-                        break;
-                    case nameof(ConeInnerAngle):
-                        lock (ActiveListeners)
-                        {
-                            foreach (var source in ActiveListeners.Values)
-                                source.ConeInnerAngle = ConeInnerAngle;
-                        }
-                        break;
-                    case nameof(ConeOuterAngle):
-                        lock (ActiveListeners)
-                        {
-                            foreach (var source in ActiveListeners.Values)
-                                source.ConeOuterAngle = ConeOuterAngle;
-                        }
-                        break;
-                    case nameof(ConeOuterGain):
-                        lock (ActiveListeners)
-                        {
-                            foreach (var source in ActiveListeners.Values)
-                                source.ConeOuterGain = ConeOuterGain;
-                        }
-                        break;
-                    case nameof(State):
-                        StateChanged();
-                        break;
-                    case nameof(StaticBuffer):
-                        StaticBufferChanged();
-                        break;
-                }
-            //});
+                case nameof(ReferenceDistance):
+                    lock (ActiveListeners)
+                    {
+                        foreach (var source in ActiveListeners.Values)
+                            source.ReferenceDistance = ReferenceDistance;
+                    }
+                    break;
+                case nameof(MaxDistance):
+                    lock (ActiveListeners)
+                    {
+                        foreach (var source in ActiveListeners.Values)
+                            source.MaxDistance = MaxDistance;
+                    }
+                    break;
+                case nameof(RelativeToListener):
+                    lock (ActiveListeners)
+                    {
+                        foreach (var source in ActiveListeners.Values)
+                            source.RelativeToListener = RelativeToListener;
+                    }
+                    break;
+            case nameof(Type):
+                //lock (ActiveListeners)
+                //{
+                //    foreach (var source in ActiveListeners.Values)
+                //        source.SourceType = Type;
+                //}
+                break;
+            case nameof(Loop):
+                    lock (ActiveListeners)
+                    {
+                        foreach (var source in ActiveListeners.Values)
+                            source.Looping = Loop;
+                    }
+                    break;
+                case nameof(Pitch):
+                    lock (ActiveListeners)
+                    {
+                        foreach (var source in ActiveListeners.Values)
+                            source.Pitch = Pitch;
+                    }
+                    break;
+                case nameof(MinGain):
+                    lock (ActiveListeners)
+                    {
+                        foreach (var source in ActiveListeners.Values)
+                            source.MinGain = MinGain;
+                    }
+                    break;
+                case nameof(MaxGain):
+                    lock (ActiveListeners)
+                    {
+                        foreach (var source in ActiveListeners.Values)
+                            source.MaxGain = MaxGain;
+                    }
+                    break;
+                case nameof(Gain):
+                    lock (ActiveListeners)
+                    {
+                        foreach (var source in ActiveListeners.Values)
+                            source.Gain = Gain;
+                    }
+                    break;
+                case nameof(ConeInnerAngle):
+                    lock (ActiveListeners)
+                    {
+                        foreach (var source in ActiveListeners.Values)
+                            source.ConeInnerAngle = ConeInnerAngle;
+                    }
+                    break;
+                case nameof(ConeOuterAngle):
+                    lock (ActiveListeners)
+                    {
+                        foreach (var source in ActiveListeners.Values)
+                            source.ConeOuterAngle = ConeOuterAngle;
+                    }
+                    break;
+                case nameof(ConeOuterGain):
+                    lock (ActiveListeners)
+                    {
+                        foreach (var source in ActiveListeners.Values)
+                            source.ConeOuterGain = ConeOuterGain;
+                    }
+                    break;
+                case nameof(State):
+                    StateChanged();
+                    break;
+                case nameof(StaticBuffer):
+                    StaticBufferChanged();
+                    break;
+            }
         }
 
         private void StateChanged()
@@ -542,12 +539,9 @@ namespace XREngine.Components.Scene
 
         private void UpdatePosition()
         {
-            //Engine.EnqueueMainThreadTask(() =>
-            //{
-                Vector3 worldPosition = Transform.WorldTranslation;
-                UpdateValidListeners(worldPosition);
-                UpdateOrientation(worldPosition);
-            //});
+            Vector3 worldPosition = Transform.WorldTranslation;
+            UpdateValidListeners(worldPosition);
+            UpdateOrientation(worldPosition);
         }
 
         private void UpdateOrientation(Vector3 worldPosition)
@@ -630,7 +624,7 @@ namespace XREngine.Components.Scene
         private AudioSource AddSource(ListenerContext x)
         {
             var s = x.TakeSource();
-            s.SourceType = Type;
+            //s.SourceType = Type;
             s.RolloffFactor = RolloffFactor;
             s.ReferenceDistance = ReferenceDistance;
             s.MaxDistance = MaxDistance;
