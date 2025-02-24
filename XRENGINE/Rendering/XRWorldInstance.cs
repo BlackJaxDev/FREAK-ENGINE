@@ -139,14 +139,14 @@ namespace XREngine.Rendering
         public void GlobalCollectVisible()
         {
             VisualScene.GlobalCollectVisible();
-            PhysicsScene.DebugRenderCollect();
+            //PhysicsScene.DebugRenderCollect();
             Lights.CollectVisibleItems();
         }
 
         private void GlobalSwapBuffers()
         {
             VisualScene.GlobalSwapBuffers();
-            PhysicsScene.SwapDebugBuffers();
+            //PhysicsScene.SwapDebugBuffers();
             Lights.SwapBuffers();
         }
 

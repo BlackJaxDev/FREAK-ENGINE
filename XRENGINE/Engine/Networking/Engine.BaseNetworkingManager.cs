@@ -12,6 +12,94 @@ namespace XREngine
 {
     public static partial class Engine
     {
+        public enum EStateChangeType : byte
+        {
+            /// <summary>
+            /// Invalid state change type.
+            /// </summary>
+            Invalid = 0,
+            /// <summary>
+            /// Sent by the server to all clients when the world changes.
+            /// Sent by a client to the server to request to change the world.
+            /// </summary>
+            WorldChange,
+            /// <summary>
+            /// Sent by the server to all clients when the game mode changes.
+            /// Sent by a client to the server to request to change the game mode.
+            /// </summary>
+            GameModeChange,
+            /// <summary>
+            /// Sent by the server to all clients when a pawn changes possession.
+            /// Sent by a client to the server to request to change possession of a pawn.
+            /// </summary>
+            PawnPossessionChange,
+            /// <summary>
+            /// Sent by the server to all clients when a world object is created.
+            /// Sent by a client to the server to request to create a world object.
+            /// </summary>
+            WorldObjectCreated,
+            /// <summary>
+            /// Sent by the server to all clients when a world object is destroyed.
+            /// Sent by a client to the server to request to destroy a world object.
+            /// </summary>
+            WorldObjectDestroyed,
+            /// <summary>
+            /// Sent by the server to all clients when a scene node is created.
+            /// Sent by a client to the server to request to create a scene node.
+            /// </summary>
+            SceneNodeCreated,
+            /// <summary>
+            /// Sent by the server to all clients when a scene node is destroyed.
+            /// Sent by a client to the server to request to destroy a scene node.
+            /// </summary>
+            SceneNodeDestroyed,
+            /// <summary>
+            /// Sent by the server to all clients when a component is created.
+            /// Sent by a client to the server to request to create a component.
+            /// </summary>
+            ComponentCreated,
+            /// <summary>
+            /// Sent by the server to all clients when a component is destroyed.
+            /// Sent by a client to the server to request to destroy a component.
+            /// </summary>
+            ComponentDestroyed,
+            /// <summary>
+            /// Sent by a client to the server to request to join the game.
+            /// Sent by the server to all clients when a player joins.
+            /// </summary>
+            PlayerJoin,
+            /// <summary>
+            /// Sent by a client to the server to request to join the game.
+            /// Sent by the server to all clients when a player leaves.
+            /// </summary>
+            PlayerLeave,
+            /// <summary>
+            /// Sent by the server to all clients to update the location of a player.
+            /// </summary>
+            PlayerLocationUpdate,
+            /// <summary>
+            /// Sent by a client to the server to receive updates for player (usually if they're close enough to be relevant).
+            /// </summary>
+            RequestPlayerUpdates,
+            /// <summary>
+            /// Sent by a client to the server to stop receiving updates for a player.
+            /// </summary>
+            UnrequestPlayerUpdates,
+        }
+
+        public class StateChangeInfo
+        {
+            public StateChangeInfo() { }
+            public StateChangeInfo(EStateChangeType type, string data)
+            {
+                Type = type;
+                Data = data;
+            }
+
+            public EStateChangeType Type { get; set; }
+            public string Data { get; set; } = string.Empty;
+        }
+
         public abstract class BaseNetworkingManager : XRBase
         {
             protected ConcurrentQueue<(ushort sequenceNum, byte[])> UdpSendQueue { get; } = new();
@@ -51,17 +139,27 @@ namespace XREngine
                 {
                     UdpReceiveResult result = await UdpReceiver.ReceiveAsync();
                     byte[] allData = result.Buffer;
-                    int maxLen = _udpBufferOffset + allData.Length;
+                    int maxLen = _udpBufferSize + allData.Length;
                     while (maxLen > _udpInBuffer.Length)
                     {
                         Debug.Out($"UDP buffer overflow, doubling buffer size to {_udpInBuffer.Length * 2}");
                         byte[] newBuffer = new byte[_udpInBuffer.Length * 2];
-                        Buffer.BlockCopy(_udpInBuffer, 0, newBuffer, 0, _udpBufferOffset);
+                        Buffer.BlockCopy(_udpInBuffer, 0, newBuffer, 0, _udpBufferSize);
                         _udpInBuffer = newBuffer;
                     }
-                    Buffer.BlockCopy(allData, 0, _udpInBuffer, _udpBufferOffset, allData.Length);
-                    _udpBufferOffset += allData.Length;
-                    ReadReceivedData(_udpInBuffer, ref _udpBufferOffset, _decompBuffer);
+                    Buffer.BlockCopy(allData, 0, _udpInBuffer, _udpBufferSize, allData.Length);
+                    _udpBufferSize += allData.Length;
+                    _udpBufferSize -= ReadReceivedData(_udpInBuffer, _udpBufferSize, _decompBuffer);
+                    if (_udpBufferSize < 0)
+                    {
+                        Debug.Out($"UDP buffer underflow, resetting buffer");
+                        _udpBufferSize = 0;
+                    }
+                    else if (_udpBufferSize > 0)
+                    {
+                        Debug.Out($"UDP buffer has {_udpBufferSize} bytes extra bytes, clearing.");
+                        _udpBufferSize = 0;
+                    }
                 }
             }
             public virtual async void ConsumeQueues()
@@ -138,9 +236,8 @@ namespace XREngine
                     return;
                 
                 float oldest = Engine.ElapsedTime - MaxRoundTripSec;
-                ushort[] keys = new ushort[_rttBuffer.Count];
-                _rttBuffer.Keys.CopyTo(keys, 0);
-                foreach (ushort key in keys)
+
+                foreach (ushort key in _rttBuffer.Keys)
                 {
                     if (!_rttBuffer.TryGetValue(key, out float time) || time >= oldest)
                         continue;
@@ -150,12 +247,17 @@ namespace XREngine
                 }
             }
 
+            //3 bits
             public enum EBroadcastType : byte
             {
-                Full,
+                StateChange,
+                Object,
                 Property,
                 Data,
-                Transform
+                Transform,
+                Unused5,
+                Unused6,
+                Unused7,
             }
 
             //protocol header is only 3 bytes so the flag can come right after to align back to 4 bytes
@@ -192,16 +294,9 @@ namespace XREngine
             /// </summary>
             /// <param name="obj"></param>
             /// <param name="compress"></param>
-            public void Broadcast(XRWorldObjectBase obj, bool compress)
+            public void ReplicateObject(XRWorldObjectBase obj, bool compress)
             {
-                //if (!obj.HasNetworkAuthority)
-                //    return;
-
-                bool connected = UDPServerConnectionEstablished;
-                if (!connected)
-                    return;
-
-                void EncodeAndQueue() => Send(obj.ID, compress, Encoding.UTF8.GetBytes(AssetManager.Serializer.Serialize(obj)), EBroadcastType.Full);
+                void EncodeAndQueue() => Send(obj.ID, compress, Encoding.UTF8.GetBytes(AssetManager.Serializer.Serialize(obj)), EBroadcastType.Object);
                 Task.Run(EncodeAndQueue);
             }
 
@@ -212,16 +307,8 @@ namespace XREngine
             /// <param name="value"></param>
             /// <param name="idStr"></param>
             /// <param name="compress"></param>
-            public void BroadcastData(XRWorldObjectBase obj, object value, string idStr, bool compress)
+            public void ReplicateData(XRWorldObjectBase obj, object value, string idStr, bool compress)
             {
-                //if (!obj.HasNetworkAuthority)
-                //    return;
-
-                //bool connected = UDPServerConnectionEstablished;
-                //if (!connected)
-                //    return;
-
-                //Debug.Out($"Broadcasting data: {idStr} {value}");
                 void EncodeAndQueue() => Send(obj.ID, compress, Encoding.UTF8.GetBytes(AssetManager.Serializer.Serialize((idStr, value))), EBroadcastType.Data);
                 Task.Run(EncodeAndQueue);
             }
@@ -234,15 +321,8 @@ namespace XREngine
             /// <param name="propName"></param>
             /// <param name="value"></param>
             /// <param name="compress"></param>
-            public void BroadcastPropertyUpdated<T>(XRWorldObjectBase obj, string? propName, T? value, bool compress)
+            public void ReplicatePropertyUpdated<T>(XRWorldObjectBase obj, string? propName, T? value, bool compress)
             {
-                //if (!obj.HasNetworkAuthority)
-                //    return;
-
-                bool connected = UDPServerConnectionEstablished;
-                if (!connected)
-                    return;
-
                 void EncodeAndQueue() => Send(obj.ID, compress, Encoding.UTF8.GetBytes(AssetManager.Serializer.Serialize((propName, value))), EBroadcastType.Property);
                 Task.Run(EncodeAndQueue);
             }
@@ -252,13 +332,20 @@ namespace XREngine
             /// The transform handles the encoding and decoding of its own data.
             /// </summary>
             /// <param name="transform"></param>
-            public void BroadcastTransform(TransformBase transform)
+            public void ReplicateTransform(TransformBase transform)
             {
-                bool connected = UDPServerConnectionEstablished;
-                if (!connected)
-                    return;
-
                 void EncodeAndQueue() => Send(transform.ID, false, transform.EncodeToBytes(), EBroadcastType.Transform);
+                Task.Run(EncodeAndQueue);
+            }
+
+            /// <summary>
+            /// This is a special method that broadcasts engine state changes that aren't tied to GUIDs between clients and the server.
+            /// </summary>
+            /// <param name="data"></param>
+            /// <param name="compress"></param>
+            public void ReplicateStateChange(StateChangeInfo data, bool compress)
+            {
+                void EncodeAndQueue() => Send(Guid.Empty, compress, Encoding.UTF8.GetBytes(AssetManager.Serializer.Serialize(data)), EBroadcastType.StateChange);
                 Task.Run(EncodeAndQueue);
             }
 
@@ -268,8 +355,7 @@ namespace XREngine
             protected byte[] Send(Guid id, bool compress, byte[] data, EBroadcastType type)
             {
                 ushort[] acks = ReadRemoteSeqs();
-
-                byte flags = (byte)(((byte)type << 1) | (compress ? 1 : 0));
+                byte flags = EncodeFlags(compress, type);
                 _localSequence = _localSequence == ushort.MaxValue ? (ushort)0 : (ushort)(_localSequence + 1);
                 ushort seq = _localSequence;
                 bool noSeq = acks.Length == 0;
@@ -314,6 +400,20 @@ namespace XREngine
                 }
                 EnqueueBroadcast(seq, allData);
                 return data;
+            }
+
+            private static byte EncodeFlags(bool compress, EBroadcastType type)
+            {
+                byte flags = 0;
+                if (compress)
+                    flags |= 1;
+                flags |= (byte)((byte)type << 1);
+                return flags;
+            }
+            private static void DecodeFlags(out bool compressed, out EBroadcastType type, byte flags)
+            {
+                compressed = (flags & 1) == 1;
+                type = (EBroadcastType)((flags >> 1) & 0b111);
             }
 
             private ushort[] ReadRemoteSeqs()
@@ -369,23 +469,14 @@ namespace XREngine
 
             protected byte[] _decompBuffer = new byte[400000];
             protected byte[] _udpInBuffer = new byte[4096];
-            protected int _udpBufferOffset = 0;
-            private (bool compress, EBroadcastType type, ushort seq, ushort ack, uint ackBitfield, int dataLength)? _lastConsumedHeader;
+            protected int _udpBufferSize = 0;
+            //private (bool compress, EBroadcastType type, ushort seq, ushort ack, uint ackBitfield, int dataLength)? _lastConsumedHeader;
             
-            protected void ReadReceivedData(byte[] inBuf, ref int availableDataLen, byte[] decompBuffer)
+            protected int ReadReceivedData(byte[] inBuf, int availableDataLen, byte[] decompBuffer)
             {
                 int offset = 0;
-                while (EnoughDataLeft(availableDataLen))
+                while (availableDataLen >= HeaderLen && offset < availableDataLen)
                 {
-                    //If we were in the middle of reading a packet, finish it
-                    if (_lastConsumedHeader is not null)
-                    {
-                        (bool compress, EBroadcastType type, ushort seq, ushort ack, uint ackBitfield, int dataLength) header = _lastConsumedHeader.Value;
-                        ReadPacketData(header.compress, header.type, inBuf, ref availableDataLen, decompBuffer, ref offset, header.dataLength);
-                        _lastConsumedHeader = null;
-                        continue;
-                    }
-
                     //Search for protocol
                     byte[] protocol = new byte[3];
                     for (int i = 0; i < 3; i++)
@@ -394,15 +485,12 @@ namespace XREngine
                     {
                         //Skip to next byte
                         offset++;
-                        availableDataLen--;
                         continue;
                     }
 
                     //We have a protocol match
                     offset += 3;
-                    availableDataLen -= 3;
 
-                    int startOffset = offset;
                     ReadHeader(
                         inBuf,
                         ref offset,
@@ -412,7 +500,6 @@ namespace XREngine
                         out ushort ack,
                         out uint ackBitfield,
                         out int dataLength);
-                    availableDataLen -= offset - startOffset;
 
                     WriteToRemoteSeqs(seq);
 
@@ -424,42 +511,22 @@ namespace XREngine
                         if ((ackBitfield & (1 << i)) != 0)
                             AcknowledgeSeq((ushort)(ack - i - 1));
 
-                    if (availableDataLen < dataLength)
-                    {
-                        //Not enough data to read the full packet, save the header and wait for more data
-                        _lastConsumedHeader = (compressed, type, seq, ack, ackBitfield, dataLength);
-                        break;
-                    }
-                    else //We can parse the full packet now
-                        ReadPacketData(compressed, type, inBuf, ref availableDataLen, decompBuffer, ref offset, dataLength);
+                    if (availableDataLen >= offset + dataLength)
+                        offset += ReadPacketData(compressed, type, inBuf, decompBuffer, offset, dataLength);
+                    else
+                        return 0; //Not enough data to read packet, don't progress offset
                 }
-                if (availableDataLen < 0)
-                    throw new Exception("UDP buffer offset is negative");
-            }
-
-            private bool EnoughDataLeft(int availableDataLen)
-            {
-                var lastHeader = _lastConsumedHeader;
-                if (lastHeader.HasValue)
-                {
-                    //If we have a header, we need to check if we have enough data to read the header's full packet
-                    bool compressed = lastHeader.Value.compress;
-                    int dataLen = lastHeader.Value.dataLength;
-
-                    //Uncompressed data length does not include the guid
-                    if (!compressed)
-                        dataLen += GuidLen;
-
-                    return availableDataLen >= dataLen;
-                }
-                else //If we don't have a header, we need to check if we have enough data to read at least a header
-                    return availableDataLen >= HeaderLen;
+                return offset;
             }
 
             private void AcknowledgeSeq(ushort ackedSeq)
             {
                 if (_rttBuffer.TryRemove(ackedSeq, out float time))
                     UpdateRTT(Engine.ElapsedTime - time);
+
+                //Can't print here because it will be repeated up to 32 extra times according to the ack bitfield
+                //else
+                //    Debug.Out($"Failed to acknowledge sequence number: {ackedSeq}");
             }
 
             private float _averageRTT = 0.0f;
@@ -494,54 +561,63 @@ namespace XREngine
                 out uint ackBitfield,
                 out int dataLength)
             {
-                byte flag = inBuf[offset++];
-                compressed = (flag & 1) == 1;
-                type = (EBroadcastType)((flag >> 1) & 3);
+                DecodeFlags(out compressed, out type, inBuf[offset++]);
+
                 seq = BitConverter.ToUInt16(inBuf, offset);
                 offset += 2;
+
                 ack = BitConverter.ToUInt16(inBuf, offset);
                 offset += 2;
+
                 ackBitfield = BitConverter.ToUInt32(inBuf, offset);
                 offset += 4;
+
                 dataLength = BitConverter.ToInt32(inBuf, offset);
                 offset += 4;
             }
 
-            private static void ReadPacketData(
+            private static int ReadPacketData(
                 bool compressed,
                 EBroadcastType type,
                 byte[] inBuf,
-                ref int availableDataLen,
                 byte[] decompBuffer,
-                ref int offset,
+                int offset,
                 int dataLength)
             {
-                //Debug.Out($"Reading {(compressed ? "compressed" : "")} packet data of length {dataLength}");
-                if (compressed)
-                {
-                    //Compressed data length includes the guid
-                    availableDataLen -= dataLength;
+                int readLen = dataLength;
+                if (!compressed)
+                    readLen += GuidLen;
 
-                    int decompLen = Compression.Decompress(inBuf, offset, dataLength, decompBuffer, 0);
-                    Propogate(
-                        new Guid([.. decompBuffer.Take(GuidLen)]),
-                        type,
-                        decompBuffer,
-                        GuidLen,
-                        decompLen - GuidLen);
-                }
-                else
+                Task.Run(() =>
                 {
-                    //Uncompressed data length does not include the guid
-                    availableDataLen -= dataLength + GuidLen;
+                    if (compressed)
+                        ReadCompressed(type, inBuf, decompBuffer, offset, dataLength);
+                    else
+                        ReadUncompressed(type, inBuf, offset, dataLength);
+                });
+                
+                return readLen;
+            }
 
-                    Propogate(
-                        new Guid([.. inBuf.Take(GuidLen)]),
-                        type,
-                        inBuf,
-                        offset + GuidLen,
-                        dataLength - GuidLen);
-                }
+            private static void ReadUncompressed(EBroadcastType type, byte[] inBuf, int offset, int dataLength)
+            {
+                Propogate(
+                    new Guid([.. inBuf.Take(GuidLen)]),
+                    type,
+                    inBuf,
+                    offset + GuidLen,
+                    dataLength);
+            }
+
+            private static void ReadCompressed(EBroadcastType type, byte[] inBuf, byte[] decompBuffer, int offset, int dataLength)
+            {
+                int decompLen = Compression.Decompress(inBuf, offset, dataLength, decompBuffer, 0);
+                Propogate(
+                    new Guid([.. decompBuffer.Take(GuidLen)]),
+                    type,
+                    decompBuffer,
+                    GuidLen,
+                    decompLen - GuidLen);
             }
 
             //protected static void ReadHeader(
@@ -576,7 +652,7 @@ namespace XREngine
 
                 switch (type)
                 {
-                    case EBroadcastType.Full:
+                    case EBroadcastType.Object:
                         {
                             var newObj = AssetManager.Deserializer.Deserialize(dataStr, worldObj.GetType()) as XRWorldObjectBase;
                             if (newObj is not null)
@@ -631,6 +707,90 @@ namespace XREngine
                         flags |= ETransformValueFlags.Ints;
                 }
                 return flags;
+            }
+
+            public static async Task SendFileAsync(string filePath, string targetIP, int port, IProgress<double> progress)
+            {
+                var fileInfo = new FileInfo(filePath);
+                long fileLength = fileInfo.Length;
+
+                using TcpClient client = new();
+                await client.ConnectAsync(targetIP, port);
+                using NetworkStream ns = client.GetStream();
+
+                byte[] lengthBytes = BitConverter.GetBytes(fileLength);
+                await ns.WriteAsync(lengthBytes);
+
+                byte[] buffer = new byte[8192];
+                long totalSent = 0;
+                using FileStream fs = File.OpenRead(filePath);
+                int bytesRead;
+                while ((bytesRead = await fs.ReadAsync(buffer)) > 0)
+                {
+                    await ns.WriteAsync(buffer.AsMemory(0, bytesRead));
+                    totalSent += bytesRead;
+                    progress.Report((double)totalSent / fileLength * 100);
+                }
+            }
+
+            public static async Task SendStreamAsync(Stream stream, string targetIP, int port, IProgress<double> progress)
+            {
+                long fileLength = stream.Length;
+                using TcpClient client = new();
+                await client.ConnectAsync(targetIP, port);
+                using NetworkStream ns = client.GetStream();
+                byte[] lengthBytes = BitConverter.GetBytes(fileLength);
+                await ns.WriteAsync(lengthBytes);
+                byte[] buffer = new byte[8192];
+                long totalSent = 0;
+                int bytesRead;
+                while ((bytesRead = await stream.ReadAsync(buffer)) > 0)
+                {
+                    await ns.WriteAsync(buffer.AsMemory(0, bytesRead));
+                    totalSent += bytesRead;
+                    progress.Report((double)totalSent / fileLength * 100);
+                }
+            }
+
+            public static async Task ReceiveFileAsync(string filePath, int port, IProgress<double> progress)
+            {
+                using TcpListener listener = new(IPAddress.Any, port);
+                listener.Start();
+                using TcpClient client = await listener.AcceptTcpClientAsync();
+                using NetworkStream ns = client.GetStream();
+                byte[] lengthBytes = new byte[8];
+                await ns.ReadExactlyAsync(lengthBytes);
+                long fileLength = BitConverter.ToInt64(lengthBytes);
+                byte[] buffer = new byte[8192];
+                long totalReceived = 0;
+                using FileStream fs = File.OpenWrite(filePath);
+                int bytesRead;
+                while (totalReceived < fileLength && (bytesRead = await ns.ReadAsync(buffer)) > 0)
+                {
+                    await fs.WriteAsync(buffer.AsMemory(0, bytesRead));
+                    totalReceived += bytesRead;
+                    progress.Report((double)totalReceived / fileLength * 100);
+                }
+            }
+
+            public static async Task ReceiveStreamAsync(Stream stream, int port, IProgress<double> progress)
+            {
+                using TcpListener listener = new(IPAddress.Any, port);
+                listener.Start();
+                using TcpClient client = await listener.AcceptTcpClientAsync();
+                using NetworkStream ns = client.GetStream();
+                byte[] lengthBytes = new byte[8];
+                await ns.ReadExactlyAsync(lengthBytes);
+                long fileLength = BitConverter.ToInt64(lengthBytes);
+                byte[] buffer = new byte[8192];
+                long totalReceived = 0;
+                int bytesRead;
+                while (totalReceived < fileLength && (bytesRead = await ns.ReadAsync(buffer)) > 0)
+                {
+                    await stream.WriteAsync(buffer.AsMemory(0, bytesRead));
+                    totalReceived += bytesRead;
+                    progress.Report((double)totalReceived / fileLength * 100);
+                }
             }
 
             ///// <summary>

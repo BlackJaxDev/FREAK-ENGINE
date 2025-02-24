@@ -61,7 +61,7 @@ public static class EditorWorld
     public const bool TransformTool = false; //Adds the transform tool to the scene for testing dragging and rotating etc.
     public const bool AllowEditingInVR = false; //Allows the user to edit the scene from desktop in VR.
     public const bool IKTest = true; //Adds an simple IK test tree to the scene.
-    public const bool Microphone = false; //Adds a microphone to the scene for testing audio capture.
+    public const bool Microphone = true; //Adds a microphone to the scene for testing audio capture.
 
     /// <summary>
     /// Creates a test world with a variety of objects for testing purposes.
@@ -169,6 +169,7 @@ public static class EditorWorld
         tfm2.Translation = new Vector3(0.0f, 5.0f, 0.0f);
 
         var comp = ikTestRootNode.AddComponent<SingleTargetIKComponent>()!;
+        comp.MaxIterations = 10;
 
         var targetNode = rootNode.NewChild();
         var targetTfm = targetNode.GetTransformAs<Transform>(true)!;
@@ -178,8 +179,8 @@ public static class EditorWorld
         //Let the user move the target
         EnableTransformToolForNode(targetNode, ETransformType.Translate);
 
-        string tree = ikTestRootNode.PrintTree();
-        Debug.Out(tree);
+        //string tree = ikTestRootNode.PrintTree();
+        //Debug.Out(tree);
     }
 
     //Pawns are what the player controls in the game world.
@@ -295,8 +296,8 @@ public static class EditorWorld
         if (Microphone)
         {
             var microphone = cameraNode.AddComponent<MicrophoneComponent>()!;
-            microphone.Capture = !isServer;
-            microphone.Receive = isServer;
+            microphone.Capture = true;//!isServer;
+            microphone.Receive = true;//isServer;
         }
 
         var pawnComp = cameraNode.AddComponent<EditorFlyingCameraPawnComponent>();
@@ -632,7 +633,7 @@ public static class EditorWorld
     #region Physics Tests
 
     //Creates a floor and a bunch of balls that fall onto it.
-    private static void AddPhysics(SceneNode rootNode, int ballCount = 100)
+    private static void AddPhysics(SceneNode rootNode, int ballCount = 10)
     {
         float ballRadius = 0.5f;
 

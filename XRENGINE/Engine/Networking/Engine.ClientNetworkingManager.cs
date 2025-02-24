@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using Newtonsoft.Json;
+using System.Net;
 using System.Net.Sockets;
 
 namespace XREngine
@@ -43,6 +44,9 @@ namespace XREngine
                 //Send to server
                 await ConsumeAndSendUDPQueue(UdpSender, ServerIP);
             }
+
+            //public void RequestWorldChange()
+            //    => ReplicateStateChange(new StateChangeInfo(EStateChangeType.WorldChange, JsonConvert.SerializeObject()), true);
         }
     }
 }

@@ -11,10 +11,16 @@ namespace XREngine.Scene.Components.Animation
     {
         public SingleTargetIKComponent()
         {
-            RenderedObjects = [RenderInfo3D.New(this, EDefaultRenderPass.OpaqueForward, Render)];
+            RenderedObjects = [DebugRenderInfo = RenderInfo3D.New(this, EDefaultRenderPass.OpaqueForward, Render)];
         }
 
+        public RenderInfo3D DebugRenderInfo { get; }
         public RenderInfo[] RenderedObjects { get; }
+        public bool DebugTargetVisible
+        {
+            get => DebugRenderInfo.IsVisible;
+            set => DebugRenderInfo.IsVisible = value;
+        }
 
         private void Render(bool shadowPass)
         {
@@ -54,7 +60,7 @@ namespace XREngine.Scene.Components.Animation
             private set => SetField(ref _childChain, value);
         }
 
-        private float _tolerance = 0.001f;
+        private float _tolerance = 0.01f;
         /// <summary>
         /// How close the last bone in the chain needs to be to the target to stop solving.
         /// </summary>
@@ -108,13 +114,13 @@ namespace XREngine.Scene.Components.Animation
 
         private void StopSolving()
         {
-            UnregisterTick(ETickGroup.PrePhysics, ETickOrder.Scene, SolveSingleTargetIK);
+            UnregisterTick(ETickGroup.Late, ETickOrder.Scene, SolveSingleTargetIK);
             ChildChain = [];
         }
 
         private void StartSolving()
         {
-            RegisterTick(ETickGroup.PrePhysics, ETickOrder.Scene, SolveSingleTargetIK);
+            RegisterTick(ETickGroup.Late, ETickOrder.Scene, SolveSingleTargetIK);
             ChildChain = GetChain();
         }
 

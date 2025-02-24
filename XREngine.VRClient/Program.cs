@@ -1,7 +1,9 @@
-﻿using OpenVR.NET.Manifest;
+﻿using Newtonsoft.Json;
+using OpenVR.NET.Manifest;
 using System.Diagnostics;
 using System.Management;
 using System.Reflection;
+using System.Reflection.Emit;
 using XREngine.Native;
 using XREngine.Scene;
 
@@ -11,10 +13,9 @@ namespace XREngine.VRClient
     {
         static void Main(string[] args)
         {
-            var settings = Engine.LoadOrGenerateGameSettings(GenerateGameSettings);
-            //var processes = Process.GetProcesses();
+            IVRGameStartupSettings settings = GenerateGameSettings();
 
-            //Check if this is already running
+            // Check if this is already running
             var exists = Process.GetProcessesByName(Path.GetFileNameWithoutExtension(Assembly.GetEntryAssembly()?.Location)).Length > 1;
             if (exists)
             {
@@ -23,7 +24,7 @@ namespace XREngine.VRClient
                 return;
             }
 
-            //Find or start the main game process
+            // Find or start the main game process
             if (!VerifyMainGameRunning(null, settings, out string? gamePath))
             {
                 Debug.LogWarning("Could not find main game process.");
@@ -31,17 +32,52 @@ namespace XREngine.VRClient
                 return;
             }
 
-            //Initialize VR
-            //Engine.VRState.InitializeLocal(settings.ActionManifest, settings.VRManifest, GetEyeTextureHandle);
+            // Initialize VR
+            if (settings.ActionManifest is null)
+            {
+                Debug.LogWarning("VR settings not initialized correctly; missing ActionManifest.");
+                Console.In.ReadLine();
+            }
+            else if (settings.VRManifest is null)
+            {
+                Debug.LogWarning("VR settings not initialized correctly; missing VRManifest.");
+                Console.In.ReadLine();
+            }
+            else
+                Engine.VRState.IninitializeClient(settings.ActionManifest, settings.VRManifest);
 
-            //Run the game
-            //We don't need to load a game state because this app only sends inputs to the game and receives renders
-            Engine.Run(settings, new GameState());
+            // Run the game
+            // We don't need to load a game state because this app only sends inputs to the game and receives renders
+            Engine.Run((GameStartupSettings)settings, new GameState());
         }
-        private static nint GetEyeTextureHandle()
+
+        private static IVRGameStartupSettings GenerateGameSettings()
         {
-            return 0;
+            ModuleBuilder moduleBuilder = MakeDynamicAssemblyModule("DynamicEnums");
+
+            //TODO: read from game init file
+            string[] actionCategoryNames = ["Global", "OneHanded", "QuickMenu", "Menu", "AvatarMenu"];
+            string[] gameActionNames = ["Interact", "Jump", "ToggleMute", "Grab", "PlayspaceDragLeft", "PlayspaceDragRight", "ToggleQuickMenu", "ToggleMenu", "ToggleAvatarMenu", "LeftHandPose", "RightHandPose", "Locomote", "Turn"];
+
+            var actionCategoryType = CreateEnumType(moduleBuilder, "EActionCategory", actionCategoryNames);
+            var gameActionType = CreateEnumType(moduleBuilder, "EGameAction", gameActionNames);
+
+            return (IVRGameStartupSettings)typeof(Program).
+                GetMethod(nameof(GenerateGameSettings), BindingFlags.NonPublic | BindingFlags.Static)!.
+                MakeGenericMethod([actionCategoryType, gameActionType]).
+                Invoke(null, null)!;
         }
+
+        private static Type CreateEnumType(ModuleBuilder moduleBuilder, string typeName, string[] names)
+        {
+            EnumBuilder enumBuilder = moduleBuilder.DefineEnum(typeName, TypeAttributes.Public, typeof(int));
+            for (int i = 0; i < names.Length; i++)
+                enumBuilder.DefineLiteral(names[i], i);
+            return enumBuilder.CreateType();
+        }
+
+        private static ModuleBuilder MakeDynamicAssemblyModule(string dynamicAssemblyName)
+            => AssemblyBuilder.DefineDynamicAssembly(new AssemblyName(dynamicAssemblyName), AssemblyBuilderAccess.Run).DefineDynamicModule(dynamicAssemblyName);
 
         private static bool VerifyMainGameRunning(Process[]? processes, IVRGameStartupSettings settings, out string? resultPath)
         {
@@ -49,29 +85,12 @@ namespace XREngine.VRClient
             string name = settings.GameName;
             string fileName = $"{name}.exe";
 
-            //Check if the game is already running
-            //TODO: also check via IPC
-            //if (processes is not null)
-            //    foreach (var p in processes)
-            //    {
-            //        if (p.ProcessName == name)
-            //            return true;
-                
-            //        string? path = GetMainModuleFilepath(p.Id);
-            //        if (path?.EndsWith(fileName, StringComparison.InvariantCultureIgnoreCase) ?? false)
-            //        {
-            //            resultPath = path;
-            //            return true;
-            //        }
-            //    }
             var gameProcess = Process.GetProcessesByName(name).FirstOrDefault();
             if (gameProcess != null)
             {
-                //resultPath = GetMainModuleFilepath(gameProcess.Id);
                 return true;
             }
 
-            //Check if the game is installed
             var searchPaths = settings.GameSearchPaths;
             foreach (var (folder, relativePath) in searchPaths)
             {
@@ -101,7 +120,6 @@ namespace XREngine.VRClient
             where TActionCategory : struct, Enum
             where TGameAction : struct, Enum
         {
-            VRGameStartupSettings<TActionCategory, TGameAction>? settings;
             int w = 1920;
             int h = 1080;
             float update = 90.0f;
@@ -110,12 +128,23 @@ namespace XREngine.VRClient
             int primaryX = NativeMethods.GetSystemMetrics(0);
             int primaryY = NativeMethods.GetSystemMetrics(1);
 
-            settings = new VRGameStartupSettings<TActionCategory, TGameAction>()
+            var settings = new VRGameStartupSettings<TActionCategory, TGameAction>()
             {
-                Name = "startup",
+                GameName = "FreakEngineGame",
+                GameSearchPaths =
+                [
+                        (Environment.SpecialFolder.ProgramFiles, "MyGameFolder")
+                ],
+                VRManifest = new VrManifest()
+                {
+                    AppKey = "XRE.VRClient.Test",
+                    IsDashboardOverlay = false,
+                    WindowsPath = Environment.ProcessPath,
+                    WindowsArguments = "",
+                },
                 StartupWindows =
                 [
-                    new()
+                    new GameWindowStartupSettings()
                     {
                         WindowTitle = "XREngine VRClient",
                         TargetWorld = CreateFillerWorld(),
@@ -138,22 +167,15 @@ namespace XREngine.VRClient
                 {
                     Actions = GetActions<TActionCategory, TGameAction>(),
                 },
-                VRManifest = new VrManifest()
-                {
-                    AppKey = "XRE.VRClient.Test",
-                    IsDashboardOverlay = false,
-                    WindowsPath = Environment.ProcessPath,
-                    WindowsArguments = "",
-                },
             };
             return settings;
         }
 
-        private static List<OpenVR.NET.Manifest.Action<TActionCategory, TGameAction>> GetActions<TActionCategory, TGameAction>()
+        private static System.Collections.Generic.List<OpenVR.NET.Manifest.Action<TActionCategory, TGameAction>> GetActions<TActionCategory, TGameAction>()
             where TActionCategory : struct, Enum
             where TGameAction : struct, Enum
         {
-            return [];
+            return new System.Collections.Generic.List<OpenVR.NET.Manifest.Action<TActionCategory, TGameAction>>();
         }
 
         private static XRWorld CreateFillerWorld()

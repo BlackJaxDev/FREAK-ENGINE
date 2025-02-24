@@ -226,7 +226,7 @@ namespace XREngine
         /// </summary>
         /// <param name="udp"></param>
         public void EnqueueSelfReplication(bool compress = true)
-            => Engine.Networking?.Broadcast(this, compress);
+            => Engine.Networking?.ReplicateObject(this, compress);
         /// <summary>
         /// Tells the engine to replicate a specific property to the network.
         /// </summary>
@@ -235,7 +235,7 @@ namespace XREngine
         /// <param name="value"></param>
         /// <param name="udp"></param>
         public void EnqueuePropertyReplication<T>(string? propName, T value, bool compress)
-            => Engine.Networking?.BroadcastPropertyUpdated(this, propName, value, compress);
+            => Engine.Networking?.ReplicatePropertyUpdated(this, propName, value, compress);
         /// <summary>
         /// Tells the engine to replicate some data to the network.
         /// </summary>
@@ -243,7 +243,7 @@ namespace XREngine
         /// <param name="data"></param>
         /// <param name="udp"></param>
         public void EnqueueDataReplication(string id, object data, bool compress)
-            => Engine.Networking?.BroadcastData(this, data, id, compress);
+            => Engine.Networking?.ReplicateData(this, data, id, compress);
 
         /// <summary>
         /// Called by data replication to receive generic data from the network.

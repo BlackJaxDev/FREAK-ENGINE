@@ -492,8 +492,8 @@ namespace XREngine.Data.Core
         /// </summary>
         public static void AxisAngleBetween(Vector3 initialVector, Vector3 finalVector, out Vector3 axis, out float rad)
         {
-            initialVector = Vector3.Normalize(initialVector);
-            finalVector = Vector3.Normalize(finalVector);
+            initialVector = initialVector.Normalized();
+            finalVector = finalVector.Normalized();
 
             float dot = Vector3.Dot(initialVector, finalVector);
 
@@ -999,7 +999,7 @@ namespace XREngine.Data.Core
         public static double[] NormalDistributionKernelDouble(int pascalRow)
         {
             int[] rowValues = PascalTriangleRow(pascalRow, out int sum);
-            return rowValues.Select(x => (double)x / sum).ToArray();
+            return [.. rowValues.Select(x => (double)x / sum)];
         }
         /// <summary>
         /// Returns the Y-value from a normal distribution given the following parameters.
@@ -1019,7 +1019,7 @@ namespace XREngine.Data.Core
         public static float[] NormalDistributionKernelFloat(int pascalRow)
         {
             int[] rowValues = PascalTriangleRow(pascalRow, out int sum);
-            return rowValues.Select(x => (float)x / sum).ToArray();
+            return [.. rowValues.Select(x => (float)x / sum)];
         }
 
         public static Quaternion RotationBetweenVectors(Vector3 current, Vector3 target)

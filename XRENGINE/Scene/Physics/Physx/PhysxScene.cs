@@ -160,15 +160,11 @@ namespace XREngine.Rendering.Physics.Physx
 
         public override void StepSimulation()
         {
-            //PostSimulationWorkRunning.Wait();
-            //SimulationRunning.Set();
             Simulate(Engine.Time.Timer.FixedUpdateDelta, null, true);
-            //SimulationRunning.Reset();
-            //PostSimulationWorkRunning.Reset();
-
             if (!FetchResults(true, out uint error))
                 return;
 
+            DebugRenderCollect();
             NotifySimulationStepped();
         }
 
@@ -201,16 +197,29 @@ namespace XREngine.Rendering.Physics.Physx
 
         public override void DebugRender()
         {
+            SwapDebugBuffers();
+
             //if (_debugDataInvalidated)
             //    SwappingDebug.Wait();
 
             //DebugRendering.Set();
-            foreach (var point in _debugPointsRendering)
-                Engine.Rendering.Debug.RenderPoint(point.Position, point.Color);
-            foreach (var line in _debugLinesRendering)
-                Engine.Rendering.Debug.RenderLine(line.Start, line.End, line.Color);
-            foreach (var triangle in _debugTrianglesRendering)
-                Engine.Rendering.Debug.RenderTriangle(triangle.Value.A, triangle.Value.B, triangle.Value.C, triangle.Color, false);
+            lock (_debugPointsRendering)
+            {
+                foreach (var point in _debugPointsRendering)
+                    Engine.Rendering.Debug.RenderPoint(point.Position, point.Color);
+            }
+
+            lock (_debugLinesRendering)
+            {
+                foreach (var line in _debugLinesRendering)
+                    Engine.Rendering.Debug.RenderLine(line.Start, line.End, line.Color);
+            }
+
+            lock (_debugTrianglesRendering)
+            {
+                foreach (var triangle in _debugTrianglesRendering)
+                    Engine.Rendering.Debug.RenderTriangle(triangle.Value.A, triangle.Value.B, triangle.Value.C, triangle.Color, false);
+            }
             //DebugRendering.Reset();
         }
         public override void SwapDebugBuffers()
@@ -218,14 +227,18 @@ namespace XREngine.Rendering.Physics.Physx
             if (!_debugDataInvalidated)
                 return;
 
-            //DebugRendering.Wait();
-            //SwappingDebug.Set();
-
-            (_debugPointsRendering, _debugPointsUpdating) = (_debugPointsUpdating, _debugPointsRendering);
-            (_debugLinesRendering, _debugLinesUpdating) = (_debugLinesUpdating, _debugLinesRendering);
-            (_debugTrianglesRendering, _debugTrianglesUpdating) = (_debugTrianglesUpdating, _debugTrianglesRendering);
-
-            //SwappingDebug.Reset();
+            lock (_debugPointsRendering)
+            {
+                (_debugPointsRendering, _debugPointsUpdating) = (_debugPointsUpdating, _debugPointsRendering);
+            }
+            lock (_debugLinesRendering)
+            {
+                (_debugLinesRendering, _debugLinesUpdating) = (_debugLinesUpdating, _debugLinesRendering);
+            }
+            lock (_debugTrianglesRendering)
+            {
+                (_debugTrianglesRendering, _debugTrianglesUpdating) = (_debugTrianglesUpdating, _debugTrianglesRendering);
+            }
         }
         public override void DebugRenderCollect()
         {

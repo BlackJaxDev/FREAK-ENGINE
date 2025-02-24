@@ -1,4 +1,5 @@
 ﻿using Extensions;
+using Newtonsoft.Json;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
@@ -7,6 +8,7 @@ using XREngine.Data.Core;
 using XREngine.Input;
 using XREngine.Rendering.OpenGL;
 using XREngine.Rendering.Vulkan;
+using XREngine.Scene;
 
 namespace XREngine.Rendering
 {
@@ -18,11 +20,11 @@ namespace XREngine.Rendering
         public static event Action<XRWindow, bool>? AnyWindowFocusChanged;
         public event Action<XRWindow, bool>? FocusChanged;
 
-        private XRWorldInstance? _worldInstance;
+        private XRWorldInstance? _targetWorldInstance;
         public XRWorldInstance? TargetWorldInstance
         {
-            get => _worldInstance;
-            set => SetField(ref _worldInstance, value);
+            get => _targetWorldInstance;
+            set => SetField(ref _targetWorldInstance, value);
         }
 
         private readonly EventList<XRViewport> _viewports = [];
@@ -35,8 +37,52 @@ namespace XREngine.Rendering
             {
                 case nameof(TargetWorldInstance):
                     VerifyTick();
+                    bool notClient = !(Engine.Networking?.IsClient ?? false);
+                    if (notClient)
+                        Engine.Networking?.ReplicateStateChange(new Engine.StateChangeInfo(Engine.EStateChangeType.WorldChange, JsonConvert.SerializeObject(EncodeWorldHierarchy())), true);
                     break;
             }
+        }
+
+        private class NodeRepresentation
+        {
+            public Guid ServerGUID { get; set; }
+            public (string? FullTypeDef, Guid ServerGUID) TransformType { get; set; } = (null, Guid.Empty);
+            public (string FullTypeDef, Guid ServerGUID)[] ComponentTypes { get; set; } = [];
+            public NodeRepresentation[] Children { get; set; } = [];
+        }
+        private class WorldHierarchy
+        {
+            public string? GameModeFullTypeDef { get; set; }
+            public NodeRepresentation?[]? RootNodes { get; set; } = [];
+        }
+
+        private WorldHierarchy? EncodeWorldHierarchy()
+        {
+            var world = TargetWorldInstance;
+            if (world is null)
+                return null;
+
+            var rootNodes = world.RootNodes.Select(EncodeNode).ToArray();
+            return new WorldHierarchy
+            {
+                GameModeFullTypeDef = world.GameMode?.GetType().FullName,
+                RootNodes = rootNodes,
+            };
+        }
+
+        private NodeRepresentation EncodeNode(SceneNode node)
+        {
+            var transform = node.Transform;
+            NodeRepresentation[] children = [.. transform.Children.Where(x => x.SceneNode is not null).Select(x => EncodeNode(x.SceneNode!))];
+            (string FullTypeDef, Guid ServerGUID)[] components = [.. node.Components.Select(x => (x.GetType().FullName ?? string.Empty, x.ID))];
+            return new NodeRepresentation
+            {
+                ServerGUID = node.ID,
+                TransformType = (transform.GetType().FullName, transform.ID),
+                ComponentTypes = components,
+                Children = children,
+            };
         }
 
         private void ViewportsChanged(object sender, TCollectionChangedEventArgs<XRViewport> e)
