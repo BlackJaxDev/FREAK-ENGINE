@@ -45,7 +45,7 @@ public static class EditorWorld
     public const bool SpotLight = false;
     public const bool DirLight2 = false;
     public const bool PointLight = false;
-    public const bool SoundNode = true;
+    public const bool SoundNode = false;
     public const bool LightProbe = true; //Adds a test light probe to the scene for PBR lighting.
     public const bool Skybox = true;
     public const bool Spline = false; //Adds a 3D spline to the scene.
@@ -53,15 +53,15 @@ public static class EditorWorld
     public const bool StaticModel = false; //Imports a scene model to be rendered.
     public const bool AnimatedModel = false; //Imports a character model to be animated.
     public const bool AddEditorUI = false; //Adds the full editor UI to the camera. Probably don't use this one a character pawn.
-    public const bool VRPawn = false; //Enables VR input and pawn.
+    public const bool VRPawn = true; //Enables VR input and pawn.
     public const bool CharacterPawn = true; //Enables the player to physically locomote in the world. Requires a physical floor.
     public const bool ThirdPersonPawn = false; //If on desktop and character pawn is enabled, this will add a third person camera instead of first person.
-    public const bool TestAnimation = true; //Adds test animations to the character pawn.
+    public const bool TestAnimation = false; //Adds test animations to the character pawn.
     public const bool PhysicsChain = true; //Adds a jiggle physics chain to the character pawn.
     public const bool TransformTool = false; //Adds the transform tool to the scene for testing dragging and rotating etc.
     public const bool AllowEditingInVR = false; //Allows the user to edit the scene from desktop in VR.
-    public const bool IKTest = true; //Adds an simple IK test tree to the scene.
-    public const bool Microphone = true; //Adds a microphone to the scene for testing audio capture.
+    public const bool IKTest = false; //Adds an simple IK test tree to the scene.
+    public const bool Microphone = false; //Adds a microphone to the scene for testing audio capture.
 
     /// <summary>
     /// Creates a test world with a variety of objects for testing purposes.
@@ -95,7 +95,7 @@ public static class EditorWorld
         {
             if (CharacterPawn)
             {
-                characterPawnNode = CreateCharacterVRPawn(rootNode, setUI);
+                characterPawnNode = CreateCharacterVRPawn(rootNode, setUI, out _, out _, out _);
                 if (AllowEditingInVR)
                 {
                     SceneNode cameraNode = CreateCamera(rootNode, out var camComp);
@@ -188,13 +188,14 @@ public static class EditorWorld
 
     #region VR
 
-    private static SceneNode CreateCharacterVRPawn(SceneNode rootNode, bool setUI)
+    private static SceneNode CreateCharacterVRPawn(SceneNode rootNode, bool setUI, out VRHeadsetTransform hmdTfm, out VRControllerTransform leftTfm, out VRControllerTransform rightTfm)
     {
-        SceneNode vrPlayspaceNode = new(rootNode) { Name = "VRPlayspaceNode" };
+        SceneNode vrPlayspaceNode = rootNode.NewChild("VRPlayspaceNode");
         var characterTfm = vrPlayspaceNode.SetTransform<RigidBodyTransform>();
         characterTfm.InterpolationMode = EInterpolationMode.Interpolate;
 
         var characterComp = vrPlayspaceNode.AddComponent<CharacterPawnComponent>("TestPawn")!;
+        var vrInput = vrPlayspaceNode.AddComponent<VRCharacterInputSet>()!;
         var movementComp = vrPlayspaceNode.AddComponent<CharacterMovement3DComponent>()!;
         InitMovement(movementComp);
 
@@ -202,17 +203,16 @@ public static class EditorWorld
         if (!AllowEditingInVR)
             characterComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
 
-        SceneNode localRotationNode = vrPlayspaceNode.NewChild();
-        var localRotationTfm = localRotationNode.SetTransform<Transform>();
+        SceneNode localRotationNode = vrPlayspaceNode.NewChild("LocalRotationNode");
         characterComp.IgnoreViewTransformPitch = true;
-        characterComp.RotationTransform = localRotationTfm;
+        characterComp.RotationTransform = localRotationNode.GetTransformAs<Transform>(true)!;
+        characterComp.ViewTransform = AddHeadsetNode(out hmdTfm, out _, localRotationNode, setUI, characterComp).Transform;
 
-        var headsetNode = AddHeadsetNode(localRotationNode, setUI, characterComp);
-        characterComp.ViewTransform = headsetNode.Transform;
-
-        AddHandControllerNode(localRotationNode, true);
-        AddHandControllerNode(localRotationNode, false);
+        AddHandControllerNode(out leftTfm, out _, localRotationNode, true);
+        AddHandControllerNode(out rightTfm, out _, localRotationNode, false);
         AddTrackerCollectionNode(localRotationNode);
+        vrInput.LeftHandTransform = leftTfm;
+        vrInput.RightHandTransform = rightTfm;
 
         return vrPlayspaceNode;
     }
@@ -227,34 +227,36 @@ public static class EditorWorld
         movementComp.InputLerpSpeed = 0.9f;
     }
 
-    private static void AddHandControllerNode(SceneNode parentNode, bool left)
+    private static void AddHandControllerNode(out VRControllerTransform controllerTfm, out VRControllerModelComponent modelComp, SceneNode parentNode, bool left)
     {
-        SceneNode leftControllerNode = new(parentNode) { Name = "VRLeftControllerNode" };
-        var leftControllerTfm = leftControllerNode.SetTransform<VRControllerTransform>();
-        leftControllerTfm.LeftHand = left;
-        var leftControllerModel = leftControllerNode.AddComponent<VRControllerModelComponent>()!;
-        leftControllerModel.LeftHand = left;
+        SceneNode leftControllerNode = parentNode.NewChild($"VR{(left ? "Left" : "Right")}ControllerNode");
+
+        controllerTfm = leftControllerNode.SetTransform<VRControllerTransform>();
+        controllerTfm.LeftHand = left;
+        controllerTfm.ForceManualRecalc = false;
+
+        modelComp = leftControllerNode.AddComponent<VRControllerModelComponent>()!;
+        modelComp.LeftHand = left;
     }
     private static void CreateFlyingVRPawn(SceneNode rootNode, bool setUI)
     {
         SceneNode vrPlayspaceNode = new(rootNode) { Name = "VRPlayspaceNode" };
         var playspaceTfm = vrPlayspaceNode.SetTransform<Transform>();
-        AddHeadsetNode(vrPlayspaceNode, setUI);
-        AddHandControllerNode(vrPlayspaceNode, true);
-        AddHandControllerNode(vrPlayspaceNode, false);
+        AddHeadsetNode(out _, out _, vrPlayspaceNode, setUI);
+        AddHandControllerNode(out _, out _, vrPlayspaceNode, true);
+        AddHandControllerNode(out _, out _, vrPlayspaceNode, false);
         AddTrackerCollectionNode(vrPlayspaceNode);
     }
+
     private static void AddTrackerCollectionNode(SceneNode vrPlayspaceNode)
+        => vrPlayspaceNode.NewChild<VRTrackerCollectionComponent>(out _, "VRTrackerCollectionNode");
+
+    private static SceneNode AddHeadsetNode(out VRHeadsetTransform hmdTfm, out VRHeadsetComponent hmdComp, SceneNode parentNode, bool setUI, PawnComponent? pawn = null)
     {
-        SceneNode trackerNode = new(vrPlayspaceNode) { Name = "VRTrackerNode" };
-        trackerNode.AddComponent<VRTrackerCollectionComponent>();
-    }
-    private static SceneNode AddHeadsetNode(SceneNode parentNode, bool setUI, PawnComponent? pawn = null)
-    {
-        SceneNode vrHeadsetNode = new(parentNode) { Name = "VRHeadsetNode" };
-        vrHeadsetNode.AddComponent<AudioListenerComponent>();
-        var hmdTfm = vrHeadsetNode.SetTransform<VRHeadsetTransform>();
-        var hmdComp = vrHeadsetNode.AddComponent<VRHeadsetComponent>()!;
+        SceneNode vrHeadsetNode = parentNode.NewChild("VRHeadsetNode");
+        vrHeadsetNode.AddComponent<AudioListenerComponent>("VR HMD Listener");
+        hmdTfm = vrHeadsetNode.SetTransform<VRHeadsetTransform>()!;
+        hmdComp = vrHeadsetNode.AddComponent<VRHeadsetComponent>()!;
 
         if (!AllowEditingInVR)
         {
@@ -262,14 +264,15 @@ public static class EditorWorld
             var firstPersonViewTfm = firstPersonViewNode.SetTransform<SmoothedParentConstraintTransform>();
             firstPersonViewTfm.TranslationInterpolationSpeed = null;
             firstPersonViewTfm.ScaleInterpolationSpeed = null;
-            firstPersonViewTfm.SplitYPR = true;
-            firstPersonViewTfm.YawInterpolationSpeed = 5.0f;
-            firstPersonViewTfm.PitchInterpolationSpeed = 5.0f;
-            firstPersonViewTfm.IgnoreRoll = true;
-            firstPersonViewTfm.UseLookAtYawPitch = true;
+            firstPersonViewTfm.QuaternionInterpolationSpeed = null;
+            //firstPersonViewTfm.SplitYPR = true;
+            //firstPersonViewTfm.YawInterpolationSpeed = 5.0f;
+            //firstPersonViewTfm.PitchInterpolationSpeed = 5.0f;
+            //firstPersonViewTfm.IgnoreRoll = true;
+            //firstPersonViewTfm.UseLookAtYawPitch = true;
             var firstPersonCam = firstPersonViewNode.AddComponent<CameraComponent>()!;
             var persp = firstPersonCam.Camera.Parameters as XRPerspectiveCameraParameters;
-            persp!.HorizontalFieldOfView = 40.0f;
+            persp!.HorizontalFieldOfView = 50.0f;
             persp.NearZ = 0.1f;
             persp.FarZ = 100000.0f;
             firstPersonCam.CullWithFrustum = true;
@@ -289,15 +292,18 @@ public static class EditorWorld
 
     private static EditorFlyingCameraPawnComponent CreateDesktopViewerPawn(SceneNode cameraNode, bool isServer)
     {
-        var listener = cameraNode.AddComponent<AudioListenerComponent>()!;
-        listener.Gain = 1.0f;
-        listener.DistanceModel = DistanceModel.LinearDistanceClamped;
-
-        if (Microphone)
+        if (!(VRPawn && AllowEditingInVR))
         {
-            var microphone = cameraNode.AddComponent<MicrophoneComponent>()!;
-            microphone.Capture = true;//!isServer;
-            microphone.Receive = true;//isServer;
+            var listener = cameraNode.AddComponent<AudioListenerComponent>("Desktop Flying Listener")!;
+            listener.Gain = 1.0f;
+            listener.DistanceModel = DistanceModel.LinearDistanceClamped;
+
+            if (Microphone)
+            {
+                var microphone = cameraNode.AddComponent<MicrophoneComponent>()!;
+                microphone.Capture = true;//!isServer;
+                microphone.Receive = true;//isServer;
+            }
         }
 
         var pawnComp = cameraNode.AddComponent<EditorFlyingCameraPawnComponent>();
@@ -332,7 +338,8 @@ public static class EditorWorld
             cameraParentNode = cameraOffsetNode;
 
         SceneNode cameraNode = CreateCamera(cameraParentNode, out CameraComponent? camComp, false);
-        cameraNode.AddComponent<AudioListenerComponent>();
+
+        cameraNode.AddComponent<AudioListenerComponent>("Desktop Character Listener");
 
         var characterComp = characterNode.AddComponent<CharacterPawnComponent>("TestPawn")!;
         characterComp.CameraComponent = camComp;
@@ -390,8 +397,8 @@ public static class EditorWorld
         probeComp.SetCaptureResolution(128, false);
         probeComp.RealtimeCapture = true;
         probeComp.PreviewDisplay = LightProbeComponent.ERenderPreview.Irradiance;
-        probeComp.RealTimeCaptureUpdateInterval = TimeSpan.FromMilliseconds(100.0f);
-        probeComp.StopRealtimeCaptureAfter = TimeSpan.FromSeconds(2.0f);
+        probeComp.RealTimeCaptureUpdateInterval = TimeSpan.FromMilliseconds(200.0f);
+        probeComp.StopRealtimeCaptureAfter = TimeSpan.FromSeconds(3.0f);
     }
 
     private static void AddDirLight(SceneNode rootNode)
@@ -676,9 +683,9 @@ public static class EditorWorld
         var floorModel = floor.AddComponent<ModelComponent>()!;
         floorModel.Model = new Model([new SubMesh(XRMesh.Create(VertexQuad.PosY(10000.0f)), floorMat)]);
 
-        Random random = new();
-        for (int i = 0; i < ballCount; i++)
-            AddBall(rootNode, ballPhysMat, ballRadius, random);
+        //Random random = new();
+        //for (int i = 0; i < ballCount; i++)
+        //    AddBall(rootNode, ballPhysMat, ballRadius, random);
     }
 
     //Spawns a ball with a random position, velocity and angular velocity.
@@ -763,9 +770,9 @@ public static class EditorWorld
         var data = Engine.Assets.LoadEngineAsset<AudioData>("Audio", "test16bit.wav");
         data.ConvertToMono(); //Convert to mono for 3D audio - stereo will just play equally in both ears
         soundComp.RelativeToListener = false;
-        soundComp.ReferenceDistance = 1.0f;
-        //soundComp.MaxDistance = 100.0f;
-        soundComp.RolloffFactor = 1.0f;
+        //soundComp.ReferenceDistance = 1.0f;
+        ////soundComp.MaxDistance = 100.0f;
+        //soundComp.RolloffFactor = 1.0f;
         soundComp.Gain = 0.1f;
         soundComp.Loop = true;
         soundComp.Type = ESourceType.Static;
@@ -863,18 +870,27 @@ public static class EditorWorld
 
         //rootNode.GetTransformAs<Transform>()?.ApplyTranslation(new Vector3(5.0f, 0.0f, 0.0f));
 
-        var comp = rootNode.AddComponent<HumanoidComponent>()!;
+        var humanComp = rootNode.AddComponent<HumanoidComponent>()!;
         if (VRPawn)
         {
-            var calib = rootNode.AddComponent<VRCharacterCalibrationComponent>()!;
+            var calib = rootNode.Parent!.AddComponent<VRCharacterCalibrationComponent>()!;
+            calib.HumanoidComponent = humanComp;
+            calib.EyesModel = rootNode.FindDescendant(x => x.Name?.Contains("face", StringComparison.InvariantCultureIgnoreCase) ?? false)?.GetComponent<ModelComponent>();
+            calib.EyeLBoneName = "Eye_L";
+            calib.EyeRBoneName = "Eye_R";
+            var rotationNode = rootNode.Parent!.FirstChild;
+            calib.Headset = rotationNode?.FindDescendantByName("VRHeadsetNode")?.Transform as VRHeadsetTransform;
+            calib.LeftController = rotationNode?.FindDescendantByName("VRLeftControllerNode")?.Transform as VRControllerTransform;
+            calib.RightController = rotationNode?.FindDescendantByName("VRRightControllerNode")?.Transform as VRControllerTransform;
+            calib.TrackerCollection = rotationNode?.FindDescendantByName("VRTrackerCollectionNode")?.GetComponent<VRTrackerCollectionComponent>();
             calib.BeginCalibration();
         }
         //comp.IsActive = false;
 
         if (TestAnimation)
         {
-            var knee = comp!.Right.Knee?.Node?.Transform;
-            var leg = comp!.Right.Leg?.Node?.Transform;
+            var knee = humanComp!.Right.Knee?.Node?.Transform;
+            var leg = humanComp!.Right.Leg?.Node?.Transform;
 
             leg?.RegisterAnimationTick<Transform>(t => t.Rotation = Quaternion.CreateFromAxisAngle(Globals.Right, XRMath.DegToRad(180 - 90.0f * (MathF.Cos(Engine.ElapsedTime) * 0.5f + 0.5f))));
             knee?.RegisterAnimationTick<Transform>(t => t.Rotation = Quaternion.CreateFromAxisAngle(Globals.Right, XRMath.DegToRad(90.0f * (MathF.Cos(Engine.ElapsedTime) * 0.5f + 0.5f))));
@@ -907,7 +923,7 @@ public static class EditorWorld
         if (PhysicsChain)
         {
             //Add physics chain to the breast bone
-            var chest = comp!.Chest?.Node?.Transform;
+            var chest = humanComp!.Chest?.Node?.Transform;
             //Find breast bone
             if (chest is not null)
             {
@@ -930,7 +946,7 @@ public static class EditorWorld
         if (TransformTool)
         {
             //Put the transform tool on the head for testing
-            var head = comp!.Head?.Node?.Transform?.SceneNode;
+            var head = humanComp!.Head?.Node?.Transform?.SceneNode;
             if (head is null)
                 return;
 

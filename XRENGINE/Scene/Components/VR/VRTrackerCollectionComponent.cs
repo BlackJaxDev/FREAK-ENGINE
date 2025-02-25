@@ -41,6 +41,7 @@ namespace XREngine.Data.Components.Scene
                 var trackerNode = SceneNode.NewChild<VRTrackerModelComponent>(out var modelComp);
                 trackerNode.Name = $"Tracker {dev.DeviceIndex}";
                 var tfm = trackerNode.SetTransform<VRTrackerTransform>();
+                tfm.ForceManualRecalc = true;
                 tfm.DeviceIndex = dev.DeviceIndex;
                 tfm.Tracker = dev;
                 modelComp.DeviceIndex = dev.DeviceIndex;

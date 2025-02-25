@@ -93,7 +93,7 @@ namespace XREngine.Rendering
 
             //Recalculate all transforms before activating nodes
             foreach (SceneNode node in RootNodes)
-                node.Transform.RecalculateMatrices(true);
+                node.Transform.RecalculateMatrixHeirarchy(true, Engine.Rendering.Settings.RecalcChildMatricesInParallel);
             
             foreach (SceneNode node in RootNodes)
                 if (node.IsActiveSelf)
@@ -124,7 +124,7 @@ namespace XREngine.Rendering
             Time.Timer.FixedUpdate += FixedUpdate;
             Time.Timer.SwapBuffers += GlobalSwapBuffers;
             Time.Timer.CollectVisible += GlobalCollectVisible;
-            Time.Timer.PostUpdateFrame += ProcessTransformQueue;
+            Time.Timer.PreUpdateFrame += ProcessTransformQueue;
         }
 
         private void UnlinkTimeCallbacks()
@@ -133,7 +133,7 @@ namespace XREngine.Rendering
             Time.Timer.FixedUpdate -= FixedUpdate;
             Time.Timer.SwapBuffers -= GlobalSwapBuffers;
             Time.Timer.CollectVisible -= GlobalCollectVisible;
-            Time.Timer.PostUpdateFrame -= ProcessTransformQueue;
+            Time.Timer.PreUpdateFrame -= ProcessTransformQueue;
         }
 
         public void GlobalCollectVisible()
@@ -188,22 +188,22 @@ namespace XREngine.Rendering
             //Also, prioritize transforms that are visible according to bounding boxes of meshes that use them.
 
             List<int> depthKeys = [.. _transformBucketsByDepthRendering.Keys]; //Snapshot of current depths
-            for (int i = 0; i < depthKeys.Count; i++)
-            {
-                int depth = depthKeys[i];
-                if (!_transformBucketsByDepthRendering.TryGetValue(depth, out var bag))
-                    continue;
+            depthKeys.Sort(); //Sort by depth. TODO: use sorted dictionary with thread safety
 
-                //RecalcTransformsParallel(depthKeys, bag);
-                RecalcTransformsParallelTasks(depthKeys, bag);
-                //RecalcTransformsSequential(depthKeys, bag);
-            }
+            bool parallel = Engine.Rendering.Settings.RecalcChildMatricesInParallel;
+            Action<List<int>, ConcurrentHashSet<TransformBase>> recalc = parallel 
+                ? RecalcTransformsParallelTasks
+                : RecalcTransformsSequential;
+
+            for (int i = 0; i < depthKeys.Count; i++)
+                if (_transformBucketsByDepthRendering.TryGetValue(depthKeys[i], out var bag))
+                    recalc(depthKeys, bag);
         }
 
-        private static void RecalcTransformsSequential(List<int> depthKeys, ConcurrentBag<TransformBase> bag)
+        private static void RecalcTransformsSequential(List<int> depthKeys, ConcurrentHashSet<TransformBase> bag)
         {
             foreach (var transform in bag)
-                if (transform.RecalculateMatrices(false))
+                if (transform.RecalculateMatrixHeirarchy(true, Engine.Rendering.Settings.RecalcChildMatricesInParallel))
                 {
                     int depthPlusOne = transform.Depth + 1;
                     if (!depthKeys.Contains(depthPlusOne))
@@ -211,11 +211,11 @@ namespace XREngine.Rendering
                 }
         }
 
-        private static void RecalcTransformsParallel(List<int> depthKeys, ConcurrentBag<TransformBase> bag)
+        private static void RecalcTransformsParallel(List<int> depthKeys, ConcurrentHashSet<TransformBase> bag)
         {
             Parallel.ForEach(bag, transform =>
             {
-                if (!transform.RecalculateMatrices(false))
+                if (!transform.RecalculateMatrixHeirarchy(false))
                     return;
 
                 lock (depthKeys)
@@ -223,11 +223,11 @@ namespace XREngine.Rendering
             });
         }
 
-        private static void RecalcTransformsParallelTasks(List<int> depthKeys, ConcurrentBag<TransformBase> bag)
+        private static void RecalcTransformsParallelTasks(List<int> depthKeys, ConcurrentHashSet<TransformBase> bag)
         {
             void Calc(TransformBase tfm)
             {
-                if (!tfm.RecalculateMatrices(false))
+                if (!tfm.RecalculateMatrixHeirarchy(true))
                     return;
 
                 int depthPlusOne = tfm.Depth + 1;
@@ -238,18 +238,17 @@ namespace XREngine.Rendering
                 }
             }
 
-            Task SelectTransformTask(TransformBase tfm)
+            Task AsCalcTask(TransformBase tfm)
             {
-                void AsyncCalc()
-                    => Calc(tfm);
+                void AsyncCalc() => Calc(tfm);
                 return Task.Run(AsyncCalc);
             }
 
-            Task.WaitAll([.. bag.Select(SelectTransformTask)]);
+            Task.WaitAll([.. bag.Select(AsCalcTask)]);
         }
 
-        private ConcurrentDictionary<int, ConcurrentBag<TransformBase>> _transformBucketsByDepthUpdating = new();
-        private ConcurrentDictionary<int, ConcurrentBag<TransformBase>> _transformBucketsByDepthRendering = new();
+        private ConcurrentDictionary<int, ConcurrentHashSet<TransformBase>> _transformBucketsByDepthUpdating = new();
+        private ConcurrentDictionary<int, ConcurrentHashSet<TransformBase>> _transformBucketsByDepthRendering = new();
 
         /// <summary>
         /// Enqueues a transform to be recalculated at the end of the update after user code has been executed.
@@ -259,17 +258,19 @@ namespace XREngine.Rendering
         /// <param name="directToRender"></param>
         public void AddDirtyTransform(TransformBase transform, ref bool wasDepthAdded, bool directToRender)
         {
+            if (transform.ForceManualRecalc)
+                return;
+
             bool added = false;
-            ConcurrentDictionary<int, ConcurrentBag<TransformBase>> dict = directToRender 
+            ConcurrentDictionary<int, ConcurrentHashSet<TransformBase>> dict = directToRender 
                 ? _transformBucketsByDepthRendering 
                 : _transformBucketsByDepthUpdating;
-            var bag = dict.GetOrAdd(transform.Depth, x =>
+            ConcurrentHashSet<TransformBase> AddDepth(int depth)
             {
                 added = true;
                 return [];
-            });
-            if (!bag.Contains(transform))
-                bag.Add(transform);
+            }
+            dict.GetOrAdd(transform.Depth, AddDepth).Add(transform);
             wasDepthAdded |= added;
         }
 

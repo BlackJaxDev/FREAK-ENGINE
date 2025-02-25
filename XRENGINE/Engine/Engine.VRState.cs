@@ -87,7 +87,32 @@ namespace XREngine
                 ActionsChanged?.Invoke(_actions);
             }
 
+            public static XRTexture2D? VRStereoViewTexture { get; private set; } = null;
+            public static XRMaterialFrameBuffer? VRStereoRenderTarget { get; private set; } = null;
+
+            public static XRTexture2D? VRLeftEyeViewTexture { get; private set; } = null;
+            public static XRTexture2D? VRRightEyeViewTexture { get; private set; } = null;
+
+            public static XRMaterialFrameBuffer? VRLeftEyeRenderTarget { get; private set; } = null;
+            public static XRMaterialFrameBuffer? VRRightEyeRenderTarget { get; private set; } = null;
+
             public static AbstractRenderer? Renderer { get; set; } = null;
+
+            private static bool InitSteamVR(IActionManifest actionManifest, VrManifest vrManifest)
+            {
+                var vr = Api;
+                vr.DeviceDetected += OnDeviceDetected;
+                if (!vr.TryStart(EVRApplicationType.VRApplication_Scene))
+                {
+                    Debug.LogWarning("Failed to initialize SteamVR.");
+                    return false;
+                }
+                InstallApp(vrManifest);
+                vr.SetActionManifest(actionManifest);
+                CreateActions(actionManifest, vr);
+                Time.Timer.UpdateFrame += Update;
+                return true;
+            }
 
             /// <summary>
             /// This method initializes the VR system in local mode.
@@ -102,22 +127,28 @@ namespace XREngine
                 VrManifest vrManifest,
                 XRWindow window)
             {
-                var vr = Api;
-                vr.DeviceDetected += OnDeviceDetected;
-                if (!vr.TryStart(EVRApplicationType.VRApplication_Scene))
-                {
-                    Debug.LogWarning("Failed to initialize SteamVR.");
+                if (!InitSteamVR(actionManifest, vrManifest))
                     return false;
-                }
-                InstallApp(vrManifest);
-                vr.SetActionManifest(actionManifest);
-                CreateActions(actionManifest, vr);
-                Time.Timer.UpdateFrame += Update;
+                InitRender(window);
+                return true;
+            }
+
+            private static void InitRender(XRWindow window)
+            {
                 window.RenderViewportsCallback += Render;
                 Renderer = window.Renderer;
 
                 uint rW = 0u, rH = 0u;
                 Api.CVR.GetRecommendedRenderTargetSize(ref rW, ref rH);
+
+                ETrackedPropertyError error = ETrackedPropertyError.TrackedProp_Success;
+                float hz = Api.CVR.GetFloatTrackedDeviceProperty(0, ETrackedDeviceProperty.Prop_DisplayFrequency_Float, ref error);
+                if (error == ETrackedPropertyError.TrackedProp_Success && hz > 0.0f)
+                {
+                    Time.Timer.TargetRenderFrequency = hz;
+                    Time.Timer.TargetUpdateFrequency = hz / 2;
+                    Time.Timer.FixedUpdateFrequency = hz / 3;
+                }
 
                 //Renderer.ResizeViewports(new Silk.NET.Maths.Vector2D<int>((int)rW * 2, (int)rH));
                 //VRStereoRenderTarget = new XRMaterialFrameBuffer(new XRMaterial(
@@ -169,18 +200,7 @@ namespace XREngine
                 rightVP.SetInternalResolution((int)rW, (int)rH, false);
                 leftVP.Resize(rW, rH, false);
                 rightVP.Resize(rW, rH, false);
-
-                return true;
             }
-
-            public static XRTexture2D? VRStereoViewTexture { get; private set; } = null;
-            public static XRMaterialFrameBuffer? VRStereoRenderTarget { get; private set; } = null;
-
-            public static XRTexture2D? VRLeftEyeViewTexture { get; private set; } = null;
-            public static XRTexture2D? VRRightEyeViewTexture { get; private set; } = null;
-
-            public static XRMaterialFrameBuffer? VRLeftEyeRenderTarget { get; private set; } = null;
-            public static XRMaterialFrameBuffer? VRRightEyeRenderTarget { get; private set; } = null;
 
             /// <summary>
             /// This method initializes the VR system in client mode.
@@ -191,20 +211,9 @@ namespace XREngine
                 IActionManifest actionManifest,
                 VrManifest vrManifest)
             {
-                var vr = Api;
-                vr.DeviceDetected += OnDeviceDetected;
-                if (!vr.TryStart(EVRApplicationType.VRApplication_Scene))
-                {
-                    Debug.LogWarning("Failed to initialize SteamVR.");
-                    return false;
-                }
-                InstallApp(vrManifest);
-                vr.SetActionManifest(actionManifest);
-                CreateActions(actionManifest, vr);
-                Time.Timer.UpdateFrame += Update;
-                //window.Renderer.RenderViewportsCallback += Render;
-                return true;
+                return InitSteamVR(actionManifest, vrManifest);
             }
+
             /// <summary>
             /// This method initializes the VR system in server mode.
             /// VR input is sent to this process and rendered frames are sent to the client process to submit to OpenVR.
@@ -269,7 +278,8 @@ namespace XREngine
                 if (leftHandle is not null && rightHandle is not null)
                     SubmitRenders(leftHandle.Value, rightHandle.Value);
 
-                ReadStats();
+                if (Rendering.Settings.LogVRFrameTimes)
+                    ReadStats();
             }
 
             private static void ReadStats()

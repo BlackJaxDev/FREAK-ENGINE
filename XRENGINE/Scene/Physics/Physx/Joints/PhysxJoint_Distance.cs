@@ -2,7 +2,6 @@
 
 namespace XREngine.Rendering.Physics.Physx.Joints
 {
-
     public unsafe class PhysxJoint_Distance(PxDistanceJoint* joint) : PhysxJoint
     {
         public PxDistanceJoint* _joint = joint;

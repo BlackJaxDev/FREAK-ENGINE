@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using XREngine.Core;
 using XREngine.Data.Core;
 using XREngine.Data.Geometry;
 using XREngine.Input;
@@ -17,6 +18,13 @@ namespace XREngine.Components
         public XREvent<PawnComponent> PostPossessed;
         public XREvent<PawnComponent> PreUnpossessed;
         public XREvent<PawnComponent> PostUnpossessed;
+
+        private EventList<OptionalInputSetComponent> _optionalInputSets = [];
+        public EventList<OptionalInputSetComponent> OptionalInputSets
+        {
+            get => _optionalInputSets;
+            set => SetField(ref _optionalInputSets, value);
+        }
 
         private PawnController? _controller;
         /// <summary>
@@ -153,6 +161,90 @@ namespace XREngine.Components
         }
 
         public virtual void RegisterInput(InputInterface input) { }
+
+        private IEnumerable<OptionalInputSetComponent>? _registeredOptionalSets = null;
+        public void RegisterOptionalInputs(InputInterface input)
+        {
+            IEnumerable<OptionalInputSetComponent> allSets;
+            if (input.Unregister)
+            {
+                if (_registeredOptionalSets is not null)
+                {
+                    allSets = _registeredOptionalSets;
+                    foreach (var x in allSets)
+                    {
+                        x.PropertyChanged -= OptionalInputSetComponent_ActiveChanged;
+                        if (x.IsActive)
+                            x.RegisterInput(input);
+                    }
+
+                    SceneNode.Components.CollectionChanged -= UpdateOptionalInputs;
+                    OptionalInputSets.CollectionChanged -= UpdateOptionalInputs;
+                }
+                else
+                    return;
+            }
+            else
+            {
+                allSets = GetSiblingComponents<OptionalInputSetComponent>().Concat(OptionalInputSets).Distinct();
+                foreach (var x in allSets)
+                {
+                    x.PropertyChanged += OptionalInputSetComponent_ActiveChanged;
+                    if (x.IsActive)
+                        x.RegisterInput(input);
+                }
+                
+                _registeredOptionalSets = allSets;
+                SceneNode.Components.CollectionChanged += UpdateOptionalInputs;
+                OptionalInputSets.CollectionChanged += UpdateOptionalInputs;
+            }
+        }
+
+        private void OptionalInputSetComponent_ActiveChanged(object? sender, IXRPropertyChangedEventArgs e)
+        {
+            if (e.PropertyName != nameof(IsActive))
+                return;
+
+            var input = LocalInput;
+            if (input is null)
+                return;
+
+            if (sender is not OptionalInputSetComponent x)
+                return;
+            
+            if (x.IsActive)
+                x.RegisterInput(input);
+            else
+            {
+                input.Unregister = true;
+                x.RegisterInput(input);
+                input.Unregister = false;
+            }
+        }
+
+        private void UpdateOptionalInputs(object sender, TCollectionChangedEventArgs<OptionalInputSetComponent> e)
+        {
+            if (LocalInput is null)
+                return;
+
+            LocalInput.Unregister = true;
+            RegisterOptionalInputs(LocalInput);
+
+            LocalInput.Unregister = false;
+            RegisterOptionalInputs(LocalInput);
+        }
+
+        private void UpdateOptionalInputs(object sender, TCollectionChangedEventArgs<XRComponent> e)
+        {
+            if (LocalInput is null)
+                return;
+
+            LocalInput.Unregister = true;
+            RegisterOptionalInputs(LocalInput);
+
+            LocalInput.Unregister = false;
+            RegisterOptionalInputs(LocalInput);
+        }
 
         /// <summary>
         /// Enqueues this pawn for possession by the local player with the given index.

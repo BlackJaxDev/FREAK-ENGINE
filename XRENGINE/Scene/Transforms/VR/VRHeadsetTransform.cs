@@ -9,28 +9,19 @@ namespace XREngine.Scene.Transforms
     public class VRHeadsetTransform : TransformBase
     {
         public VRHeadsetTransform()
-        {
-            Engine.VRState.RecalcMatrixOnDraw += VRState_RecalcMatrixOnDraw;
-        }
+            => Engine.VRState.RecalcMatrixOnDraw += VRState_RecalcMatrixOnDraw;
         public VRHeadsetTransform(TransformBase parent)
             : base(parent)
-        {
-            Engine.VRState.RecalcMatrixOnDraw += VRState_RecalcMatrixOnDraw;
-        }
+            => Engine.VRState.RecalcMatrixOnDraw += VRState_RecalcMatrixOnDraw;
 
         private void VRState_RecalcMatrixOnDraw()
         {
-            RecalculateMatrices(true);
+            _lastVRMatrixUpdate = Engine.VRState.Api.Headset?.RenderDeviceToAbsoluteTrackingMatrix ?? Matrix4x4.Identity;
+            MarkLocalModified();
         }
 
+        private Matrix4x4 _lastVRMatrixUpdate = Matrix4x4.Identity;
         protected override Matrix4x4 CreateLocalMatrix()
-        {
-            var headset = Engine.VRState.Api.Headset;
-            if (headset is null)
-                return Matrix4x4.Identity;
-
-            //MarkLocalModified();
-            return headset.RenderDeviceToAbsoluteTrackingMatrix;
-        }
+            => _lastVRMatrixUpdate;
     }
 }

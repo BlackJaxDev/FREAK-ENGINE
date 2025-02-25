@@ -11,19 +11,16 @@ namespace XREngine.Data.Components.Scene
     public class VRControllerTransform : TransformBase
     {
         public VRControllerTransform()
-        { 
-            Engine.VRState.RecalcMatrixOnDraw += VRState_RecalcMatrixOnDraw;
-        }
+            => Engine.VRState.RecalcMatrixOnDraw += VRState_RecalcMatrixOnDraw;
 
         public VRControllerTransform(TransformBase parent)
             : base(parent)
-        {
-            Engine.VRState.RecalcMatrixOnDraw += VRState_RecalcMatrixOnDraw;
-        }
+            => Engine.VRState.RecalcMatrixOnDraw += VRState_RecalcMatrixOnDraw;
 
         private void VRState_RecalcMatrixOnDraw()
         {
-            RecalculateMatrices(true);
+            _lastVRMatrixUpdate = Controller?.RenderDeviceToAbsoluteTrackingMatrix ?? Matrix4x4.Identity;
+            MarkLocalModified();
         }
 
         private bool _leftHand;
@@ -37,69 +34,8 @@ namespace XREngine.Data.Components.Scene
             ? Engine.VRState.Api.LeftController 
             : Engine.VRState.Api.RightController;
 
+        private Matrix4x4 _lastVRMatrixUpdate = Matrix4x4.Identity;
         protected override Matrix4x4 CreateLocalMatrix()
-        {
-            //MarkLocalModified();
-            var controller = Controller;
-            return controller is null
-                ? Matrix4x4.Identity
-                : controller.RenderDeviceToAbsoluteTrackingMatrix;
-        }
-    }
-    /// <summary>
-    /// The transform for a VR tracker.
-    /// </summary>
-    /// <param name="parent"></param>
-    public class VRTrackerTransform : TransformBase
-    {
-        public VRTrackerTransform()
-        {
-            Engine.VRState.RecalcMatrixOnDraw += VRState_RecalcMatrixOnDraw;
-        }
-        
-        public VRTrackerTransform(TransformBase parent)
-            : base(parent)
-        {
-            Engine.VRState.RecalcMatrixOnDraw += VRState_RecalcMatrixOnDraw;
-        }
-
-        private void VRState_RecalcMatrixOnDraw()
-        {
-            RecalculateMatrices(true);
-        }
-
-        private uint? _deviceIndex;
-        public uint? DeviceIndex
-        {
-            get => _deviceIndex;
-            set => SetField(ref _deviceIndex, value);
-        }
-
-        private VrDevice? _tracker = null;
-        public VrDevice? Tracker
-        {
-            get => _tracker ?? SetFieldReturn(ref _tracker, DeviceIndex is null ? null : Engine.VRState.Api.TrackedDevices.FirstOrDefault(d => d.DeviceIndex == DeviceIndex && Engine.VRState.Api.CVR.GetTrackedDeviceClass(d.DeviceIndex) == Valve.VR.ETrackedDeviceClass.GenericTracker));
-            set => SetField(ref _tracker, value);
-        }
-
-        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
-        {
-            base.OnPropertyChanged(propName, prev, field);
-            switch (propName)
-            {
-                case nameof(Tracker):
-                    DeviceIndex = _tracker?.DeviceIndex;
-                    break;
-            }
-        }
-
-        protected override Matrix4x4 CreateLocalMatrix()
-        {
-            //MarkLocalModified();
-            var tracker = Tracker;
-            return tracker is null
-                ? Matrix4x4.Identity
-                : tracker.RenderDeviceToAbsoluteTrackingMatrix;
-        }
+            => _lastVRMatrixUpdate;
     }
 }

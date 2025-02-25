@@ -38,6 +38,7 @@ namespace XREngine
                 private bool _optimizeTo4Weights = false;
                 private bool _optimizeWeightsIfPossible = true;
                 private bool _tickGroupedItemsInParallel = true;
+                private bool _recalcChildMatricesInParallel = true;
                 private uint _lightProbeResolution = 512u;
                 private bool _lightProbesCaptureDepth = false;
                 private uint _lightProbeDepthResolution = 256u;
@@ -107,6 +108,14 @@ namespace XREngine
                 {
                     get => _tickGroupedItemsInParallel;
                     set => SetField(ref _tickGroupedItemsInParallel, value);
+                }
+                /// <summary>
+                /// If true, when calculating matrix hierarchies, the engine will calculate a transform's child matrices in parallel.
+                /// </summary>
+                public bool RecalcChildMatricesInParallel
+                {
+                    get => _recalcChildMatricesInParallel;
+                    set => SetField(ref _recalcChildMatricesInParallel, value);
                 }
                 /// <summary>
                 /// The default resolution of the light probe color texture.
@@ -231,6 +240,7 @@ namespace XREngine
                 public bool AllowBlendshapes { get; set; } = true;
                 public bool RemapBlendshapeDeltas { get; set; } = true;
                 public bool UseAbsoluteBlendshapePositions { get; set; } = false;
+                public bool LogVRFrameTimes { get; set; } = false;
             }
         }
     }

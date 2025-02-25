@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+using System.Xml.Linq;
 using XREngine.Components;
 using XREngine.Core.Attributes;
 using XREngine.Data.Core;
@@ -949,6 +950,42 @@ namespace XREngine.Scene
             }
             return null;
         }
+        public SceneNode? FindDescendant(Func<TransformBase, bool> predicate)
+        {
+            if (predicate(Transform))
+                return this;
+            lock (Transform.Children)
+            {
+                foreach (var child in Transform.Children)
+                    if (child?.SceneNode is SceneNode node)
+                        if (node.FindDescendant(predicate) is SceneNode found)
+                            return found;
+            }
+            return null;
+        }
+
+        public SceneNode?[] FindDescendants(params Func<TransformBase, bool>[] predicates)
+        {
+            SceneNode?[] nodes = new SceneNode?[predicates.Length];
+            lock (Transform.Children)
+            {
+                foreach (var child in Transform.Children)
+                    if (child?.SceneNode is SceneNode node)
+                    {
+                        for (int i = 0; i < predicates.Length; i++)
+                            if (nodes[i] is null && predicates[i](child))
+                            {
+                                nodes[i] = node;
+                                break;
+                            }
+                        if (nodes.Any(x => x is null))
+                            node.FindDescendants(predicates);
+                        else
+                            break;
+                    }
+            }
+            return nodes;
+        }
 
         public void AddChild(SceneNode node)
         {
@@ -967,39 +1004,44 @@ namespace XREngine.Scene
             Transform.RemoveAt(index);
         }
 
-        public static SceneNode New<T1>(SceneNode? parentNode, out T1 comp1) where T1 : XRComponent
+        public static SceneNode New<T1>(SceneNode? parentNode, out T1 comp1, string? name = null) where T1 : XRComponent
         {
-            var node = parentNode is null ? new SceneNode() : new SceneNode(parentNode);
+            name ??= string.Empty;
+            var node = parentNode is null ? new SceneNode(name) : new SceneNode(parentNode, name);
             comp1 = node.AddComponent<T1>()!;
             return node;
         }
-        public static SceneNode New<T1, T2>(SceneNode? parentNode, out T1 comp1, out T2 comp2) where T1 : XRComponent where T2 : XRComponent
+        public static SceneNode New<T1, T2>(SceneNode? parentNode, out T1 comp1, out T2 comp2, string? name = null) where T1 : XRComponent where T2 : XRComponent
         {
-            var node = parentNode is null ? new SceneNode() : new SceneNode(parentNode);
+            name ??= string.Empty;
+            var node = parentNode is null ? new SceneNode(name) : new SceneNode(parentNode, name);
             comp1 = node.AddComponent<T1>()!;
             comp2 = node.AddComponent<T2>()!;
             return node;
         }
-        public static SceneNode New<T1, T2, T3>(SceneNode? parentNode, out T1 comp1, out T2 comp2, out T3 comp3) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent
+        public static SceneNode New<T1, T2, T3>(SceneNode? parentNode, out T1 comp1, out T2 comp2, out T3 comp3, string? name = null) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent
         {
-            var node = parentNode is null ? new SceneNode() : new SceneNode(parentNode);
+            name ??= string.Empty;
+            var node = parentNode is null ? new SceneNode(name) : new SceneNode(parentNode, name);
             comp1 = node.AddComponent<T1>()!;
             comp2 = node.AddComponent<T2>()!;
             comp3 = node.AddComponent<T3>()!;
             return node;
         }
-        public static SceneNode New<T1, T2, T3, T4>(SceneNode? parentNode, out T1 comp1, out T2 comp2, out T3 comp3, out T4 comp4) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent where T4 : XRComponent
+        public static SceneNode New<T1, T2, T3, T4>(SceneNode? parentNode, out T1 comp1, out T2 comp2, out T3 comp3, out T4 comp4, string? name = null) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent where T4 : XRComponent
         {
-            var node = parentNode is null ? new SceneNode() : new SceneNode(parentNode);
+            name ??= string.Empty;
+            var node = parentNode is null ? new SceneNode(name) : new SceneNode(parentNode, name);
             comp1 = node.AddComponent<T1>()!;
             comp2 = node.AddComponent<T2>()!;
             comp3 = node.AddComponent<T3>()!;
             comp4 = node.AddComponent<T4>()!;
             return node;
         }
-        public static SceneNode New<T1, T2, T3, T4, T5>(SceneNode? parentNode, out T1 comp1, out T2 comp2, out T3 comp3, out T4 comp4, out T5 comp5) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent where T4 : XRComponent where T5 : XRComponent
+        public static SceneNode New<T1, T2, T3, T4, T5>(SceneNode? parentNode, out T1 comp1, out T2 comp2, out T3 comp3, out T4 comp4, out T5 comp5, string? name = null) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent where T4 : XRComponent where T5 : XRComponent
         {
-            var node = parentNode is null ? new SceneNode() : new SceneNode(parentNode);
+            name ??= string.Empty;
+            var node = parentNode is null ? new SceneNode(name) : new SceneNode(parentNode, name);
             comp1 = node.AddComponent<T1>()!;
             comp2 = node.AddComponent<T2>()!;
             comp3 = node.AddComponent<T3>()!;
@@ -1007,9 +1049,10 @@ namespace XREngine.Scene
             comp5 = node.AddComponent<T5>()!;
             return node;
         }
-        public static SceneNode New<T1, T2, T3, T4, T5, T6>(SceneNode? parentNode, out T1 comp1, out T2 comp2, out T3 comp3, out T4 comp4, out T5 comp5, out T6 comp6) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent where T4 : XRComponent where T5 : XRComponent where T6 : XRComponent
+        public static SceneNode New<T1, T2, T3, T4, T5, T6>(SceneNode? parentNode, out T1 comp1, out T2 comp2, out T3 comp3, out T4 comp4, out T5 comp5, out T6 comp6, string? name = null) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent where T4 : XRComponent where T5 : XRComponent where T6 : XRComponent
         {
-            var node = parentNode is null ? new SceneNode() : new SceneNode(parentNode);
+            name ??= string.Empty;
+            var node = parentNode is null ? new SceneNode(name) : new SceneNode(parentNode, name);
             comp1 = node.AddComponent<T1>()!;
             comp2 = node.AddComponent<T2>()!;
             comp3 = node.AddComponent<T3>()!;
@@ -1019,20 +1062,20 @@ namespace XREngine.Scene
             return node;
         }
 
-        public SceneNode NewChild()
-            => new(this);
-        public SceneNode NewChild<T1>(out T1 comp1) where T1 : XRComponent
-            => New(this, out comp1);
-        public SceneNode NewChild<T1, T2>(out T1 comp1, out T2 comp2) where T1 : XRComponent where T2 : XRComponent
-            => New(this, out comp1, out comp2);
-        public SceneNode NewChild<T1, T2, T3>(out T1 comp1, out T2 comp2, out T3 comp3) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent
-            => New(this, out comp1, out comp2, out comp3);
-        public SceneNode NewChild<T1, T2, T3, T4>(out T1 comp1, out T2 comp2, out T3 comp3, out T4 comp4) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent where T4 : XRComponent
-            => New(this, out comp1, out comp2, out comp3, out comp4);
-        public SceneNode NewChild<T1, T2, T3, T4, T5>(out T1 comp1, out T2 comp2, out T3 comp3, out T4 comp4, out T5 comp5) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent where T4 : XRComponent where T5 : XRComponent
-            => New(this, out comp1, out comp2, out comp3, out comp4, out comp5);
-        public SceneNode NewChild<T1, T2, T3, T4, T5, T6>(out T1 comp1, out T2 comp2, out T3 comp3, out T4 comp4, out T5 comp5, out T6 comp6) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent where T4 : XRComponent where T5 : XRComponent where T6 : XRComponent
-            => New(this, out comp1, out comp2, out comp3, out comp4, out comp5, out comp6);
+        public SceneNode NewChild(string? name = null)
+            => new(this) { Name = name };
+        public SceneNode NewChild<T1>(out T1 comp1, string? name = null) where T1 : XRComponent
+            => New(this, out comp1, name);
+        public SceneNode NewChild<T1, T2>(out T1 comp1, out T2 comp2, string? name = null) where T1 : XRComponent where T2 : XRComponent
+            => New(this, out comp1, out comp2, name);
+        public SceneNode NewChild<T1, T2, T3>(out T1 comp1, out T2 comp2, out T3 comp3, string? name = null) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent
+            => New(this, out comp1, out comp2, out comp3, name);
+        public SceneNode NewChild<T1, T2, T3, T4>(out T1 comp1, out T2 comp2, out T3 comp3, out T4 comp4, string? name = null) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent where T4 : XRComponent
+            => New(this, out comp1, out comp2, out comp3, out comp4, name);
+        public SceneNode NewChild<T1, T2, T3, T4, T5>(out T1 comp1, out T2 comp2, out T3 comp3, out T4 comp4, out T5 comp5, string? name = null) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent where T4 : XRComponent where T5 : XRComponent
+            => New(this, out comp1, out comp2, out comp3, out comp4, out comp5, name);
+        public SceneNode NewChild<T1, T2, T3, T4, T5, T6>(out T1 comp1, out T2 comp2, out T3 comp3, out T4 comp4, out T5 comp5, out T6 comp6, string? name = null) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent where T4 : XRComponent where T5 : XRComponent where T6 : XRComponent
+            => New(this, out comp1, out comp2, out comp3, out comp4, out comp5, out comp6, name);
 
         /// <summary>
         /// Returns the first child of this scene node, if any.

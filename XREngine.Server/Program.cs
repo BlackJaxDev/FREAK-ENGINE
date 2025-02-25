@@ -275,7 +275,7 @@ namespace XREngine.Networking
                     }
                 ],
                 OutputVerbosity = EOutputVerbosity.Verbose,
-                AppType = EAppType.Server,
+                NetworkingType = ENetworkingType.Server,
                 DefaultUserSettings = new UserSettings()
                 {
                     TargetFramesPerSecond = renderHz,

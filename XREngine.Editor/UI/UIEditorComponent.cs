@@ -82,7 +82,7 @@ public partial class UIEditorComponent : UIComponent
         //    hierarchy.RootNodes.AddRange(World.RootNodes);
 
         //World.Name = "TestWorld";
-        hierarchy.InspectedObjects = [World];
+        hierarchy.InspectedObjects = [Engine.Rendering.Settings];
 
         ////Create the dockable windows transform for panels
         //var dockableNode = splitChild.NewChild<UIDockingRootComponent>(out var root);

@@ -14,6 +14,8 @@ namespace XREngine.Audio
         //destroy sources with lower priority first to make room for higher priority sources.
         //0 is the lowest priority, 255 is the highest priority.
 
+        public string? Name { get; set; }
+
         public AL Api { get; } = AL.GetApi();
         public ALContext Context { get; }
 

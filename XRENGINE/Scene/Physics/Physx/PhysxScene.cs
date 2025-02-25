@@ -1,6 +1,4 @@
-﻿using Extensions;
-using MagicPhysX;
-using Silk.NET.Vulkan;
+﻿using MagicPhysX;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -78,13 +76,12 @@ namespace XREngine.Rendering.Physics.Physx
         public CustomFilterShaderDelegate CustomFilterShaderInstance = CustomFilterShader;
         static void CustomFilterShader(FilterShaderCallbackInfo* callbackInfo, PxFilterFlags filterFlags)
         {
-            PxPairFlags flags = 
+            callbackInfo->pairFlags[0] = 
                 PxPairFlags.ContactDefault |
                 PxPairFlags.NotifyTouchFound |
                 PxPairFlags.SolveContact |
                 PxPairFlags.DetectCcdContact |
                 PxPairFlags.DetectDiscreteContact;
-            callbackInfo->pairFlags[0] = flags;
         }
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]

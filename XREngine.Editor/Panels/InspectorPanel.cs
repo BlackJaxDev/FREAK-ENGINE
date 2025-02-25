@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Text;
 using XREngine.Core.Files;
 using XREngine.Data.Colors;
+using XREngine.Editor.UI;
 using XREngine.Rendering;
 using XREngine.Rendering.Models.Materials;
 using XREngine.Rendering.UI;
@@ -130,7 +131,7 @@ public class InspectorPanel : EditorPanel
 
     private static List<PropertyInfo> CreateNodes(SceneNode listNode, object?[]? inspectedObjects)
     {
-        float fontSize = 14.0f;
+        float fontSize = EditorUI.Styles.PropertyNameFontSize;
         float leftMargin = 5.0f;
         float rightMargin = 5.0f;
         float verticalSpacing = 2.0f;
@@ -174,7 +175,7 @@ public class InspectorPanel : EditorPanel
         nameText.FontSize = fontSize;
         nameText.HorizontalAlignment = EHorizontalAlignment.Right;
         nameText.VerticalAlignment = EVerticalAlignment.Center;
-        nameText.Color = ColorF4.Gray;
+        nameText.Color = EditorUI.Styles.PropertyNameTextColor;
         var nameTfm = nameText.BoundableTransform;
         nameTfm.Margins = new Vector4(leftMargin, verticalSpacing, rightMargin, verticalSpacing);
 
@@ -192,14 +193,22 @@ public class InspectorPanel : EditorPanel
 
     private static string? CamelCaseWithSpaces(string name)
     {
-        StringBuilder sb = new();
-        for (int i = 0; i < name.Length; ++i)
-        {
-            if (i > 0 && char.IsUpper(name[i]))
-                sb.Append(' ');
-            sb.Append(name[i]);
-        }
-        return sb.ToString();
+        if (string.IsNullOrEmpty(name))
+            return name;
+
+        // Insert space between lowercase or digit and uppercase letter
+        string withSpaces = System.Text.RegularExpressions.Regex.Replace(
+            name,
+            "(?<=[a-z0-9])([A-Z])",
+            " $1");
+
+        // Handle sequences like "XMLHttpRequest" -> "XML Http Request"
+        withSpaces = System.Text.RegularExpressions.Regex.Replace(
+            withSpaces,
+            "([A-Z])([A-Z][a-z])",
+            "$1 $2");
+
+        return withSpaces;
     }
 
     public static Action<SceneNode, PropertyInfo, object?[]?>? CreatePropertyEditor(Type propType)
@@ -272,9 +281,9 @@ public class InspectorPanel : EditorPanel
         textInput.MouseDirectOverlapLeave += LostFocus;
         textInput.Property = prop;
         textInput.Targets = objects;
-
-        textComp!.FontSize = 14;
-        textComp.Color = ColorF4.Gray;
+        
+        textComp!.FontSize = EditorUI.Styles.PropertyInputFontSize;
+        textComp.Color = EditorUI.Styles.PropertyInputTextColor;
         textComp.HorizontalAlignment = EHorizontalAlignment.Left;
         textComp.VerticalAlignment = EVerticalAlignment.Center;
         textComp.BoundableTransform.Margins = new Vector4(5.0f, 2.0f, 5.0f, 2.0f);

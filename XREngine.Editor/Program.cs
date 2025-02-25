@@ -61,7 +61,7 @@ internal class Program
             },
             TargetUpdatesPerSecond = updateHz,
             FixedFramesPerSecond = fixedHz,
-            AppType = GameStartupSettings.EAppType.Client,
+            NetworkingType = GameStartupSettings.ENetworkingType.Client,
         };
         if (EditorWorld.VRPawn)
             EditorVR.ApplyVRSettings(settings);

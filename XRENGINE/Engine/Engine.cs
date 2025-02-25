@@ -165,24 +165,24 @@ namespace XREngine
 
         private static void InitializeNetworking(GameStartupSettings startupSettings)
         {
-            var appType = startupSettings.AppType;
+            var appType = startupSettings.NetworkingType;
             switch (appType)
             {
                 default:
-                case GameStartupSettings.EAppType.Local:
+                case GameStartupSettings.ENetworkingType.Local:
                     Networking = null;
                     break;
-                case GameStartupSettings.EAppType.Server:
+                case GameStartupSettings.ENetworkingType.Server:
                     var server = new ServerNetworkingManager();
                     Networking = server;
                     server.Start(IPAddress.Parse(startupSettings.UdpMulticastGroupIP), startupSettings.UdpMulticastPort, startupSettings.UdpClientRecievePort);
                     break;
-                case GameStartupSettings.EAppType.Client:
+                case GameStartupSettings.ENetworkingType.Client:
                     var client = new ClientNetworkingManager();
                     Networking = client;
                     client.Start(IPAddress.Parse(startupSettings.UdpMulticastGroupIP), startupSettings.UdpMulticastPort, IPAddress.Parse(startupSettings.ServerIP), startupSettings.UdpServerSendPort);
                     break;
-                case GameStartupSettings.EAppType.P2PClient:
+                case GameStartupSettings.ENetworkingType.P2PClient:
                     var p2pClient = new PeerToPeerNetworkingManager();
                     Networking = p2pClient;
                     p2pClient.Start(IPAddress.Parse(startupSettings.UdpMulticastGroupIP), startupSettings.UdpMulticastPort, IPAddress.Parse(startupSettings.ServerIP));

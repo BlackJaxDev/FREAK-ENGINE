@@ -34,7 +34,7 @@ namespace XREngine.Components.Scene.Mesh
             if (item.RenderInfo.WorldInstance == World)
                 item.RenderInfo.WorldInstance = null;
 
-            RenderedObjects = RenderedObjects.Where(x => x != item.RenderInfo).ToArray();
+            RenderedObjects = [.. RenderedObjects.Where(x => x != item.RenderInfo)];
         }
 
         protected virtual void Meshes_PostAnythingAdded(RenderableMesh item)

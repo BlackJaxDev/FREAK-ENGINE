@@ -63,7 +63,10 @@ namespace XREngine.Components.Scene
 
         private void MakeListener()
         {
-            Listener = Engine.Audio.NewListener();
+            if (Listener is not null)
+                return;
+
+            Listener = Engine.Audio.NewListener(Name);
             World?.Listeners?.Add(Listener);
         }
 
@@ -71,6 +74,7 @@ namespace XREngine.Components.Scene
         {
             if (Listener is not null)
                 World?.Listeners?.Remove(Listener);
+
             Listener?.Dispose();
             Listener = null;
         }

@@ -1,4 +1,5 @@
-﻿using XREngine.Input.Devices;
+﻿using XREngine.Components;
+using XREngine.Input.Devices;
 using XREngine.Rendering;
 using XREngine.Rendering.UI;
 
@@ -90,6 +91,15 @@ namespace XREngine.Input
         {
             base.OnDestroying();
             Viewport = null;
+        }
+
+        protected override void RegisterInputEvents(PawnComponent c)
+        {
+            base.RegisterInputEvents(c);
+        }
+        protected override void UnregisterInputEvents(PawnComponent c)
+        {
+            base.UnregisterInputEvents(c);
         }
     }
 }

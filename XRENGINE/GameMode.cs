@@ -3,7 +3,7 @@ namespace XREngine
 {
     public class GameMode
     {
-        public Dictionary<PawnComponent, Queue<ELocalPlayerIndex>> PossessionQueue = [];
+        public Dictionary<PawnComponent, Queue<ELocalPlayerIndex>> PossessionQueue { get; } = [];
 
         /// <summary>
         /// Immediately possesses the given pawn with the provided player.

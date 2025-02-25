@@ -1,4 +1,6 @@
-﻿namespace XREngine.Audio
+﻿using System.Diagnostics;
+
+namespace XREngine.Audio
 {
     public class AudioManager
     {
@@ -10,11 +12,13 @@
             listener.Disposed -= OnContextDisposed;
             _listeners.Remove(listener);
         }
-        public ListenerContext NewListener()
+        public ListenerContext NewListener(string? name = null)
         {
-            ListenerContext listener = new();
+            ListenerContext listener = new() { Name = name };
             listener.Disposed += OnContextDisposed;
             _listeners.Add(listener);
+            if (_listeners.Count > 1)
+                Debug.WriteLine($"{_listeners.Count} listeners created.");
             return listener;
         }
 

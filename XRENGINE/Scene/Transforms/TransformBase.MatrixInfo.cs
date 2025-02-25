@@ -24,6 +24,13 @@ namespace XREngine.Scene.Transforms
 
         public float TimeSinceLastKeyframeReplicated => _timeSinceLastKeyframe;
 
+        private bool _forceManualRecalc = false;
+        public bool ForceManualRecalc
+        {
+            get => _forceManualRecalc;
+            set => SetField(ref _forceManualRecalc, value);
+        }
+
         private float _timeSinceLastKeyframe = 0;
 
         private Matrix4x4 _lastReplicatedMatrix = Matrix4x4.Identity;
@@ -142,6 +149,11 @@ namespace XREngine.Scene.Transforms
         {
             lock (_children)
                 return _children.LastOrDefault();
+        }
+
+        internal void RecalculateMatrixHeirarchy(bool v, object recalcChildMatricesInParallel)
+        {
+            throw new NotImplementedException();
         }
 
         private class MatrixInfo

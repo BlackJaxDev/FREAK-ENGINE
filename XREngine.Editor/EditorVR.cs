@@ -32,6 +32,7 @@ internal static class EditorVR
             WindowsPath = Environment.ProcessPath,
             WindowsArguments = "",
         };
+        settings.RunVRInPlace = true;
     }
 
     #region VR Actions
@@ -213,7 +214,7 @@ internal static class EditorVR
         {
             Name = EVRGameAction.Grab,
             Category = EVRActionCategory.Global,
-            Type = ActionType.Boolean,
+            Type = ActionType.Scalar,
             Requirement = Requirement.Mandatory,
             LocalizedNames = new Dictionary<string, string>
             {

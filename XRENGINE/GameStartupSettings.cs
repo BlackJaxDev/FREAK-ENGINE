@@ -5,7 +5,7 @@ namespace XREngine
 {
     public class GameStartupSettings : XRAsset
     {
-        private EAppType _appType = EAppType.Local;
+        private ENetworkingType _networkingType = ENetworkingType.Local;
         private List<GameWindowStartupSettings> _startupWindows = [];
         private ETwoPlayerPreference _twoPlayerViewportPreference;
         private EThreePlayerPreference _threePlayerViewportPreference;
@@ -58,7 +58,7 @@ namespace XREngine
             get => _texturesFolder;
             set => SetField(ref _texturesFolder, value);
         }
-        public enum EAppType
+        public enum ENetworkingType
         {
             /// <summary>
             /// The application is a server.
@@ -81,10 +81,10 @@ namespace XREngine
             /// </summary>
             Local,
         }
-        public EAppType AppType
+        public ENetworkingType NetworkingType
         {
-            get => _appType;
-            set => SetField(ref _appType, value);
+            get => _networkingType;
+            set => SetField(ref _networkingType, value);
         }
         public string UdpMulticastGroupIP
         {

@@ -6,6 +6,7 @@ using System.Numerics;
 using System.Reflection;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
+using XREngine.Rendering;
 using XREngine.Rendering.Commands;
 using XREngine.Rendering.Info;
 using XREngine.Rendering.UI;
@@ -296,44 +297,60 @@ namespace XREngine.Scene.Transforms
         }
 
         /// <summary>
+        /// Recalculates the local and world matrices for this transform.
+        /// Children are not recalculated.
+        /// </summary>
+        public void RecalculateMatrices()
+        {
+            _localMatrix.NeedsRecalc = false;
+            RecalcLocal();
+
+            _worldMatrix.NeedsRecalc = false;
+            RecalcWorld(false);
+        }
+
+        /// <summary>
         /// Recalculates the local and world matrices for this transform and all children.
         /// If recalcChildrenNow is true, all children will be recalculated immediately.
         /// If false, they will be marked as dirty and recalculated at the end of the update.
         /// </summary>
         /// <param name="recalcChildrenNow"></param>
         /// <returns></returns>
-        internal protected virtual bool RecalculateMatrices(bool recalcChildrenNow)
+        public virtual bool RecalculateMatrixHeirarchy(bool recalcChildrenNow = false, bool parallel = true)
         {
-            //bool recalcWorld = false;
-            //if (_localMatrix.NeedsRecalc)
-            //{
-                _localMatrix.NeedsRecalc = false;
-                RecalcLocal();
-                //We have to use a local bool here because the world matrix can be recalculated elsewhere before we get to it here
-                //_worldMatrix.NeedsRecalc = true;
-                //recalcWorld = true;
-                //Engine.Networking.ReplicateTransform(this);
-            //}
+            RecalculateMatrices();
+            return parallel
+                ? ParallelChildrenRecalc(recalcChildrenNow)
+                : SequentialChildrenRecalc(recalcChildrenNow);
+        }
 
-            //if (recalcWorld)
-            _worldMatrix.NeedsRecalc = false;
-            RecalcWorld(false);
-
+        private bool SequentialChildrenRecalc(bool recalcChildrenNow)
+        {
             var world = World;
-            if (world is null)
+            if (!recalcChildrenNow && world is null)
                 return false;
 
             bool wasDepthAdded = false;
+            if (recalcChildrenNow)
+                foreach (var child in _children)
+                    child.RecalculateMatrixHeirarchy(recalcChildrenNow, false);
+            else
+                foreach (var child in _children)
+                    world!.AddDirtyTransform(child, ref wasDepthAdded, false);
+            return wasDepthAdded;
+        }
 
+        private bool ParallelChildrenRecalc(bool recalcChildrenNow)
+        {
+            var world = World;
+            if (!recalcChildrenNow && world is null)
+                return false;
+
+            bool wasDepthAdded = false;
             Task.WaitAll(recalcChildrenNow
-                ? _children.Select(child => Task.Run(() => 
-                    child.RecalculateMatrices(recalcChildrenNow)))
-                : _children.Select(child => Task.Run(() =>
-                {
-                    child._worldMatrix.NeedsRecalc = true;
-                    world.AddDirtyTransform(child, ref wasDepthAdded, true);
-                })));
-
+                ? _children.Select(child => Task.Run(() => child.RecalculateMatrixHeirarchy(true, true)))
+                : _children.Select(child => Task.Run(() => world!.AddDirtyTransform(child, ref wasDepthAdded, true)
+                )));
             return wasDepthAdded;
         }
 
@@ -378,6 +395,23 @@ namespace XREngine.Scene.Transforms
                 foreach (TransformBase c in _children)
                 {
                     child = c.FindDescendant(name);
+                    if (child is not null)
+                        return child;
+                }
+            }
+            return null;
+        }
+
+        public TransformBase? FindDescendant(Func<TransformBase, bool> predicate)
+        {
+            lock (_children)
+            {
+                TransformBase? child = _children.FirstOrDefault(predicate);
+                if (child is not null)
+                    return child;
+                foreach (TransformBase c in _children)
+                {
+                    child = c.FindDescendant(predicate);
                     if (child is not null)
                         return child;
                 }

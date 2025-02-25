@@ -30,6 +30,23 @@ namespace XREngine.Rendering.Physics.Physx
             transform.DeriveWorldMatrix(Matrix4x4.CreateFromQuaternion(rotation) * Matrix4x4.CreateTranslation(position));
         }
 
+        public (Vector3 position, Quaternion rotation) WorldToLocal(Vector3 worldPosition, Quaternion worldRotation)
+        {
+            GetTransform(out var position, out var rotation);
+            var invRotation = Quaternion.Inverse(rotation);
+            var localPosition = Vector3.Transform(worldPosition - position, invRotation);
+            var localRotation = Quaternion.Multiply(invRotation, worldRotation);
+            return (localPosition, localRotation);
+        }
+
+        public (Vector3 position, Quaternion rotation) LocalToWorld(Vector3 localPosition, Quaternion localRotation)
+        {
+            GetTransform(out var position, out var rotation);
+            var worldPosition = Vector3.Transform(localPosition, rotation) + position;
+            var worldRotation = Quaternion.Multiply(rotation, localRotation);
+            return (worldPosition, worldRotation);
+        }
+
         public (Vector3 position, Quaternion rotation) Transform
         {
             get
