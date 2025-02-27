@@ -14,7 +14,7 @@ namespace XREngine.Rendering.Models.Materials
         public bool IsEnabled => Enabled == ERenderParamUsage.Enabled;
 
         [Browsable(false)]
-        public bool IsDisable => Enabled == ERenderParamUsage.Disabled;
+        public bool IsDisabled => Enabled == ERenderParamUsage.Disabled;
 
         [Browsable(false)]
         public bool IsUnchanged => Enabled == ERenderParamUsage.Unchanged;

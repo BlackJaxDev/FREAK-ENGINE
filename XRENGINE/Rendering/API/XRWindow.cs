@@ -39,7 +39,12 @@ namespace XREngine.Rendering
                     VerifyTick();
                     bool notClient = !(Engine.Networking?.IsClient ?? false);
                     if (notClient)
-                        Engine.Networking?.ReplicateStateChange(new Engine.StateChangeInfo(Engine.EStateChangeType.WorldChange, JsonConvert.SerializeObject(EncodeWorldHierarchy())), true);
+                        Engine.Networking?.ReplicateStateChange(
+                            new Engine.StateChangeInfo(
+                                Engine.EStateChangeType.WorldChange,
+                                JsonConvert.SerializeObject(EncodeWorldHierarchy())),
+                            true,
+                            true);
                     break;
             }
         }

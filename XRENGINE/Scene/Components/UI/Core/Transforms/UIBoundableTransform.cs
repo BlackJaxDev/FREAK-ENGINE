@@ -6,6 +6,7 @@ using XREngine.Data.Geometry;
 using XREngine.Rendering.Info;
 using XREngine.Scene.Transforms;
 using YamlDotNet.Serialization;
+using static XREngine.Globals;
 
 namespace XREngine.Rendering.UI
 {
@@ -178,6 +179,7 @@ namespace XREngine.Rendering.UI
         private Vector2 _normalizedPivot = Vector2.Zero;
         /// <summary>
         /// The origin of this component as a percentage of its size.
+        /// Only affects scale and rotation.
         /// </summary>
         public Vector2 NormalizedPivot
         {
@@ -247,6 +249,26 @@ namespace XREngine.Rendering.UI
             }
         }
 
+        private bool ShouldMarkLocalMatrixChanged()
+        {
+            if (!XRMath.Approx(_prevActualBottomLeftTranslation, ActualLocalBottomLeftTranslation) ||
+                !XRMath.Approx(_prevDepthTranslation, DepthTranslation) ||
+                !XRMath.Approx(_prevRotationRadians, RotationRadians))
+                return true;
+
+            var p = PlacementInfo;
+            if (p is not null && p.RelativePositioningChanged)
+                return true;
+
+            return false;
+        }
+
+        private Vector2 _prevActualBottomLeftTranslation = Vector2.Zero;
+        private float _prevDepthTranslation = 0.0f;
+        private float _prevRotationRadians = 0.0f;
+        private Vector3 _prevScale = Vector3.One;
+
+
         /// <summary>
         /// Creates the local transformation of the origin relative to the parent UI transform.
         /// Translates to the parent's translation, applies the origin translation, and then applies this component's translation and scale.
@@ -257,15 +279,21 @@ namespace XREngine.Rendering.UI
             Matrix4x4 mtx = Matrix4x4.CreateTranslation(new Vector3(ActualLocalBottomLeftTranslation, DepthTranslation));
             var p = PlacementInfo;
             if (p is not null)
+            {
                 mtx *= p.GetRelativeItemMatrix();
-            if (Scale != Vector3.One || RotationRadians != 0.0f)
+                p.RelativePositioningChanged = false;
+            }
+            if (!XRMath.VectorsEqual(Scale, Vector3.One) || RotationRadians >= float.Epsilon)
             {
                 mtx *=
-                Matrix4x4.CreateTranslation(new Vector3(LocalPivotTranslation, 0.0f)) *
-                Matrix4x4.CreateScale(Scale) *
-                Matrix4x4.CreateFromAxisAngle(Globals.Backward, RotationRadians) *
-                Matrix4x4.CreateTranslation(new Vector3(-LocalPivotTranslation, 0.0f));
+                    Matrix4x4.CreateTranslation(new Vector3(LocalPivotTranslation, 0.0f)) *
+                    Matrix4x4.CreateScale(Scale) *
+                    Matrix4x4.CreateFromAxisAngle(Globals.Backward, RotationRadians) *
+                    Matrix4x4.CreateTranslation(new Vector3(-LocalPivotTranslation, 0.0f));
             }
+            _prevActualBottomLeftTranslation = ActualLocalBottomLeftTranslation;
+            _prevDepthTranslation = DepthTranslation;
+            _prevRotationRadians = RotationRadians;
             return mtx;
         }
 
@@ -497,7 +525,7 @@ namespace XREngine.Rendering.UI
         }
 
         public BoundingRectangleF GetActualBounds()
-            => new(_actualTranslation, _actualSize);
+            => new(_actualLocalBottomLeftTranslation, _actualSize);
 
         /// <summary>
         /// This method is called to fit the contents of this transform into the provided bounds.
@@ -506,7 +534,8 @@ namespace XREngine.Rendering.UI
         public override void FitLayout(BoundingRectangleF parentBounds)
         {
             OnResizeActual(ApplyMargins(parentBounds));
-            MarkLocalModified();
+            if (ShouldMarkLocalMatrixChanged())
+                MarkLocalModified();
         }
 
         protected override void OnLocalMatrixChanged()
@@ -723,29 +752,17 @@ namespace XREngine.Rendering.UI
         }
 
         public Vector2 WorldToLocal(Vector2 worldPoint)
-        {
-            return Vector2.Transform(worldPoint, InverseWorldMatrix);
-        }
+            => Vector2.Transform(worldPoint, InverseWorldMatrix);
         public Vector2 LocalToWorld(Vector2 localPoint)
-        {
-            return Vector2.Transform(localPoint, WorldMatrix);
-        }
+            => Vector2.Transform(localPoint, WorldMatrix);
         public Vector3 WorldToLocal(Vector2 worldPoint, float worldZ)
-        {
-            return Vector3.Transform(new Vector3(worldPoint, worldZ), InverseWorldMatrix);
-        }
+            => Vector3.Transform(new Vector3(worldPoint, worldZ), InverseWorldMatrix);
         public Vector3 LocalToWorld(Vector2 localPoint, float worldZ)
-        {
-            return Vector3.Transform(new Vector3(localPoint, worldZ), WorldMatrix);
-        }
+            => Vector3.Transform(new Vector3(localPoint, worldZ), WorldMatrix);
         public Vector3 WorldToLocal(Vector3 worldPoint)
-        {
-            return Vector3.Transform(worldPoint, InverseWorldMatrix);
-        }
+            => Vector3.Transform(worldPoint, InverseWorldMatrix);
         public Vector3 LocalToWorld(Vector3 localPoint)
-        {
-            return Vector3.Transform(localPoint, WorldMatrix);
-        }
+            => Vector3.Transform(localPoint, WorldMatrix);
 
         /// <summary>
         /// Sets parameters to stretch this component to the parent bounds.
@@ -767,12 +784,17 @@ namespace XREngine.Rendering.UI
             float h = ActualHeight;
             foreach (var info in infos)
             {
-                if (info is RenderInfo2D renderInfo2D)
-                    renderInfo2D.CullingVolume = AxisAlignedRegion;
-                else if (info is RenderInfo3D renderInfo3D)
+                //Don't update render info 3D if this is a 2D canvas and vice versa.
+                //Otherwise, results in unnecessary octree movement updates (for potentially thousands of UI components).
+                switch (info)
                 {
-                    renderInfo3D.CullingOffsetMatrix = RegionWorldTransform;
-                    renderInfo3D.LocalCullingVolume = AABB.FromSize(new Vector3(h, w, 0.1f));
+                    case RenderInfo2D renderInfo2D when ParentCanvas?.DrawSpace == ECanvasDrawSpace.Screen:
+                        renderInfo2D.CullingVolume = AxisAlignedRegion;
+                        break;
+                    case RenderInfo3D renderInfo3D when ParentCanvas?.DrawSpace != ECanvasDrawSpace.Screen:
+                        renderInfo3D.CullingOffsetMatrix = RegionWorldTransform;
+                        renderInfo3D.LocalCullingVolume = AABB.FromSize(new Vector3(h, w, 0.1f));
+                        break;
                 }
             }
         }

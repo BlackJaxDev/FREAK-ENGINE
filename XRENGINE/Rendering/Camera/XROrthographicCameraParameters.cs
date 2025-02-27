@@ -119,5 +119,8 @@ namespace XREngine.Rendering
 
         public override Vector2 GetFrustumSizeAtDistance(float drawDistance)
             => new(Width, Height);
+
+        public override string ToString()
+            => $"NearZ: {NearZ}, FarZ: {FarZ}, Width: {Width}, Height: {Height}, Origin: {Origin}";
     }
 }

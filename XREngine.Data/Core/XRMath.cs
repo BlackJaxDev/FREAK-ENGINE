@@ -1195,5 +1195,46 @@ namespace XREngine.Data.Core
             Approx(r.Y, 0.0f, tolerance) &&
             Approx(r.Z, 0.0f, tolerance) &&
             Approx(r.W, 1.0f, tolerance);
+
+        public static uint NextPowerOfTwo(uint value)
+        {
+            value--;
+            value |= value >> 1;
+            value |= value >> 2;
+            value |= value >> 4;
+            value |= value >> 8;
+            value |= value >> 16;
+            return ++value;
+        }
+
+        public static unsafe bool MatrixEquals(Matrix4x4 left, Matrix4x4 right)
+        {
+            for (int x = 0; x < 4; x++)
+                for (int y = 0; y < 4; y++)
+                    if (!Approx(left[x, y], right[x, y]))
+                        return false;
+            return true;
+        }
+
+        public static bool VolumeEquals(AABB left, AABB right)
+            => Approx(left.Min, left.Min) && Approx(right.Max, right.Max);
+
+        public static bool VolumeEquals(AABB? left, AABB? right)
+            => left.HasValue && right.HasValue ? VolumeEquals(left.Value, right.Value) : left.HasValue == right.HasValue;
+
+        public static bool VectorsEqual(Vector2 left, Vector2 right) =>
+            Approx(left.X, right.X) &&
+            Approx(left.Y, right.Y);
+
+        public static bool VectorsEqual(Vector3 left, Vector3 right) =>
+            Approx(left.X, right.X) &&
+            Approx(left.Y, right.Y) &&
+            Approx(left.Z, right.Z);
+
+        public static bool VectorsEqual(Vector4 left, Vector4 right) =>
+            Approx(left.X, right.X) &&
+            Approx(left.Y, right.Y) &&
+            Approx(left.Z, right.Z) &&
+            Approx(left.W, right.W);
     }
 }

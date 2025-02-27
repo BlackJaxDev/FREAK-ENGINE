@@ -771,9 +771,9 @@ namespace XREngine.Rendering.OpenGL
                         Api.StencilMaskSeparate(GLEnum.Back, b.WriteMask);
                         Api.StencilMaskSeparate(GLEnum.Front, f.WriteMask);
                         Api.StencilFuncSeparate(GLEnum.Back,
-                            StencilFunction.Never + (int)b.Func, b.Ref, b.ReadMask);
+                            StencilFunction.Never + (int)b.Function, b.Reference, b.ReadMask);
                         Api.StencilFuncSeparate(GLEnum.Front,
-                            StencilFunction.Never + (int)f.Func, f.Ref, f.ReadMask);
+                            StencilFunction.Never + (int)f.Function, f.Reference, f.ReadMask);
                         break;
                     }
 

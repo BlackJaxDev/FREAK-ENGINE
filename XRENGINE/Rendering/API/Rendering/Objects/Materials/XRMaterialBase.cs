@@ -1,7 +1,5 @@
 ﻿using Extensions;
 using System.Numerics;
-using XREngine.Data.Colors;
-using XREngine.Data.Core;
 using XREngine.Data.Rendering;
 using XREngine.Rendering.Models.Materials;
 using XREngine.Rendering.Models.Materials.Shaders.Parameters;
@@ -34,12 +32,12 @@ namespace XREngine.Rendering
         }
         protected XRMaterialBase(XRTexture?[] textures)
         {
-            Textures = new EventList<XRTexture?>(textures);
+            Textures = [.. textures];
         }
         protected XRMaterialBase(ShaderVar[] parameters, XRTexture?[] textures)
         {
             Parameters = [.. parameters]; //Make copy
-            Textures = new EventList<XRTexture?>(textures);
+            Textures = [.. textures];
         }
 
         private XRRenderProgram? _shaderPipelineProgram;
@@ -148,6 +146,18 @@ namespace XREngine.Rendering
         public void SetInt(int index, int value)
         {
             var param = Parameter<ShaderInt>(index);
+            if (param is not null)
+                param.Value = value;
+        }
+        public void SetUInt(string name, uint value)
+        {
+            var param = Parameter<ShaderUInt>(name);
+            if (param is not null)
+                param.Value = value;
+        }
+        public void SetUInt(int index, uint value)
+        {
+            var param = Parameter<ShaderUInt>(index);
             if (param is not null)
                 param.Value = value;
         }

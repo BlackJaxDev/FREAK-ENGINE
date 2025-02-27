@@ -14,7 +14,7 @@ namespace XREngine.Rendering.UI
         public UIMaterialComponent() 
             : this(XRMaterial.CreateUnlitColorMaterialForward(Color.Magenta)) { }
         public UIMaterialComponent(XRMaterial quadMaterial, bool flipVerticalUVCoord = false) : base()
-            => Mesh = new XRMeshRenderer(XRMesh.Create(VertexQuad.PosZ(1.0f, 1.0f, 0.0f, true, flipVerticalUVCoord)), quadMaterial);
+            => Mesh = new XRMeshRenderer(XRMesh.Create(VertexQuad.PosZ(1.0f, true, 0.0f, flipVerticalUVCoord)), quadMaterial);
 
         public XRTexture? Texture(int index)
             => (Material?.Textures?.IndexInRange(index) ?? false)

@@ -38,6 +38,9 @@ namespace XREngine.Rendering
             set => SetField(ref farPlane, value);
         }
 
+        public override string ToString()
+            => $"NearZ: {NearZ}, FarZ: {FarZ}";
+
         protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
         {
             base.OnPropertyChanged(propName, prev, field);

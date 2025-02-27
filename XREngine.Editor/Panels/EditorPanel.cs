@@ -29,18 +29,18 @@ public partial class EditorPanel : XRComponent
 
     private static XRMaterial MakeBackgroundMaterial()
     {
-        var floorShader = ShaderHelper.LoadEngineShader("UI\\GrabpassGaussian.frag");
-        ShaderVar[] floorUniforms =
+        var bgShader = ShaderHelper.UnlitColorFragForward()!; //ShaderHelper.LoadEngineShader("UI\\GrabpassGaussian.frag");
+        ShaderVar[] parameters =
         [
-            new ShaderVector4(new ColorF4(0.35f, 1.0f), "MatColor"),
-            new ShaderFloat(10.0f, "BlurStrength"),
-            new ShaderInt(30, "SampleCount"),
+            new ShaderVector4(new ColorF4(1.0f, 0.0f, 0.0f, 1.0f), "MatColor"),
+            //new ShaderFloat(10.0f, "BlurStrength"),
+            //new ShaderInt(30, "SampleCount"),
         ];
-        XRTexture2D grabTex = XRTexture2D.CreateGrabPassTextureResized(1.0f, EReadBufferMode.Back, true, false, false, false);
-        var floorMat = new XRMaterial(floorUniforms, [grabTex], floorShader);
-        floorMat.RenderOptions.CullMode = ECullMode.None;
-        floorMat.RenderOptions.RequiredEngineUniforms = EUniformRequirements.Camera;
-        floorMat.RenderPass = (int)EDefaultRenderPass.TransparentForward;
-        return floorMat;
+        //XRTexture2D grabTex = XRTexture2D.CreateGrabPassTextureResized(1.0f, EReadBufferMode.Front, true, false, false, false);
+        var bgMat = new XRMaterial(parameters, [/*grabTex*/], bgShader);
+        bgMat.RenderOptions.CullMode = ECullMode.None;
+        bgMat.RenderOptions.RequiredEngineUniforms = EUniformRequirements.Camera;
+        bgMat.RenderPass = (int)EDefaultRenderPass.TransparentForward;
+        return bgMat;
     }
 }

@@ -7,7 +7,7 @@
         //Multiply together in the shader
         ModelMatrix,
 
-        ViewMatrix, //Desktop
+        //ViewMatrix, //Desktop
         InverseViewMatrix, //Desktop
         LeftEyeViewMatrix, //Stereo
         RightEyeViewMatrix, //Stereo

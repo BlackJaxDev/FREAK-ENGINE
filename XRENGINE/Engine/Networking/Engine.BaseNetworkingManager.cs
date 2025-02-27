@@ -129,15 +129,11 @@ namespace XREngine
             protected abstract Task SendUDP();
             protected virtual async Task ReadUDP()
             {
-                //if (!(UdpReceiver?.Client.Connected ?? false))
-                //    return;
-                if (UdpReceiver is null)
-                    return;
-
-                bool anyData = false;
-                while (anyData |= UdpReceiver.Available > 0)
+                var receiver = UdpReceiver;
+                bool anyAcked = false;
+                while ((receiver?.Available ?? 0) > 0)
                 {
-                    UdpReceiveResult result = await UdpReceiver.ReceiveAsync();
+                    UdpReceiveResult result = await receiver!.ReceiveAsync();
                     byte[] allData = result.Buffer;
                     int maxLen = _udpBufferSize + allData.Length;
                     while (maxLen > _udpInBuffer.Length)
@@ -149,7 +145,7 @@ namespace XREngine
                     }
                     Buffer.BlockCopy(allData, 0, _udpInBuffer, _udpBufferSize, allData.Length);
                     _udpBufferSize += allData.Length;
-                    _udpBufferSize -= ReadReceivedData(_udpInBuffer, _udpBufferSize, _decompBuffer);
+                    _udpBufferSize -= ReadReceivedData(_udpInBuffer, _udpBufferSize, _decompBuffer, ref anyAcked);
                     if (_udpBufferSize < 0)
                     {
                         Debug.Out($"UDP buffer underflow, resetting buffer");
@@ -161,6 +157,9 @@ namespace XREngine
                         _udpBufferSize = 0;
                     }
                 }
+                //TODO: verify this is correct and not ruining the average
+                if (!anyAcked)
+                    UpdateRTT(0.0f);
             }
             public virtual async void ConsumeQueues()
             {
@@ -196,8 +195,14 @@ namespace XREngine
                 UdpReceiver = udpClient;
             }
 
-            private void EnqueueBroadcast(ushort sequenceNum, byte[] bytes)
-                => UdpSendQueue.Enqueue((sequenceNum, bytes));
+            private readonly ConcurrentDictionary<ushort, byte[]> _mustAck = new();
+
+            private void EnqueueBroadcast(ushort sequenceNum, byte[] bytes, bool resendOnFailedAck)
+            {
+                UdpSendQueue.Enqueue((sequenceNum, bytes));
+                if (resendOnFailedAck)
+                    _mustAck[sequenceNum] = bytes;
+            }
             
             private float _maxRoundTripSec = 1.0f;
             public float MaxRoundTripSec
@@ -208,17 +213,90 @@ namespace XREngine
 
             private readonly ConcurrentDictionary<ushort, float> _rttBuffer = [];
 
-            protected async Task ConsumeAndSendUDPQueue(UdpClient? client, IPEndPoint? endPoint)
+            private int? _maxSendablePacketsPerSecond = null;
+            public int? MaxSendablePacketsPerSecond
             {
-                if (UdpSendQueue.IsEmpty)
+                get => _maxSendablePacketsPerSecond;
+                set => SetField(ref _maxSendablePacketsPerSecond, value);
+            }
+
+            // Token bucket fields for rate limiting
+            private float _packetTokens = 0;
+            private float _lastTokenUpdate = Engine.ElapsedTime;
+
+            private void UpdatePacketTokens()
+            {
+                var perSec = MaxSendablePacketsPerSecond;
+                if (perSec is null)
                     return;
 
+                var now = Engine.ElapsedTime;
+                float elapsedSeconds = now - _lastTokenUpdate;
+                _packetTokens += elapsedSeconds * perSec.Value;
+                if (_packetTokens > perSec.Value)
+                    _packetTokens = perSec.Value;
+                _lastTokenUpdate = now;
+            }
+
+            // Add the following field and property near _totalBytesSent:
+            private readonly ConcurrentQueue<(float timestamp, int bytes)> _bytesSentLog = new();
+
+            public bool HasSentBytesInTheLastSecond => !_bytesSentLog.IsEmpty;
+
+            public float PacketsPerSecond => _bytesSentLog.Count;
+
+            /// <summary>
+            /// Gets the total number of bytes sent during the last 1 second.
+            /// </summary>
+            public int BytesSentLastSecond
+            {
+                get
+                {
+                    float now = Engine.ElapsedTime;
+                    while (_bytesSentLog.TryPeek(out (float timestamp, int bytes) entry) && entry.timestamp < now - 1.0f)
+                        _bytesSentLog.TryDequeue(out _); // Remove entries older than 1 second.
+                    int sum = 0;
+                    foreach (var (timestamp, bytes) in _bytesSentLog)
+                        sum += bytes;
+                    return sum;
+                    
+                }
+            }
+            public float KBytesSentLastSecond => BytesSentLastSecond / 1024.0f;
+            public float MBytesSentLastSecond => KBytesSentLastSecond / 1024.0f;
+
+            public string DataPerSecondString
+            {
+                get
+                {
+                    float bytes = BytesSentLastSecond;
+                    if (bytes < 1024)
+                        return $"{bytes} Bps";
+                    float kbytes = bytes / 1024.0f;
+                    if (kbytes < 1024)
+                        return $"{MathF.Round(kbytes)} KBps";
+                    float mbytes = kbytes / 1024.0f;
+                    return $"{MathF.Round(mbytes)} MBps";
+                }
+            }
+
+            protected async Task ConsumeAndSendUDPQueue(UdpClient? client, IPEndPoint? endPoint)
+            {
                 ClearOldRTTs();
 
                 //Send queue MUST be consumed so it doesn't grow infinitely
+                if (UdpSendQueue.IsEmpty)
+                    return;
 
-                //Debug.Out($"Sending {UdpSendQueue.Count} udp packets");
-                while (UdpSendQueue.TryDequeue(out (ushort sequenceNum, byte[] bytes) data))
+                int packetsAllowed = int.MaxValue;
+                if (MaxSendablePacketsPerSecond is not null)
+                {
+                    UpdatePacketTokens();
+                    packetsAllowed = (int)Math.Floor(_packetTokens);
+                }
+
+                int packetsSent = 0;
+                while (packetsSent < packetsAllowed && UdpSendQueue.TryDequeue(out (ushort sequenceNum, byte[] bytes) data))
                 {
                     if (!_rttBuffer.ContainsKey(data.sequenceNum))
                         _rttBuffer[data.sequenceNum] = Engine.ElapsedTime;
@@ -226,24 +304,32 @@ namespace XREngine
                     if (client is null)
                         continue;
 
-                    _ = await client.SendAsync(data.bytes, data.bytes.Length, endPoint);
+                    await client.SendAsync(data.bytes, data.bytes.Length, endPoint);
+                    _bytesSentLog.Enqueue((Engine.ElapsedTime, data.bytes.Length));
+                    packetsSent++;
                 }
+                _packetTokens -= packetsSent;
             }
 
             private void ClearOldRTTs()
             {
                 if (_rttBuffer.IsEmpty)
                     return;
-                
+                                
                 float oldest = Engine.ElapsedTime - MaxRoundTripSec;
-
                 foreach (ushort key in _rttBuffer.Keys)
                 {
                     if (!_rttBuffer.TryGetValue(key, out float time) || time >= oldest)
                         continue;
                     
-                    Debug.Out($"Packet sequence failed to return: {key}");
                     _rttBuffer.TryRemove(key, out _);
+                    if (_mustAck.TryRemove(key, out byte[]? bytes))
+                    {
+                        Debug.Out($"Required packet sequence {key} failed to return, resending...");
+                        EnqueueBroadcast(key, bytes!, true);
+                    }
+                    //else
+                    //    Debug.Out($"Packet sequence {key} failed to return, but was not required.");
                 }
             }
 
@@ -294,9 +380,9 @@ namespace XREngine
             /// </summary>
             /// <param name="obj"></param>
             /// <param name="compress"></param>
-            public void ReplicateObject(XRWorldObjectBase obj, bool compress)
+            public void ReplicateObject(XRWorldObjectBase obj, bool compress, bool resendOnFailedAck)
             {
-                void EncodeAndQueue() => Send(obj.ID, compress, Encoding.UTF8.GetBytes(AssetManager.Serializer.Serialize(obj)), EBroadcastType.Object);
+                void EncodeAndQueue() => Send(obj.ID, compress, Encoding.UTF8.GetBytes(AssetManager.Serializer.Serialize(obj)), EBroadcastType.Object, resendOnFailedAck);
                 Task.Run(EncodeAndQueue);
             }
 
@@ -307,9 +393,9 @@ namespace XREngine
             /// <param name="value"></param>
             /// <param name="idStr"></param>
             /// <param name="compress"></param>
-            public void ReplicateData(XRWorldObjectBase obj, object value, string idStr, bool compress)
+            public void ReplicateData(XRWorldObjectBase obj, object value, string idStr, bool compress, bool resendOnFailedAck)
             {
-                void EncodeAndQueue() => Send(obj.ID, compress, Encoding.UTF8.GetBytes(AssetManager.Serializer.Serialize((idStr, value))), EBroadcastType.Data);
+                void EncodeAndQueue() => Send(obj.ID, compress, Encoding.UTF8.GetBytes(AssetManager.Serializer.Serialize((idStr, value))), EBroadcastType.Data, resendOnFailedAck);
                 Task.Run(EncodeAndQueue);
             }
 
@@ -321,9 +407,9 @@ namespace XREngine
             /// <param name="propName"></param>
             /// <param name="value"></param>
             /// <param name="compress"></param>
-            public void ReplicatePropertyUpdated<T>(XRWorldObjectBase obj, string? propName, T? value, bool compress)
+            public void ReplicatePropertyUpdated<T>(XRWorldObjectBase obj, string? propName, T? value, bool compress, bool resendOnFailedAck)
             {
-                void EncodeAndQueue() => Send(obj.ID, compress, Encoding.UTF8.GetBytes(AssetManager.Serializer.Serialize((propName, value))), EBroadcastType.Property);
+                void EncodeAndQueue() => Send(obj.ID, compress, Encoding.UTF8.GetBytes(AssetManager.Serializer.Serialize((propName, value))), EBroadcastType.Property, resendOnFailedAck);
                 Task.Run(EncodeAndQueue);
             }
 
@@ -332,9 +418,9 @@ namespace XREngine
             /// The transform handles the encoding and decoding of its own data.
             /// </summary>
             /// <param name="transform"></param>
-            public void ReplicateTransform(TransformBase transform)
+            public void ReplicateTransform(TransformBase transform, bool resendOnFailedAck)
             {
-                void EncodeAndQueue() => Send(transform.ID, false, transform.EncodeToBytes(), EBroadcastType.Transform);
+                void EncodeAndQueue() => Send(transform.ID, false, transform.EncodeToBytes(), EBroadcastType.Transform, resendOnFailedAck);
                 Task.Run(EncodeAndQueue);
             }
 
@@ -343,16 +429,25 @@ namespace XREngine
             /// </summary>
             /// <param name="data"></param>
             /// <param name="compress"></param>
-            public void ReplicateStateChange(StateChangeInfo data, bool compress)
+            public void ReplicateStateChange(StateChangeInfo data, bool compress, bool resendOnFailedAck)
             {
-                void EncodeAndQueue() => Send(Guid.Empty, compress, Encoding.UTF8.GetBytes(AssetManager.Serializer.Serialize(data)), EBroadcastType.StateChange);
+                void EncodeAndQueue() => Send(Guid.Empty, compress, Encoding.UTF8.GetBytes(AssetManager.Serializer.Serialize(data)), EBroadcastType.StateChange, resendOnFailedAck);
                 Task.Run(EncodeAndQueue);
             }
 
             private const int HeaderLen = 16; //3 bytes for protocol, 1 byte for flags, 2 bytes for sequence, 2 bytes for ack, 4 bytes for ack bitfield, 4 bytes for data length (not including header or guid)
             private const int GuidLen = 16; //Guid is always 16 bytes
 
-            protected byte[] Send(Guid id, bool compress, byte[] data, EBroadcastType type)
+            /// <summary>
+            /// Sends a broadcast packet to send over the established UDP connection.
+            /// </summary>
+            /// <param name="id">The id of the object to replicate information to.</param>
+            /// <param name="compress">If the packet's data should be compressed - adds latency.</param>
+            /// <param name="data">The data to send.</param>
+            /// <param name="type">The type of replication this is - each type is optimized for its use case.</param>
+            /// <param name="resendOnFailedAck">If the packet MUST be recieved - if it fails to be acknowledged by the receiver, it will be sent again until it is.</param>
+            /// <returns></returns>
+            protected void Send(Guid id, bool compress, byte[] data, EBroadcastType type, bool resendOnFailedAck)
             {
                 ushort[] acks = ReadRemoteSeqs();
                 byte flags = EncodeFlags(compress, type);
@@ -398,8 +493,7 @@ namespace XREngine
                     int offset = HeaderLen;
                     SetGuidAndData(id, data, allData, ref offset);
                 }
-                EnqueueBroadcast(seq, allData);
-                return data;
+                EnqueueBroadcast(seq, allData, resendOnFailedAck);
             }
 
             private static byte EncodeFlags(bool compress, EBroadcastType type)
@@ -472,7 +566,7 @@ namespace XREngine
             protected int _udpBufferSize = 0;
             //private (bool compress, EBroadcastType type, ushort seq, ushort ack, uint ackBitfield, int dataLength)? _lastConsumedHeader;
             
-            protected int ReadReceivedData(byte[] inBuf, int availableDataLen, byte[] decompBuffer)
+            protected int ReadReceivedData(byte[] inBuf, int availableDataLen, byte[] decompBuffer, ref bool anyAcked)
             {
                 int offset = 0;
                 while (availableDataLen >= HeaderLen && offset < availableDataLen)
@@ -509,7 +603,7 @@ namespace XREngine
                     //if it has not been acked already.
                     for (int i = 0; i < 32; i++)
                         if ((ackBitfield & (1 << i)) != 0)
-                            AcknowledgeSeq((ushort)(ack - i - 1));
+                            anyAcked |= AcknowledgeSeq((ushort)(ack - i - 1));
 
                     if (availableDataLen >= offset + dataLength)
                         offset += ReadPacketData(compressed, type, inBuf, decompBuffer, offset, dataLength);
@@ -519,14 +613,18 @@ namespace XREngine
                 return offset;
             }
 
-            private void AcknowledgeSeq(ushort ackedSeq)
+            private bool AcknowledgeSeq(ushort ackedSeq)
             {
-                if (_rttBuffer.TryRemove(ackedSeq, out float time))
-                    UpdateRTT(Engine.ElapsedTime - time);
+                if (!_rttBuffer.TryRemove(ackedSeq, out float time))
+                    return false;
+                
+                UpdateRTT(Engine.ElapsedTime - time);
 
-                //Can't print here because it will be repeated up to 32 extra times according to the ack bitfield
-                //else
-                //    Debug.Out($"Failed to acknowledge sequence number: {ackedSeq}");
+                if (_mustAck.TryRemove(ackedSeq, out _))
+                    Debug.Out($"Acknowledged required sequence number: {ackedSeq}");
+
+                //Can't print here otherwise because it will be repeated up to 32 extra times according to the ack bitfield
+                return true; //We acknowledged the sequence number
             }
 
             private float _averageRTT = 0.0f;
@@ -581,7 +679,7 @@ namespace XREngine
                 EBroadcastType type,
                 byte[] inBuf,
                 byte[] decompBuffer,
-                int offset,
+                int dataOffset, //Already offset by header length
                 int dataLength)
             {
                 int readLen = dataLength;
@@ -591,27 +689,27 @@ namespace XREngine
                 Task.Run(() =>
                 {
                     if (compressed)
-                        ReadCompressed(type, inBuf, decompBuffer, offset, dataLength);
+                        ReadCompressed(type, inBuf, decompBuffer, dataOffset, dataLength);
                     else
-                        ReadUncompressed(type, inBuf, offset, dataLength);
+                        ReadUncompressed(type, inBuf, dataOffset, dataLength);
                 });
                 
                 return readLen;
             }
 
-            private static void ReadUncompressed(EBroadcastType type, byte[] inBuf, int offset, int dataLength)
+            private static void ReadUncompressed(EBroadcastType type, byte[] inBuf, int dataOffset, int dataLength)
             {
                 Propogate(
-                    new Guid([.. inBuf.Take(GuidLen)]),
+                    new Guid([.. inBuf.Skip(dataOffset).Take(GuidLen)]),
                     type,
                     inBuf,
-                    offset + GuidLen,
+                    dataOffset + GuidLen,
                     dataLength);
             }
 
-            private static void ReadCompressed(EBroadcastType type, byte[] inBuf, byte[] decompBuffer, int offset, int dataLength)
+            private static void ReadCompressed(EBroadcastType type, byte[] inBuf, byte[] decompBuffer, int dataOffset, int dataLength)
             {
-                int decompLen = Compression.Decompress(inBuf, offset, dataLength, decompBuffer, 0);
+                int decompLen = Compression.Decompress(inBuf, dataOffset, dataLength, decompBuffer, 0);
                 Propogate(
                     new Guid([.. decompBuffer.Take(GuidLen)]),
                     type,
@@ -638,22 +736,21 @@ namespace XREngine
             /// <summary>
             /// Finds the target object in the cache and applies the data to it.
             /// </summary>
-            /// <param name="id"></param>
-            /// <param name="type"></param>
-            /// <param name="data"></param>
-            /// <param name="dataOffset"></param>
-            /// <param name="dataLen"></param>
+            /// <param name="id">The GUID of the object to update.</param>
+            /// <param name="type">The type of update to propogate.</param>
+            /// <param name="data">The full allocated data buffer. Use data offset to skip to data.</param>
+            /// <param name="dataOffset">The offset to the data for this object.</param>
+            /// <param name="dataLen">The length of data for this object.</param>
             protected static void Propogate(Guid id, EBroadcastType type, byte[] data, int dataOffset, int dataLen)
             {
                 if (!XRObjectBase.ObjectsCache.TryGetValue(id, out var obj) || obj is not XRWorldObjectBase worldObj)
                     return;
 
-                string dataStr = Encoding.UTF8.GetString(data, dataOffset, dataLen);
-
                 switch (type)
                 {
                     case EBroadcastType.Object:
                         {
+                            string dataStr = Encoding.UTF8.GetString(data, dataOffset, dataLen);
                             var newObj = AssetManager.Deserializer.Deserialize(dataStr, worldObj.GetType()) as XRWorldObjectBase;
                             if (newObj is not null)
                                 worldObj.CopyFrom(newObj);
@@ -661,12 +758,14 @@ namespace XREngine
                         }
                     case EBroadcastType.Property:
                         {
+                            string dataStr = Encoding.UTF8.GetString(data, dataOffset, dataLen);
                             var (propName, value) = AssetManager.Deserializer.Deserialize<(string propName, object value)>(dataStr);
                             worldObj.SetReplicatedProperty(propName, value);
                             break;
                         }
                     case EBroadcastType.Data:
                         {
+                            string dataStr = Encoding.UTF8.GetString(data, dataOffset, dataLen);
                             var (id2, value2) = AssetManager.Deserializer.Deserialize<(string id, object data)>(dataStr);
                             worldObj.ReceiveData(id2, value2);
                             break;

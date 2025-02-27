@@ -1,4 +1,5 @@
 ﻿using NAudio.Wave;
+using System.Collections;
 
 namespace XREngine.Components.Scene
 {
@@ -7,7 +8,7 @@ namespace XREngine.Components.Scene
     {
         private const int DefaultBufferCapacity = 16;
 
-        public AudioSourceComponent? AudioSourceComponent(bool forceCreate)
+        public AudioSourceComponent? GetAudioSourceComponent(bool forceCreate)
             => GetSiblingComponent<AudioSourceComponent>(forceCreate);
 
         private WaveInEvent? _waveIn;
@@ -21,6 +22,7 @@ namespace XREngine.Components.Scene
         private byte[] _currentBuffer = [];
         private int _currentBufferIndex = 0;
         private bool _muted = false;
+        private float _lowerCutOff = 0.006f;
 
         /// <summary>
         /// Whether to capture and broadcast audio from the local microphone.
@@ -79,6 +81,12 @@ namespace XREngine.Components.Scene
         {
             get => _muted;
             set => SetField(ref _muted, value);
+        }
+
+        public float LowerCutOff
+        {
+            get => _lowerCutOff;
+            set => SetField(ref _lowerCutOff, value);
         }
 
         public bool IsCapturing => _waveIn is not null;
@@ -179,10 +187,66 @@ namespace XREngine.Components.Scene
             }
         }
 
+        private bool VerifyLowerCutoff()
+        {
+            // If cutoff is nearly zero, then there's no need to check the samples.
+            if (_lowerCutOff < float.Epsilon)
+                return true;
+
+            float sumSquares = 0.0f;
+            // For 8-bit PCM, samples are unsigned bytes (0-255). The midpoint is 128.
+            // We'll normalize each sample to [-1, 1] then compute the RMS.
+            for (int i = 0; i < _currentBuffer.Length; i++)
+            {
+                float normalized = (_currentBuffer[i] - 128) / 127.0f;
+                sumSquares += normalized * normalized;
+            }
+
+            float rmsSq = sumSquares / _currentBuffer.Length;
+            //Debug.Out($"Mic RMS: {Math.Sqrt(rmsSq)}");
+            return rmsSq >= _lowerCutOff * _lowerCutOff;
+        }
+
         private void ReplicateCurrentBuffer()
         {
-            EnqueueDataReplication(nameof(_currentBuffer), _currentBuffer.ToArray(), false);
+            if (!VerifyLowerCutoff())
+                return;
+
+            //Denoise(_currentBuffer);
+
+            EnqueueDataReplication(nameof(_currentBuffer), _currentBuffer.ToArray(), false, false);
             _currentBufferIndex = 0;
+        }
+
+        //TODO: verify this works
+        /// <summary>
+        /// A simple moving average filter with a window size of 3 for noise reduction.
+        /// </summary>
+        /// <param name="currentBuffer"></param>
+        private static void Denoise(byte[] currentBuffer)
+        {
+            // A simple moving average filter with a window size of 3 for noise reduction.
+            int length = currentBuffer.Length;
+            if (length < 3)
+                return;
+
+            byte[] smoothed = new byte[length];
+
+            // Process the first sample: average of first two samples.
+            smoothed[0] = (byte)((currentBuffer[0] + currentBuffer[1]) / 2);
+
+            // Process middle samples with a 3-point moving average.
+            for (int i = 1; i < length - 1; i++)
+            {
+                int sum = currentBuffer[i - 1] + currentBuffer[i] + currentBuffer[i + 1];
+                smoothed[i] = (byte)(sum / 3);
+            }
+
+            // Process the last sample: average of the last two samples.
+            smoothed[length - 1] = (byte)((currentBuffer[length - 2] + currentBuffer[length - 1]) / 2);
+
+            // Copy the denoised data back into the current buffer.
+            Buffer.BlockCopy(smoothed, 0, currentBuffer, 0, length);
         }
 
         public override void ReceiveData(string id, object data)
@@ -190,18 +254,28 @@ namespace XREngine.Components.Scene
             switch (id)
             {
                 case nameof(_currentBuffer):
-                    if (Receive && !Muted && data is byte[] buffer)
-                    {
-                        BufferReceived?.Invoke(buffer);
-                        var audioSource = AudioSourceComponent(true)!;
-                        if (audioSource.Type != Audio.AudioSource.ESourceType.Streaming)
-                            audioSource.Type = Audio.AudioSource.ESourceType.Streaming;
-                        audioSource.EnqueueStreamingBuffers(SampleRate, false, buffer);
-                        audioSource.Play();
-                    }
+                    if (Receive && !Muted && data is ICollection col)
+                        Task.Run(() => EnqueueStreamingAudio(col));
                     break;
             }
+        }
 
+        private void EnqueueStreamingAudio(ICollection col)
+        {
+            var buffer = new byte[col.Count];
+            int i = 0;
+            foreach (object b in col)
+            {
+                if (b is byte bVal)
+                    buffer[i] = bVal;
+                else if (byte.TryParse(b.ToString(), out byte sVal))
+                    buffer[i] = sVal;
+                i++;
+            }
+            BufferReceived?.Invoke(buffer);
+            var audioSource = GetAudioSourceComponent(true)!;
+            audioSource.EnqueueStreamingBuffers(SampleRate, false, buffer);
+            audioSource.Play();
         }
 
         public event Action<byte[]>? BufferReceived;

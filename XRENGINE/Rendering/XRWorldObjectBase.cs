@@ -46,7 +46,7 @@ namespace XREngine
 
             public IReadOnlyDictionary<string, PropertyInfo> ReplicateOnChangeProperties => _replicateOnChangeProperties;
             public IReadOnlyDictionary<string, PropertyInfo> ReplicateOnTickProperties => _replicateOnTickProperties;
-            public List<string> CompressedPropertyNames => _compressedPropertyNames;
+            public IReadOnlyList<string> CompressedPropertyNames => _compressedPropertyNames;
         }
 
         public ReplicationInfo? GetReplicationInfo()
@@ -111,14 +111,14 @@ namespace XREngine
                         repl ??= new ReplicationInfo();
                         repl._replicateOnChangeProperties.Add(prop.Name, prop);
                         if (changeAttr.Compress)
-                            repl.CompressedPropertyNames.Add(prop.Name);
+                            repl._compressedPropertyNames.Add(prop.Name);
                     }
                     if (prop.GetCustomAttribute<ReplicateOnTickAttribute>(true) is ReplicateOnTickAttribute tickAttr)
                     {
                         repl ??= new ReplicationInfo();
                         repl._replicateOnTickProperties.Add(prop.Name, prop);
                         if (tickAttr.Compress)
-                            repl.CompressedPropertyNames.Add(prop.Name);
+                            repl._compressedPropertyNames.Add(prop.Name);
                     }
                 }
 
@@ -138,6 +138,8 @@ namespace XREngine
 
         protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
         {
+            ReplicationInfo? repl = World is not null ? GetReplicationInfo() : null;
+
             base.OnPropertyChanged(propName, prev, field);
             switch (propName)
             {
@@ -147,17 +149,20 @@ namespace XREngine
                         if (_tickCache is not null)
                             foreach (var (group, order, tick) in _tickCache)
                                 World?.RegisterTick(group, order, tick);
+                        if (repl is not null && repl.ReplicateOnTickProperties.Count > 0)
+                            RegisterTick(ETickGroup.Late, ETickOrder.Logic, BroadcastTickedProperties);
                     }
                     break;
             }
 
-            var repl = GetReplicationInfo();
-            if (repl is null)
-                return;
-
-            if (propName is not null && repl.ReplicateOnChangeProperties.TryGetValue(propName, out var pair))
-                EnqueuePropertyReplication(propName, field, repl.CompressedPropertyNames.Contains(propName));
+            //TODO: resend on failed ack should be false if we're streaming data to this property
+            //(add a new attribute, or determine based on time since last set)
+            if (World is not null && repl is not null && propName is not null && repl.ReplicateOnChangeProperties.TryGetValue(propName, out var pair))
+                EnqueuePropertyReplication(propName, field, repl.CompressedPropertyNames.Contains(propName), true);
         }
+
+        public float LastTickReplicationTime { get; private set; } = 0;
+        public float TimeBetweenReplications { get; set; } = 0.1f;
 
         private void BroadcastTickedProperties()
         {
@@ -165,8 +170,16 @@ namespace XREngine
             if (repl is null)
                 return;
 
+            float now = Engine.Time.Timer.Time();
+            float elapsed = now - LastTickReplicationTime;
+            if (elapsed < TimeBetweenReplications)
+                return;
+
+            LastTickReplicationTime = now;
+
+            //TODO: group all ticked properties into a single packet
             foreach (var prop in repl.ReplicateOnTickProperties.Values)
-                EnqueuePropertyReplication(prop.Name, prop.GetValue(this), repl.CompressedPropertyNames.Contains(prop.Name));
+                EnqueuePropertyReplication(prop.Name, prop.GetValue(this), repl.CompressedPropertyNames.Contains(prop.Name), false);
         }
 
         protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
@@ -225,8 +238,8 @@ namespace XREngine
         /// Tells the engine to replicate this object to the network.
         /// </summary>
         /// <param name="udp"></param>
-        public void EnqueueSelfReplication(bool compress = true)
-            => Engine.Networking?.ReplicateObject(this, compress);
+        public void EnqueueSelfReplication(bool compress, bool resendOnFailedAck)
+            => Engine.Networking?.ReplicateObject(this, compress, resendOnFailedAck);
         /// <summary>
         /// Tells the engine to replicate a specific property to the network.
         /// </summary>
@@ -234,16 +247,16 @@ namespace XREngine
         /// <param name="propName"></param>
         /// <param name="value"></param>
         /// <param name="udp"></param>
-        public void EnqueuePropertyReplication<T>(string? propName, T value, bool compress)
-            => Engine.Networking?.ReplicatePropertyUpdated(this, propName, value, compress);
+        public void EnqueuePropertyReplication<T>(string? propName, T value, bool compress, bool resendOnFailedAck)
+            => Engine.Networking?.ReplicatePropertyUpdated(this, propName, value, compress, resendOnFailedAck);
         /// <summary>
         /// Tells the engine to replicate some data to the network.
         /// </summary>
         /// <param name="id"></param>
         /// <param name="data"></param>
         /// <param name="udp"></param>
-        public void EnqueueDataReplication(string id, object data, bool compress)
-            => Engine.Networking?.ReplicateData(this, data, id, compress);
+        public void EnqueueDataReplication(string id, object data, bool compress, bool resendOnFailedAck)
+            => Engine.Networking?.ReplicateData(this, data, id, compress, resendOnFailedAck);
 
         /// <summary>
         /// Called by data replication to receive generic data from the network.

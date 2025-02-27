@@ -54,14 +54,14 @@ namespace XREngine.Rendering.UI
             set => SetField(ref _translation, value);
         }
 
-        protected Vector2 _actualTranslation = new();
+        protected Vector2 _actualLocalBottomLeftTranslation = new();
         /// <summary>
         /// This is the translation after being potentially modified by the parent's placement info.
         /// </summary>
         public Vector2 ActualLocalBottomLeftTranslation
         {
-            get => _actualTranslation;
-            set => SetField(ref _actualTranslation, value);
+            get => _actualLocalBottomLeftTranslation;
+            set => SetField(ref _actualLocalBottomLeftTranslation, value);
         }
 
         protected float _z = 0.0f;

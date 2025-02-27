@@ -146,7 +146,7 @@ namespace XREngine
                 if (error == ETrackedPropertyError.TrackedProp_Success && hz > 0.0f)
                 {
                     Time.Timer.TargetRenderFrequency = hz;
-                    Time.Timer.TargetUpdateFrequency = hz / 2;
+                    Time.Timer.TargetUpdateFrequency = hz;
                     Time.Timer.FixedUpdateFrequency = hz / 3;
                 }
 

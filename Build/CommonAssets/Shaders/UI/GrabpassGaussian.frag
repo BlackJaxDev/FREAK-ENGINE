@@ -5,12 +5,10 @@ uniform sampler2D Texture0;
 uniform float ScreenWidth;
 uniform float ScreenHeight;
 uniform int SampleCount;
-
-const float pi = 3.14159265359f;
-
 uniform vec4 MatColor;
 uniform float BlurStrength;
 
+const float pi = 3.14159265359f;
 float gaussian(float x, float sigma)
 {
     return exp(-((x * x) / (2.0 * sigma * sigma))) / (sqrt(2.0 * pi) * sigma);

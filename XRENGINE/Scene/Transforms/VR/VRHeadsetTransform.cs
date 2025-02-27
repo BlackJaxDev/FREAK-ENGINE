@@ -17,7 +17,7 @@ namespace XREngine.Scene.Transforms
         private void VRState_RecalcMatrixOnDraw()
         {
             _lastVRMatrixUpdate = Engine.VRState.Api.Headset?.RenderDeviceToAbsoluteTrackingMatrix ?? Matrix4x4.Identity;
-            MarkLocalModified();
+            RecalculateMatrixHeirarchy(true);
         }
 
         private Matrix4x4 _lastVRMatrixUpdate = Matrix4x4.Identity;

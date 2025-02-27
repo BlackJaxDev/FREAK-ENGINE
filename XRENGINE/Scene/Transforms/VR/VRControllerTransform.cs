@@ -20,7 +20,7 @@ namespace XREngine.Data.Components.Scene
         private void VRState_RecalcMatrixOnDraw()
         {
             _lastVRMatrixUpdate = Controller?.RenderDeviceToAbsoluteTrackingMatrix ?? Matrix4x4.Identity;
-            MarkLocalModified();
+            RecalculateMatrixHeirarchy(true);
         }
 
         private bool _leftHand;

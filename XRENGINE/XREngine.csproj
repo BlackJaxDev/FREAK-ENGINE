@@ -43,12 +43,12 @@
   <ItemGroup>
     <PackageReference Include="DotnetNoise" Version="1.0.0" />
     <PackageReference Include="FFmpeg.AutoGen" Version="7.0.0" />
-    <PackageReference Include="GraphQL" Version="8.3.1" />
-    <PackageReference Include="JoltPhysicsSharp" Version="2.15.1" />
+    <PackageReference Include="GraphQL" Version="8.4.1" />
+    <PackageReference Include="JoltPhysicsSharp" Version="2.15.2" />
     <PackageReference Include="LZMA-SDK" Version="22.1.1" />
-    <PackageReference Include="Magick.NET-Q16-HDRI-OpenMP-x64" Version="14.4.0" />
-    <PackageReference Include="Magick.NET.Core" Version="14.4.0" />
-    <PackageReference Include="Magick.NET.SystemDrawing" Version="8.0.4" />
+    <PackageReference Include="Magick.NET-Q16-HDRI-OpenMP-x64" Version="14.5.0" />
+    <PackageReference Include="Magick.NET.Core" Version="14.5.0" />
+    <PackageReference Include="Magick.NET.SystemDrawing" Version="8.0.5" />
     <PackageReference Include="MagicPhysX" Version="1.0.0" />
     <PackageReference Include="MathNet.Numerics" Version="5.0.0" />
     <PackageReference Include="MathNet.Numerics.Providers.CUDA" Version="5.0.0" />
@@ -118,7 +118,7 @@
     <PackageReference Include="SkiaSharp" Version="3.116.1" />
     <PackageReference Include="Steamworks.NET" Version="2024.8.0" />
     <PackageReference Include="StirlingLabs.Assimp.Net" Version="23.4.1" />
-    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.5.0" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.6.0" />
     <PackageReference Include="System.Text.Json" Version="9.0.2" />
     <PackageReference Include="Vecc.YamlDotNet.Analyzers.StaticGenerator" Version="16.3.0" />
     <PackageReference Include="YamlDotNet" Version="16.3.0" />

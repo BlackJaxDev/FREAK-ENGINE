@@ -128,7 +128,7 @@ namespace XREngine.Rendering
             {
                 if (!Matrix4x4.Invert(ProjectionMatrix, out Matrix4x4 inverted))
                 {
-                    Debug.LogWarning($"Failed to invert {nameof(ProjectionMatrix)}");
+                    Debug.LogWarning($"Failed to invert {nameof(ProjectionMatrix)}. Parameters: {Parameters}");
                     inverted = Matrix4x4.Identity;
                 }
                 return inverted;

@@ -51,11 +51,11 @@ namespace XREngine.Data.Rendering
         public RenderCommandMesh3D(EDefaultRenderPass renderPass) : base((int)renderPass) { }
         public RenderCommandMesh3D(
             int renderPass,
-            XRMeshRenderer manager,
+            XRMeshRenderer renderer,
             Matrix4x4 worldMatrix,
             XRMaterial? materialOverride = null) : base(renderPass)
         {
-            Mesh = manager;
+            Mesh = renderer;
             WorldMatrix = worldMatrix;
             MaterialOverride = materialOverride;
         }

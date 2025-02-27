@@ -58,20 +58,22 @@ namespace XREngine.Audio
 
         public unsafe void QueueBuffers(params AudioBuffer[] buffers)
         {
+            _currentStreamingBuffers.AddRange(buffers);
+
             uint[] handles = new uint[buffers.Length];
             for (int i = 0; i < buffers.Length; i++)
                 handles[i] = buffers[i].Handle;
             fixed (uint* pBuffers = handles)
                 Api.SourceQueueBuffers(Handle, buffers.Length, pBuffers);
         }
-        public unsafe void UnqueueBuffers(params AudioBuffer[] buffers)
-        {
-            uint[] handles = new uint[buffers.Length];
-            for (int i = 0; i < buffers.Length; i++)
-                handles[i] = buffers[i].Handle;
-            fixed (uint* pBuffers = handles)
-                Api.SourceUnqueueBuffers(Handle, buffers.Length, pBuffers);
-        }
+        //public unsafe void UnqueueBuffers(params AudioBuffer[] buffers)
+        //{
+        //    uint[] handles = new uint[buffers.Length];
+        //    for (int i = 0; i < buffers.Length; i++)
+        //        handles[i] = buffers[i].Handle;
+        //    fixed (uint* pBuffers = handles)
+        //        Api.SourceUnqueueBuffers(Handle, buffers.Length, pBuffers);
+        //}
         public unsafe AudioBuffer[]? UnqueueConsumedBuffers(int requestedCount = 0)
         {
             int count = requestedCount <= 0 ? BuffersProcessed : Math.Min(BuffersProcessed, requestedCount);

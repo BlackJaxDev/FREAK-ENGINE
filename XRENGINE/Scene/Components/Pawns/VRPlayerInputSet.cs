@@ -14,7 +14,7 @@ namespace XREngine.Components
     /// Normal keyboard, mouse and gamepad input is available both on desktop and in VR to allow for special VR control setups.
     /// </summary>
     [RequireComponents(typeof(CharacterPawnComponent))]
-    public class VRCharacterInputSet : OptionalInputSetComponent
+    public class VRPlayerInputSet : OptionalInputSetComponent
     {
         public CharacterPawnComponent CharacterPawn => GetSiblingComponent<CharacterPawnComponent>(true)!;
 
@@ -93,6 +93,55 @@ namespace XREngine.Components
         {
             get => _rightHandConstraint;
             set => SetField(ref _rightHandConstraint, value);
+        }
+
+        private float _damping = 0.5f;
+        public float Damping
+        {
+            get => _damping;
+            set => SetField(ref _damping, value);
+        }
+
+        private float _stiffness = 0.5f;
+        public float Stiffness
+        {
+            get => _stiffness;
+            set => SetField(ref _stiffness, value);
+        }
+
+        private float? _minDistance = 0;
+        public float? MinDistance
+        {
+            get => _minDistance;
+            set => SetField(ref _minDistance, value);
+        }
+
+        private float? _maxDistance = 0;
+        public float? MaxDistance
+        {
+            get => _maxDistance;
+            set => SetField(ref _maxDistance, value);
+        }
+
+        private float _tolerance = 0.1f;
+        public float Tolerance
+        {
+            get => _tolerance;
+            set => SetField(ref _tolerance, value);
+        }
+
+        private float _contactDistance = 0.1f;
+        public float ContactDistance
+        {
+            get => _contactDistance;
+            set => SetField(ref _contactDistance, value);
+        }
+
+        private bool _springEnabled = true;
+        public bool SpringEnabled
+        {
+            get => _springEnabled;
+            set => SetField(ref _springEnabled, value);
         }
 
         public enum EVRActionCategory
@@ -212,31 +261,35 @@ namespace XREngine.Components
             var localFrameHand = (Vector3.Zero, Quaternion.Identity);
             //The item's local frame is the hand transform in the item's local space
             var localFrameItem = itemRB.WorldToLocal(handPos, handRot);
-            var joint = CreateGrabConstraint(px, itemRB, handRB, localFrameHand, localFrameItem);
+            var joint = CreateGrabConstraint(px, itemRB, localFrameItem, handRB, localFrameHand);
             if (left)
                 LeftHandConstraint = joint;
             else
                 RightHandConstraint = joint;
         }
 
-        private static unsafe PhysxJoint_Distance CreateGrabConstraint(
+        private unsafe PhysxJoint_Distance CreateGrabConstraint(
             PhysxScene px,
             PhysxDynamicRigidBody item,
+            (Vector3 Zero, Quaternion Identity) localFrameItem,
             PhysxDynamicRigidBody hand,
-            (Vector3 Zero, Quaternion Identity) localFrameHand,
-            (Vector3 Zero, Quaternion Identity) localFrameItem)
+            (Vector3 Zero, Quaternion Identity) localFrameHand)
         {
             var joint = px.NewDistanceJoint(item, localFrameItem, hand, localFrameHand);
-            joint.Damping = 0.5f;
-            joint.Stiffness = 0.5f;
-            joint.MinDistance = 0;
-            joint.MaxDistance = 0;
-            joint.Tolerance = 0.1f;
-            joint.ContactDistance = 0.1f;
-            joint.DistanceFlags =
-                PxDistanceJointFlags.SpringEnabled |
-                PxDistanceJointFlags.MinDistanceEnabled |
-                PxDistanceJointFlags.MaxDistanceEnabled;
+            joint.Damping = Damping;
+            joint.Stiffness = Stiffness;
+            joint.MinDistance = MinDistance ?? 0.0f;
+            joint.MaxDistance = MaxDistance ?? 0.0f;
+            joint.Tolerance = Tolerance;
+            joint.ContactDistance = ContactDistance;
+            PxDistanceJointFlags flags = 0;
+            if (SpringEnabled)
+                flags |= PxDistanceJointFlags.SpringEnabled;
+            if (MinDistance.HasValue)
+                flags |= PxDistanceJointFlags.MinDistanceEnabled;
+            if (MaxDistance.HasValue)
+                flags |= PxDistanceJointFlags.MaxDistanceEnabled;
+            joint.DistanceFlags = flags;
             return joint;
         }
 
@@ -311,7 +364,7 @@ namespace XREngine.Components
                 Flags = PxRigidBodyFlags.Kinematic | PxRigidBodyFlags.UseKinematicTargetForSceneQueries,
                 //CollisionGroup = 1,
                 //GroupsMask = ,
-                KinematicTarget = (tfm.WorldTranslation, tfm.WorldRotation)
+                //KinematicTarget = (tfm.WorldTranslation, tfm.WorldRotation)
             };
 
         protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
@@ -343,11 +396,11 @@ namespace XREngine.Components
                         break;
                     case nameof(LeftHandConstraint):
                         if (LeftHandConstraint is not null && LeftHandOverlap is not null)
-                            LeftHandReleased?.Invoke(LeftHandOverlap);
+                            LeftHandReleased?.Invoke(this, LeftHandOverlap);
                         break;
                     case nameof(RightHandConstraint):
                         if (RightHandConstraint is not null && RightHandOverlap is not null)
-                            RightHandReleased?.Invoke(RightHandOverlap);
+                            RightHandReleased?.Invoke(this, RightHandOverlap);
                         break;
                 }
             }
@@ -371,45 +424,50 @@ namespace XREngine.Components
                     {
                         if (RightHandRigidBody is null)
                             break;
-                        RightHandRigidBody.KinematicTarget = (RightHandTransform?.WorldTranslation ?? Vector3.Zero, RightHandTransform?.WorldRotation ?? Quaternion.Identity);
                         if (World?.PhysicsScene is PhysxScene px)
                             px.AddActor(RightHandRigidBody);
+                        RightHandRigidBody.KinematicTarget = (RightHandTransform?.WorldTranslation ?? Vector3.Zero, RightHandTransform?.WorldRotation ?? Quaternion.Identity);
                     }
                     break;
                 case nameof(LeftHandRigidBody):
                     {
                         if (LeftHandRigidBody is null)
                             break;
-                        LeftHandRigidBody.KinematicTarget = (LeftHandTransform?.WorldTranslation ?? Vector3.Zero, LeftHandTransform?.WorldRotation ?? Quaternion.Identity);
                         if (World?.PhysicsScene is PhysxScene px)
                             px.AddActor(LeftHandRigidBody);
+                        LeftHandRigidBody.KinematicTarget = (LeftHandTransform?.WorldTranslation ?? Vector3.Zero, LeftHandTransform?.WorldRotation ?? Quaternion.Identity);
                     }
                     break;
                 case nameof(LeftHandOverlap):
-                    if (LeftHandOverlap is not null)
-                        LeftHandOverlapChanged?.Invoke(LeftHandOverlap);
+                    LeftHandOverlapChanged?.Invoke(this, prev as PhysxDynamicRigidBody, LeftHandOverlap);
                     break;
                 case nameof(RightHandOverlap):
-                    if (RightHandOverlap is not null)
-                        RightHandOverlapChanged?.Invoke(RightHandOverlap);
+                    RightHandOverlapChanged?.Invoke(this, prev as PhysxDynamicRigidBody, RightHandOverlap);
                     break;
                 case nameof(LeftHandConstraint):
                     if (LeftHandConstraint is not null && LeftHandOverlap is not null)
-                        LeftHandGrabbed?.Invoke(LeftHandOverlap);
+                        LeftHandGrabbed?.Invoke(this, LeftHandOverlap);
                     break;
                 case nameof(RightHandConstraint):
                     if (RightHandConstraint is not null && RightHandOverlap is not null)
-                        RightHandGrabbed?.Invoke(RightHandOverlap);
+                        RightHandGrabbed?.Invoke(this, RightHandOverlap);
                     break;
             }
         }
 
-        public event Action<PhysxDynamicRigidBody>? LeftHandGrabbed;
-        public event Action<PhysxDynamicRigidBody>? RightHandGrabbed;
-        public event Action<PhysxDynamicRigidBody>? LeftHandReleased;
-        public event Action<PhysxDynamicRigidBody>? RightHandReleased;
-        public event Action<PhysxDynamicRigidBody>? LeftHandOverlapChanged;
-        public event Action<PhysxDynamicRigidBody>? RightHandOverlapChanged;
+        public delegate void DelLeftHandGrabbed(VRPlayerInputSet sender, PhysxDynamicRigidBody item);
+        public delegate void DelRightHandGrabbed(VRPlayerInputSet sender, PhysxDynamicRigidBody item);
+        public delegate void DelLeftHandReleased(VRPlayerInputSet sender, PhysxDynamicRigidBody item);
+        public delegate void DelRightHandReleased(VRPlayerInputSet sender, PhysxDynamicRigidBody item);
+        public delegate void DelLeftHandOverlapChanged(VRPlayerInputSet sender, PhysxDynamicRigidBody? previous, PhysxDynamicRigidBody? current);
+        public delegate void DelRightHandOverlapChanged(VRPlayerInputSet sender, PhysxDynamicRigidBody? previous, PhysxDynamicRigidBody? current);
+
+        public event DelLeftHandGrabbed? LeftHandGrabbed;
+        public event DelRightHandGrabbed? RightHandGrabbed;
+        public event DelLeftHandReleased? LeftHandReleased;
+        public event DelRightHandReleased? RightHandReleased;
+        public event DelLeftHandOverlapChanged? LeftHandOverlapChanged;
+        public event DelRightHandOverlapChanged? RightHandOverlapChanged;
 
         private unsafe void RightHandTransform_WorldMatrixChanged(TransformBase tfm)
         {

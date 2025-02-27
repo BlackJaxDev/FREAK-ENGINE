@@ -9,7 +9,6 @@ namespace XREngine.Components.Scene
     public class AudioSourceComponent : XRComponent
     {
         private ESourceState _state = ESourceState.Initial;
-        private ESourceType _type = ESourceType.Static;
         private float _rolloffFactor = 1.0f;
         private float _referenceDistance = 1.0f;
         private float _maxDistance = float.PositiveInfinity;
@@ -71,11 +70,7 @@ namespace XREngine.Components.Scene
         /// <summary>
         /// The type of data this source expects.
         /// </summary>
-        public ESourceType Type
-        {
-            get => _type;
-            set => SetField(ref _type, value);
-        }
+        public ESourceType Type => ActiveListeners.Values.FirstOrDefault()?.SourceType ?? ESourceType.Undetermined;
         /// <summary>
         /// If true, the source's position is relative to the listener.
         /// If false, the source's position is in world space.
@@ -169,8 +164,8 @@ namespace XREngine.Components.Scene
         /// </summary>
         public void Play()
         {
-            if (State == ESourceState.Playing)
-                return;
+            //if (State == ESourceState.Playing)
+            //    return;
 
             State = ESourceState.Playing;
         }
@@ -179,8 +174,8 @@ namespace XREngine.Components.Scene
         /// </summary>
         public void Stop()
         {
-            if (State != ESourceState.Playing)
-                return;
+            //if (State != ESourceState.Playing)
+            //    return;
 
             State = ESourceState.Stopped;
         }
@@ -189,8 +184,8 @@ namespace XREngine.Components.Scene
         /// </summary>
         public void Pause()
         {
-            if (State != ESourceState.Playing)
-                return;
+            //if (State != ESourceState.Playing)
+            //    return;
 
             State = ESourceState.Paused;
         }
@@ -199,8 +194,8 @@ namespace XREngine.Components.Scene
         /// </summary>
         public void Rewind()
         {
-            if (State == ESourceState.Initial)
-                return;
+            //if (State == ESourceState.Initial)
+            //    return;
 
             State = ESourceState.Initial;
         }
@@ -210,8 +205,8 @@ namespace XREngine.Components.Scene
             get => _staticBuffer;
             set
             {
-                if (_type != ESourceType.Static)
-                    throw new InvalidOperationException("Cannot set static buffer on a streaming source.");
+                //if (Type == ESourceType.Streaming)
+                //    throw new InvalidOperationException("Cannot set static buffer on a streaming source.");
 
                 SetField(ref _staticBuffer, value);
             }
@@ -219,8 +214,8 @@ namespace XREngine.Components.Scene
 
         public void SetStaticBuffer(AudioBuffer buffer)
         {
-            if (_type != ESourceType.Static)
-                throw new InvalidOperationException("Cannot set static buffer on a streaming source.");
+            //if (Type == ESourceType.Streaming)
+            //    throw new InvalidOperationException("Cannot set static buffer on a streaming source.");
 
             lock (ActiveListeners)
             {
@@ -231,8 +226,8 @@ namespace XREngine.Components.Scene
 
         public void EnqueueStreamingBuffers(int frequency, bool stereo, params float[][] buffers)
         {
-            if (_type != ESourceType.Streaming)
-                throw new InvalidOperationException("Cannot queue streaming buffers on a static source.");
+            //if (Type == ESourceType.Static)
+            //    throw new InvalidOperationException("Cannot queue streaming buffers on a static source.");
 
             lock (ActiveListeners)
             {
@@ -249,8 +244,8 @@ namespace XREngine.Components.Scene
         }
         public void EnqueueStreamingBuffers(int frequency, bool stereo, params short[][] buffers)
         {
-            if (_type != ESourceType.Streaming)
-                throw new InvalidOperationException("Cannot queue streaming buffers on a static source.");
+            //if (Type == ESourceType.Static)
+            //    throw new InvalidOperationException("Cannot queue streaming buffers on a static source.");
 
             lock (ActiveListeners)
             {
@@ -267,8 +262,8 @@ namespace XREngine.Components.Scene
         }
         public void EnqueueStreamingBuffers(int frequency, bool stereo, params byte[][] buffers)
         {
-            if (_type != ESourceType.Streaming)
-                throw new InvalidOperationException("Cannot queue streaming buffers on a static source.");
+            //if (Type == ESourceType.Static)
+            //    throw new InvalidOperationException("Cannot queue streaming buffers on a static source.");
 
             lock (ActiveListeners)
             {
@@ -285,8 +280,8 @@ namespace XREngine.Components.Scene
         }
         public void EnqueueStreamingBuffers(params AudioData[] buffers)
         {
-            if (_type != ESourceType.Streaming)
-                throw new InvalidOperationException("Cannot queue streaming buffers on a static source.");
+            //if (Type == ESourceType.Static)
+            //    throw new InvalidOperationException("Cannot queue streaming buffers on a static source.");
 
             lock (ActiveListeners)
             {
@@ -301,20 +296,20 @@ namespace XREngine.Components.Scene
                 }
             }
         }
-        public void UnqueueConsumedBuffers()
+        public void DequeueConsumedBuffers()
         {
-            if (_type != ESourceType.Streaming)
-                throw new InvalidOperationException("Cannot unqueue consumed buffers on a static source.");
+            if (Type != ESourceType.Streaming)
+                return;
 
             lock (ActiveListeners)
             {
-                int min = ActiveListeners.Values.Min(x => x.BuffersProcessed);
-                if (min == 0)
-                    return;
+                //int min = ActiveListeners.Values.Min(x => x.BuffersProcessed);
+                //if (min == 0)
+                //    return;
 
                 foreach (var source in ActiveListeners.Values)
                 {
-                    var buffers = source.UnqueueConsumedBuffers(min);
+                    var buffers = source.UnqueueConsumedBuffers(/*min*/);
                     if (buffers != null)
                         foreach (var buffer in buffers)
                             source.ParentListener.ReleaseBuffer(buffer);
@@ -332,7 +327,7 @@ namespace XREngine.Components.Scene
                 Play();
         }
 
-        private bool _playOnActivate = true;
+        private bool _playOnActivate = false;
         public bool PlayOnActivate
         {
             get => _playOnActivate;
@@ -542,6 +537,7 @@ namespace XREngine.Components.Scene
             Vector3 worldPosition = Transform.WorldTranslation;
             UpdateValidListeners(worldPosition);
             UpdateOrientation(worldPosition);
+            DequeueConsumedBuffers();
         }
 
         private void UpdateOrientation(Vector3 worldPosition)

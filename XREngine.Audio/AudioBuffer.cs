@@ -196,7 +196,7 @@ namespace XREngine.Audio
 
         void IPoolable.OnPoolableReleased()
         {
-            SetData(Array.Empty<byte>(), 0, false);
+            //SetData(Array.Empty<byte>(), 0, false);
             Api.DeleteBuffer(Handle);
         }
 

@@ -117,5 +117,8 @@ namespace XREngine.Rendering
             float farZ = XRMath.DepthToDistance(farDepth, NearZ, FarZ);
             return GetProjectionSlice(nearZ, farZ);
         }
+
+        override public string ToString()
+            => $"NearZ: {NearZ}, FarZ: {FarZ}, Vertical FOV: {VerticalFieldOfView}, Aspect Ratio: {AspectRatio}";
     }
 }

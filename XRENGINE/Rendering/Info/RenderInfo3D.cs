@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using XREngine.Data;
+using XREngine.Data.Core;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
 using XREngine.Data.Trees;
@@ -56,7 +57,11 @@ namespace XREngine.Rendering.Info
         public Matrix4x4 CullingOffsetMatrix
         {
             get => _cullingMatrix;
-            set => SetField(ref _cullingMatrix, value);
+            set
+            {
+                if (!XRMath.MatrixEquals(_cullingMatrix, value))
+                    SetField(ref _cullingMatrix, value);
+            }
         }
 
         public bool HiddenFromOwner
@@ -78,7 +83,11 @@ namespace XREngine.Rendering.Info
         public AABB? LocalCullingVolume
         {
             get => _localCullingVolume;
-            set => SetField(ref _localCullingVolume, value);
+            set
+            {
+                if (!XRMath.VolumeEquals(_localCullingVolume, value))
+                    SetField(ref _localCullingVolume, value);
+            }
         }
 
         /// <summary>

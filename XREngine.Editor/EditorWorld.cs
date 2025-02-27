@@ -1,4 +1,5 @@
 ﻿using Assimp;
+using Extensions;
 using Silk.NET.Input;
 using Silk.NET.OpenAL;
 using System.Collections.Concurrent;
@@ -28,7 +29,6 @@ using XREngine.Scene.Components.Animation;
 using XREngine.Scene.Components.Physics;
 using XREngine.Scene.Components.VR;
 using XREngine.Scene.Transforms;
-using static XREngine.Audio.AudioSource;
 using static XREngine.Scene.Transforms.RigidBodyTransform;
 using BlendMode = XREngine.Rendering.Models.Materials.BlendMode;
 using Quaternion = System.Numerics.Quaternion;
@@ -37,6 +37,23 @@ namespace XREngine.Editor;
 
 public static class EditorWorld
 {
+    private static readonly Queue<float> _fpsAvg = new();
+    private static void TickFPS(UITextComponent t)
+    {
+        _fpsAvg.Enqueue(1.0f / Engine.Time.Timer.Render.SmoothedDelta);
+        if (_fpsAvg.Count > 60)
+            _fpsAvg.Dequeue();
+        string str = $"{MathF.Round(_fpsAvg.Sum() / _fpsAvg.Count)}hz";
+        var net = Engine.Networking;
+        if (net is not null)
+        {
+            str += $"\n{net.AverageRoundTripTimeMs}ms";
+            str += $"\n{net.DataPerSecondString}";
+            str += $"\n{net.PacketsPerSecond}pps";
+        }
+        t.Text = str;
+    }
+
     //Unit testing toggles
     public const bool VisualizeOctree = false;
     public const bool VisualizeQuadtree = false;
@@ -52,9 +69,9 @@ public static class EditorWorld
     public const bool DeferredDecal = false; //Adds a deferred decal to the scene.
     public const bool StaticModel = false; //Imports a scene model to be rendered.
     public const bool AnimatedModel = false; //Imports a character model to be animated.
-    public const bool AddEditorUI = false; //Adds the full editor UI to the camera. Probably don't use this one a character pawn.
-    public const bool VRPawn = true; //Enables VR input and pawn.
-    public const bool CharacterPawn = true; //Enables the player to physically locomote in the world. Requires a physical floor.
+    public const bool AddEditorUI = true; //Adds the full editor UI to the camera. Probably don't use this one a character pawn.
+    public const bool VRPawn = false; //Enables VR input and pawn.
+    public const bool CharacterPawn = false; //Enables the player to physically locomote in the world. Requires a physical floor.
     public const bool ThirdPersonPawn = false; //If on desktop and character pawn is enabled, this will add a third person camera instead of first person.
     public const bool TestAnimation = false; //Adds test animations to the character pawn.
     public const bool PhysicsChain = true; //Adds a jiggle physics chain to the character pawn.
@@ -71,8 +88,8 @@ public static class EditorWorld
     {
         Engine.Rendering.Settings.AllowBlendshapes = true;
         Engine.Rendering.Settings.AllowSkinning = true;
-        Engine.Rendering.Settings.RenderTransformLines = true;
-        Engine.Rendering.Settings.RenderTransformDebugInfo = true;
+        Engine.Rendering.Settings.RenderTransformLines = false;
+        Engine.Rendering.Settings.RenderTransformDebugInfo = false;
 
         string desktopDir = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
         //UnityPackageExtractor.ExtractAsync(Path.Combine(desktopDir, "Animations.unitypackage"), Path.Combine(desktopDir, "Extracted"), true);
@@ -192,10 +209,12 @@ public static class EditorWorld
     {
         SceneNode vrPlayspaceNode = rootNode.NewChild("VRPlayspaceNode");
         var characterTfm = vrPlayspaceNode.SetTransform<RigidBodyTransform>();
-        characterTfm.InterpolationMode = EInterpolationMode.Interpolate;
+        characterTfm.InterpolationMode = EInterpolationMode.Discrete;
 
         var characterComp = vrPlayspaceNode.AddComponent<CharacterPawnComponent>("TestPawn")!;
-        var vrInput = vrPlayspaceNode.AddComponent<VRCharacterInputSet>()!;
+        var vrInput = vrPlayspaceNode.AddComponent<VRPlayerInputSet>()!;
+        vrInput.LeftHandOverlapChanged += OnLeftHandOverlapChanged;
+        vrInput.RightHandOverlapChanged += OnRightHandOverlapChanged;
         var movementComp = vrPlayspaceNode.AddComponent<CharacterMovement3DComponent>()!;
         InitMovement(movementComp);
 
@@ -216,6 +235,48 @@ public static class EditorWorld
 
         return vrPlayspaceNode;
     }
+    private static void UpdateMaterialHighlighted(XRMaterial? material, bool enabled)
+    {
+        if (material is null)
+            return;
+
+        //Set stencil buffer to indicate objects that should be highlighted.
+        //material?.SetFloat("Highlighted", enabled ? 1.0f : 0.0f);
+        var refValue = enabled ? 1 : 0;
+        var stencil = material.RenderOptions.StencilTest;
+        stencil.Enabled = ERenderParamUsage.Enabled;
+        stencil.FrontFace = new StencilTestFace()
+        {
+            Function = EComparison.Always,
+            Reference = refValue,
+            ReadMask = 1,
+            WriteMask = 1,
+            BothFailOp = EStencilOp.Keep,
+            StencilPassDepthFailOp = EStencilOp.Keep,
+            BothPassOp = EStencilOp.Replace,
+        };
+        stencil.BackFace = new StencilTestFace()
+        {
+            Function = EComparison.Always,
+            Reference = refValue,
+            ReadMask = 1,
+            WriteMask = 1,
+            BothFailOp = EStencilOp.Keep,
+            StencilPassDepthFailOp = EStencilOp.Keep,
+            BothPassOp = EStencilOp.Replace,
+        };
+    }
+    private static void SetHighlight(PhysxDynamicRigidBody? body, bool enabled)
+        => body?.OwningComponent?.GetSiblingComponent<ModelComponent>()?.Meshes.ForEach(m => m.LODs.ForEach(lod => UpdateMaterialHighlighted(lod.Renderer.Material, enabled)));
+    private static void ChangeHighlight(PhysxDynamicRigidBody? prev, PhysxDynamicRigidBody? current)
+    {
+        SetHighlight(prev, false);
+        SetHighlight(current, true);
+    }
+    private static void OnLeftHandOverlapChanged(VRPlayerInputSet set, PhysxDynamicRigidBody? prev, PhysxDynamicRigidBody? current)
+        => ChangeHighlight(prev, current);
+    private static void OnRightHandOverlapChanged(VRPlayerInputSet set, PhysxDynamicRigidBody? prev, PhysxDynamicRigidBody? current)
+        => ChangeHighlight(prev, current);
 
     private static void InitMovement(CharacterMovement3DComponent movementComp)
     {
@@ -254,7 +315,12 @@ public static class EditorWorld
     private static SceneNode AddHeadsetNode(out VRHeadsetTransform hmdTfm, out VRHeadsetComponent hmdComp, SceneNode parentNode, bool setUI, PawnComponent? pawn = null)
     {
         SceneNode vrHeadsetNode = parentNode.NewChild("VRHeadsetNode");
-        vrHeadsetNode.AddComponent<AudioListenerComponent>("VR HMD Listener");
+        var listener = vrHeadsetNode.AddComponent<AudioListenerComponent>("VR HMD Listener")!;
+        listener.Gain = 1.0f;
+        listener.DistanceModel = DistanceModel.InverseDistance;
+        listener.DopplerFactor = 0.5f;
+        listener.SpeedOfSound = 343.3f;
+
         hmdTfm = vrHeadsetNode.SetTransform<VRHeadsetTransform>()!;
         hmdComp = vrHeadsetNode.AddComponent<VRHeadsetComponent>()!;
 
@@ -296,7 +362,9 @@ public static class EditorWorld
         {
             var listener = cameraNode.AddComponent<AudioListenerComponent>("Desktop Flying Listener")!;
             listener.Gain = 1.0f;
-            listener.DistanceModel = DistanceModel.LinearDistanceClamped;
+            listener.DistanceModel = DistanceModel.InverseDistance;
+            listener.DopplerFactor = 0.5f;
+            listener.SpeedOfSound = 343.3f;
 
             if (Microphone)
             {
@@ -317,7 +385,7 @@ public static class EditorWorld
     {
         SceneNode characterNode = new(rootNode) { Name = "TestPlayerNode" };
         var characterTfm = characterNode.SetTransform<RigidBodyTransform>();
-        characterTfm.InterpolationMode = EInterpolationMode.Interpolate;
+        characterTfm.InterpolationMode = EInterpolationMode.Discrete;
 
         //create node to translate camera up half the height of the character
         SceneNode cameraOffsetNode = new(characterNode) { Name = "TestCameraOffsetNode" };
@@ -518,18 +586,7 @@ public static class EditorWorld
     //User interface overlay code.
     #region UI
 
-    private static readonly Queue<float> _fpsAvg = new();
-    private static void TickFPS(UITextComponent t)
-    {
-        _fpsAvg.Enqueue(1.0f / Engine.Time.Timer.Render.SmoothedDelta);
-        if (_fpsAvg.Count > 60)
-            _fpsAvg.Dequeue();
-        string str = $"{MathF.Round(_fpsAvg.Sum() / _fpsAvg.Count)}hz";
-        var net = Engine.Networking;
-        if ((net?.AverageRoundTripTimeMs ?? 0) > 0)
-            str += $"\n{net!.AverageRoundTripTimeMs}ms";
-        t.Text = str;
-    }
+    private const bool DockFPSTopLeft = false;
 
     //Simple FPS counter in the bottom right for debugging.
     private static UITextComponent AddFPSText(FontGlyphSet? font, SceneNode parentNode)
@@ -541,9 +598,18 @@ public static class EditorWorld
         text.WrapMode = FontGlyphSet.EWrapMode.None;
         text.RegisterAnimationTick<UITextComponent>(TickFPS);
         var textTransform = textNode.GetTransformAs<UIBoundableTransform>(true)!;
-        textTransform.MinAnchor = new Vector2(1.0f, 0.0f);
-        textTransform.MaxAnchor = new Vector2(1.0f, 0.0f);
-        textTransform.NormalizedPivot = new Vector2(1.0f, 0.0f);
+        if (DockFPSTopLeft)
+        {
+            textTransform.MinAnchor = new Vector2(0.0f, 1.0f);
+            textTransform.MaxAnchor = new Vector2(0.0f, 1.0f);
+            textTransform.NormalizedPivot = new Vector2(0.0f, 1.0f);
+        }
+        else
+        {
+            textTransform.MinAnchor = new Vector2(1.0f, 0.0f);
+            textTransform.MaxAnchor = new Vector2(1.0f, 0.0f);
+            textTransform.NormalizedPivot = new Vector2(1.0f, 0.0f);
+        }
         textTransform.Width = null;
         textTransform.Height = null;
         textTransform.Margins = new Vector4(10.0f, 10.0f, 10.0f, 10.0f);
@@ -683,9 +749,9 @@ public static class EditorWorld
         var floorModel = floor.AddComponent<ModelComponent>()!;
         floorModel.Model = new Model([new SubMesh(XRMesh.Create(VertexQuad.PosY(10000.0f)), floorMat)]);
 
-        //Random random = new();
-        //for (int i = 0; i < ballCount; i++)
-        //    AddBall(rootNode, ballPhysMat, ballRadius, random);
+        Random random = new();
+        for (int i = 0; i < ballCount; i++)
+            AddBall(rootNode, ballPhysMat, ballRadius, random);
     }
 
     //Spawns a ball with a random position, velocity and angular velocity.
@@ -775,7 +841,6 @@ public static class EditorWorld
         //soundComp.RolloffFactor = 1.0f;
         soundComp.Gain = 0.1f;
         soundComp.Loop = true;
-        soundComp.Type = ESourceType.Static;
         soundComp.StaticBuffer = data;
         soundComp.PlayOnActivate = true;
     }
