@@ -253,7 +253,9 @@ namespace XREngine.Rendering.UI
         {
             if (!XRMath.Approx(_prevActualBottomLeftTranslation, ActualLocalBottomLeftTranslation) ||
                 !XRMath.Approx(_prevDepthTranslation, DepthTranslation) ||
-                !XRMath.Approx(_prevRotationRadians, RotationRadians))
+                !XRMath.Approx(_prevRotationRadians, RotationRadians) ||
+                !XRMath.VectorsEqual(_prevScale, Scale) ||
+                !XRMath.Approx(_prevPivotTranslation, LocalPivotTranslation))
                 return true;
 
             var p = PlacementInfo;
@@ -267,7 +269,7 @@ namespace XREngine.Rendering.UI
         private float _prevDepthTranslation = 0.0f;
         private float _prevRotationRadians = 0.0f;
         private Vector3 _prevScale = Vector3.One;
-
+        private Vector2 _prevPivotTranslation = Vector2.Zero;
 
         /// <summary>
         /// Creates the local transformation of the origin relative to the parent UI transform.
@@ -291,10 +293,17 @@ namespace XREngine.Rendering.UI
                     Matrix4x4.CreateFromAxisAngle(Globals.Backward, RotationRadians) *
                     Matrix4x4.CreateTranslation(new Vector3(-LocalPivotTranslation, 0.0f));
             }
+            UpdatePrevious();
+            return mtx;
+        }
+
+        private void UpdatePrevious()
+        {
             _prevActualBottomLeftTranslation = ActualLocalBottomLeftTranslation;
             _prevDepthTranslation = DepthTranslation;
             _prevRotationRadians = RotationRadians;
-            return mtx;
+            _prevScale = Scale;
+            _prevPivotTranslation = LocalPivotTranslation;
         }
 
         private Vector2 _minAnchor = Vector2.Zero;

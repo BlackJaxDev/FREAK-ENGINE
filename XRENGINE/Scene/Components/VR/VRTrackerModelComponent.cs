@@ -23,7 +23,14 @@ namespace XREngine.Scene.Components.VR
             }
         }
 
-        protected override DeviceModel? GetRenderModel()
-            => DeviceIndex is null ? null : Engine.VRState.Api.TrackedDevices.FirstOrDefault(d => d.DeviceIndex == DeviceIndex && Engine.VRState.Api.CVR.GetTrackedDeviceClass(d.DeviceIndex) == Valve.VR.ETrackedDeviceClass.GenericTracker)?.Model;
+        protected override DeviceModel? GetRenderModel(VrDevice? device)
+        {
+            if (DeviceIndex is null || device is null || device.DeviceIndex != DeviceIndex.Value)
+                return null;
+
+            return Engine.VRState.Api.CVR.GetTrackedDeviceClass(device.DeviceIndex) == Valve.VR.ETrackedDeviceClass.GenericTracker
+                ? device.Model
+                : null;
+        }
     }
 }

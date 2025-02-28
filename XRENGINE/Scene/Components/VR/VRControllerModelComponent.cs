@@ -23,9 +23,23 @@ namespace XREngine.Scene.Components.VR
             }
         }
 
-        protected override DeviceModel? GetRenderModel()
-            => LeftHand
-                ? Engine.VRState.Api.LeftController?.Model
-                : Engine.VRState.Api.RightController?.Model;
+        protected override DeviceModel? GetRenderModel(VrDevice? device)
+        {
+            //if (device is null || Engine.VRState.Api.CVR.GetTrackedDeviceClass(device.DeviceIndex) != Valve.VR.ETrackedDeviceClass.Controller)
+            //    return null;
+
+            if (LeftHand)
+            {
+                if (device is Controller c && c.Role == Valve.VR.ETrackedControllerRole.LeftHand)
+                    return device.Model;
+            }
+            else
+            {
+                if (device is Controller c && c.Role == Valve.VR.ETrackedControllerRole.RightHand)
+                    return device.Model;
+            }
+
+            return null;
+        }
     }
 }

@@ -397,7 +397,7 @@ namespace XREngine.Components
             //Wrap the hidden actor and apply to the transform
             //The constructor automatically caches the actor
             var rb = new PhysxDynamicRigidBody(Controller.ControllerPtr->GetActor());
-            rb.Flags |= PxRigidBodyFlags.EnableCcd | PxRigidBodyFlags.EnableSpeculativeCcd | PxRigidBodyFlags.EnableCcdFriction;
+            //rb.Flags |= PxRigidBodyFlags.EnableCcd | PxRigidBodyFlags.EnableSpeculativeCcd | PxRigidBodyFlags.EnableCcdFriction;
             //RigidBodyTransform.InterpolationMode = RigidBodyTransform.EInterpolationMode.Discrete;
             RigidBodyTransform.RigidBody = rb;
 

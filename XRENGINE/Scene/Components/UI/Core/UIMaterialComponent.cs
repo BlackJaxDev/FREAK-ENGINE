@@ -30,15 +30,15 @@ namespace XREngine.Rendering.UI
         /// Retrieves the linked material's uniform parameter at the given index.
         /// Use this to set uniform values to be passed to the shader.
         /// </summary>
-        public T2 Parameter<T2>(int index) where T2 : ShaderVar
-            => Mesh.Parameter<T2>(index);
+        public T2? Parameter<T2>(int index) where T2 : ShaderVar
+            => Mesh?.Parameter<T2>(index);
 
         /// <summary>
         /// Retrieves the linked material's uniform parameter with the given name.
         /// Use this to set uniform values to be passed to the shader.
         /// </summary>
-        public T2 Parameter<T2>(string name) where T2 : ShaderVar
-            => Mesh.Parameter<T2>(name);
+        public T2? Parameter<T2>(string name) where T2 : ShaderVar
+            => Mesh?.Parameter<T2>(name);
 
         protected override Matrix4x4 GetRenderWorldMatrix(UIBoundableTransform tfm)
         {

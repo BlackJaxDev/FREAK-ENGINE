@@ -3,15 +3,101 @@ using OpenVR.NET.Devices;
 using System.Numerics;
 using XREngine.Components;
 using XREngine.Components.Scene.Mesh;
+using XREngine.Data.Colors;
 using XREngine.Data.Components.Scene;
+using XREngine.Data.Rendering;
+using XREngine.Rendering.Commands;
+using XREngine.Rendering.Info;
 using XREngine.Rendering.Models;
 using XREngine.Scene.Components.Animation;
 using XREngine.Scene.Transforms;
 
 namespace XREngine.Scene.Components.VR
 {
-    public class VRCharacterCalibrationComponent : XRComponent
+    public class VRPlayerCharacterComponent : XRComponent, IRenderable
     {
+        public VRPlayerCharacterComponent()
+            => RenderedObjects = [RenderInfo3D.New(this, new RenderCommandMethod3D((int)EDefaultRenderPass.OpaqueForward, Render))];
+
+        public RenderInfo[] RenderedObjects { get; } = [];
+
+        private void Render(bool shadowPass)
+        {
+            if (!IsCalibrating)
+                return;
+
+            var eyes = (Headset, Matrix4x4.CreateTranslation(-EyeOffsetFromHead));
+            Engine.Rendering.Debug.RenderSphere((eyes.Headset?.WorldTranslation ?? Vector3.Zero) + eyes.Item2.Translation, CalibrationRadius, false, ColorF4.Green);
+
+            var leftHand = (LeftController, LeftControllerOffset);
+            Engine.Rendering.Debug.RenderSphere((leftHand.LeftController?.WorldTranslation ?? Vector3.Zero) + LeftControllerOffset.Translation, CalibrationRadius, false, ColorF4.Green);
+
+            var rightHand = (RightController, RightControllerOffset);
+            Engine.Rendering.Debug.RenderSphere((rightHand.RightController?.WorldTranslation ?? Vector3.Zero) + RightControllerOffset.Translation, CalibrationRadius, false, ColorF4.Green);
+
+            var h = GetHumanoid();
+            var t = GetTrackerCollection();
+            if (h is null || t is null)
+                return;
+            
+            var waistTfm = h.Hips.Node?.Transform;
+            var leftFootTfm = h.Left.Foot.Node?.Transform;
+            var rightFootTfm = h.Right.Foot.Node?.Transform;
+
+            var chestTfm = h.Chest.Node?.Transform;
+            var leftElbowTfm = h.Left.Elbow.Node?.Transform;
+            var rightElbowTfm = h.Right.Elbow.Node?.Transform;
+            var leftKneeTfm = h.Left.Knee.Node?.Transform;
+            var rightKneeTfm = h.Right.Knee.Node?.Transform;
+
+            List<TransformBase?> tfms = [waistTfm, leftFootTfm, rightFootTfm, chestTfm, leftElbowTfm, rightElbowTfm, leftKneeTfm, rightKneeTfm];
+
+            foreach ((_, VRTrackerTransform tracker) in t.Trackers.Values)
+            {
+                float bestDist = CalibrationRadius;
+                int bestIndex = -1;
+                for (int i = 0; i < tfms.Count; i++)
+                {
+                    TransformBase? tfm = tfms[i];
+                    if (tfm is null)
+                        continue;
+                    var bodyPos = tfm.WorldTranslation;
+                    var trackerPos = tracker.WorldTranslation;
+                    var dist = Vector3.Distance(bodyPos, trackerPos);
+                    if (dist < bestDist)
+                    {
+                        bestIndex = i;
+                        bestDist = dist;
+                    }
+                }
+                if (bestIndex >= 0)
+                {
+                    var tfm = tfms[bestIndex];
+                    if (tfm is not null)
+                    {
+                        var trackerPos = tracker.WorldTranslation;
+                        Engine.Rendering.Debug.RenderSphere(trackerPos, CalibrationRadius, false, ColorF4.Green);
+                        Engine.Rendering.Debug.RenderLine(trackerPos, tfm.WorldTranslation, ColorF4.Magenta);
+                        Engine.Rendering.Debug.RenderPoint(tfm.WorldTranslation, ColorF4.Green);
+                    }
+                    tfms.RemoveAt(bestIndex);
+                }
+            }
+            foreach (var tfm in tfms)
+            {
+                if (tfm is null)
+                    continue;
+                Engine.Rendering.Debug.RenderPoint(tfm.WorldTranslation, ColorF4.Red);
+            }
+        }
+
+        private bool _isCalibrating = false;
+        public bool IsCalibrating
+        {
+            get => _isCalibrating;
+            private set => SetField(ref _isCalibrating, value);
+        }
+
         private float _calibrationRadius = 0.3f;
         /// <summary>
         /// The maximum distance from a tracker to a bone for it to be considered a match during calibration.
@@ -47,6 +133,13 @@ namespace XREngine.Scene.Components.VR
         {
             get => _humanoidComponent;
             set => SetField(ref _humanoidComponent, value);
+        }
+
+        private CharacterMovement3DComponent? _characterMovementComponent;
+        public CharacterMovement3DComponent? CharacterMovementComponent
+        {
+            get => _characterMovementComponent;
+            set => SetField(ref _characterMovementComponent, value);
         }
 
         private VRTrackerCollectionComponent? _trackerCollection;
@@ -113,20 +206,27 @@ namespace XREngine.Scene.Components.VR
 
         public HumanoidComponent? GetHumanoid()
             => HumanoidComponent ?? GetSiblingComponent<HumanoidComponent>();
-
         public VRTrackerCollectionComponent? GetTrackerCollection()
             => TrackerCollection ?? GetSiblingComponent<VRTrackerCollectionComponent>();
-        
+        public CharacterMovement3DComponent? GetCharacterMovement()
+            => CharacterMovementComponent ?? GetSiblingComponent<CharacterMovement3DComponent>();
+
         protected internal override void OnComponentActivated()
         {
             base.OnComponentActivated();
 
+            ResolveDependencies();
+            SetInitialState();
+            BeginCalibration();
+        }
+
+        private void SetInitialState()
+        {
             var h = GetHumanoid();
             if (h is null)
                 return;
 
-            EyeOffsetFromHead = CalculateEyeOffsetFromHead();
-
+            EyeOffsetFromHead = h.CalculateEyeOffsetFromHead(EyesModel, EyeLBoneName, EyeRBoneName);
             h.HeadTarget = (Headset, Matrix4x4.Identity);
             h.LeftHandTarget = (LeftController, Matrix4x4.Identity);
             h.RightHandTarget = (RightController, Matrix4x4.Identity);
@@ -140,122 +240,99 @@ namespace XREngine.Scene.Components.VR
             h.RightKneeTarget = (null, Matrix4x4.Identity);
         }
 
-        /// <summary>
-        /// Calculates the average position of all vertices rigged to bones that contain the word "eye" in their name and returns the difference from the head bone.
-        /// </summary>
-        /// <returns></returns>
-        private Vector3 CalculateEyeOffsetFromHead()
+        private void ResolveDependencies()
         {
-            if (EyesModel is null)
-                return Vector3.Zero;
-
             var h = GetHumanoid();
             if (h is null)
-                return Vector3.Zero;
+                return;
+            
+            if (EyesModel is null && EyesModelResolveName is not null)
+                EyesModel = h.SceneNode.FindDescendant(x => x.Name?.Contains(EyesModelResolveName, StringComparison.InvariantCultureIgnoreCase) ?? false)?.GetComponent<ModelComponent>();
 
-            var headNode = h.Head.Node;
-            if (headNode is null)
-                return Vector3.Zero;
+            var hip = h.Hips?.Node?.Transform;
+            if (hip is not null)
+                hip.WorldMatrixChanged += HipWorldMatrixChanged;
 
-            //Collect all vertices rigged to bones that contain the word "eye"
-            EventList<SubMesh>? meshes = EyesModel.Model?.Meshes; //TODO: use submeshes, or renderable meshes?
-            if (meshes is null || meshes.Count == 0)
-                return Vector3.Zero;
+            if (Headset is null && HeadsetResolveName is not null)
+                Headset = SceneNode.FindDescendantByName(HeadsetResolveName)?.Transform as VRHeadsetTransform;
 
-            var lod = meshes[0].LODs.FirstOrDefault(); //TODO: verify first is the highest LOD
-            if (lod is null)
-                return Vector3.Zero;
+            if (LeftController is null && LeftControllerResolveName is not null)
+                LeftController = SceneNode.FindDescendantByName(LeftControllerResolveName)?.Transform as VRControllerTransform;
 
-            var bones = lod.Mesh?.UtilizedBones;
-            if (bones is null || bones.Length == 0)
-                return Vector3.Zero;
+            if (RightController is null && RightControllerResolveName is not null)
+                RightController = SceneNode.FindDescendantByName(RightControllerResolveName)?.Transform as VRControllerTransform;
 
-            if (!SumEyeVertexPositions(lod, out Vector3 eyePosWorldAvg) && 
-                !SumEyeBonePositions(bones, out eyePosWorldAvg))
-                return Vector3.Zero;
-
-            return eyePosWorldAvg - headNode.Transform.WorldTranslation;
+            if (TrackerCollection is null && TrackerCollectionResolveName is not null)
+                TrackerCollection = SceneNode.FindDescendantByName(TrackerCollectionResolveName)?.GetComponent<VRTrackerCollectionComponent>();
         }
 
-        private bool SumEyeBonePositions((TransformBase tfm, Matrix4x4 invBindWorldMtx)[] bones, out Vector3 eyePosWorldAvg)
+        /// <summary>
+        /// Moves the playspace and player root to keep the hip centered in the playspace and allow the hip to move the playspace.
+        /// </summary>
+        /// <param name="hip"></param>
+        private void HipWorldMatrixChanged(TransformBase hip)
         {
-            int counted = 0;
-            eyePosWorldAvg = Vector3.Zero;
+            var h = GetHumanoid();
+            if (h is null)
+                return;
 
-            foreach (var (tfm, invBindWorldMtx) in bones)
-            {
-                if (!IsEyeBone(tfm))
-                    continue;
+            if (h.HipsTarget.tfm is null)
+                return;
 
-                eyePosWorldAvg += tfm.WorldTranslation;
-                counted++;
-            }
+            var movement = GetCharacterMovement();
+            var playspaceRoot = Transform;
+            var playerRoot = h.TransformAs<Transform>(false);
+            if (movement is null || playspaceRoot is null || playerRoot is null)
+                return;
 
-            bool any = counted > 0;
-            if (any)
-                eyePosWorldAvg /= counted;
-            return any;
+            var hipMtx = hip.WorldMatrix;
+            var playspaceMtx = playspaceRoot.WorldMatrix;
+
+            Vector3 playspaceToHip = hipMtx.Translation - playspaceMtx.Translation;
+            playspaceToHip.Y = 0.0f;
+            //Move the playspace the difference between the hip and the playspace, but only in the XZ plane.
+            //TODO: use the character controller's up vector to determine the plane
+            movement.AddMovementInput(playspaceToHip);
+
+            //Move the player root opposite the hip movement to keep the hip centered in the playspace
+            Vector3 rootToHip = hipMtx.Translation - playerRoot.Translation;
+            rootToHip.Y = 0.0f;
+            playerRoot.Translation = -rootToHip;
         }
 
-        // Helper method for atomic addition on float
-        private static float AtomicAdd(ref float target, float value)
+        private string? _eyesModelResolveName = "face";
+        public string? EyesModelResolveName
         {
-            float initialValue, computedValue;
-            do
-            {
-                initialValue = target;
-                computedValue = initialValue + value;
-            }
-            while (Interlocked.CompareExchange(ref target, computedValue, initialValue) != initialValue);
-            return computedValue;
+            get => _eyesModelResolveName;
+            set => SetField(ref _eyesModelResolveName, value);
         }
 
-        private bool SumEyeVertexPositions(SubMeshLOD? lod, out Vector3 eyePosWorldAvg)
+        private string? _headsetResolveName = "VRHeadsetNode";
+        public string? HeadsetResolveName
         {
-            eyePosWorldAvg = Vector3.Zero;
-            if (lod?.Mesh?.Vertices is null)
-                return false;
-
-            float sumX = 0f, sumY = 0f, sumZ = 0f;
-            int counted = 0;
-
-            Parallel.ForEach(lod.Mesh.Vertices, vertex =>
-            {
-                var weights = vertex.Weights;
-                if (weights is null)
-                    return;
-
-                bool hasEyeBone = weights.Any(w => IsEyeBone(w.Key));
-                if (!hasEyeBone)
-                    return;
-
-                Vector3 pos = vertex.GetWorldPosition();
-                AtomicAdd(ref sumX, pos.X);
-                AtomicAdd(ref sumY, pos.Y);
-                AtomicAdd(ref sumZ, pos.Z);
-                Interlocked.Increment(ref counted);
-            });
-
-            eyePosWorldAvg = new Vector3(sumX, sumY, sumZ);
-            bool any = counted > 0;
-            if (any)
-                eyePosWorldAvg /= counted;
-            return any;
+            get => _headsetResolveName;
+            set => SetField(ref _headsetResolveName, value);
         }
 
-        private bool IsEyeBone(TransformBase tfm)
+        private string? _leftControllerResolveName = "VRLeftControllerNode";
+        public string? LeftControllerResolveName
         {
-            string? name = tfm.Name;
-            if (name is null)
-                return false;
+            get => _leftControllerResolveName;
+            set => SetField(ref _leftControllerResolveName, value);
+        }
 
-            if (EyeLBoneName is not null && name.Contains(EyeLBoneName, StringComparison.OrdinalIgnoreCase))
-                return true;
+        private string? _rightControllerResolveName = "VRRightControllerNode";
+        public string? RightControllerResolveName
+        {
+            get => _rightControllerResolveName;
+            set => SetField(ref _rightControllerResolveName, value);
+        }
 
-            if (EyeRBoneName is not null && name.Contains(EyeRBoneName, StringComparison.OrdinalIgnoreCase))
-                return true;
-
-            return name.Contains("eye", StringComparison.OrdinalIgnoreCase);
+        private string? _trackerCollectionResolveName = "VRTrackerCollectionNode";
+        public string? TrackerCollectionResolveName
+        {
+            get => _trackerCollectionResolveName;
+            set => SetField(ref _trackerCollectionResolveName, value);
         }
 
         protected internal override void OnComponentDeactivated()
@@ -341,6 +418,8 @@ namespace XREngine.Scene.Components.VR
             //Reset the pose to T-pose
             h.ResetPose();
 
+            IsCalibrating = true;
+
             return true;
         }
 
@@ -365,6 +444,8 @@ namespace XREngine.Scene.Components.VR
 
         public void EndCalibration()
         {
+            IsCalibrating = false;
+
             if (Headset is not null)
                 Headset.WorldMatrixChanged -= UpdateRootTransform;
 
@@ -446,6 +527,8 @@ namespace XREngine.Scene.Components.VR
 
         public void CancelCalibration()
         {
+            IsCalibrating = false;
+
             if (Headset is not null)
                 Headset.WorldMatrixChanged -= UpdateRootTransform;
 

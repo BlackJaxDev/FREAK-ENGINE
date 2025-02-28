@@ -73,6 +73,6 @@ namespace XREngine.Rendering
         }
 
         public void OnTransformChanged(TransformBase tfm)
-            => TransformUpdated.Invoke(this);
+            => TransformUpdated?.Invoke(this);
     }
 }

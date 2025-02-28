@@ -1,8 +1,11 @@
-﻿using XREngine.Components.Lights;
+﻿using Extensions;
+using XREngine.Components.Lights;
+using XREngine.Components.Scene.Mesh;
 using XREngine.Data.Colors;
 using XREngine.Data.Rendering;
 using XREngine.Rendering.Commands;
 using XREngine.Rendering.Models.Materials;
+using XREngine.Rendering.Physics.Physx;
 using XREngine.Rendering.Pipelines.Commands;
 using static XREngine.Engine.Rendering.State;
 
@@ -606,4 +609,61 @@ public class DefaultRenderPipeline : RenderPipeline
     //    if (postMat != null)
     //        RenderPostProcessPass(viewport, postMat);
     //}
+
+    /// <summary>
+    /// This pipeline is set up to use the stencil buffer to highlight objects.
+    /// This will highlight the given material.
+    /// </summary>
+    /// <param name="material"></param>
+    /// <param name="enabled"></param>
+    public static void SetHighlighted(XRMaterial? material, bool enabled)
+    {
+        if (material is null)
+            return;
+
+        //Set stencil buffer to indicate objects that should be highlighted.
+        //material?.SetFloat("Highlighted", enabled ? 1.0f : 0.0f);
+        var refValue = enabled ? 1 : 0;
+        var stencil = material.RenderOptions.StencilTest;
+        stencil.Enabled = ERenderParamUsage.Enabled;
+        stencil.FrontFace = new StencilTestFace()
+        {
+            Function = EComparison.Always,
+            Reference = refValue,
+            ReadMask = 1,
+            WriteMask = 1,
+            BothFailOp = EStencilOp.Keep,
+            StencilPassDepthFailOp = EStencilOp.Keep,
+            BothPassOp = EStencilOp.Replace,
+        };
+        stencil.BackFace = new StencilTestFace()
+        {
+            Function = EComparison.Always,
+            Reference = refValue,
+            ReadMask = 1,
+            WriteMask = 1,
+            BothFailOp = EStencilOp.Keep,
+            StencilPassDepthFailOp = EStencilOp.Keep,
+            BothPassOp = EStencilOp.Replace,
+        };
+    }
+
+    /// <summary>
+    /// This pipeline is set up to use the stencil buffer to highlight objects.
+    /// This will highlight the given model.
+    /// </summary>
+    /// <param name="model"></param>
+    /// <param name="enabled"></param>
+    public static void SetHighlighted(ModelComponent? model, bool enabled)
+        => model?.Meshes.ForEach(m => m.LODs.ForEach(lod => SetHighlighted(lod.Renderer.Material, enabled)));
+
+    /// <summary>
+    /// This pipeline is set up to use the stencil buffer to highlight objects.
+    /// This will highlight the model representing the given rigid body.
+    /// The model component must be a sibling component of the rigid body, or this will do nothing.
+    /// </summary>
+    /// <param name="body"></param>
+    /// <param name="enabled"></param>
+    public static void SetHighlighted(PhysxDynamicRigidBody? body, bool enabled)
+        => SetHighlighted(body?.OwningComponent?.GetSiblingComponent<ModelComponent>(), enabled);
 }

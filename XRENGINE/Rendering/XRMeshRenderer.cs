@@ -60,8 +60,8 @@ namespace XREngine.Rendering
         }
 
         private RenderBone[]? _bones;
-        private ConcurrentDictionary<uint, Matrix4x4> _modifiedBonesRendering = [];
-        private ConcurrentDictionary<uint, Matrix4x4> _modifiedBonesUpdating = [];
+        //private ConcurrentDictionary<uint, Matrix4x4> _modifiedBonesRendering = [];
+        //private ConcurrentDictionary<uint, Matrix4x4> _modifiedBonesUpdating = [];
 
         public string? GenerateVertexShaderSource<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>() where T : ShaderGeneratorBase
         {
@@ -90,13 +90,13 @@ namespace XREngine.Rendering
             if ((Mesh?.HasSkinning ?? false) && Engine.Rendering.Settings.AllowSkinning)
             {
                 PopulateBoneMatrixBuffers();
-                Engine.Time.Timer.SwapBuffers += SwapBuffers;
+                //Engine.Time.Timer.SwapBuffers += SwapBuffers;
             }
         }
 
         private void ResetBoneInfo()
         {
-            Engine.Time.Timer.SwapBuffers -= SwapBuffers;
+            //Engine.Time.Timer.SwapBuffers -= SwapBuffers;
             _bones = null;
             //SingleBind = null;
             BoneMatricesBuffer?.Destroy();
@@ -156,30 +156,38 @@ namespace XREngine.Rendering
             Buffers.Add(BoneInvBindMatricesBuffer.BindingName, BoneInvBindMatricesBuffer);
         }
 
+        private bool _bonesInvalidated = false;
         private void BoneTransformUpdated(RenderBone bone)
-            => _modifiedBonesUpdating.AddOrUpdate(bone.Index, x => bone.Transform.WorldMatrix, (x, y) => bone.Transform.WorldMatrix);
-
-        public void SwapBuffers()
         {
-            (_modifiedBonesRendering, _modifiedBonesUpdating) = (_modifiedBonesUpdating, _modifiedBonesRendering);
-            _modifiedBonesUpdating.Clear();
+            BoneMatricesBuffer?.Set(bone.Index, bone.Transform.WorldMatrix);
+            _bonesInvalidated = true;
+            //This swapping method seems to be overkill, just set directly to the buffer
+            //_modifiedBonesUpdating.AddOrUpdate(bone.Index, x => bone.Transform.WorldMatrix, (x, y) => bone.Transform.WorldMatrix);
         }
+
+        //public void SwapBuffers()
+        //{
+        //    //(_modifiedBonesRendering, _modifiedBonesUpdating) = (_modifiedBonesUpdating, _modifiedBonesRendering);
+        //    //_modifiedBonesUpdating.Clear();
+        //}
 
         //TODO: use mapped buffer for constant streaming
         public void PushBoneMatricesToGPU()
         {
-            if (BoneMatricesBuffer is null)
+            if (BoneMatricesBuffer is null || !_bonesInvalidated)
                 return;
 
-            //TODO: what's faster, pushing sub data per matrix, or pushing all? or mapping?
-            foreach (var bone in _modifiedBonesRendering)
-            {
-                BoneMatricesBuffer.Set(bone.Key, bone.Value);
+            ////TODO: what's faster, pushing sub data per matrix, or pushing all? or mapping?
+            //foreach (var bone in _modifiedBonesRendering)
+            //{
+            //    BoneMatricesBuffer.Set(bone.Key, bone.Value);
 
-                //This doesn't work, and I don't know why
-                //var elemSize = BoneMatricesBuffer.ElementSize;
-                //BoneMatricesBuffer.PushSubData((int)(bone.Key * elemSize), elemSize);
-            }
+            //    //This doesn't work, and I don't know why
+            //    //var elemSize = BoneMatricesBuffer.ElementSize;
+            //    //BoneMatricesBuffer.PushSubData((int)(bone.Key * elemSize), elemSize);
+            //}
+
+            _bonesInvalidated = false;
             BoneMatricesBuffer.PushSubData();
         }
 

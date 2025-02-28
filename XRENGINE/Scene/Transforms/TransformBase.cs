@@ -1,12 +1,10 @@
 ﻿using Extensions;
-using System.Collections;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Reflection;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
-using XREngine.Rendering;
 using XREngine.Rendering.Commands;
 using XREngine.Rendering.Info;
 using XREngine.Rendering.UI;
@@ -262,7 +260,7 @@ namespace XREngine.Scene.Transforms
                 case nameof(World):
                     foreach (var obj in RenderedObjects)
                         obj.WorldInstance = World;
-                    World?.AddDirtyTransform(this, false);
+                    MarkWorldModified();
                     if (SceneNode is not null)
                         SceneNode.World = World;
                     lock (_children)
@@ -331,12 +329,14 @@ namespace XREngine.Scene.Transforms
                 return false;
 
             bool wasDepthAdded = false;
+
             if (recalcChildrenNow)
                 foreach (var child in _children)
                     child.RecalculateMatrixHeirarchy(recalcChildrenNow, false);
             else
                 foreach (var child in _children)
-                    world!.AddDirtyTransform(child, ref wasDepthAdded, false);
+                    wasDepthAdded |= world!.AddDirtyTransform(child, false);
+
             return wasDepthAdded;
         }
 
@@ -346,12 +346,17 @@ namespace XREngine.Scene.Transforms
             if (!recalcChildrenNow && world is null)
                 return false;
 
-            bool wasDepthAdded = false;
+            int wasDepthAddedInt = 0;
+
             Task.WaitAll(recalcChildrenNow
                 ? _children.Select(child => Task.Run(() => child.RecalculateMatrixHeirarchy(true, true)))
-                : _children.Select(child => Task.Run(() => world!.AddDirtyTransform(child, ref wasDepthAdded, true)
-                )));
-            return wasDepthAdded;
+                : _children.Select(child => Task.Run(() =>
+                {
+                    if (world!.AddDirtyTransform(child, true))
+                        Interlocked.Exchange(ref wasDepthAddedInt, 1);
+                })));
+
+            return wasDepthAddedInt != 0;
         }
 
         public TransformBase? FindChild(string name, StringComparison comp = StringComparison.Ordinal)

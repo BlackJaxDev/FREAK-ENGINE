@@ -126,7 +126,9 @@ namespace XREngine.Networking
             var pawnComp = cameraNode.AddComponent<EditorFlyingCameraPawnComponent>();
             var listener = cameraNode.AddComponent<AudioListenerComponent>()!;
             listener.Gain = 1.0f;
-            listener.DistanceModel = DistanceModel.LinearDistance;
+            listener.DistanceModel = DistanceModel.InverseDistance;
+            listener.DopplerFactor = 0.5f;
+            listener.SpeedOfSound = 343.3f;
 
             pawnComp!.Name = "TestPawn";
             pawnComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);

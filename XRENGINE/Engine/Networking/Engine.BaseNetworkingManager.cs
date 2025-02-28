@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Numerics;
 using System.Text;
@@ -125,6 +126,24 @@ namespace XREngine
             /// </summary>
             public UdpClient? UdpReceiver { get; set; }
             public IPEndPoint? MulticastEndPoint { get; set; }
+
+            public static bool IsConnected()
+                => NetworkInterface.GetIsNetworkAvailable();
+
+            public static string[] GetAllLocalIPv4(NetworkInterfaceType type)
+            {
+                List<string> ipAddrList = [];
+                foreach (NetworkInterface item in NetworkInterface.GetAllNetworkInterfaces())
+                {
+                    if (item.NetworkInterfaceType != type || item.OperationalStatus != OperationalStatus.Up)
+                        continue;
+                    
+                    foreach (UnicastIPAddressInformation ip in item.GetIPProperties().UnicastAddresses)
+                        if (ip.Address.AddressFamily == AddressFamily.InterNetwork)
+                            ipAddrList.Add(ip.Address.ToString());
+                }
+                return [.. ipAddrList];
+            }
 
             protected abstract Task SendUDP();
             protected virtual async Task ReadUDP()
@@ -271,12 +290,12 @@ namespace XREngine
                 {
                     float bytes = BytesSentLastSecond;
                     if (bytes < 1024)
-                        return $"{bytes} Bps";
+                        return $"{bytes}b/s";
                     float kbytes = bytes / 1024.0f;
                     if (kbytes < 1024)
-                        return $"{MathF.Round(kbytes)} KBps";
+                        return $"{MathF.Round(kbytes)}Kb/s";
                     float mbytes = kbytes / 1024.0f;
-                    return $"{MathF.Round(mbytes)} MBps";
+                    return $"{MathF.Round(mbytes)}Mb/s";
                 }
             }
 
@@ -808,6 +827,7 @@ namespace XREngine
                 return flags;
             }
 
+            #region TCP
             public static async Task SendFileAsync(string filePath, string targetIP, int port, IProgress<double> progress)
             {
                 var fileInfo = new FileInfo(filePath);
@@ -1017,6 +1037,7 @@ namespace XREngine
 
             //    ReadReceivedData(_tcpInBuffer, ref _tcpBufferOffset, _decompBuffer);
             //}
+            #endregion
         }
     }
 }

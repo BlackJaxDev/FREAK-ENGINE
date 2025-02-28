@@ -124,7 +124,7 @@ namespace XREngine.Rendering
             Time.Timer.FixedUpdate += FixedUpdate;
             Time.Timer.SwapBuffers += GlobalSwapBuffers;
             Time.Timer.CollectVisible += GlobalCollectVisible;
-            Time.Timer.PreUpdateFrame += ProcessTransformQueue;
+            //Time.Timer.PostUpdateFrame += ProcessTransformQueue;
         }
 
         private void UnlinkTimeCallbacks()
@@ -133,7 +133,7 @@ namespace XREngine.Rendering
             Time.Timer.FixedUpdate -= FixedUpdate;
             Time.Timer.SwapBuffers -= GlobalSwapBuffers;
             Time.Timer.CollectVisible -= GlobalCollectVisible;
-            Time.Timer.PreUpdateFrame -= ProcessTransformQueue;
+            //Time.Timer.PostUpdateFrame -= ProcessTransformQueue;
         }
 
         public void GlobalCollectVisible()
@@ -145,6 +145,8 @@ namespace XREngine.Rendering
 
         private void GlobalSwapBuffers()
         {
+            ProcessTransformQueue();
+
             VisualScene.GlobalSwapBuffers();
             //PhysicsScene.SwapDebugBuffers();
             Lights.SwapBuffers();
@@ -203,7 +205,7 @@ namespace XREngine.Rendering
         private static void RecalcTransformsSequential(List<int> depthKeys, ConcurrentHashSet<TransformBase> bag)
         {
             foreach (var transform in bag)
-                if (transform.RecalculateMatrixHeirarchy(true, Engine.Rendering.Settings.RecalcChildMatricesInParallel))
+                if (transform.RecalculateMatrixHeirarchy(true, false))
                 {
                     int depthPlusOne = transform.Depth + 1;
                     if (!depthKeys.Contains(depthPlusOne))
@@ -227,7 +229,7 @@ namespace XREngine.Rendering
         {
             void Calc(TransformBase tfm)
             {
-                if (!tfm.RecalculateMatrixHeirarchy(true))
+                if (!tfm.RecalculateMatrixHeirarchy(false, true))
                     return;
 
                 int depthPlusOne = tfm.Depth + 1;
@@ -252,14 +254,15 @@ namespace XREngine.Rendering
 
         /// <summary>
         /// Enqueues a transform to be recalculated at the end of the update after user code has been executed.
+        /// Returns true if a new depth was added to the queue.
         /// </summary>
         /// <param name="transform"></param>
         /// <param name="wasDepthAdded"></param>
         /// <param name="directToRender"></param>
-        public void AddDirtyTransform(TransformBase transform, ref bool wasDepthAdded, bool directToRender)
+        public bool AddDirtyTransform(TransformBase transform, bool directToRender)
         {
             if (transform.ForceManualRecalc)
-                return;
+                return false;
 
             bool added = false;
             ConcurrentDictionary<int, ConcurrentHashSet<TransformBase>> dict = directToRender 
@@ -271,18 +274,7 @@ namespace XREngine.Rendering
                 return [];
             }
             dict.GetOrAdd(transform.Depth, AddDepth).Add(transform);
-            wasDepthAdded |= added;
-        }
-
-        /// <summary>
-        /// Enqueues a transform to be recalculated at the end of the update after user code has been executed.
-        /// </summary>
-        /// <param name="transform"></param>
-        /// <param name="directToRender"></param>
-        public void AddDirtyTransform(TransformBase transform, bool directToRender)
-        {
-            bool added = false;
-            AddDirtyTransform(transform, ref added, directToRender);
+            return added;
         }
 
         private XRWorld? _targetWorld;

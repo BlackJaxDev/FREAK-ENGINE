@@ -37,23 +37,6 @@ namespace XREngine.Editor;
 
 public static class EditorWorld
 {
-    private static readonly Queue<float> _fpsAvg = new();
-    private static void TickFPS(UITextComponent t)
-    {
-        _fpsAvg.Enqueue(1.0f / Engine.Time.Timer.Render.SmoothedDelta);
-        if (_fpsAvg.Count > 60)
-            _fpsAvg.Dequeue();
-        string str = $"{MathF.Round(_fpsAvg.Sum() / _fpsAvg.Count)}hz";
-        var net = Engine.Networking;
-        if (net is not null)
-        {
-            str += $"\n{net.AverageRoundTripTimeMs}ms";
-            str += $"\n{net.DataPerSecondString}";
-            str += $"\n{net.PacketsPerSecond}pps";
-        }
-        t.Text = str;
-    }
-
     //Unit testing toggles
     public const bool VisualizeOctree = false;
     public const bool VisualizeQuadtree = false;
@@ -68,17 +51,120 @@ public static class EditorWorld
     public const bool Spline = false; //Adds a 3D spline to the scene.
     public const bool DeferredDecal = false; //Adds a deferred decal to the scene.
     public const bool StaticModel = false; //Imports a scene model to be rendered.
-    public const bool AnimatedModel = false; //Imports a character model to be animated.
-    public const bool AddEditorUI = true; //Adds the full editor UI to the camera. Probably don't use this one a character pawn.
+    public const bool AnimatedModel = true; //Imports a character model to be animated.
+    public const bool AddEditorUI = false; //Adds the full editor UI to the camera. Probably don't use this one a character pawn.
     public const bool VRPawn = false; //Enables VR input and pawn.
-    public const bool CharacterPawn = false; //Enables the player to physically locomote in the world. Requires a physical floor.
+    public const bool CharacterPawn = true; //Enables the player to physically locomote in the world. Requires a physical floor.
     public const bool ThirdPersonPawn = false; //If on desktop and character pawn is enabled, this will add a third person camera instead of first person.
-    public const bool TestAnimation = false; //Adds test animations to the character pawn.
-    public const bool PhysicsChain = true; //Adds a jiggle physics chain to the character pawn.
+    public const bool TestAnimation = true; //Adds test animations to the character pawn.
+    public const bool PhysicsChain = false; //Adds a jiggle physics chain to the character pawn.
     public const bool TransformTool = false; //Adds the transform tool to the scene for testing dragging and rotating etc.
     public const bool AllowEditingInVR = false; //Allows the user to edit the scene from desktop in VR.
     public const bool IKTest = false; //Adds an simple IK test tree to the scene.
     public const bool Microphone = false; //Adds a microphone to the scene for testing audio capture.
+
+    private static readonly Queue<float> _fpsAvg = new();
+    private static void TickFPS(UITextComponent t)
+    {
+        _fpsAvg.Enqueue(1.0f / Engine.Time.Timer.Render.SmoothedDelta);
+        if (_fpsAvg.Count > 60)
+            _fpsAvg.Dequeue();
+        string str = $"{MathF.Round(_fpsAvg.Sum() / _fpsAvg.Count)}hz";
+        var net = Engine.Networking;
+        if (net is not null)
+        {
+            str += $"\n{net.AverageRoundTripTimeMs}ms";
+            str += $"\n{net.DataPerSecondString}";
+            str += $"\n{net.PacketsPerSecond}p/s";
+        }
+        t.Text = str;
+    }
+
+    static void OnFinishedImportingAvatar(SceneNode? rootNode, IReadOnlyCollection<XRMaterial> materials, IReadOnlyCollection<XRMesh> meshes)
+    {
+        if (rootNode is null)
+            return;
+
+        //rootNode.GetTransformAs<Transform>()!.Scale = new Vector3(0.0254f, 0.0254f, 0.0254f);
+
+        var humanComp = rootNode.AddComponent<HumanoidComponent>()!;
+        if (VRPawn)
+        {
+            var rotationNode = rootNode.Parent!;
+            var playspaceNode = rotationNode.Parent!;
+            var player = playspaceNode.AddComponent<VRPlayerCharacterComponent>()!;
+            player.HumanoidComponent = humanComp;
+            player.EyeLBoneName = "Eye_L";
+            player.EyeRBoneName = "Eye_R";
+        }
+
+        if (TestAnimation)
+        {
+            var knee = humanComp!.Right.Knee?.Node?.Transform;
+            var leg = humanComp!.Right.Leg?.Node?.Transform;
+
+            leg?.RegisterAnimationTick<Transform>(t => t.Rotation = Quaternion.CreateFromAxisAngle(Globals.Right, XRMath.DegToRad(180 - 90.0f * (MathF.Cos(Engine.ElapsedTime) * 0.5f + 0.5f))));
+            knee?.RegisterAnimationTick<Transform>(t => t.Rotation = Quaternion.CreateFromAxisAngle(Globals.Right, XRMath.DegToRad(90.0f * (MathF.Cos(Engine.ElapsedTime) * 0.5f + 0.5f))));
+
+            //var rootTfm = rootNode.FirstChild.GetTransformAs<Transform>(true)!;
+            ////rotate the root node in a circle, but still facing forward
+            //rootTfm.RegisterAnimationTick<Transform>(t =>
+            //{
+            //    t.Translation = new Vector3(0, MathF.Sin(Engine.ElapsedTime), 0);
+            //});
+
+            //For testing blendshape morphing
+            //Technically we should only register animation tick on scene node if any lods have blendshapes,
+            //but at this point the model's meshes are still loading. So we'll just be lazy and check in the animation tick since it's just for testing.
+            rootNode.IterateComponents<ModelComponent>(comp =>
+            {
+                comp.SceneNode.RegisterAnimationTick<SceneNode>(t =>
+                {
+                    var meshes = comp.Meshes.SelectMany(x => x.LODs).Select(x => x.Renderer.Mesh).Where(x => x?.HasBlendshapes ?? false);
+                    foreach (var xrMesh in meshes)
+                    {
+                        //for (int r = 0; r < xrMesh!.BlendshapeCount; r++)
+                        int r = 0;
+                        xrMesh?.BlendshapeWeights?.Set((uint)r, MathF.Sin(Engine.ElapsedTime) * 0.5f + 0.5f);
+                    }
+                });
+            }, true);
+        }
+
+        if (PhysicsChain)
+        {
+            //Add physics chain to the breast bone
+            var chest = humanComp!.Chest?.Node?.Transform;
+            //Find breast bone
+            if (chest is not null)
+            {
+                var breast = chest.FindChild(x =>
+                    (x.Name?.Contains("breast", StringComparison.InvariantCultureIgnoreCase) ?? false) ||
+                    (x.Name?.Contains("boob", StringComparison.InvariantCultureIgnoreCase) ?? false));
+                if (breast?.SceneNode is not null)
+                {
+                    var phys = breast.SceneNode.AddComponent<PhysicsChainComponent>()!;
+                    phys._updateMode = PhysicsChainComponent.EUpdateMode.Normal;
+                    phys._updateRate = 60;
+                    phys._damping = 0.01f;
+                    phys._stiffness = 0.0f;
+                    phys._force = new Vector3(0.0f, 0.0f, 0.0f);
+                    phys._elasticity = 0.07f;
+                }
+            }
+        }
+
+        if (TransformTool)
+        {
+            //Put the transform tool on the head for testing
+            var head = humanComp!.Head?.Node?.Transform?.SceneNode;
+            if (head is null)
+                return;
+
+            EnableTransformToolForNode(head);
+            return;
+        }
+    }
 
     /// <summary>
     /// Creates a test world with a variety of objects for testing purposes.
@@ -86,10 +172,13 @@ public static class EditorWorld
     /// <returns></returns>
     public static XRWorld CreateUnitTestWorld(bool setUI, bool isServer)
     {
-        Engine.Rendering.Settings.AllowBlendshapes = true;
-        Engine.Rendering.Settings.AllowSkinning = true;
-        Engine.Rendering.Settings.RenderTransformLines = false;
-        Engine.Rendering.Settings.RenderTransformDebugInfo = false;
+        var s = Engine.Rendering.Settings;
+        s.AllowBlendshapes = true;
+        s.AllowSkinning = true;
+        s.RenderTransformLines = false;
+        s.RenderTransformDebugInfo = false;
+        s.RecalcChildMatricesInParallel = false;
+        s.TickGroupedItemsInParallel = true;
 
         string desktopDir = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
         //UnityPackageExtractor.ExtractAsync(Path.Combine(desktopDir, "Animations.unitypackage"), Path.Combine(desktopDir, "Extracted"), true);
@@ -107,12 +196,12 @@ public static class EditorWorld
         if (VisualizeOctree)
             rootNode.AddComponent<DebugVisualizeOctreeComponent>();
 
-        SceneNode? characterPawnNode = null;
+        SceneNode? characterPawnModelParentNode = null;
         if (VRPawn)
         {
             if (CharacterPawn)
             {
-                characterPawnNode = CreateCharacterVRPawn(rootNode, setUI, out _, out _, out _);
+                characterPawnModelParentNode = CreateCharacterVRPawn(rootNode, setUI, out _, out _, out _);
                 if (AllowEditingInVR)
                 {
                     SceneNode cameraNode = CreateCamera(rootNode, out var camComp);
@@ -125,7 +214,7 @@ public static class EditorWorld
                 CreateFlyingVRPawn(rootNode, setUI);
         }
         else if (CharacterPawn)
-            characterPawnNode = CreateDesktopCharacterPawn(rootNode, setUI);
+            characterPawnModelParentNode = CreateDesktopCharacterPawn(rootNode, setUI);
         else
         {
             SceneNode cameraNode = CreateCamera(rootNode, out var camComp);
@@ -163,7 +252,7 @@ public static class EditorWorld
             AddSpline(rootNode);
         if (DeferredDecal)
             AddDeferredDecal(rootNode);
-        ImportModels(desktopDir, rootNode, characterPawnNode ?? rootNode);
+        ImportModels(desktopDir, rootNode, characterPawnModelParentNode ?? rootNode);
         
         return new XRWorld("Default World", scene);
     }
@@ -209,7 +298,7 @@ public static class EditorWorld
     {
         SceneNode vrPlayspaceNode = rootNode.NewChild("VRPlayspaceNode");
         var characterTfm = vrPlayspaceNode.SetTransform<RigidBodyTransform>();
-        characterTfm.InterpolationMode = EInterpolationMode.Discrete;
+        characterTfm.InterpolationMode = EInterpolationMode.Interpolate;
 
         var characterComp = vrPlayspaceNode.AddComponent<CharacterPawnComponent>("TestPawn")!;
         var vrInput = vrPlayspaceNode.AddComponent<VRPlayerInputSet>()!;
@@ -233,46 +322,16 @@ public static class EditorWorld
         vrInput.LeftHandTransform = leftTfm;
         vrInput.RightHandTransform = rightTfm;
 
-        return vrPlayspaceNode;
+        //local rotation node only yaws to match the view yaw, so use it as the parent for the avatar
+        return localRotationNode;
     }
-    private static void UpdateMaterialHighlighted(XRMaterial? material, bool enabled)
-    {
-        if (material is null)
-            return;
 
-        //Set stencil buffer to indicate objects that should be highlighted.
-        //material?.SetFloat("Highlighted", enabled ? 1.0f : 0.0f);
-        var refValue = enabled ? 1 : 0;
-        var stencil = material.RenderOptions.StencilTest;
-        stencil.Enabled = ERenderParamUsage.Enabled;
-        stencil.FrontFace = new StencilTestFace()
-        {
-            Function = EComparison.Always,
-            Reference = refValue,
-            ReadMask = 1,
-            WriteMask = 1,
-            BothFailOp = EStencilOp.Keep,
-            StencilPassDepthFailOp = EStencilOp.Keep,
-            BothPassOp = EStencilOp.Replace,
-        };
-        stencil.BackFace = new StencilTestFace()
-        {
-            Function = EComparison.Always,
-            Reference = refValue,
-            ReadMask = 1,
-            WriteMask = 1,
-            BothFailOp = EStencilOp.Keep,
-            StencilPassDepthFailOp = EStencilOp.Keep,
-            BothPassOp = EStencilOp.Replace,
-        };
-    }
-    private static void SetHighlight(PhysxDynamicRigidBody? body, bool enabled)
-        => body?.OwningComponent?.GetSiblingComponent<ModelComponent>()?.Meshes.ForEach(m => m.LODs.ForEach(lod => UpdateMaterialHighlighted(lod.Renderer.Material, enabled)));
     private static void ChangeHighlight(PhysxDynamicRigidBody? prev, PhysxDynamicRigidBody? current)
     {
-        SetHighlight(prev, false);
-        SetHighlight(current, true);
+        DefaultRenderPipeline.SetHighlighted(prev, false);
+        DefaultRenderPipeline.SetHighlighted(current, true);
     }
+
     private static void OnLeftHandOverlapChanged(VRPlayerInputSet set, PhysxDynamicRigidBody? prev, PhysxDynamicRigidBody? current)
         => ChangeHighlight(prev, current);
     private static void OnRightHandOverlapChanged(VRPlayerInputSet set, PhysxDynamicRigidBody? prev, PhysxDynamicRigidBody? current)
@@ -385,7 +444,7 @@ public static class EditorWorld
     {
         SceneNode characterNode = new(rootNode) { Name = "TestPlayerNode" };
         var characterTfm = characterNode.SetTransform<RigidBodyTransform>();
-        characterTfm.InterpolationMode = EInterpolationMode.Discrete;
+        characterTfm.InterpolationMode = EInterpolationMode.Interpolate;
 
         //create node to translate camera up half the height of the character
         SceneNode cameraOffsetNode = new(characterNode) { Name = "TestCameraOffsetNode" };
@@ -407,7 +466,11 @@ public static class EditorWorld
 
         SceneNode cameraNode = CreateCamera(cameraParentNode, out CameraComponent? camComp, false);
 
-        cameraNode.AddComponent<AudioListenerComponent>("Desktop Character Listener");
+        var listener = cameraNode.AddComponent<AudioListenerComponent>("Desktop Character Listener")!;
+        listener.Gain = 1.0f;
+        listener.DistanceModel = DistanceModel.InverseDistance;
+        listener.DopplerFactor = 0.5f;
+        listener.SpeedOfSound = 343.3f;
 
         var characterComp = characterNode.AddComponent<CharacterPawnComponent>("TestPawn")!;
         characterComp.CameraComponent = camComp;
@@ -417,9 +480,12 @@ public static class EditorWorld
 
         var movementComp = characterNode.AddComponent<CharacterMovement3DComponent>()!;
         InitMovement(movementComp);
+
         characterComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
+
         if (camComp is not null && setUI)
             CreateEditorUI(characterNode, camComp);
+
         return characterNode;
     }
 
@@ -927,97 +993,6 @@ public static class EditorWorld
     {
         (SceneNode? rootNode, IReadOnlyCollection<XRMaterial> materials, IReadOnlyCollection<XRMesh> meshes) = x.Result;
         OnFinishedImportingAvatar(rootNode, materials, meshes);
-    }
-    static void OnFinishedImportingAvatar(SceneNode? rootNode, IReadOnlyCollection<XRMaterial> materials, IReadOnlyCollection<XRMesh> meshes)
-    {
-        if (rootNode is null)
-            return;
-
-        //rootNode.GetTransformAs<Transform>()?.ApplyTranslation(new Vector3(5.0f, 0.0f, 0.0f));
-
-        var humanComp = rootNode.AddComponent<HumanoidComponent>()!;
-        if (VRPawn)
-        {
-            var calib = rootNode.Parent!.AddComponent<VRCharacterCalibrationComponent>()!;
-            calib.HumanoidComponent = humanComp;
-            calib.EyesModel = rootNode.FindDescendant(x => x.Name?.Contains("face", StringComparison.InvariantCultureIgnoreCase) ?? false)?.GetComponent<ModelComponent>();
-            calib.EyeLBoneName = "Eye_L";
-            calib.EyeRBoneName = "Eye_R";
-            var rotationNode = rootNode.Parent!.FirstChild;
-            calib.Headset = rotationNode?.FindDescendantByName("VRHeadsetNode")?.Transform as VRHeadsetTransform;
-            calib.LeftController = rotationNode?.FindDescendantByName("VRLeftControllerNode")?.Transform as VRControllerTransform;
-            calib.RightController = rotationNode?.FindDescendantByName("VRRightControllerNode")?.Transform as VRControllerTransform;
-            calib.TrackerCollection = rotationNode?.FindDescendantByName("VRTrackerCollectionNode")?.GetComponent<VRTrackerCollectionComponent>();
-            calib.BeginCalibration();
-        }
-        //comp.IsActive = false;
-
-        if (TestAnimation)
-        {
-            var knee = humanComp!.Right.Knee?.Node?.Transform;
-            var leg = humanComp!.Right.Leg?.Node?.Transform;
-
-            leg?.RegisterAnimationTick<Transform>(t => t.Rotation = Quaternion.CreateFromAxisAngle(Globals.Right, XRMath.DegToRad(180 - 90.0f * (MathF.Cos(Engine.ElapsedTime) * 0.5f + 0.5f))));
-            knee?.RegisterAnimationTick<Transform>(t => t.Rotation = Quaternion.CreateFromAxisAngle(Globals.Right, XRMath.DegToRad(90.0f * (MathF.Cos(Engine.ElapsedTime) * 0.5f + 0.5f))));
-
-            //var rootTfm = rootNode.FirstChild.GetTransformAs<Transform>(true)!;
-            ////rotate the root node in a circle, but still facing forward
-            //rootTfm.RegisterAnimationTick<Transform>(t =>
-            //{
-            //    t.Translation = new Vector3(0, MathF.Sin(Engine.ElapsedTime), 0);
-            //});
-
-            //For testing blendshape morphing
-            //Technically we should only register animation tick on scene node if any lods have blendshapes,
-            //but at this point the model's meshes are still loading. So we'll just be lazy and check in the animation tick since it's just for testing.
-            rootNode.IterateComponents<ModelComponent>(comp =>
-            {
-                comp.SceneNode.RegisterAnimationTick<SceneNode>(t =>
-                {
-                    var meshes = comp.Meshes.SelectMany(x => x.LODs).Select(x => x.Renderer.Mesh).Where(x => x?.HasBlendshapes ?? false);
-                    foreach (var xrMesh in meshes)
-                    {
-                        //for (int r = 0; r < xrMesh!.BlendshapeCount; r++)
-                        int r = 0;
-                        xrMesh?.BlendshapeWeights?.Set((uint)r, MathF.Sin(Engine.ElapsedTime) * 0.5f + 0.5f);
-                    }
-                });
-            }, true);
-        }
-
-        if (PhysicsChain)
-        {
-            //Add physics chain to the breast bone
-            var chest = humanComp!.Chest?.Node?.Transform;
-            //Find breast bone
-            if (chest is not null)
-            {
-                var breast = chest.FindChild(x =>
-                    (x.Name?.Contains("breast", StringComparison.InvariantCultureIgnoreCase) ?? false) ||
-                    (x.Name?.Contains("boob", StringComparison.InvariantCultureIgnoreCase) ?? false));
-                if (breast?.SceneNode is not null)
-                {
-                    var phys = breast.SceneNode.AddComponent<PhysicsChainComponent>()!;
-                    phys._updateMode = PhysicsChainComponent.EUpdateMode.Normal;
-                    phys._updateRate = 60;
-                    phys._damping = 0.01f;
-                    phys._stiffness = 0.0f;
-                    phys._force = new Vector3(0.0f, 0.0f, 0.0f);
-                    phys._elasticity = 0.07f;
-                }
-            }
-        }
-
-        if (TransformTool)
-        {
-            //Put the transform tool on the head for testing
-            var head = humanComp!.Head?.Node?.Transform?.SceneNode;
-            if (head is null)
-                return;
-
-            EnableTransformToolForNode(head);
-            return;
-        }
     }
 
     private static void EnableTransformToolForNode(SceneNode? node, ETransformType transformType = ETransformType.Translate)

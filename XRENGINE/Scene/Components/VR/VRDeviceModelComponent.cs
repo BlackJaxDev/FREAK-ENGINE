@@ -30,27 +30,34 @@ namespace XREngine.Scene.Components.VR
         }
 
         private void DeviceDetected(VrDevice device)
-            => VerifyDevices();
+        {
+            if (!IsLoaded && GetRenderModel(device) is DeviceModel d)
+                LoadModelAsync(d);
+        }
 
         private void VerifyDevices()
         {
-            if (!IsLoaded)
-                Task.Run(LoadModelAsync);
+            if (IsLoaded)
+                return;
+            
+            foreach (VrDevice device in Engine.VRState.Api.TrackedDevices)
+            {
+                if (GetRenderModel(device) is not DeviceModel d)
+                    continue;
+
+                LoadModelAsync(d);
+                break;
+            }
         }
 
-        private async Task LoadModelAsync()
+        private void LoadModelAsync(DeviceModel d)
         {
-            DeviceModel? model = GetRenderModel();
-            if (model is null)
-                return;
-
             Model m = new();
             Model = m;
-
-            await LoadDeviceAsync(model, m);
+            Task.Run(() => LoadDeviceAsync(d, m));
         }
 
-        protected abstract DeviceModel? GetRenderModel();
+        protected abstract DeviceModel? GetRenderModel(VrDevice? device);
 
         protected async Task LoadDeviceAsync(DeviceModel deviceModel, Model model)
         {
