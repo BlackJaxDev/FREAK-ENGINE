@@ -192,11 +192,11 @@ namespace XREngine
 
                     var opts = mat.RenderOptions;
 
-                    if (lineWidth.HasValue)
-                        opts.LineWidth = lineWidth.Value;
+                    //if (lineWidth.HasValue)
+                    //    opts.LineWidth = lineWidth.Value;
 
-                    if (pointSize.HasValue)
-                        opts.PointSize = pointSize.Value;
+                    //if (pointSize.HasValue)
+                    //    opts.PointSize = pointSize.Value;
 
                     if (depthTestEnabled.HasValue)
                     {

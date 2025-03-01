@@ -8,7 +8,6 @@ using XREngine.Data.Components.Scene;
 using XREngine.Data.Rendering;
 using XREngine.Rendering.Commands;
 using XREngine.Rendering.Info;
-using XREngine.Rendering.Models;
 using XREngine.Scene.Components.Animation;
 using XREngine.Scene.Transforms;
 
@@ -98,7 +97,7 @@ namespace XREngine.Scene.Components.VR
             private set => SetField(ref _isCalibrating, value);
         }
 
-        private float _calibrationRadius = 0.3f;
+        private float _calibrationRadius = 0.01f;
         /// <summary>
         /// The maximum distance from a tracker to a bone for it to be considered a match during calibration.
         /// </summary>
@@ -249,10 +248,6 @@ namespace XREngine.Scene.Components.VR
             if (EyesModel is null && EyesModelResolveName is not null)
                 EyesModel = h.SceneNode.FindDescendant(x => x.Name?.Contains(EyesModelResolveName, StringComparison.InvariantCultureIgnoreCase) ?? false)?.GetComponent<ModelComponent>();
 
-            var hip = h.Hips?.Node?.Transform;
-            if (hip is not null)
-                hip.WorldMatrixChanged += HipWorldMatrixChanged;
-
             if (Headset is null && HeadsetResolveName is not null)
                 Headset = SceneNode.FindDescendantByName(HeadsetResolveName)?.Transform as VRHeadsetTransform;
 
@@ -269,8 +264,8 @@ namespace XREngine.Scene.Components.VR
         /// <summary>
         /// Moves the playspace and player root to keep the hip centered in the playspace and allow the hip to move the playspace.
         /// </summary>
-        /// <param name="hip"></param>
-        private void HipWorldMatrixChanged(TransformBase hip)
+        /// <param name="hipTrackerTfm"></param>
+        private void HipTrackerWorldMatrixChanged(TransformBase hipTrackerTfm)
         {
             var h = GetHumanoid();
             if (h is null)
@@ -285,7 +280,7 @@ namespace XREngine.Scene.Components.VR
             if (movement is null || playspaceRoot is null || playerRoot is null)
                 return;
 
-            var hipMtx = hip.WorldMatrix;
+            var hipMtx = h.HipsTarget.offset * hipTrackerTfm.WorldMatrix;
             var playspaceMtx = playspaceRoot.WorldMatrix;
 
             Vector3 playspaceToHip = hipMtx.Translation - playspaceMtx.Translation;
@@ -472,6 +467,8 @@ namespace XREngine.Scene.Components.VR
 
                 FindClosestTracker(t, waistTfm, out var WaistTracker, out Matrix4x4 offset);
                 h.HipsTarget = (WaistTracker, offset);
+                if (WaistTracker is not null)
+                    WaistTracker.WorldMatrixChanged += HipTrackerWorldMatrixChanged;
 
                 FindClosestTracker(t, leftFootTfm, out var LeftFootTracker, out offset);
                 h.LeftFootTarget = (LeftFootTracker, offset);

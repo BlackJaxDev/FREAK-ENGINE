@@ -447,6 +447,7 @@ namespace XREngine.Rendering
             program.Uniform(EEngineUniform.CameraPosition.ToString(), Transform.WorldTranslation);
             program.Uniform(EEngineUniform.CameraForward.ToString(), Transform.WorldForward);
             program.Uniform(EEngineUniform.CameraUp.ToString(), Transform.WorldUp);
+            program.Uniform(EEngineUniform.CameraRight.ToString(), Transform.WorldRight);
             Parameters.SetUniforms(program);
         }
 

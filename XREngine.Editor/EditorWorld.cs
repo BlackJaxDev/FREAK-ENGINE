@@ -51,16 +51,16 @@ public static class EditorWorld
     public const bool Spline = false; //Adds a 3D spline to the scene.
     public const bool DeferredDecal = false; //Adds a deferred decal to the scene.
     public const bool StaticModel = false; //Imports a scene model to be rendered.
-    public const bool AnimatedModel = true; //Imports a character model to be animated.
+    public const bool AnimatedModel = false; //Imports a character model to be animated.
     public const bool AddEditorUI = false; //Adds the full editor UI to the camera. Probably don't use this one a character pawn.
     public const bool VRPawn = false; //Enables VR input and pawn.
-    public const bool CharacterPawn = true; //Enables the player to physically locomote in the world. Requires a physical floor.
+    public const bool CharacterPawn = false; //Enables the player to physically locomote in the world. Requires a physical floor.
     public const bool ThirdPersonPawn = false; //If on desktop and character pawn is enabled, this will add a third person camera instead of first person.
     public const bool TestAnimation = true; //Adds test animations to the character pawn.
     public const bool PhysicsChain = false; //Adds a jiggle physics chain to the character pawn.
     public const bool TransformTool = false; //Adds the transform tool to the scene for testing dragging and rotating etc.
     public const bool AllowEditingInVR = false; //Allows the user to edit the scene from desktop in VR.
-    public const bool IKTest = false; //Adds an simple IK test tree to the scene.
+    public const bool IKTest = true; //Adds an simple IK test tree to the scene.
     public const bool Microphone = false; //Adds a microphone to the scene for testing audio capture.
 
     private static readonly Queue<float> _fpsAvg = new();
@@ -175,8 +175,8 @@ public static class EditorWorld
         var s = Engine.Rendering.Settings;
         s.AllowBlendshapes = true;
         s.AllowSkinning = true;
-        s.RenderTransformLines = false;
-        s.RenderTransformDebugInfo = false;
+        s.RenderTransformLines = true;
+        s.RenderTransformDebugInfo = true;
         s.RecalcChildMatricesInParallel = false;
         s.TickGroupedItemsInParallel = true;
 
@@ -262,7 +262,7 @@ public static class EditorWorld
         SceneNode ikTestRootNode = rootNode.NewChild();
         ikTestRootNode.Name = "IKTestRootNode";
         Transform tfmRoot = ikTestRootNode.GetTransformAs<Transform>(true)!;
-        tfmRoot.Translation = new Vector3(-2.0f, 0.0f, 0.0f);
+        tfmRoot.Translation = new Vector3(0.0f, 0.0f, 0.0f);
 
         SceneNode ikTest1Node = ikTestRootNode.NewChild();
         ikTest1Node.Name = "IKTest1Node";
@@ -772,7 +772,7 @@ public static class EditorWorld
     #region Physics Tests
 
     //Creates a floor and a bunch of balls that fall onto it.
-    private static void AddPhysics(SceneNode rootNode, int ballCount = 10)
+    private static void AddPhysics(SceneNode rootNode, int ballCount = 100)
     {
         float ballRadius = 0.5f;
 
@@ -979,7 +979,7 @@ public static class EditorWorld
                         Enabled = ERenderParamUsage.Enabled,
                         Function = EComparison.Less,
                     },
-                    LineWidth = 1.0f,
+                    //LineWidth = 1.0f,
                 }
             })]);
     }
@@ -1078,7 +1078,7 @@ public static class EditorWorld
                     Enabled = ERenderParamUsage.Enabled,
                     Function = EComparison.Less,
                 },
-                LineWidth = 5.0f,
+                //LineWidth = 5.0f,
                 BlendModeAllDrawBuffers = transp ? BlendMode.EnabledTransparent() : BlendMode.Disabled(),
             };
         });

@@ -185,7 +185,7 @@ namespace XREngine.Actors.Types
 
             _screenMat = XRMaterial.CreateUnlitColorMaterialForward(ColorF4.LightGray);
             _screenMat.RenderOptions.DepthTest.Enabled = ERenderParamUsage.Disabled;
-            _screenMat.RenderOptions.LineWidth = 1.0f;
+            //_screenMat.RenderOptions.LineWidth = 1.0f;
 
             GetSphere(rotationMeshes);
 
@@ -303,22 +303,22 @@ namespace XREngine.Actors.Types
         {
             axisMat = XRMaterial.CreateUnlitColorMaterialForward(unit);
             axisMat.RenderOptions.DepthTest.Enabled = ERenderParamUsage.Disabled;
-            axisMat.RenderOptions.LineWidth = 1.0f;
+            //axisMat.RenderOptions.LineWidth = 1.0f;
             _axisMat[normalAxis] = axisMat;
 
             planeMat1 = XRMaterial.CreateUnlitColorMaterialForward(unit1);
             planeMat1.RenderOptions.DepthTest.Enabled = ERenderParamUsage.Disabled;
-            planeMat1.RenderOptions.LineWidth = 1.0f;
+            //planeMat1.RenderOptions.LineWidth = 1.0f;
             _transPlaneMat[(normalAxis << 1) + 0] = planeMat1;
 
             planeMat2 = XRMaterial.CreateUnlitColorMaterialForward(unit2);
             planeMat2.RenderOptions.DepthTest.Enabled = ERenderParamUsage.Disabled;
-            planeMat2.RenderOptions.LineWidth = 1.0f;
+            //planeMat2.RenderOptions.LineWidth = 1.0f;
             _transPlaneMat[(normalAxis << 1) + 1] = planeMat2;
 
             scalePlaneMat = XRMaterial.CreateUnlitColorMaterialForward(unit);
             scalePlaneMat.RenderOptions.DepthTest.Enabled = ERenderParamUsage.Disabled;
-            scalePlaneMat.RenderOptions.LineWidth = 1.0f;
+            //scalePlaneMat.RenderOptions.LineWidth = 1.0f;
             _scalePlaneMat[normalAxis] = scalePlaneMat;
         }
 
@@ -343,7 +343,7 @@ namespace XREngine.Actors.Types
             sphereMat.RenderOptions.DepthTest.Enabled = ERenderParamUsage.Enabled;
             sphereMat.RenderOptions.DepthTest.UpdateDepth = true;
             sphereMat.RenderOptions.DepthTest.Function = EComparison.Lequal;
-            sphereMat.RenderOptions.LineWidth = 1.0f;
+            //sphereMat.RenderOptions.LineWidth = 1.0f;
             sphereMat.RenderOptions.WriteRed = false;
             sphereMat.RenderOptions.WriteGreen = false;
             sphereMat.RenderOptions.WriteBlue = false;

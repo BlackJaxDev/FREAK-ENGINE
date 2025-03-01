@@ -216,8 +216,12 @@ namespace XREngine.Rendering.OpenGL
                     //if (Data.SingleBind != null)
                     //    modelMatrix *= Data.SingleBind.WorldMatrix;
 
+                    BindBuffers(materialProgram!);
                     BindBuffers(vertexProgram!);
+
                     Data.PushBoneMatricesToGPU();
+
+                    //TODO: only push this data if changed
                     Data.Mesh?.BlendshapeWeights?.PushSubData();
 
                     SetMeshUniforms(modelMatrix, vertexProgram!);
@@ -231,13 +235,13 @@ namespace XREngine.Rendering.OpenGL
                 }
             }
 
-            private void BindBuffers(GLRenderProgram vertexProgram)
+            private void BindBuffers(GLRenderProgram program)
             {
                 //TODO: make a more efficient way to bind these right before rendering (because apparently re-bufferbase-ing is important?)
                 foreach (var buffer in _bufferCache.Where(x => x.Value.Data.Target == EBufferTarget.ShaderStorageBuffer))
                 {
                     var b = buffer.Value;
-                    uint resourceIndex = b.Data.BindingIndexOverride ?? Api.GetProgramResourceIndex(vertexProgram!.BindingId, GLEnum.ShaderStorageBlock, b.Data.BindingName);
+                    uint resourceIndex = b.Data.BindingIndexOverride ?? Api.GetProgramResourceIndex(program!.BindingId, GLEnum.ShaderStorageBlock, b.Data.BindingName);
                     if (resourceIndex != uint.MaxValue)
                     {
                         b.Bind();
@@ -248,8 +252,8 @@ namespace XREngine.Rendering.OpenGL
                     }
                     else
                     {
-                        Debug.LogWarning($"Failed to bind shader storage buffer '{b.GetDescribingName()}' to program '{vertexProgram.GetDescribingName()}' with name '{b.Data.BindingName}'.");
-                        vertexProgram.Data.Shaders.ForEach(x => Debug.Out(x?.Source?.Text ?? string.Empty));
+                        //Debug.LogWarning($"Failed to bind shader storage buffer '{b.GetDescribingName()}' to program '{program.GetDescribingName()}' with name '{b.Data.BindingName}'.");
+                        //program.Data.Shaders.ForEach(x => Debug.Out(x?.Source?.Text ?? string.Empty));
                     }
                 }
             }
@@ -731,8 +735,8 @@ namespace XREngine.Rendering.OpenGL
             if (r is null)
                 return;
 
-            Api.PointSize(r.PointSize);
-            Api.LineWidth(r.LineWidth.Clamp(0.0f, 1.0f));
+            //Api.PointSize(r.PointSize);
+            //Api.LineWidth(r.LineWidth.Clamp(0.0f, 1.0f));
             Api.ColorMask(r.WriteRed, r.WriteGreen, r.WriteBlue, r.WriteAlpha);
             Api.FrontFace(ToGLEnum(r.Winding));
 

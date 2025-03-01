@@ -5,6 +5,7 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
 using XREngine.Data;
+using XREngine.Data.Core;
 using XREngine.Data.Rendering;
 using XREngine.Data.Vectors;
 using XREngine.Rendering.Objects;
@@ -124,7 +125,8 @@ namespace XREngine.Rendering
             EComponentType componentType,
             uint componentCount,
             bool normalize,
-            bool integral)
+            bool integral,
+            bool alignClientSourceToPowerOf2 = false)
         {
             BindingName = bindingName;
             Target = target;
@@ -135,7 +137,10 @@ namespace XREngine.Rendering
             _normalize = normalize;
             _integral = integral;
 
-            _clientSideSource = DataSource.Allocate(Length);
+            if (alignClientSourceToPowerOf2)
+                _clientSideSource = DataSource.Allocate(XRMath.NextPowerOfTwo(_elementCount) * ElementSize);
+            else
+                _clientSideSource = DataSource.Allocate(Length);
         }
 
         public XRDataBuffer(
@@ -794,11 +799,23 @@ namespace XREngine.Rendering
             return clone;
         }
 
-        public void Resize(uint elementCount, bool copyData = true)
+        public void Resize(uint elementCount, bool copyData = true, bool alignClientSourceToPowerOf2 = false)
         {
+            if (ElementCount == elementCount)
+                return;
+
             uint oldLength = Length;
             ElementCount = elementCount;
             uint newLength = Length;
+
+            if (alignClientSourceToPowerOf2)
+            {
+                elementCount = XRMath.NextPowerOfTwo(elementCount);
+                newLength = elementCount * ElementSize;
+            }
+
+            if (_clientSideSource?.Length == newLength)
+                return;
 
             DataSource newSource = DataSource.Allocate(newLength);
             uint minMatch = Math.Min(oldLength, newLength);

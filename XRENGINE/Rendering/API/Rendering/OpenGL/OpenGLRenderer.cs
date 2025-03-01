@@ -74,6 +74,8 @@ namespace XREngine.Rendering.OpenGL
 
             api.PixelStore(PixelStoreParameter.PackAlignment, 1);
             api.PixelStore(PixelStoreParameter.UnpackAlignment, 1);
+            api.PointSize(1.0f);
+            api.LineWidth(1.0f);
 
             api.UseProgram(0);
 

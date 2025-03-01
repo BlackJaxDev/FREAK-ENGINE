@@ -12,8 +12,8 @@ namespace XREngine.Rendering.Models.Materials
         private DepthTest _depthTest = new();
         private StencilTest _stencilTest = new();
         private Dictionary<uint, BlendMode>? _blendModesPerDrawBuffer;
-        private float _lineWidth = AbstractRenderer.DefaultLineSize;
-        private float _pointSize = AbstractRenderer.DefaultPointSize;
+        //private float _lineWidth = AbstractRenderer.DefaultLineSize;
+        //private float _pointSize = AbstractRenderer.DefaultPointSize;
         private ECullMode _cullMode = ECullMode.Back;
         private EWinding _winding = EWinding.CounterClockwise;
         private bool _writeAlpha = true;
@@ -81,16 +81,16 @@ namespace XREngine.Rendering.Models.Materials
             get => _cullMode;
             set => SetField(ref _cullMode, value);
         }
-        public float PointSize
-        {
-            get => _pointSize;
-            set => SetField(ref _pointSize, value);
-        }
-        public float LineWidth
-        {
-            get => _lineWidth;
-            set => SetField(ref _lineWidth, value);
-        }
+        //public float PointSize
+        //{
+        //    get => _pointSize;
+        //    set => SetField(ref _pointSize, value);
+        //}
+        //public float LineWidth
+        //{
+        //    get => _lineWidth;
+        //    set => SetField(ref _lineWidth, value);
+        //}
         /// <summary>
         /// Specifies how the depth buffer should be tested.
         /// </summary>

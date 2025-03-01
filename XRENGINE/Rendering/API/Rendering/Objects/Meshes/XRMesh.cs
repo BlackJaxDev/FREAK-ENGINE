@@ -1045,7 +1045,7 @@ namespace XREngine.Rendering
                 }
             }
 
-            Dictionary<TransformBase, float>?[]? weights = null;
+            //Dictionary<TransformBase, float>?[]? weights = null;
 
             _bounds = bounds ?? new AABB(Vector3.Zero, Vector3.Zero);
 

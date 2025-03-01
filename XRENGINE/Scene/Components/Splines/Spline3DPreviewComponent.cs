@@ -267,8 +267,8 @@ namespace XREngine.Components.Scene
 
             RenderingParameters p = new()
             {
-                LineWidth = 1.0f,
-                PointSize = 5.0f
+                //LineWidth = 1.0f,
+                //PointSize = 5.0f
             };
 
             XRMesh splineData = XRMesh.Create(strip);

@@ -5,7 +5,6 @@ using System.Runtime.InteropServices;
 using XREngine.Components;
 using XREngine.Data;
 using XREngine.Data.Colors;
-using XREngine.Data.Core;
 using XREngine.Data.Geometry;
 using XREngine.Data.Rendering;
 using XREngine.Rendering.Models.Materials;
@@ -129,31 +128,31 @@ namespace XREngine.Rendering.Physics.Physx
             _scene = _physicsPtr->CreateSceneMut(&sceneDesc);
             Scenes.Add((nint)_scene, this);
 
-            VisualizeEnabled = false;
+            VisualizeEnabled = true;
             VisualizeWorldAxes = true;
             VisualizeBodyAxes = true;
-            VisualizeBodyMassAxes = true;
+            VisualizeBodyMassAxes = false;
             VisualizeBodyLinearVelocity = true;
             VisualizeBodyAngularVelocity = true;
             VisualizeContactPoint = true;
             VisualizeContactNormal = true;
-            VisualizeContactError = true;
-            VisualizeContactForce = true;
+            VisualizeContactError = false;
+            VisualizeContactForce = false;
             VisualizeActorAxes = true;
             VisualizeCollisionAabbs = true;
             VisualizeCollisionShapes = true;
             VisualizeCollisionAxes = true;
-            VisualizeCollisionCompounds = true;
-            VisualizeCollisionFaceNormals = true;
-            VisualizeCollisionEdges = true;
-            VisualizeCollisionStatic = true;
-            VisualizeCollisionDynamic = true;
-            VisualizeJointLocalFrames = true;
-            VisualizeJointLimits = true;
-            VisualizeCullBox = true;
-            VisualizeMbpRegions = true;
-            VisualizeSimulationMesh = true;
-            VisualizeSdf = true;
+            VisualizeCollisionCompounds = false;
+            VisualizeCollisionFaceNormals = false;
+            VisualizeCollisionEdges = false;
+            VisualizeCollisionStatic = false;
+            VisualizeCollisionDynamic = false;
+            VisualizeJointLocalFrames = false;
+            VisualizeJointLimits = false;
+            VisualizeCullBox = false;
+            VisualizeMbpRegions = false;
+            VisualizeSimulationMesh = false;
+            VisualizeSdf = false;
         }
 
         public DataSource? _scratchBlock = new(32000, true);
@@ -166,12 +165,14 @@ namespace XREngine.Rendering.Physics.Physx
                 Debug.Out($"PhysX FetchResults error: {error}");
                 return;
             }
-            //if (VisualizeEnabled)
-            //    PopulateDebugBuffers();
+            if (VisualizeEnabled)
+                PopulateDebugBuffers();
             NotifySimulationStepped();
         }
 
         private XRMeshRenderer? _debugPointsRenderer = null;
+        private XRMeshRenderer? _debugLinesRenderer = null;
+        private XRMeshRenderer? _debugTrianglesRenderer = null;
 
         private void PopulateDebugBuffers()
         {
@@ -184,182 +185,222 @@ namespace XREngine.Rendering.Physics.Physx
             _debugPoints = rb->GetPoints();
             _debugLines = rb->GetLines();
             _debugTriangles = rb->GetTriangles();
-
-            PopulateBuffers(CreateOrResizeDebugBuffers());
+            CreateOrResizeDebugBuffers();
+            PopulateBuffers();
         }
 
-        private void PopulateBuffers(uint maxPoints)
+        private void PopulateBuffers()
         {
             var destPoints = (float*)_debugPointsBuffer!.Address;
             var destLines = (float*)_debugLinesBuffer!.Address;
             var destTriangles = (float*)_debugTrianglesBuffer!.Address;
-            void SetDataParallel(long i)
+            void SetPointsAt(int i)
             {
-                if (i < _debugPointCount)
-                {
-                    var point = _debugPoints[i];
-                    var pos = point.pos;
-                    var color = ToColorF4(point.color);
-                    var x = i * 8;
-                    destPoints[x + 0] = pos.x;
-                    destPoints[x + 1] = pos.y;
-                    destPoints[x + 2] = pos.z;
-                    destPoints[x + 3] = 0.0f;
-                    destPoints[x + 4] = color.R;
-                    destPoints[x + 5] = color.G;
-                    destPoints[x + 6] = color.B;
-                    destPoints[x + 7] = color.A;
-                }
-                if (i < _debugLineCount)
-                {
-                    var line = _debugLines[i];
-                    var pos0 = line.pos0;
-                    var pos1 = line.pos1;
-                    var color = ToColorF4(line.color0);
-                    var x = i * 16;
-                    destLines[x + 0] = pos0.x;
-                    destLines[x + 1] = pos0.y;
-                    destLines[x + 2] = pos0.z;
-                    destLines[x + 3] = 0.0f;
-                    destLines[x + 4] = pos1.x;
-                    destLines[x + 5] = pos1.y;
-                    destLines[x + 6] = pos1.z;
-                    destLines[x + 7] = 0.0f;
-                    destLines[x + 8] = color.R;
-                    destLines[x + 9] = color.G;
-                    destLines[x + 10] = color.B;
-                    destLines[x + 11] = color.A;
-                    destLines[x + 12] = 0.0f;
-                    destLines[x + 13] = 0.0f;
-                    destLines[x + 14] = 0.0f;
-                    destLines[x + 15] = 0.0f;
-                }
-                if (i < _debugTriangleCount)
-                {
-                    var triangle = _debugTriangles[i];
-                    var pos0 = triangle.pos0;
-                    var pos1 = triangle.pos1;
-                    var pos2 = triangle.pos2;
-                    var color = ToColorF4(triangle.color0);
-                    var x = i * 16;
-                    destTriangles[x + 0] = pos0.x;
-                    destTriangles[x + 1] = pos0.y;
-                    destTriangles[x + 2] = pos0.z;
-                    destTriangles[x + 3] = 0.0f;
-                    destTriangles[x + 4] = pos1.x;
-                    destTriangles[x + 5] = pos1.y;
-                    destTriangles[x + 6] = pos1.z;
-                    destTriangles[x + 7] = 0.0f;
-                    destTriangles[x + 8] = pos2.x;
-                    destTriangles[x + 9] = pos2.y;
-                    destTriangles[x + 10] = pos2.z;
-                    destTriangles[x + 11] = 0.0f;
-                    destTriangles[x + 12] = color.R;
-                    destTriangles[x + 13] = color.G;
-                    destTriangles[x + 14] = color.B;
-                    destTriangles[x + 15] = color.A;
-                }
+                if (i >= _debugPointCount)
+                    return;
+                
+                var point = _debugPoints[i];
+                var pos = point.pos;
+                var color = ToColorF4(point.color);
+                var x = i * 8;
+                destPoints[x + 0] = pos.x;
+                destPoints[x + 1] = pos.y;
+                destPoints[x + 2] = pos.z;
+                destPoints[x + 3] = 0.0f;
+                destPoints[x + 4] = color.R;
+                destPoints[x + 5] = color.G;
+                destPoints[x + 6] = color.B;
+                destPoints[x + 7] = color.A;
             }
-            Parallel.For(0, maxPoints, SetDataParallel);
-            _debugPointsBuffer.PushSubData();
-            _debugLinesBuffer.PushSubData();
-            _debugTrianglesBuffer.PushSubData();
+            void SetLinesAt(int i)
+            {
+                var line = _debugLines[i];
+                var pos0 = line.pos0;
+                var pos1 = line.pos1;
+                var color = ToColorF4(line.color0);
+                var x = i * 12;
+                destLines[x + 0] = pos0.x;
+                destLines[x + 1] = pos0.y;
+                destLines[x + 2] = pos0.z;
+                destLines[x + 3] = 0.0f;
+                destLines[x + 4] = pos1.x;
+                destLines[x + 5] = pos1.y;
+                destLines[x + 6] = pos1.z;
+                destLines[x + 7] = 0.0f;
+                destLines[x + 8] = color.R;
+                destLines[x + 9] = color.G;
+                destLines[x + 10] = color.B;
+                destLines[x + 11] = color.A;
+            }
+            void SetTrianglesAt(int i)
+            {
+                if (i >= _debugTriangleCount)
+                    return;
+                
+                var triangle = _debugTriangles[i];
+                var pos0 = triangle.pos0;
+                var pos1 = triangle.pos1;
+                var pos2 = triangle.pos2;
+                var color = ToColorF4(triangle.color0);
+                var x = i * 16;
+                destTriangles[x + 0] = pos0.x;
+                destTriangles[x + 1] = pos0.y;
+                destTriangles[x + 2] = pos0.z;
+                destTriangles[x + 3] = 0.0f;
+                destTriangles[x + 4] = pos1.x;
+                destTriangles[x + 5] = pos1.y;
+                destTriangles[x + 6] = pos1.z;
+                destTriangles[x + 7] = 0.0f;
+                destTriangles[x + 8] = pos2.x;
+                destTriangles[x + 9] = pos2.y;
+                destTriangles[x + 10] = pos2.z;
+                destTriangles[x + 11] = 0.0f;
+                destTriangles[x + 12] = color.R;
+                destTriangles[x + 13] = color.G;
+                destTriangles[x + 14] = color.B;
+                destTriangles[x + 15] = color.A;
+            }
+
+            ////Set sequential
+            //for (int i = 0; i < _debugPointCount; i++)
+            //    SetPointsAt(i);
+            //for (int i = 0; i < _debugLineCount; i++)
+            //    SetLinesAt(i);
+            //for (int i = 0; i < _debugTriangleCount; i++)
+            //    SetTrianglesAt(i);
+
+            Task t0 = Task.Run(() => Parallel.For(0, (int)_debugPointCount, SetPointsAt));
+            Task t1 = Task.Run(() => Parallel.For(0, (int)_debugLineCount, SetLinesAt));
+            Task t2 = Task.Run(() => Parallel.For(0, (int)_debugTriangleCount, SetTrianglesAt));
+            Task.WaitAll(t0, t1, t2);
         }
 
-        private uint CreateOrResizeDebugBuffers()
+        private void CreateOrResizeDebugBuffers()
         {
-            uint maxPoints = XRMath.Max(_debugPointCount, _debugLineCount, _debugTriangleCount);
-            //align maxpoints to power of 2
-            maxPoints = XRMath.NextPowerOfTwo(maxPoints);
-            if (_debugItemsPowerOfTwo < maxPoints || _debugPointsBuffer is null || _debugLinesBuffer is null || _debugTrianglesBuffer is null)
-            {
-                _debugItemsPowerOfTwo = maxPoints;
-                _debugPointsRenderer ??= new XRMeshRenderer(CreateDebugMesh(), CreateDebugMaterial());
+            if (_debugPointsBuffer is null)
+                UpdatePoints(_debugPointCount);
 
-                //8 floats: 3 for position, 1 for padding, 4 for color
-                if (_debugPointsBuffer is not null)
-                    _debugPointsBuffer.Resize(maxPoints);
-                else
-                {
-                    _debugPointsBuffer = new XRDataBuffer(
-                        "PointsBuffer",
-                        EBufferTarget.ShaderStorageBuffer,
-                        maxPoints,
-                        EComponentType.Float,
-                        8,
-                        false,
-                        false);
-                    _debugPointsRenderer.Buffers.Add(_debugPointsBuffer.BindingName, _debugPointsBuffer);
-                    _debugPointsBuffer.PushData();
-                }
+            if (_debugLinesBuffer is null)
+                UpdateLines(_debugLineCount);
 
-                //16 floats: 3 for position0, 1 for padding, 3 for position1, 1 for padding, 4 for color, 4 for padding
-                if (_debugLinesBuffer is not null)
-                    _debugLinesBuffer.Resize(maxPoints);
-                else
-                {
-                    _debugLinesBuffer = new XRDataBuffer(
-                        "LinesBuffer",
-                        EBufferTarget.ShaderStorageBuffer,
-                        maxPoints,
-                        EComponentType.Float,
-                        16,
-                        false,
-                        false);
-                    _debugPointsRenderer.Buffers.Add(_debugLinesBuffer.BindingName, _debugLinesBuffer);
-                    _debugLinesBuffer.PushData();
-                }
+            if (_debugTrianglesBuffer is null)
+                UpdateTriangles(_debugTriangleCount);
 
-                //16 floats: 3 for position0, 1 for padding, 3 for position1, 1 for padding, 3 for position2, 1 for padding, 4 for color
-                if (_debugTrianglesBuffer is not null)
-                    _debugTrianglesBuffer.Resize(maxPoints);
-                else
-                {
-                    _debugTrianglesBuffer = new XRDataBuffer(
-                        "TrianglesBuffer",
-                        EBufferTarget.ShaderStorageBuffer,
-                        maxPoints,
-                        EComponentType.Float,
-                        16,
-                        false,
-                        false);
-                    _debugPointsRenderer.Buffers.Add(_debugTrianglesBuffer.BindingName, _debugTrianglesBuffer);
-                    _debugTrianglesBuffer.PushData();
-                }
-            }
-
-            var mat = _debugPointsRenderer!.Material!;
-            mat.SetUInt(0, _debugPointCount);
-            mat.SetUInt(1, _debugLineCount);
-            mat.SetUInt(2, _debugTriangleCount);
-            mat.SetFloat(3, PointSize);
-            mat.SetFloat(4, LineWidth);
-
-            return maxPoints;
+            _debugPointsRenderer?.Material?.SetFloat(0, PointSize);
+            _debugLinesRenderer?.Material?.SetFloat(0, LineWidth);
         }
 
-        private float _pointSize = 0.01f;
+        private void UpdateTriangles(uint count)
+        {
+            _debugTrianglesRenderer ??= new XRMeshRenderer(CreateDebugMesh(), CreateDebugTriangleMaterial());
+            //16 floats: 3 for position0, 1 for padding, 3 for position1, 1 for padding, 3 for position2, 1 for padding, 4 for color
+            if (_debugTrianglesBuffer is not null)
+                _debugTrianglesBuffer.Resize(count, true, true);
+            else
+            {
+                _debugTrianglesBuffer = new XRDataBuffer(
+                    "TrianglesBuffer",
+                    EBufferTarget.ShaderStorageBuffer,
+                    count,
+                    EComponentType.Float,
+                    16,
+                    false,
+                    false,
+                    true)
+                {
+                    BindingIndexOverride = 0,
+                    Usage = EBufferUsage.StreamDraw,
+                };
+                _debugTrianglesRenderer.Buffers?.Add(_debugTrianglesBuffer.BindingName, _debugTrianglesBuffer);
+                _debugTrianglesRenderer.SettingUniforms += _debugTrianglesRenderer_SettingUniforms;
+                _debugTrianglesRenderer.GenerateAsync = false;
+                //_debugTrianglesBuffer.PushData();
+            }
+        }
+
+        private void _debugTrianglesRenderer_SettingUniforms(XRRenderProgram vertexProgram, XRRenderProgram materialProgram)
+        {
+            _debugTrianglesBuffer?.PushSubData();
+        }
+
+        private void UpdateLines(uint count)
+        {
+            _debugLinesRenderer ??= new XRMeshRenderer(CreateDebugMesh(), CreateDebugLineMaterial());
+            //12 floats: 3 for position0, 1 for padding, 3 for position1, 1 for padding, 4 for color
+            if (_debugLinesBuffer is not null)
+                _debugLinesBuffer.Resize(count * 3, true, true);
+            else
+            {
+                _debugLinesBuffer = new XRDataBuffer(
+                    "LinesBuffer",
+                    EBufferTarget.ShaderStorageBuffer,
+                    count * 3,
+                    EComponentType.Float,
+                    4,
+                    false,
+                    false,
+                    true)
+                {
+                    BindingIndexOverride = 0,
+                    Usage = EBufferUsage.StreamDraw,
+                };
+                _debugLinesRenderer.Buffers?.Add(_debugLinesBuffer.BindingName, _debugLinesBuffer);
+                _debugLinesRenderer.SettingUniforms += _debugLinesRenderer_SettingUniforms;
+                _debugLinesRenderer.GenerateAsync = false;
+                //_debugLinesBuffer.PushData();
+            }
+        }
+
+        private void _debugLinesRenderer_SettingUniforms(XRRenderProgram vertexProgram, XRRenderProgram materialProgram)
+        {
+            _debugLinesBuffer?.PushSubData();
+        }
+
+        private void UpdatePoints(uint count)
+        {
+            _debugPointsRenderer ??= new XRMeshRenderer(CreateDebugMesh(), CreateDebugPointMaterial());
+            //8 floats: 3 for position, 1 for padding, 4 for color
+            if (_debugPointsBuffer is not null)
+                _debugPointsBuffer.Resize(count, true, true);
+            else
+            {
+                _debugPointsBuffer = new XRDataBuffer(
+                    "PointsBuffer",
+                    EBufferTarget.ShaderStorageBuffer,
+                    count,
+                    EComponentType.Float,
+                    8,
+                    false,
+                    false,
+                    true)
+                {
+                    BindingIndexOverride = 0,
+                    Usage = EBufferUsage.StreamDraw,
+                };
+                _debugPointsRenderer.Buffers.Add(_debugPointsBuffer.BindingName, _debugPointsBuffer);
+                _debugPointsRenderer.SettingUniforms += _debugPointsRenderer_SettingUniforms;
+                _debugPointsRenderer.GenerateAsync = false;
+                //_debugPointsBuffer.PushData();
+            }
+        }
+
+        private void _debugPointsRenderer_SettingUniforms(XRRenderProgram vertexProgram, XRRenderProgram materialProgram)
+        {
+            _debugPointsBuffer?.PushSubData();
+        }
+
+        private float _pointSize = 10f;
         public float PointSize
         {
             get => _pointSize;
-            set
-            {
-                SetField(ref _pointSize, value);
-                if (_debugPointsRenderer is not null)
-                    _debugPointsRenderer.Material!.SetFloat(3, value);
-            }
+            set => SetField(ref _pointSize, value);
         }
 
-        private float _lineWidth = 0.01f;
+        private float _lineWidth = 10f;
         public float LineWidth
         {
             get => _lineWidth;
-            set
-            {
-                SetField(ref _lineWidth, value);
-                if (_debugPointsRenderer is not null)
-                    _debugPointsRenderer.Material!.SetFloat(4, value);
-            }
+            set => SetField(ref _lineWidth, value);
         }
 
         protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
@@ -370,87 +411,69 @@ namespace XREngine.Rendering.Physics.Physx
                 //case nameof(VisualizeEnabled):
                 //    break;
                 case nameof(PointSize):
-                    if (_debugPointsRenderer is not null)
-                        _debugPointsRenderer.Material!.SetFloat(3, PointSize);
+                    _debugPointsRenderer?.Material?.SetFloat(0, PointSize);
                     break;
                 case nameof(LineWidth):
-                    if (_debugPointsRenderer is not null)
-                        _debugPointsRenderer.Material!.SetFloat(4, LineWidth);
+                    _debugLinesRenderer?.Material?.SetFloat(0, LineWidth);
                     break;
             }
         }
 
-        private static XRMaterial? CreateDebugMaterial()
+        private static XRMaterial? CreateDebugPointMaterial()
         {
-            XRShader geomShader = ShaderHelper.LoadEngineShader("DebugGeometry.gs", EShaderType.Geometry);
-            XRShader fragShader = ShaderHelper.UnlitColorFragForward()!;
-            ShaderVar[] vars =
-            [
-                new ShaderUInt(0, "PointCount"),
-                new ShaderUInt(0, "LineCount"),
-                new ShaderUInt(0, "TriangleCount"),
-                new ShaderFloat(0.01f, "PointSize"),
-                new ShaderFloat(0.01f, "LineWidth"),
-            ];
-            var mat = new XRMaterial(vars, geomShader, fragShader);
+            XRShader vertShader = ShaderHelper.LoadEngineShader(Path.Combine("Common", "Debug", "InstancedDebugPrimitive.vs"), EShaderType.Vertex);
+            XRShader geomShader = ShaderHelper.LoadEngineShader(Path.Combine("Common", "Debug", "PointInstance.gs"), EShaderType.Geometry);
+            XRShader fragShader = ShaderHelper.LoadEngineShader(Path.Combine("Common", "Debug", "InstancedDebugPrimitivePoint.fs"), EShaderType.Fragment);
+            ShaderVar[] vars = [new ShaderFloat(1f, "PointSize")];
+            var mat = new XRMaterial(vars, vertShader, geomShader, fragShader);
             mat.RenderOptions.RequiredEngineUniforms = EUniformRequirements.Camera;
+            mat.RenderOptions.CullMode = ECullMode.None;
+            mat.EnableTransparency();
             return mat;
         }
+        private static XRMaterial? CreateDebugLineMaterial()
+        {
+            XRShader vertShader = ShaderHelper.LoadEngineShader(Path.Combine("Common", "Debug", "InstancedDebugPrimitive.vs"), EShaderType.Vertex);
+            XRShader geomShader = ShaderHelper.LoadEngineShader(Path.Combine("Common", "Debug", "LineInstance.gs"), EShaderType.Geometry);
+            XRShader fragShader = ShaderHelper.LoadEngineShader(Path.Combine("Common", "Debug", "InstancedDebugPrimitive.fs"), EShaderType.Fragment);
+            ShaderVar[] vars = [new ShaderFloat(10f, "LineWidth")];
+            var mat = new XRMaterial(vars, vertShader, geomShader, fragShader);
+            mat.RenderOptions.RequiredEngineUniforms = EUniformRequirements.Camera;
+            mat.RenderOptions.CullMode = ECullMode.None;
+            mat.EnableTransparency();
+            return mat;
+        }
+        private static XRMaterial? CreateDebugTriangleMaterial()
+        {
+            XRShader vertShader = ShaderHelper.LoadEngineShader(Path.Combine("Common", "Debug", "InstancedDebugPrimitive.vs"), EShaderType.Vertex);
+            XRShader geomShader = ShaderHelper.LoadEngineShader(Path.Combine("Common", "Debug", "TriangleInstance.gs"), EShaderType.Geometry);
+            XRShader fragShader = ShaderHelper.LoadEngineShader(Path.Combine("Common", "Debug", "InstancedDebugPrimitive.fs"), EShaderType.Fragment);
+            ShaderVar[] vars = [];
+            var mat = new XRMaterial(vars, vertShader, geomShader, fragShader);
+            mat.RenderOptions.RequiredEngineUniforms = EUniformRequirements.Camera;
+            mat.RenderOptions.CullMode = ECullMode.None;
+            mat.EnableTransparency();
+            return mat;
+        }
+
         private static XRMesh? CreateDebugMesh()
-            => new(new Vertex(Vector3.Zero));
+            => new(new Vertex[] { new Vertex(Vector3.Zero) });
 
-        //private List<Engine.Rendering.Debug.PointData> _debugPointsUpdating = [];
-        //private List<Engine.Rendering.Debug.LineData> _debugLinesUpdating = [];
-        //private List<Engine.Rendering.Debug.TriangleData> _debugTrianglesUpdating = [];
-
-        //private List<Engine.Rendering.Debug.PointData> _debugPointsRendering = [];
-        //private List<Engine.Rendering.Debug.LineData> _debugLinesRendering = [];
-        //private List<Engine.Rendering.Debug.TriangleData> _debugTrianglesRendering = [];
-
-        private uint _debugItemsPowerOfTwo = 0u;
         private XRDataBuffer? _debugPointsBuffer = null;
         private XRDataBuffer? _debugLinesBuffer = null;
         private XRDataBuffer? _debugTrianglesBuffer = null;
 
-        //private bool _debugDataInvalidated = false;
-
-        protected override void NotifySimulationStepped()
-        {
-            base.NotifySimulationStepped();
-            //_debugDataInvalidated = true;
-        }
-
-        //public void AddDebugPoint(Vector3 position, ColorF4 color)
-        //    => _debugPointsUpdating.Add(new(position, color));
-        //public void AddDebugLine(Vector3 start, Vector3 end, ColorF4 color)
-        //    => _debugLinesUpdating.Add(new(start, end, color));
-        //public void AddDebugTriangle(Vector3 p0, Vector3 p1, Vector3 p2, ColorF4 color)
-        //    => _debugTrianglesUpdating.Add(new(false, p0, p1, p2, color));
-
         public override void DebugRender()
         {
-            //SwapDebugBuffers();
-
-            //foreach (var point in _debugPointsRendering)
-            //    Engine.Rendering.Debug.RenderPoint(point.Position, point.Color);
-
-            //foreach (var line in _debugLinesRendering)
-            //    Engine.Rendering.Debug.RenderLine(line.Start, line.End, line.Color);
-
-            //foreach (var triangle in _debugTrianglesRendering)
-            //    Engine.Rendering.Debug.RenderTriangle(triangle.Value.A, triangle.Value.B, triangle.Value.C, triangle.Color, false);
-
-            //_debugPointsRenderer?.Render(null, 1);
+            if (_debugPointCount > 0)
+                _debugPointsRenderer?.Render(null, _debugPointCount);
+            
+            if (_debugLineCount > 0)
+                _debugLinesRenderer?.Render(null, _debugLineCount);
+            
+            if (_debugTriangleCount > 0)
+                _debugTrianglesRenderer?.Render(null, _debugTriangleCount);
         }
-        //public override void SwapDebugBuffers()
-        //{
-        //    if (!_debugDataInvalidated)
-        //        return;
-
-        //    (_debugPointsRendering, _debugPointsUpdating) = (_debugPointsUpdating, _debugPointsRendering);
-        //    (_debugLinesRendering, _debugLinesUpdating) = (_debugLinesUpdating, _debugLinesRendering);
-        //    (_debugTrianglesRendering, _debugTrianglesUpdating) = (_debugTrianglesUpdating, _debugTrianglesRendering);
-        //}
 
         private PxDebugPoint* _debugPoints;
         private PxDebugLine* _debugLines;
@@ -459,54 +482,6 @@ namespace XREngine.Rendering.Physics.Physx
         private uint _debugPointCount = 0;
         private uint _debugLineCount = 0;
         private uint _debugTriangleCount = 0;
-
-        //public override void DebugRenderCollect()
-        //{
-        //    if (!_debugDataInvalidated)
-        //        return;
-
-        //    _debugTrianglesUpdating.Clear();
-        //    _debugLinesUpdating.Clear();
-        //    _debugPointsUpdating.Clear();
-
-        //    var rb = RenderBuffer;
-        //    var points = rb->GetNbPoints();
-        //    var lines = rb->GetNbLines();
-        //    var triangles = rb->GetNbTriangles();
-        //    if (points > 0)
-        //    {
-        //        var p = rb->GetPoints();
-        //        for (int i = 0; i < points; i++)
-        //        {
-        //            var point = p[i];
-        //            uint c = point.color;
-        //            ColorF4 color = ToColorF4(c);
-        //            AddDebugPoint(point.pos, color);
-        //        }
-        //    }
-        //    if (lines > 0)
-        //    {
-        //        var l = rb->GetLines();
-        //        for (int i = 0; i < lines; i++)
-        //        {
-        //            var line = l[i];
-        //            uint c = line.color0;
-        //            ColorF4 color = ToColorF4(c);
-        //            AddDebugLine(line.pos0, line.pos1, color);
-        //        }
-        //    }
-        //    if (triangles > 0)
-        //    {
-        //        var t = rb->GetTriangles();
-        //        for (int i = 0; i < triangles; i++)
-        //        {
-        //            var triangle = t[i];
-        //            uint c = triangle.color0;
-        //            ColorF4 color = ToColorF4(c);
-        //            AddDebugTriangle(triangle.pos0, triangle.pos1, triangle.pos2, color);
-        //        }
-        //    }
-        //}
 
         private static ColorF4 ToColorF4(uint c) => new(
             ((c >> 00) & 0xFF) / 255.0f,

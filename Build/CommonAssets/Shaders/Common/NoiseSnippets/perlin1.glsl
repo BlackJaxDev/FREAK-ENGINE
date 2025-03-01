@@ -27,13 +27,13 @@ float perlin1(vec2 p, int res)
 	int iCount = 0;
 
 	for (int i = 0; i < 50; i++)
-  {
+  	{
 		n += amp * noisePerlin1(p, f);
 		f *= 2.0f;
 		normK += amp;
 		amp *= persistence;
 		if (iCount == res)
-      break;
+      		break;
 		iCount++;
 	}
 
