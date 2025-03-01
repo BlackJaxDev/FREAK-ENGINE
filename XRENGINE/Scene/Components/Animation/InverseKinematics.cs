@@ -365,7 +365,9 @@ namespace XREngine.Scene.Components.Animation
         private static void PostSolve(BoneChainItem[] chain)
         {
             var root = chain[0];
-            root.Transform?.SetWorldTranslation(root.WorldPosSolve);
+            var rootTfm = root.Transform;
+            rootTfm!.SetWorldTranslation(root.WorldPosSolve);
+            rootTfm.RecalculateMatrices(); //Must recalc matrix for each subsequent bone calculation
             for (int i = 1; i < chain.Length; i++)
             {
                 BoneChainItem parent = chain[i - 1];
@@ -387,16 +389,28 @@ namespace XREngine.Scene.Components.Animation
                 //Take current local translation from parent
                 Vector3 localPos = cTfm.LocalTranslation;
                 //Transform it to parent's world space
-                Vector3 v0 = pTfm.TransformDirection(localPos);
+                Vector3 v0 = pTfm.TransformPoint(localPos) - pTfm.WorldTranslation;
                 //Get the direction from parent to child
                 Vector3 v1 = child.WorldPosSolve - parent.WorldPosSolve;
                 //Get the delta rotation between the two world-space vectors
                 Quaternion rot = XRMath.RotationBetweenVectors(v0, v1);
                 //Add the delta rotation to the parent's current world rotation
                 pTfm.SetWorldRotation(rot * pTfm.WorldRotation);
+                pTfm.RecalculateMatrices(); //Must recalc matrix for each subsequent bone calculation
 
                 //Set the child's world translation
+
+                bool lastBone = i == chain.Length - 1;
+                if (lastBone)
+                {
+                    //Verify world pos solve is the correct distance from the parent
+                    float dist = parent.DistanceToChild;
+                    Vector3 parentToChild = parent.WorldChildDirSolve * dist;
+                    child.WorldPosSolve = parent.WorldPosSolve + parentToChild;
+                }
+
                 cTfm.SetWorldTranslation(child.WorldPosSolve);
+                cTfm.RecalculateMatrices(); //Must recalc matrix for each subsequent bone calculation
             }
         }
 
