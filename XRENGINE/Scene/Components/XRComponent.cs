@@ -283,7 +283,7 @@ namespace XREngine.Components
         {
             if (this is IRenderable rend)
                 foreach (var obj in rend.RenderedObjects)
-                    obj.WorldInstance = SceneNode?.World;
+                    obj.WorldInstance = World;
         }
 
         /// <summary>

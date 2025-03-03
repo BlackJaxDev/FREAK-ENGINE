@@ -1,5 +1,6 @@
 ﻿using ImageMagick;
 using XREngine.Data;
+using XREngine.Data.Rendering;
 
 namespace XREngine.Rendering
 {
@@ -9,6 +10,7 @@ namespace XREngine.Rendering
         private bool _multiSample;
         private XRTexture2D[] _textures = [];
         private bool _resizable = true;
+        private ESizedInternalFormat _sizedInternalFormat = ESizedInternalFormat.Rgba8;
 
         public override bool IsResizeable => Resizable;
 
@@ -22,7 +24,7 @@ namespace XREngine.Rendering
             get => _resizable;
             set => SetField(ref _resizable, value);
         }
-        public override uint MaxDimension { get; } = 2u;
+        public override uint MaxDimension => Math.Max(Width, Height);
         public bool MultiSample
         {
             get => _multiSample;
@@ -33,11 +35,61 @@ namespace XREngine.Rendering
             get => _textures;
             set => SetField(ref _textures, value);
         }
+        public ESizedInternalFormat SizedInternalFormat
+        {
+            get => _sizedInternalFormat;
+            set => SetField(ref _sizedInternalFormat, value);
+        }
+
+        public uint Width => Textures.Length > 0 ? Textures[0].Width : 0u;
+        public uint Height => Textures.Length > 0 ? Textures[0].Height : 0u;
+        public uint Depth => (uint)Textures.Length;
+
+        public Mipmap2D[]? Mipmaps => Textures.Length > 0 ? Textures[0].Mipmaps : null;
+
+        public event Action? Resized = null;
+
+        private void TextureResized()
+        {
+            Resized?.Invoke();
+        }
+
+        protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
+        {
+            bool change = base.OnPropertyChanging(propName, field, @new);
+            if (change)
+            {
+                switch (propName)
+                {
+                    case nameof(Textures):
+                        if (Textures != null)
+                        {
+                            foreach (XRTexture2D texture in Textures)
+                                texture.Resized -= TextureResized;
+                        }
+                        break;
+                }
+            }
+            return change;
+        }
+
+        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+        {
+            base.OnPropertyChanged(propName, prev, field);
+            switch (propName)
+            {
+                case nameof(Textures):
+                    if (Textures != null)
+                    {
+                        foreach (XRTexture2D texture in Textures)
+                            texture.Resized += TextureResized;
+                    }
+                    break;
+            }
+        }
 
         protected override void Reload3rdParty(string path)
-        {
-            Load3rdParty(path);
-        }
+            => Load3rdParty(path);
         public override bool Load3rdParty(string filePath)
         {
             using MagickImageCollection collection = new(filePath);

@@ -890,24 +890,21 @@ namespace XREngine.Actors.Types
         #region Highlighting
         private bool HighlightRotation(XRCamera camera, Segment localRay)
         {
-            Vector3 worldPoint = Transform.WorldTranslation;
-            float radius = camera.DistanceScaleOrthographic(worldPoint, _orbRadius);
-
             var start = localRay.Start;
             var dir = Vector3.Normalize(localRay.End - localRay.Start);
 
-            if (!GeoUtil.RayIntersectsSphere(start, dir, Vector3.Zero, radius * _circOrbScale, out Vector3 point))
+            if (!GeoUtil.RayIntersectsSphere(start, dir, Vector3.Zero, _circOrbScale, out Vector3 point))
             {
                 //If no intersect is found, project the ray through the plane perpendicular to the camera.
                 //localRay.LinePlaneIntersect(Vector3.Zero, (camera.WorldPoint - worldPoint).Normalized(), out point);
-                GeoUtil.RayIntersectsPlane(start, dir, Vector3.Zero, Vector3.Transform((camera.Transform.WorldTranslation - worldPoint), Transform.InverseWorldMatrix), out point);
+                GeoUtil.RayIntersectsPlane(start, dir, Vector3.Zero, Vector3.Transform((camera.Transform.WorldTranslation), Transform.InverseWorldMatrix), out point);
 
                 //Clamp the point to edge of the sphere
-                point = Ray.PointAtLineDistance(Vector3.Zero, point, radius);
+                point = Ray.PointAtLineDistance(Vector3.Zero, point, 1.0f);
 
                 //Point lies on circ line?
                 float distance = point.Length();
-                if (Math.Abs(distance - radius * _circOrbScale) < radius * _selectOrbScale)
+                if (Math.Abs(distance - _circOrbScale) < _selectOrbScale)
                     _hiCam = true;
             }
             else
@@ -932,13 +929,10 @@ namespace XREngine.Actors.Types
         }
         private bool HighlightTranslation(XRCamera camera, Segment localRay)
         {
-            Vector3 worldPoint = Transform.WorldTranslation;
-            float radius = camera.DistanceScaleOrthographic(worldPoint, _orbRadius);
-
             var start = localRay.Start;
             var dir = Vector3.Normalize(localRay.End - localRay.Start);
 
-            List<Vector3> intersectionPoints = new(3);
+            Vector3?[] intersectionPoints = new Vector3?[3];
 
             bool snapFound = false;
             for (int normalAxis = 0; normalAxis < 3; ++normalAxis)
@@ -948,14 +942,15 @@ namespace XREngine.Actors.Types
 
                 //Get plane intersection point for cursor ray and each drag plane
                 if (GeoUtil.RayIntersectsPlane(start, dir, Vector3.Zero, unit, out Vector3 point))
-                    intersectionPoints.Add(point);
+                    intersectionPoints[normalAxis] = point;
             }
 
-            //_intersectionPoints.Sort((l, r) => l.DistanceToSquared(camera.WorldPoint).CompareTo(r.DistanceToSquared(camera.WorldPoint)));
-
-            foreach (Vector3 v in intersectionPoints)
+            foreach (Vector3? d in intersectionPoints)
             {
-                Vector3 diff = v / radius;
+                if (d is null)
+                    continue;
+                var diff = d.Value;
+                
                 //int planeAxis1 = normalAxis + 1 - (normalAxis >> 1) * 3;    //0 = 1, 1 = 2, 2 = 0
                 //int planeAxis2 = planeAxis1 + 1 - (normalAxis  & 1) * 3;    //0 = 2, 1 = 0, 2 = 1
 
@@ -992,13 +987,10 @@ namespace XREngine.Actors.Types
         }
         private bool HighlightScale(XRCamera camera, Segment localRay)
         {
-            Vector3 worldPoint = Transform.WorldTranslation;
-            float radius = camera.DistanceScaleOrthographic(worldPoint, _orbRadius);
-
-            List<Vector3> intersectionPoints = new(3);
-
             var start = localRay.Start;
             var dir = Vector3.Normalize(localRay.End - localRay.Start);
+
+            Vector3?[] intersectionPoints = new Vector3?[3];
 
             bool snapFound = false;
             for (int normalAxis = 0; normalAxis < 3; ++normalAxis)
@@ -1008,14 +1000,17 @@ namespace XREngine.Actors.Types
 
                 //Get plane intersection point for cursor ray and each drag plane
                 if (GeoUtil.RayIntersectsPlane(start, dir, Vector3.Zero, unit, out Vector3 point))
-                    intersectionPoints.Add(point);
+                    intersectionPoints[normalAxis] = point;
             }
 
             //_intersectionPoints.Sort((l, r) => l.DistanceToSquared(camera.WorldPoint).CompareTo(r.DistanceToSquared(camera.WorldPoint)));
 
-            foreach (Vector3 v in intersectionPoints)
+            foreach (Vector3? d in intersectionPoints)
             {
-                Vector3 diff = v / radius;
+                if (d is null)
+                    continue;
+                Vector3 diff = d.Value;
+
                 //int planeAxis1 = normalAxis + 1 - (normalAxis >> 1) * 3;    //0 = 1, 1 = 2, 2 = 0
                 //int planeAxis2 = planeAxis1 + 1 - (normalAxis  & 1) * 3;    //0 = 2, 1 = 0, 2 = 1
 
@@ -1083,22 +1078,26 @@ namespace XREngine.Actors.Types
                 if (_hiAxis.None && !_hiCam && !_hiSphere)
                     return false;
 
+                Matrix4x4 invRoot = Transform.FirstChild()!.InverseWorldMatrix;
+
                 if (!_pressed)
                     OnPressed();
 
-                Segment localRay = cursor.TransformedBy(Transform.InverseWorldMatrix);
+                Segment localRay = cursor.TransformedBy(invRoot);
                 Vector3 localDragPoint = GetLocalDragPoint(camera, localRay);
-                Vector3 worldDragPoint = Vector3.Transform(localDragPoint, Transform.WorldMatrix);
+                Vector3 worldDragPoint = Vector3.Transform(localDragPoint, Transform.FirstChild()!.WorldMatrix);
                 _drag?.Invoke(worldDragPoint);
 
                 _lastPointWorld = worldDragPoint;
             }
             else
             {
+                Matrix4x4 invRoot = Transform.FirstChild()!.InverseWorldMatrix;
+
                 if (_pressed)
                     OnReleased();
 
-                Segment localRay = cursor.TransformedBy(Transform.InverseWorldMatrix);
+                Segment localRay = cursor.TransformedBy(invRoot);
 
                 _hiAxis.X = _hiAxis.Y = _hiAxis.Z = false;
                 _hiCam = _hiSphere = false;
@@ -1113,7 +1112,7 @@ namespace XREngine.Actors.Types
                 GetDependentColors();
 
                 Vector3 localDragPoint = GetLocalDragPoint(camera, localRay);
-                _lastPointWorld = Vector3.Transform(localDragPoint, Transform.WorldMatrix);
+                _lastPointWorld = Vector3.Transform(localDragPoint, Transform.FirstChild()!.WorldMatrix);
             }
             return snapFound;
         }

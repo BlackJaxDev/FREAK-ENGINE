@@ -16,6 +16,17 @@ namespace XREngine.Rendering
             set => SetField(ref _maxBlendshapeAccumulation, value);
         }
 
+        private bool _supportsBillboarding = true;
+        /// <summary>
+        /// If true, the vertex shader will include billboarding code.
+        /// Use the 'BillboardMode' engine uniform to set the type of billboarding.
+        /// </summary>
+        public bool SupportsBillboarding
+        {
+            get => _supportsBillboarding;
+            set => SetField(ref _supportsBillboarding, value);
+        }
+
         public class BufferCollection : XRBase, IEventDictionary<string, XRDataBuffer>
         {
             private EventDictionary<string, XRDataBuffer> _buffers = [];

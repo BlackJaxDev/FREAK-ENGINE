@@ -87,14 +87,14 @@ namespace XREngine
                 ActionsChanged?.Invoke(_actions);
             }
 
-            public static XRTexture2D? VRStereoViewTexture { get; private set; } = null;
+            public static XRTexture2DArray? VRStereoViewTextureArray { get; private set; } = null;
             public static XRMaterialFrameBuffer? VRStereoRenderTarget { get; private set; } = null;
-
+            
             public static XRTexture2D? VRLeftEyeViewTexture { get; private set; } = null;
-            public static XRTexture2D? VRRightEyeViewTexture { get; private set; } = null;
-
             public static XRMaterialFrameBuffer? VRLeftEyeRenderTarget { get; private set; } = null;
+
             public static XRMaterialFrameBuffer? VRRightEyeRenderTarget { get; private set; } = null;
+            public static XRTexture2D? VRRightEyeViewTexture { get; private set; } = null;
 
             public static AbstractRenderer? Renderer { get; set; } = null;
 

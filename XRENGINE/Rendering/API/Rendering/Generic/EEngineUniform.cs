@@ -9,9 +9,9 @@
 
         //ViewMatrix, //Desktop
         InverseViewMatrix, //Desktop
-        LeftEyeViewMatrix, //Stereo
-        RightEyeViewMatrix, //Stereo
-
+        LeftEyeInverseViewMatrix, //Stereo
+        RightEyeInverseViewMatrix, //Stereo
+        
         ProjMatrix, //Desktop
         LeftEyeProjMatrix, //VR
         RightEyeProjMatrix, //VR
@@ -45,5 +45,8 @@
         CameraForward,
         CameraUp,
         CameraRight,
+
+        BillboardMode,
+        VRMode,
     }
 }

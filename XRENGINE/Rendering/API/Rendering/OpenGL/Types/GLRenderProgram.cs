@@ -654,6 +654,8 @@ namespace XREngine.Rendering.OpenGL
                 => Uniform(name.ToString(), p);
             public void Uniform(EEngineUniform name, Matrix4x4 p)
                 => Uniform(name.ToString(), p);
+            public void Uniform(EEngineUniform name, bool p)
+                => Uniform(name.ToString(), p);
 
             public void Uniform(string name, Vector2 p)
                 => Uniform(GetUniformLocation(name), p);
@@ -672,6 +674,8 @@ namespace XREngine.Rendering.OpenGL
             public void Uniform(string name, double p)
                 => Uniform(GetUniformLocation(name), p);
             public void Uniform(string name, Matrix4x4 p)
+                => Uniform(GetUniformLocation(name), p);
+            public void Uniform(string name, bool p)
                 => Uniform(GetUniformLocation(name), p);
 
             public void Uniform(int location, Vector2 p)
@@ -692,6 +696,8 @@ namespace XREngine.Rendering.OpenGL
                 => Api.ProgramUniform1(BindingId, location, p);
             public void Uniform(int location, Matrix4x4 p)
                 => Api.ProgramUniformMatrix4(BindingId, location, 1, false, &p.M11);
+            public void Uniform(int location, bool p)
+                => Api.ProgramUniform1(BindingId, location, p ? 1 : 0);
 
             public void Uniform(string name, Vector2[] p)
                 => Uniform(GetUniformLocation(name), p);
@@ -710,6 +716,8 @@ namespace XREngine.Rendering.OpenGL
             public void Uniform(string name, double[] p)
                 => Uniform(GetUniformLocation(name), p);
             public void Uniform(string name, Matrix4x4[] p)
+                => Uniform(GetUniformLocation(name), p);
+            public void Uniform(string name, bool[] p)
                 => Uniform(GetUniformLocation(name), p);
 
             public void Uniform(int location, IVector2 p)
@@ -806,6 +814,16 @@ namespace XREngine.Rendering.OpenGL
                 {
                     Api.ProgramUniformMatrix4(BindingId, location, (uint)p.Length, false, (float*)ptr);
                 }
+            }
+            public void Uniform(int location, bool[] p)
+            {
+                if (location < 0)
+                    return;
+
+                int[] conv = new int[p.Length];
+                for (int i = 0; i < p.Length; i++)
+                    conv[i] = p[i] ? 1 : 0;
+                Uniform(location, conv);
             }
             #endregion
 

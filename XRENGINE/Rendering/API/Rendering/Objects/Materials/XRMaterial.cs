@@ -8,6 +8,22 @@ using Color = System.Drawing.Color;
 
 namespace XREngine.Rendering
 {
+    public enum EMeshBillboardMode
+    {
+        /// <summary>
+        /// No billboarding.
+        /// </summary>
+        None,
+        /// <summary>
+        /// Billboards facing towards the camera's position.
+        /// </summary>
+        Perspective,
+        /// <summary>
+        /// Billboards facing towards the camera's forward vector.
+        /// </summary>
+        Orthographic,
+    }
+
     public class XRMaterial : XRMaterialBase
     {
         [Browsable(false)]
@@ -88,6 +104,13 @@ namespace XREngine.Rendering
         {
             get => _shaders;
             set => SetField(ref _shaders, value);
+        }
+
+        private EMeshBillboardMode _billboardMode = EMeshBillboardMode.None;
+        public EMeshBillboardMode BillboardMode
+        {
+            get => _billboardMode;
+            set => SetField(ref _billboardMode, value);
         }
 
         protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)

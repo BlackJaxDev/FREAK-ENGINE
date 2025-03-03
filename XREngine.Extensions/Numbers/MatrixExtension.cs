@@ -31,8 +31,17 @@ namespace Extensions
             matrix.M43 += translation.Z;
             return matrix;
         }
+        
+        public static Vector3 Translation(this Matrix4x4 matrix)
+            => new(matrix.M41, matrix.M42, matrix.M43);
+        public static Vector3 Right(this Matrix4x4 matrix)
+            => new(matrix.M11, matrix.M12, matrix.M13);
+        public static Vector3 Up(this Matrix4x4 matrix)
+            => new(matrix.M21, matrix.M22, matrix.M23);
+        public static Vector3 Forward(this Matrix4x4 matrix)
+            => new(matrix.M31, matrix.M32, matrix.M33);
 
-        public static Quaternion FromMatrix(this Matrix4x4 matrix)
+        public static Quaternion ToQuaternion(this Matrix4x4 matrix)
         {
             float trace = matrix.M11 + matrix.M22 + matrix.M33;
             float w, x, y, z;

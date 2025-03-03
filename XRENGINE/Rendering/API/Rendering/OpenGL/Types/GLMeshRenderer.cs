@@ -6,6 +6,7 @@ using XREngine.Data;
 using XREngine.Data.Core;
 using XREngine.Data.Rendering;
 using XREngine.Rendering.Models.Materials;
+using static XREngine.Rendering.XRMaterial;
 
 namespace XREngine.Rendering.OpenGL
 {
@@ -114,7 +115,6 @@ namespace XREngine.Rendering.OpenGL
                 if (Data.Mesh != null)
                     Data.Mesh.DataChanged += OnMeshChanged;
                 OnMeshChanged(Data.Mesh);
-
             }
 
             protected override void UnlinkData()
@@ -195,7 +195,12 @@ namespace XREngine.Rendering.OpenGL
                 return mat;
             }
 
-            public void Render(Matrix4x4 modelMatrix, XRMaterial? materialOverride, uint instances)
+            public void Render(
+                Matrix4x4 modelMatrix,
+                XRMaterial? materialOverride,
+                uint instances,
+                EMeshBillboardMode billboardMode,
+                bool vrStereoPass)
             {
                 if (Data is null || !Renderer.Active)
                     return;
@@ -224,7 +229,7 @@ namespace XREngine.Rendering.OpenGL
                     //TODO: only push this data if changed
                     Data.Mesh?.BlendshapeWeights?.PushSubData();
 
-                    SetMeshUniforms(modelMatrix, vertexProgram!);
+                    SetMeshUniforms(modelMatrix, vertexProgram!, materialOverride?.BillboardMode ?? billboardMode, vrStereoPass);
                     material.SetUniforms(materialProgram);
                     OnSettingUniforms(vertexProgram!, materialProgram!);
                     Renderer.RenderMesh(this, false, instances);
@@ -315,7 +320,7 @@ namespace XREngine.Rendering.OpenGL
                 return true;
             }
 
-            private static void SetMeshUniforms(Matrix4x4 modelMatrix, GLRenderProgram vertexProgram)
+            private static void SetMeshUniforms(Matrix4x4 modelMatrix, GLRenderProgram vertexProgram, EMeshBillboardMode billboardMode, bool vrStereoPass)
             {
                 XRCamera? camera = Engine.Rendering.State.RenderingCamera;
                 Matrix4x4 inverseViewMatrix;
@@ -337,6 +342,12 @@ namespace XREngine.Rendering.OpenGL
                 vertexProgram.Uniform(EEngineUniform.ModelMatrix, modelMatrix);
                 vertexProgram.Uniform(EEngineUniform.InverseViewMatrix, inverseViewMatrix);
                 vertexProgram.Uniform(EEngineUniform.ProjMatrix, projMatrix);
+                //vertexProgram.Uniform(EEngineUniform.CameraPosition, inverseViewMatrix.Translation);
+                //vertexProgram.Uniform(EEngineUniform.CameraForward, inverseViewMatrix.Forward());
+                //vertexProgram.Uniform(EEngineUniform.CameraUp, inverseViewMatrix.Up());
+                //vertexProgram.Uniform(EEngineUniform.CameraRight, inverseViewMatrix.Right());
+                vertexProgram.Uniform(EEngineUniform.VRMode, vrStereoPass);
+                vertexProgram.Uniform(EEngineUniform.BillboardMode, (int)billboardMode);
             }
 
             private void OnSettingUniforms(GLRenderProgram vertexProgram, GLRenderProgram materialProgram)
@@ -355,11 +366,9 @@ namespace XREngine.Rendering.OpenGL
                 MakeIndexBuffers();
 
                 var material = Material;
-                if (material is null)
-                {
-                    Debug.LogWarning("No material found for mesh renderer, using invalid material.");
-                    material = Renderer.GenericToAPI<GLMaterial>(Engine.Rendering.State.CurrentRenderingPipeline!.InvalidMaterial); //Don't use GetRenderMaterial here, global and local override materials are for current render only
-                }
+                //Debug.LogWarning("No material found for mesh renderer, using invalid material.");
+                //Don't use GetRenderMaterial here, global and local override materials are for current render only
+                material ??= Renderer.GenericToAPI<GLMaterial>(Engine.Rendering.State.CurrentRenderingPipeline!.InvalidMaterial);
 
                 bool useDefaultVertexShader = material?.Data?.VertexShaders?.Count == 0;
 

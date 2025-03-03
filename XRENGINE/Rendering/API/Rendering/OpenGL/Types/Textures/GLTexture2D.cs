@@ -282,27 +282,28 @@ namespace XREngine.Rendering.OpenGL
 
         protected override void SetParameters()
         {
-            if (!IsMultisampleTarget)
-            {
-                Api.TextureParameter(BindingId, GLEnum.TextureLodBias, Data.LodBias);
-
-                //int dsmode = Data.DepthStencilFormat == EDepthStencilFmt.Stencil ? (int)GLEnum.StencilIndex : (int)GLEnum.DepthComponent;
-                //Api.TextureParameterI(BindingId, GLEnum.DepthStencilTextureMode, in dsmode);
-
-                int magFilter = (int)ToGLEnum(Data.MagFilter);
-                Api.TextureParameterI(BindingId, GLEnum.TextureMagFilter, in magFilter);
-
-                int minFilter = (int)ToGLEnum(Data.MinFilter);
-                Api.TextureParameterI(BindingId, GLEnum.TextureMinFilter, in minFilter);
-
-                int uWrap = (int)ToGLEnum(Data.UWrap);
-                Api.TextureParameterI(BindingId, GLEnum.TextureWrapS, in uWrap);
-
-                int vWrap = (int)ToGLEnum(Data.VWrap);
-                Api.TextureParameterI(BindingId, GLEnum.TextureWrapT, in vWrap);
-            }
-
             base.SetParameters();
+
+            if (IsMultisampleTarget)
+                return;
+            
+            Api.TextureParameter(BindingId, GLEnum.TextureLodBias, Data.LodBias);
+
+            //int dsmode = Data.DepthStencilFormat == EDepthStencilFmt.Stencil ? (int)GLEnum.StencilIndex : (int)GLEnum.DepthComponent;
+            //Api.TextureParameterI(BindingId, GLEnum.DepthStencilTextureMode, in dsmode);
+
+            int magFilter = (int)ToGLEnum(Data.MagFilter);
+            Api.TextureParameterI(BindingId, GLEnum.TextureMagFilter, in magFilter);
+
+            int minFilter = (int)ToGLEnum(Data.MinFilter);
+            Api.TextureParameterI(BindingId, GLEnum.TextureMinFilter, in minFilter);
+
+            int uWrap = (int)ToGLEnum(Data.UWrap);
+            Api.TextureParameterI(BindingId, GLEnum.TextureWrapS, in uWrap);
+
+            int vWrap = (int)ToGLEnum(Data.VWrap);
+            Api.TextureParameterI(BindingId, GLEnum.TextureWrapT, in vWrap);
+
         }
 
         public override void PreSampling()

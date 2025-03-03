@@ -1,7 +1,6 @@
 ﻿using XREngine.Components.Scene.Mesh;
 using XREngine.Data.Geometry;
 using XREngine.Rendering;
-using XREngine.Rendering.Models;
 
 namespace XREngine.Scene.Components.Mesh.Shapes
 {

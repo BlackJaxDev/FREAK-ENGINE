@@ -1,8 +1,13 @@
-﻿using System.Text;
+﻿using Silk.NET.Core.Win32Extras;
+using System.Text;
 using XREngine.Rendering.Models.Materials;
 
 namespace XREngine.Rendering.Shaders.Generator
 {
+    /// <summary>
+    /// Base class for generating shaders.
+    /// </summary>
+    /// <param name="mesh"></param>
     public abstract class ShaderGeneratorBase(XRMesh mesh)
     {
         private const EGLSLVersion GLSLCurrentVersion = EGLSLVersion.Ver_460;
@@ -113,6 +118,37 @@ namespace XREngine.Rendering.Shaders.Generator
             //if (Mesh.HasBlendshapes && Mesh.UtilizedBones.Length > 0)
             //    Debug.Out(s);
             return s;
+        }
+        protected void IfElse(string condition, Action ifCode, Action elseCode)
+        {
+            Line($"if ({condition})");
+            using (OpenBracketState())
+                ifCode();
+            Line("else");
+            using (OpenBracketState())
+                elseCode();
+        }
+        protected void If(string condition, Action code)
+        {
+            Line($"if ({condition})");
+            using (OpenBracketState())
+                code();
+        }
+        protected void MultiIf(params (string condition, Action code)[] conditions)
+        {
+            for (int i = 0; i < conditions.Length; i++)
+            {
+                Line($"if ({conditions[i].condition})");
+                using (OpenBracketState())
+                    conditions[i].code();
+            }
+        }
+        protected void MultiIfElse(Action elseCode, params (string condition, Action code)[] conditions)
+        {
+            MultiIf(conditions);
+            Line("else");
+            using (OpenBracketState())
+                elseCode();
         }
         public enum EGLVertexShaderInput
         {
@@ -261,13 +297,24 @@ namespace XREngine.Rendering.Shaders.Generator
             gl_Layer, //out int
             gl_ViewportIndex, //out int - Requires GL 4.1 or ARB_viewport_array.
         }
+        protected void WriteGLPerVertexOut()
+        {
+            using (StartOutStructState("gl_PerVertex"))
+            {
+                Declare(EShaderVarType._vec4, "gl_Position");
+                Declare(EShaderVarType._float, "gl_PointSize");
+                Declare(EShaderVarType._float, "gl_ClipDistance[]");
+            }
+            Line();
+        }
+
         public StateObject StartOutStructState(string structName)
         {
             Line($"out {structName}");
             return OpenBracketState(null, true);
         }
-        public void Var(string varType, string varName)
-            => Line($"{varType} {varName};");
+        public void Declare(EShaderVarType varType, string varName)
+            => Line($"{varType.ToString()[1..]} {varName};");
         /// <summary>
         /// Writes the current line and increments to the next line.
         /// Do not use arguments if you need to include brackets in the string.

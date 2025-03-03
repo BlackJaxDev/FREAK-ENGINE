@@ -1,5 +1,4 @@
 ﻿using Extensions;
-using System.Text;
 using XREngine.Data.Rendering;
 using XREngine.Rendering.Models.Materials;
 
@@ -28,6 +27,9 @@ namespace XREngine.Rendering.Shaders.Generator
         public const string FinalTangentName = "finalTangent";
         public const string FinalBinormalName = "finalBinormal";
 
+        /// <summary>
+        /// Adjoint is a faster way to calculate the inverse of a matrix when the matrix is orthogonal.
+        /// </summary>
         private void WriteAdjointMethod()
         {
             Line("mat3 adjoint(mat4 m)");
@@ -39,6 +41,12 @@ namespace XREngine.Rendering.Shaders.Generator
                 Line("  cross(m[0].xyz, m[1].xyz));");
             }
         }
+
+        private const string ViewMatrixName = "ViewMatrix";
+        private const string ModelViewMatrixName = "mvMatrix";
+        private const string ModelViewProjMatrixName = "mvpMatrix";
+        private const string ViewProjMatrixName = "vpMatrix";
+        private const string NormalMatrixName = "normalMatrix";
 
         /// <summary>
         /// Creates the vertex shader to render a typical model.
@@ -56,16 +64,16 @@ namespace XREngine.Rendering.Shaders.Generator
             WriteAdjointMethod();
             using (StartMain())
             {
-                //Create MVP matrix right away
-                Line($"mat4 ViewMatrix = inverse({EEngineUniform.InverseViewMatrix});");
-                Line($"mat4 mvMatrix = ViewMatrix * ModelMatrix;");
-                Line($"mat4 mvpMatrix = {EEngineUniform.ProjMatrix} * mvMatrix;");
-                Line($"mat4 vpMatrix = {EEngineUniform.ProjMatrix} * ViewMatrix;");
+                //Normal matrix is used to transform normals, tangents, and binormals in mesh transform calculations
                 if (Mesh.NormalsBuffer is not null)
-                    Line("mat3 normalMatrix = adjoint(ModelMatrix);");
-                Line();
+                {
+                    Line($"mat3 {NormalMatrixName} = adjoint({EEngineUniform.ModelMatrix});");
+                    Line();
+                }
+
                 //Transform position, normals and tangents
                 WriteMeshTransforms(Mesh.HasSkinning && Engine.Rendering.Settings.AllowSkinning);
+
                 WriteColorOutputs();
                 WriteTexCoordOutputs();
             }
@@ -90,8 +98,9 @@ namespace XREngine.Rendering.Shaders.Generator
             WriteOutData();
             Line();
 
-            //For some reason, this is necessary
-            WritePipelineData();
+            //For some reason, this is necessary when using shader pipelines
+            if (Engine.Rendering.Settings.AllowShaderPipelines)
+                WriteGLPerVertexOut();
         }
 
         private void WriteTexCoordOutputs()
@@ -110,20 +119,6 @@ namespace XREngine.Rendering.Shaders.Generator
 
             for (int i = 0; i < Mesh.ColorBuffers.Length; ++i)
                 Line($"{string.Format(FragColorName, i)} = {ECommonBufferType.Color}{i};");
-        }
-
-        private void WritePipelineData()
-        {
-            if (!Engine.Rendering.Settings.AllowShaderPipelines)
-                return;
-
-            using (StartOutStructState("gl_PerVertex"))
-            {
-                Var("vec4", "gl_Position");
-                Var("float", "gl_PointSize");
-                Var("float", "gl_ClipDistance[]");
-            }
-            Line();
         }
 
         private void WriteBuffers()
@@ -183,14 +178,18 @@ namespace XREngine.Rendering.Shaders.Generator
         {
             WriteUniform(EShaderVarType._mat4, EEngineUniform.ModelMatrix.ToString());
 
-            //TODO: stereo support
             WriteUniform(EShaderVarType._mat4, EEngineUniform.InverseViewMatrix.ToString());
             WriteUniform(EShaderVarType._mat4, EEngineUniform.ProjMatrix.ToString());
-            //WriteUniform(EShaderVarType._mat4, EEngineUniform.LeftEyeViewMatrix.ToString());
-            //WriteUniform(EShaderVarType._mat4, EEngineUniform.LeftEyeProjMatrix.ToString());
-            //WriteUniform(EShaderVarType._mat4, EEngineUniform.RightEyeViewMatrix.ToString());
-            //WriteUniform(EShaderVarType._mat4, EEngineUniform.RightEyeProjMatrix.ToString());
+            //WriteUniform(EShaderVarType._vec3, EEngineUniform.CameraPosition.ToString());
+            //WriteUniform(EShaderVarType._vec3, EEngineUniform.CameraForward.ToString());
+            //WriteUniform(EShaderVarType._vec3, EEngineUniform.CameraUp.ToString());
+            //WriteUniform(EShaderVarType._vec3, EEngineUniform.CameraRight.ToString());
 
+            if (Mesh.SupportsBillboarding)
+                WriteUniform(EShaderVarType._int, EEngineUniform.BillboardMode.ToString());
+
+            WriteUniform(EShaderVarType._bool, EEngineUniform.VRMode.ToString());
+            
             if (Mesh.HasSkinning && Engine.Rendering.Settings.AllowSkinning)
                 WriteUniform(EShaderVarType._mat4, EEngineUniform.RootInvModelMatrix.ToString());
         }
@@ -306,12 +305,12 @@ namespace XREngine.Rendering.Shaders.Generator
             Line();
             if (hasNormals)
             {
-                Line($"{FragNormName} = normalize(normalMatrix * {FinalNormalName});");
+                Line($"{FragNormName} = normalize({NormalMatrixName} * {FinalNormalName});");
                 if (hasTangents)
                 {
-                    Line($"{FragTanName} = normalize(normalMatrix * {FinalTangentName});");
+                    Line($"{FragTanName} = normalize({NormalMatrixName} * {FinalTangentName});");
                     Line($"vec3 {FinalBinormalName} = cross({FinalNormalName}, {FinalTangentName});");
-                    Line($"{FragBinormName} = normalize(normalMatrix * {FinalBinormalName});");
+                    Line($"{FragBinormName} = normalize({NormalMatrixName} * {FinalBinormalName});");
                 }
             }
 
@@ -465,90 +464,142 @@ namespace XREngine.Rendering.Shaders.Generator
             return true;
         }
 
-        private void ResolvePosition(string posName)
+        private void ResolvePosition(string localInputPosName)
         {
-            //Line("mat4 ViewMatrix = WorldToCameraSpaceMatrix;");
-            //if (mesh.BillboardingFlags == ECameraTransformFlags.None)
-            //{
-            //    Line($"{posName} = ModelMatrix * Vector4({posName}.xyz, 1.0f);");
-            //    Line($"{FragPosName} = {posName}.xyz;");
-            //    Line($"gl_Position = ProjMatrix * ViewMatrix * {posName};");
-            //    return;
-            //}
-            //Line("mat4 BillboardMatrix = CameraToWorldSpaceMatrix;");
-            //if (mesh.BillboardingFlags.HasFlag(ECameraTransformFlags.RotateX))
-            //{
-            //    //Do not align X column to be stationary from camera's viewpoint
-            //    Line("ViewMatrix[0][0] = 1.0f;");
-            //    Line("ViewMatrix[0][1] = 0.0f;");
-            //    Line("ViewMatrix[0][2] = 0.0f;");
+            Line($"{FragPosLocalName} = {localInputPosName}.xyz;");
 
-            //    //Do not fix Y column to rotate with camera
-            //    Line("BillboardMatrix[1][0] = 0.0f;");
-            //    Line("BillboardMatrix[1][1] = 1.0f;");
-            //    Line("BillboardMatrix[1][2] = 0.0f;");
+            const string finalPosName = "outPos";
 
-            //    //Do not fix Z column to rotate with camera
-            //    Line("BillboardMatrix[2][0] = 0.0f;");
-            //    Line("BillboardMatrix[2][1] = 0.0f;");
-            //    Line("BillboardMatrix[2][2] = 1.0f;");
-            //}
-            //if (mesh.BillboardingFlags.HasFlag(ECameraTransformFlags.RotateY))
-            //{
-            //    //Do not fix X column to rotate with camera
-            //    Line("BillboardMatrix[0][0] = 1.0f;");
-            //    Line("BillboardMatrix[0][1] = 0.0f;");
-            //    Line("BillboardMatrix[0][2] = 0.0f;");
+            DeclareAndAssignFinalPosition(localInputPosName, finalPosName);
+            AssignFragPosOut(finalPosName);
+            AssignGL_Position(finalPosName);
+        }
 
-            //    //Do not align Y column to be stationary from camera's viewpoint
-            //    Line("ViewMatrix[1][0] = 0.0f;");
-            //    Line("ViewMatrix[1][1] = 1.0f;");
-            //    Line("ViewMatrix[1][2] = 0.0f;");
+        private void BillboardCalc(string posName, string glPosName)
+        {
+            Comment($"'{EEngineUniform.BillboardMode}' uniform: 0 = none, 1 = camera-facing (perspective), 2 = camera plane (orthographic)");
 
-            //    //Do not fix Z column to rotate with camera
-            //    Line("BillboardMatrix[2][0] = 0.0f;");
-            //    Line("BillboardMatrix[2][1] = 0.0f;");
-            //    Line("BillboardMatrix[2][2] = 1.0f;");
-            //}
-            //if (mesh.BillboardingFlags.HasFlag(ECameraTransformFlags.RotateZ))
-            //{
-            //    //Do not fix X column to rotate with camera
-            //    Line("BillboardMatrix[0][0] = 1.0f;");
-            //    Line("BillboardMatrix[0][1] = 0.0f;");
-            //    Line("BillboardMatrix[0][2] = 0.0f;");
+            const string pivotName = "pivot";
+            const string deltaName = "delta";
+            const string lookDirName = "lookDir";
+            const string worldUpName = "worldUp";
+            const string rightName = "right";
+            const string upName = "up";
+            const string rotationMatrixName = "rotationMatrix";
+            const string rotatedDeltaName = "rotatedDelta";
+            const string rotatedWorldPosName = "rotatedWorldPos";
+            const string camPositionName = "camPosition";
+            const string camForwardName = "camForward";
 
-            //    //Do not fix Y column to rotate with camera
-            //    Line("BillboardMatrix[1][0] = 0.0f;");
-            //    Line("BillboardMatrix[1][1] = 1.0f;");
-            //    Line("BillboardMatrix[1][2] = 0.0f;");
+            Line($"vec3 {camPositionName} = {EEngineUniform.InverseViewMatrix}[3].xyz;");
+            Line($"vec3 {camForwardName} = normalize({EEngineUniform.InverseViewMatrix}[2].xyz);");
 
-            //    //Do not align Z column to be stationary from camera's viewpoint
-            //    Line("ViewMatrix[2][0] = 0.0f;");
-            //    Line("ViewMatrix[2][1] = 0.0f;");
-            //    Line("ViewMatrix[2][2] = 1.0f;");
-            //}
-            //if (mesh.BillboardingFlags.HasFlag(ECameraTransformFlags.ConstrainTranslationX))
-            //{
-            //    //Clear X translation
-            //    Line("ViewMatrix[3][0] = 0.0f;");
-            //    Line("BillboardMatrix[3][0] = 0.0f;");
-            //}
-            //if (mesh.BillboardingFlags.HasFlag(ECameraTransformFlags.ConstrainTranslationY))
-            //{
-            //    //Clear Y translation
-            //    Line("ViewMatrix[3][1] = 0.0f;");
-            //    Line("BillboardMatrix[3][1] = 0.0f;");
-            //}
-            //if (mesh.BillboardingFlags.HasFlag(ECameraTransformFlags.ConstrainTranslationZ))
-            //{
-            //    //Clear Z translation
-            //    Line("ViewMatrix[3][2] = 0.0f;");
-            //    Line("BillboardMatrix[3][2] = 0.0f;");
-            //}
-            Line($"{FragPosLocalName} = {posName}.xyz;");
-            Line($"vec4 glPos = mvpMatrix * {posName};");
-            Line($"{FragPosName} = glPos.xyz / glPos.w;");
-            Line($"gl_Position = glPos;");
+            //Extract rotation pivot from ModelMatrix
+            Line($"vec3 {pivotName} = {EEngineUniform.ModelMatrix}[3].xyz;");
+
+            //Calculate offset from pivot in world space
+            Line($"vec3 {deltaName} = ({EEngineUniform.ModelMatrix} * {posName}).xyz - {pivotName};");
+
+            //Calculate direction to look at the camera
+            Line($"vec3 {lookDirName} = {EEngineUniform.BillboardMode} == 1 ? normalize({camPositionName} - {pivotName}) : normalize(-{camForwardName});");
+
+            //Calculate right and up vectors
+            Line($"vec3 {worldUpName} = vec3(0.0, 1.0f, 0.0);");
+            Line($"vec3 {rightName} = normalize(cross({worldUpName}, {lookDirName}));");
+            Line($"vec3 {upName} = cross({lookDirName}, {rightName});");
+
+            //Create rotation matrix using vectors
+            Line($"mat3 {rotationMatrixName} = mat3({rightName}, {upName}, {lookDirName});");
+
+            //Rotate delta and add pivot back to get final position
+            Line($"vec3 {rotatedDeltaName} = {rotationMatrixName} * {deltaName};");
+            Line($"vec4 {rotatedWorldPosName} = vec4({pivotName} + {rotatedDeltaName}, 1.0f);");
+
+            //Model matrix is already multipled into rotatedWorldPos, so don't multiply it again. Use as-is, or multiply by only view and projection matrices
+            //VR shaders will multiply the view and projection matrices in the geometry shader
+
+            void AssignNoVR()
+            {
+                DeclareVP();
+                Line($"{glPosName} = {ViewProjMatrixName} * {rotatedWorldPosName};");
+            }
+
+            void AssignVR()
+                => Line($"{glPosName} = {rotatedWorldPosName};");
+
+            IfElse(EEngineUniform.VRMode.ToString(), AssignVR, AssignNoVR);
+        }
+
+        /// <summary>
+        /// Declares and assigns the final position to the local input position, optionally transformed by billboarding.
+        /// Transformed by the model matrix, and by the view and projection matrices if not in VR.
+        /// </summary>
+        /// <param name="localInputPositionName"></param>
+        /// <param name="finalPositionName"></param>
+        private void DeclareAndAssignFinalPosition(string localInputPositionName, string finalPositionName)
+        {
+            Line($"vec4 {finalPositionName};");
+
+            void AssignNoVR()
+            {
+                DeclareMVP();
+                Line($"{finalPositionName} = {ModelViewProjMatrixName} * {localInputPositionName};");
+            }
+
+            void AssignVR()
+                => Line($"{finalPositionName} = {EEngineUniform.ModelMatrix} * {localInputPositionName};");
+
+            //VR shaders will multiply the view and projection matrices in the geometry shader
+            void NoBillboardCalc()
+                => IfElse(EEngineUniform.VRMode.ToString(), AssignVR, AssignNoVR);
+
+            if (Mesh.SupportsBillboarding)
+                IfElse($"{EEngineUniform.BillboardMode} != 0", () => BillboardCalc(localInputPositionName, finalPositionName), NoBillboardCalc);
+            else
+                NoBillboardCalc();
+        }
+
+        /// <summary>
+        /// Assigns fragment position out to the final position.
+        /// Performs perspective divide here if not in VR.
+        /// </summary>
+        /// <param name="finalPositionName"></param>
+        private void AssignFragPosOut(string finalPositionName)
+        {
+            void PerspDivide()
+                => Line($"{FragPosName} = {finalPositionName}.xyz / {finalPositionName}.w;");
+
+            void NoPerspDivide()
+                => Line($"{FragPosName} = {finalPositionName}.xyz;");
+
+            //No perspective divide in VR shaders - done in geometry shader
+            IfElse(EEngineUniform.VRMode.ToString(), NoPerspDivide, PerspDivide);
+        }
+
+        /// <summary>
+        /// Assigns gl_Position to the final position.
+        /// </summary>
+        /// <param name="finalPositionName"></param>
+        private void AssignGL_Position(string finalPositionName)
+            => Line($"gl_Position = {finalPositionName};");
+
+        /// <summary>
+        /// Creates the projection * view matrix.
+        /// </summary>
+        private void DeclareVP()
+        {
+            Line($"mat4 {ViewMatrixName} = inverse({EEngineUniform.InverseViewMatrix});");
+            Line($"mat4 {ViewProjMatrixName} = {EEngineUniform.ProjMatrix} * {ViewMatrixName};");
+        }
+
+        /// <summary>
+        /// Creates the projection * view * model matrix.
+        /// </summary>
+        private void DeclareMVP()
+        {
+            Line($"mat4 {ViewMatrixName} = inverse({EEngineUniform.InverseViewMatrix});");
+            Line($"mat4 {ModelViewMatrixName} = {ViewMatrixName} * {EEngineUniform.ModelMatrix};");
+            Line($"mat4 {ModelViewProjMatrixName} = {EEngineUniform.ProjMatrix} * {ModelViewMatrixName};");
         }
     }
 }

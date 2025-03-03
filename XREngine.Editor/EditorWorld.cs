@@ -1,5 +1,4 @@
 ﻿using Assimp;
-using Extensions;
 using Silk.NET.Input;
 using Silk.NET.OpenAL;
 using System.Collections.Concurrent;
@@ -51,16 +50,16 @@ public static class EditorWorld
     public const bool Spline = false; //Adds a 3D spline to the scene.
     public const bool DeferredDecal = false; //Adds a deferred decal to the scene.
     public const bool StaticModel = false; //Imports a scene model to be rendered.
-    public const bool AnimatedModel = false; //Imports a character model to be animated.
+    public const bool AnimatedModel = true; //Imports a character model to be animated.
     public const bool AddEditorUI = false; //Adds the full editor UI to the camera. Probably don't use this one a character pawn.
     public const bool VRPawn = false; //Enables VR input and pawn.
     public const bool CharacterPawn = false; //Enables the player to physically locomote in the world. Requires a physical floor.
     public const bool ThirdPersonPawn = false; //If on desktop and character pawn is enabled, this will add a third person camera instead of first person.
-    public const bool TestAnimation = true; //Adds test animations to the character pawn.
+    public const bool TestAnimation = false; //Adds test animations to the character pawn.
     public const bool PhysicsChain = false; //Adds a jiggle physics chain to the character pawn.
-    public const bool TransformTool = false; //Adds the transform tool to the scene for testing dragging and rotating etc.
+    public const bool TransformTool = true; //Adds the transform tool to the scene for testing dragging and rotating etc.
     public const bool AllowEditingInVR = false; //Allows the user to edit the scene from desktop in VR.
-    public const bool IKTest = true; //Adds an simple IK test tree to the scene.
+    public const bool IKTest = false; //Adds an simple IK test tree to the scene.
     public const bool Microphone = false; //Adds a microphone to the scene for testing audio capture.
 
     private static readonly Queue<float> _fpsAvg = new();
@@ -176,7 +175,7 @@ public static class EditorWorld
         s.AllowBlendshapes = true;
         s.AllowSkinning = true;
         s.RenderTransformLines = true;
-        s.RenderTransformDebugInfo = true;
+        s.RenderTransformDebugInfo = false;
         s.RecalcChildMatricesInParallel = false;
         s.TickGroupedItemsInParallel = true;
 

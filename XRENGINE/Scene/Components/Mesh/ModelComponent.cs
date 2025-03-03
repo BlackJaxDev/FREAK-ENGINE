@@ -59,12 +59,12 @@ namespace XREngine.Components.Scene.Mesh
                     {
                         foreach (SubMesh mesh in Model.Meshes)
                         {
-                            RenderableMesh mesh2 = new(mesh, this)
+                            RenderableMesh rendMesh = new(mesh, this)
                             {
                                 //RootTransform = mesh.RootTransform
                             };
-                            Meshes.Add(mesh2);
-                            _meshLinks.TryAdd(mesh, mesh2);
+                            Meshes.Add(rendMesh);
+                            _meshLinks.TryAdd(mesh, rendMesh);
                         }
 
                         Model.Meshes.PostAnythingAdded += AddMesh;
