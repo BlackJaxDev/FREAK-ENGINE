@@ -112,7 +112,7 @@ namespace XREngine.Scene
         {
             get
             {
-                if (!IsActiveSelf)
+                if (!IsActiveSelf || World is null)
                     return false;
 
                 var parent = Parent;
@@ -1076,6 +1076,27 @@ namespace XREngine.Scene
             => New(this, out comp1, out comp2, out comp3, out comp4, out comp5, name);
         public SceneNode NewChild<T1, T2, T3, T4, T5, T6>(out T1 comp1, out T2 comp2, out T3 comp3, out T4 comp4, out T5 comp5, out T6 comp6, string? name = null) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent where T4 : XRComponent where T5 : XRComponent where T6 : XRComponent
             => New(this, out comp1, out comp2, out comp3, out comp4, out comp5, out comp6, name);
+        
+        public SceneNode NewChildWithTransform<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TTransform>(out TTransform tfm, string? name = null) where TTransform : TransformBase, new()
+            => SetTransform(new SceneNode(this) { Name = name }, out tfm);
+        public SceneNode NewChildWithTransform<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TTransform, T1>(out TTransform tfm, out T1 comp1, string? name = null) where T1 : XRComponent where TTransform : TransformBase, new()
+            => SetTransform(New(this, out comp1, name), out tfm);
+        public SceneNode NewChildWithTransform<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TTransform, T1, T2>(out TTransform tfm, out T1 comp1, out T2 comp2, string? name = null) where T1 : XRComponent where T2 : XRComponent where TTransform : TransformBase, new()
+            => SetTransform(New(this, out comp1, out comp2, name), out tfm);
+        public SceneNode NewChildWithTransform<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TTransform, T1, T2, T3>(out TTransform tfm, out T1 comp1, out T2 comp2, out T3 comp3, string? name = null) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent where TTransform : TransformBase, new()
+            => SetTransform(New(this, out comp1, out comp2, out comp3, name), out tfm);
+        public SceneNode NewChildWithTransform<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TTransform, T1, T2, T3, T4>(out TTransform tfm, out T1 comp1, out T2 comp2, out T3 comp3, out T4 comp4, string? name = null) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent where T4 : XRComponent where TTransform : TransformBase, new()
+            => SetTransform(New(this, out comp1, out comp2, out comp3, out comp4, name), out tfm);
+        public SceneNode NewChildWithTransform<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TTransform, T1, T2, T3, T4, T5>(out TTransform tfm, out T1 comp1, out T2 comp2, out T3 comp3, out T4 comp4, out T5 comp5, string? name = null) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent where T4 : XRComponent where T5 : XRComponent where TTransform : TransformBase, new()
+            => SetTransform(New(this, out comp1, out comp2, out comp3, out comp4, out comp5, name), out tfm);
+        public SceneNode NewChildWithTransform<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TTransform, T1, T2, T3, T4, T5, T6>(out TTransform tfm, out T1 comp1, out T2 comp2, out T3 comp3, out T4 comp4, out T5 comp5, out T6 comp6, string? name = null) where T1 : XRComponent where T2 : XRComponent where T3 : XRComponent where T4 : XRComponent where T5 : XRComponent where T6 : XRComponent where TTransform : TransformBase, new()
+            => SetTransform(New(this, out comp1, out comp2, out comp3, out comp4, out comp5, out comp6, name), out tfm);
+
+        private static SceneNode SetTransform<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TTransform>(SceneNode sceneNode, out TTransform tfm) where TTransform : TransformBase, new()
+        {
+            tfm = sceneNode.GetTransformAs<TTransform>(true)!;
+            return sceneNode;
+        }
 
         /// <summary>
         /// Returns the first child of this scene node, if any.

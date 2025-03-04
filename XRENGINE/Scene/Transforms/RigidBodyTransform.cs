@@ -77,6 +77,7 @@ namespace XREngine.Scene.Transforms
             set => SetField(ref _preRotationOffset, value);
         }
 
+        //TODO: why does physx init 90 degrees on Z?
         private Quaternion _postRotationOffset = Quaternion.CreateFromAxisAngle(Globals.Backward, XRMath.DegToRad(-90.0f));
         /// <summary>
         /// The rotation offset to apply to the rotation of this transform *after* the physics engine sets it.

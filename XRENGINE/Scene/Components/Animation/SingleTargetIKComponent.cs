@@ -22,9 +22,9 @@ namespace XREngine.Scene.Components.Animation
             set => DebugRenderInfo.IsVisible = value;
         }
 
-        private void Render(bool shadowPass)
+        private void Render()
         {
-            if (shadowPass)
+            if (Engine.Rendering.State.IsShadowPass)
                 return;
 
             if (TargetTransform is not null)

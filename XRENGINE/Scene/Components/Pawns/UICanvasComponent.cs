@@ -107,7 +107,7 @@ namespace XREngine.Components
 
         public void SwapBuffersScreenSpace()
         {
-            _renderPipeline.MeshRenderCommands.SwapBuffers(false);
+            _renderPipeline.MeshRenderCommands.SwapBuffers();
             VisualScene2D.GlobalSwapBuffers();
         }
 
@@ -137,7 +137,7 @@ namespace XREngine.Components
 
             //Collect the rendered items now that the layout is updated.
             if (_renderPipeline.Pipeline is not null)
-                VisualScene2D.CollectRenderedItems(_renderPipeline.MeshRenderCommands, Camera2D, false, null, false);
+                VisualScene2D.CollectRenderedItems(_renderPipeline.MeshRenderCommands, Camera2D, false, null);
         }
 
         public UIComponent? FindDeepestComponent(Vector2 normalizedViewportPosition)

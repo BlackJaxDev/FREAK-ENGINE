@@ -30,23 +30,6 @@ namespace XREngine.Components
         private float _gamePadXLookInputMultiplier = 100.0f;
         private float _gamePadYLookInputMultiplier = 100.0f;
 
-        //5'8" in m = 1.72f
-        //characterHeight = new FeetInches(5, 8.0f).ToMeters();
-
-        private float _characterHeightMeters = 1.72f;
-        public float CharacterHeightMeters
-        {
-            get => _characterHeightMeters;
-            set => SetField(ref _characterHeightMeters, value);
-        }
-
-        private float _characterWidthMeters = 0.344f;
-        public float CharacterWidthMeters
-        {
-            get => _characterWidthMeters;
-            set => SetField(ref _characterWidthMeters, value);
-        }
-
         protected Vector2 _keyboardMovementInput = Vector2.Zero;
         protected Vector2 _gamepadMovementInput = Vector2.Zero;
         protected Vector2 _keyboardLookInput = Vector2.Zero;
@@ -93,6 +76,9 @@ namespace XREngine.Components
         }
 
         private TransformBase? _viewTransform;
+        /// <summary>
+        /// This is the transform that will be used to pull forward and right vectors from for orienting movement.
+        /// </summary>
         public TransformBase? ViewTransform
         {
             get => _viewTransform;
@@ -100,24 +86,27 @@ namespace XREngine.Components
         }
 
         private Transform? _rotationTransform;
+        /// <summary>
+        /// This is the transform that will be rotated by player inputs.
+        /// </summary>
         public Transform? RotationTransform
         {
             get => _rotationTransform;
             set => SetField(ref _rotationTransform, value);
         }
 
-        private bool _ignoreViewTransformPitch = false;
+        private bool _ignoreViewPitchInputs = false;
         public bool IgnoreViewTransformPitch
         {
-            get => _ignoreViewTransformPitch;
-            set => SetField(ref _ignoreViewTransformPitch, value);
+            get => _ignoreViewPitchInputs;
+            set => SetField(ref _ignoreViewPitchInputs, value);
         }
 
-        private bool _ignoreViewTransformYaw = false;
+        private bool _ignoreViewYawInputs = false;
         public bool IgnoreViewTransformYaw
         {
-            get => _ignoreViewTransformYaw;
-            set => SetField(ref _ignoreViewTransformYaw, value);
+            get => _ignoreViewYawInputs;
+            set => SetField(ref _ignoreViewYawInputs, value);
         }
 
         private bool _movementAffectedByTimeDilation = true;
@@ -189,10 +178,10 @@ namespace XREngine.Components
             if (_keyboardLookInput != Vector2.Zero)
                 KeyboardLook(_keyboardLookInput.X, _keyboardLookInput.Y);
 
-            if (_ignoreViewTransformPitch)
+            if (_ignoreViewPitchInputs)
                 _viewRotation.Pitch = 0.0f;
 
-            if (_ignoreViewTransformYaw)
+            if (_ignoreViewYawInputs)
                 _viewRotation.Yaw = 0.0f;
 
             if (XRMath.Approx(_viewRotation.Pitch, _lastPitch) &&

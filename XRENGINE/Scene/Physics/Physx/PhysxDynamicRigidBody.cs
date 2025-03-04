@@ -1,6 +1,8 @@
 ﻿using MagicPhysX;
 using System.Numerics;
+using XREngine.Components;
 using XREngine.Scene;
+using XREngine.Scene.Components.Physics;
 
 namespace XREngine.Rendering.Physics.Physx
 {
@@ -113,7 +115,7 @@ namespace XREngine.Rendering.Physics.Physx
 
         public PhysxDynamicRigidBody(
             PhysxMaterial material,
-            IAbstractPhysicsGeometry geometry,
+            IPhysicsGeometry geometry,
             float density,
             Vector3? position = null,
             Quaternion? rotation = null,
@@ -151,6 +153,49 @@ namespace XREngine.Rendering.Physics.Physx
             AllActors.Add((nint)_obj, this);
             AllRigidActors.Add((nint)_obj, this);
             AllDynamic.Add((nint)_obj, this);
+        }
+
+        private DynamicRigidBodyComponent? _owningComponent;
+        public DynamicRigidBodyComponent? OwningComponent
+        {
+            get => _owningComponent;
+            set => SetField(ref _owningComponent, value);
+        }
+
+        public override XRComponent? GetOwningComponent()
+            => OwningComponent;
+
+        protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
+        {
+            bool change = base.OnPropertyChanging(propName, field, @new);
+            if (change)
+            {
+                switch (propName)
+                {
+                    case nameof(OwningComponent):
+                        if (OwningComponent is not null)
+                        {
+                            if (OwningComponent.RigidBody == this)
+                                OwningComponent.RigidBody = null;
+                        }
+                        break;
+                }
+            }
+            return change;
+        }
+        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+        {
+            base.OnPropertyChanged(propName, prev, field);
+            switch (propName)
+            {
+                case nameof(OwningComponent):
+                    if (OwningComponent is not null)
+                    {
+                        if (OwningComponent.RigidBody != this)
+                            OwningComponent.RigidBody = this;
+                    }
+                    break;
+            }
         }
     }
 }

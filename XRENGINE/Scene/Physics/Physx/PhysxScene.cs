@@ -1,4 +1,5 @@
-﻿using MagicPhysX;
+﻿using Extensions;
+using MagicPhysX;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -609,13 +610,6 @@ namespace XREngine.Rendering.Physics.Physx
         public Dictionary<nint, PhysxShape> Shapes { get; } = [];
         public PhysxShape? GetShape(PxShape* ptr)
             => Shapes.TryGetValue((nint)ptr, out var shape) ? shape : null;
-        //public PhysxShape NewShape(PhysxGeometry geometry, PhysxMaterial material, bool isExclusive = false)
-        //{
-        //    PxActorShape_new(geometry.Geometry, material.Material, isExclusive);
-        //    var shape = new PhysxShape(this, geometry, material, isExclusive);
-        //    Shapes.Add((nint)shape.ShapePtr, shape);
-        //    return shape;
-        //}
 
         #region Joints
 
@@ -1164,7 +1158,7 @@ namespace XREngine.Rendering.Physics.Physx
         }
 
         public bool SweepAny(
-            IAbstractPhysicsGeometry geometry,
+            IPhysicsGeometry geometry,
             (Vector3 position, Quaternion rotation) pose,
             Vector3 unitDir,
             float distance,
@@ -1196,8 +1190,11 @@ namespace XREngine.Rendering.Physics.Physx
             return hasHit;
         }
 
+        //Note that the scene-level sweep query returns PxSweepHit structures,
+        //while the object-level sweep query returns PxGeomSweepHit hits.
+        //The difference is simply that PxSweepHit is augmented with PxRigidActor and PxShape pointers.
         public bool SweepSingle(
-            IAbstractPhysicsGeometry geometry,
+            IPhysicsGeometry geometry,
             (Vector3 position, Quaternion rotation) pose,
             Vector3 unitDir,
             float distance,
@@ -1229,8 +1226,11 @@ namespace XREngine.Rendering.Physics.Physx
             return hasHit;
         }
 
+        //Note that the scene-level sweep query returns PxSweepHit structures,
+        //while the object-level sweep query returns PxGeomSweepHit hits.
+        //The difference is simply that PxSweepHit is augmented with PxRigidActor and PxShape pointers.
         public PxSweepHit[] SweepMultiple(
-            IAbstractPhysicsGeometry geometry,
+            IPhysicsGeometry geometry,
             (Vector3 position, Quaternion rotation) pose,
             Vector3 unitDir,
             float distance,
@@ -1270,7 +1270,7 @@ namespace XREngine.Rendering.Physics.Physx
         }
 
         public PxOverlapHit[] OverlapMultiple(
-            IAbstractPhysicsGeometry geometry,
+            IPhysicsGeometry geometry,
             (Vector3 position, Quaternion rotation) pose,
             PxQueryFlags queryFlags,
             PxFilterData* filterMask = null,
@@ -1295,7 +1295,7 @@ namespace XREngine.Rendering.Physics.Physx
         }
 
         public bool OverlapAny(
-            IAbstractPhysicsGeometry geometry,
+            IPhysicsGeometry geometry,
             (Vector3 position, Quaternion rotation) pose,
             out PxOverlapHit hit,
             PxQueryFlags queryFlags,
@@ -1390,36 +1390,237 @@ namespace XREngine.Rendering.Physics.Physx
             //AddActor(actor);
         }
 
-        public override void Raycast(Segment worldSegment, SortedDictionary<float, List<(XRComponent item, object? data)>> items)
+        private static RaycastHit ToRaycastHit(PxRaycastHit hit)
+            => new()
+            {
+                Position = hit.position,
+                Normal = hit.normal,
+                Distance = hit.distance,
+                FaceIndex = hit.faceIndex,
+                UV = new Vector2(hit.u, hit.v),
+            };
+
+        public override bool RaycastAny(
+            Segment worldSegment,
+            out uint hitFaceIndex)
         {
-            //TODO: RaycastSingle needs the last 3 params to be set
+            var start = worldSegment.Start;
+            var end = worldSegment.End;
+            var distance = worldSegment.Length;
+            var unitDir = (end - start).Normalized();
+            return RaycastAny(start, unitDir, distance, out hitFaceIndex, PxQueryFlags.AnyHit, null, null, null);
+        }
 
-            //var start = worldSegment.Start;
-            //var end = worldSegment.End;
-            //var distance = worldSegment.Length;
-            //var unitDir = (end - start).Normalized();
+        public override void RaycastSingle(
+            Segment worldSegment,
+            SortedDictionary<float, List<(XRComponent? item, object? data)>> results)
+        {
+            var start = worldSegment.Start;
+            var end = worldSegment.End;
+            var distance = worldSegment.Length;
+            var unitDir = (end - start).Normalized();
 
-            //if (!RaycastSingle(start, unitDir, distance, PxHitFlags.Position | PxHitFlags.Normal, out PxRaycastHit hit, null, null, null))
-            //    return;
+            if (!RaycastSingle(start, unitDir, distance, PxHitFlags.Position | PxHitFlags.Normal, out PxRaycastHit hit, PxQueryFlags.AnyHit, null, null, null))
+                return;
 
-            //PhysxRigidActor? actor = PhysxRigidActor.Get(hit.actor);
-            //if (actor is null)
-            //    return;
+            PhysxRigidActor? actor = PhysxRigidActor.Get(hit.actor);
+            if (actor is null)
+                return;
 
-            //XRComponent? component = actor.OwningComponent;
+            XRComponent? component = actor.GetOwningComponent();
+            if (component is null)
+                return;
+
+            if (!results.TryGetValue(hit.distance, out var list))
+                results.Add(hit.distance, list = []);
+
+            list.Add((component, ToRaycastHit(hit)));
+        }
+
+        public override void RaycastMultiple(
+            Segment worldSegment,
+            SortedDictionary<float, List<(XRComponent? item, object? data)>> results)
+        {
+            var start = worldSegment.Start;
+            var end = worldSegment.End;
+            var distance = worldSegment.Length;
+            var unitDir = (end - start).Normalized();
+
+            var hits = RaycastMultiple(start, unitDir, distance, PxHitFlags.Position | PxHitFlags.Normal, out bool blockingHit, PxQueryFlags.AnyHit, null, null, null);
+            foreach (var hit in hits)
+            {
+                PhysxRigidActor? actor = PhysxRigidActor.Get(hit.actor);
+                if (actor is null)
+                    continue;
+
+                XRComponent? component = actor.GetOwningComponent();
+                if (component is null)
+                    continue;
+
+                Vector3 hitPoint = start + unitDir * hit.distance;
+                Vector3 hitNormal = hit.normal;
+                //var d = (hitPoint - start).Length();
+                //if (d > distance)
+                //    continue;
+
+                if (!results.TryGetValue(hit.distance, out var list))
+                    results.Add(hit.distance, list = []);
+
+                list.Add((component, (hitPoint, hitNormal, hit.distance)));
+            }
+        }
+
+        public override bool SweepAny(
+            IPhysicsGeometry geometry,
+            (Vector3 position, Quaternion rotation) pose,
+            Vector3 unitDir,
+            float distance,
+            out uint hitFaceIndex)
+        {
+            bool hasHit = SweepAny(
+                geometry,
+                pose,
+                unitDir,
+                distance,
+                PxHitFlags.Position | PxHitFlags.Normal,
+                out PxQueryHit hit,
+                PxQueryFlags.AnyHit,
+                null,
+                0.0f,
+                null,
+                null);
+            hitFaceIndex = hit.faceIndex;
+            return hasHit;
+        }
+
+        public override void SweepSingle(
+            IPhysicsGeometry geometry,
+            (Vector3 position, Quaternion rotation) pose,
+            Vector3 unitDir,
+            float distance,
+            SortedDictionary<float, List<(XRComponent? item, object? data)>> results)
+        {
+            if (SweepSingle(
+                geometry,
+                pose,
+                unitDir,
+                distance,
+                PxHitFlags.Position | PxHitFlags.Normal,
+                out PxSweepHit hit,
+                PxQueryFlags.Static,
+                null,
+                0.0f,
+                null,
+                null))
+                AddSweepHit(pose, distance, results, hit);
+        }
+
+        private static void AddSweepHit(
+            (Vector3 position, Quaternion rotation) pose,
+            float distance,
+            SortedDictionary<float, List<(XRComponent? item, object? data)>> results,
+            PxSweepHit hit)
+        {
+            PhysxRigidActor? actor = PhysxRigidActor.Get(hit.actor);
+            if (actor is null)
+                return;
+
+            XRComponent? component = actor.GetOwningComponent();
             //if (component is null)
             //    return;
 
-            //Vector3 hitPoint = start + unitDir * hit.distance;
-            //Vector3 hitNormal = hit.normal;
-            //var d = (hitPoint - start).Length();
+            Vector3 hitPoint = hit.position;
+            Vector3 hitNormal = hit.normal;
+            //var d = (hitPoint - pose.position).Length();
             //if (d > distance)
             //    return;
-            
-            //if (!items.TryGetValue(d, out var list))
-            //    list = [];
 
-            //list.Add((component, (hitPoint, hitNormal, hit.distance)));
+            if (!results.TryGetValue(hit.distance, out var list))
+                results.Add(hit.distance, list = []);
+
+            list.Add((component, (hitPoint, hitNormal, hit.distance)));
+        }
+
+        public override void SweepMultiple(
+            IPhysicsGeometry geometry,
+            (Vector3 position, Quaternion rotation) pose,
+            Vector3 unitDir,
+            float distance,
+            SortedDictionary<float, List<(XRComponent? item, object? data)>> results)
+        {
+            var hits = SweepMultiple(geometry, pose, unitDir, distance, PxHitFlags.Position | PxHitFlags.Normal, out bool blockingHit, PxQueryFlags.AnyHit, null, 0.0f, null, null);
+            foreach (var hit in hits)
+            {
+                PhysxRigidActor? actor = PhysxRigidActor.Get(hit.actor);
+                if (actor is null)
+                    continue;
+
+                XRComponent? component = actor.GetOwningComponent();
+                if (component is null)
+                    continue;
+
+                Vector3 hitPoint = hit.position;
+                Vector3 hitNormal = hit.normal;
+                //var d = (hitPoint - pose.position).Length();
+                //if (d > distance)
+                //    continue;
+
+                if (!results.TryGetValue(hit.distance, out var list))
+                    results.Add(hit.distance, list = []);
+
+                list.Add((component, (hitPoint, hitNormal, hit.distance)));
+            }
+        }
+
+        public override bool OverlapAny(
+            IPhysicsGeometry geometry,
+            (Vector3 position, Quaternion rotation) pose,
+            SortedDictionary<float, List<(XRComponent? item, object? data)>> results)
+        {
+            bool hasHit = OverlapAny(geometry, pose, out PxOverlapHit hit, PxQueryFlags.AnyHit, null, null);
+            if (hasHit)
+            {
+                PhysxRigidActor? actor = PhysxRigidActor.Get(hit.actor);
+                if (actor is null)
+                    return false;
+
+                XRComponent? component = actor.GetOwningComponent();
+                if (component is null)
+                    return false;
+
+                var d = 0.0f;
+
+                if (!results.TryGetValue(d, out var list))
+                    results.Add(0.0f, list = []);
+
+                list.Add((component, null));
+            }
+            return hasHit;
+        }
+
+        public override void OverlapMultiple(
+            IPhysicsGeometry geometry,
+            (Vector3 position, Quaternion rotation) pose,
+            SortedDictionary<float, List<(XRComponent? item, object? data)>> results)
+        {
+            var hits = OverlapMultiple(geometry, pose, PxQueryFlags.AnyHit, null, null, 32);
+            foreach (var hit in hits)
+            {
+                PhysxRigidActor? actor = PhysxRigidActor.Get(hit.actor);
+                if (actor is null)
+                    continue;
+
+                XRComponent? component = actor.GetOwningComponent();
+                if (component is null)
+                    continue;
+
+                var d = 0.0f;
+
+                if (!results.TryGetValue(d, out var list))
+                    results.Add(0.0f, list = []);
+
+                list.Add((component, null));
+            }
         }
 
         public bool VisualizeEnabled

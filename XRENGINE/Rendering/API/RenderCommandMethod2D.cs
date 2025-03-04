@@ -16,7 +16,7 @@ namespace XREngine.Rendering
 
         public event Action? Rendered;
 
-        public override void Render(bool shadowPass)
+        public override void Render()
             => Rendered?.Invoke();
     }
 }

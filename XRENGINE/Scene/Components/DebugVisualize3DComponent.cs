@@ -14,17 +14,17 @@ namespace XREngine.Data.Components
         public RenderInfo3D RenderInfo => _renderInfo;
         public RenderCommandMethod3D RenderCommand => _rc;
 
-        public delegate void DelDebugRenderCallback(DebugVisualize3DComponent comp, bool shadowPass);
+        public delegate void DelDebugRenderCallback(DebugVisualize3DComponent comp);
         public event DelDebugRenderCallback? DebugRender;
 
-        public delegate void DelPreRenderCallback(DebugVisualize3DComponent comp, RenderInfo info, RenderCommand command, XRCamera? camera, bool shadowPass);
+        public delegate void DelPreRenderCallback(DebugVisualize3DComponent comp, RenderInfo info, RenderCommand command, XRCamera? camera);
         public event DelPreRenderCallback? PreRenderCallback;
 
-        public delegate void DelSwapBuffersCallback(DebugVisualize3DComponent comp, RenderInfo info, RenderCommand command, bool shadowPass);
+        public delegate void DelSwapBuffersCallback(DebugVisualize3DComponent comp, RenderInfo info, RenderCommand command);
         public event DelSwapBuffersCallback? SwapBuffersCallback;
 
-        protected virtual void Render(bool shadowPass)
-            => DebugRender?.Invoke(this, shadowPass);
+        protected virtual void Render()
+            => DebugRender?.Invoke(this);
 
         public DebugVisualize3DComponent()
         {
@@ -38,11 +38,11 @@ namespace XREngine.Data.Components
             _renderInfo.SwapBuffersCallback -= RenderInfo_SwapBuffersCallback;
         }
 
-        protected virtual void RenderInfo_SwapBuffersCallback(RenderInfo info, RenderCommand command, bool shadowPass)
-            => SwapBuffersCallback?.Invoke(this, info, command, shadowPass);
+        protected virtual void RenderInfo_SwapBuffersCallback(RenderInfo info, RenderCommand command)
+            => SwapBuffersCallback?.Invoke(this, info, command);
 
-        protected virtual void RenderInfo_PreRenderCallback(RenderInfo info, RenderCommand command, XRCamera? camera, bool shadowPass)
-            => PreRenderCallback?.Invoke(this, info, command, camera, shadowPass);
+        protected virtual void RenderInfo_PreRenderCallback(RenderInfo info, RenderCommand command, XRCamera? camera)
+            => PreRenderCallback?.Invoke(this, info, command, camera);
 
         public RenderInfo[] RenderedObjects { get; }
     }

@@ -621,11 +621,11 @@ namespace XREngine.Rendering.UI
             set => SetField(ref _excludeFromParentAutoCalcHeight, value);
         }
 
-        protected override void RenderDebug(bool shadowPass)
+        protected override void RenderDebug()
         {
-            base.RenderDebug(shadowPass);
+            base.RenderDebug();
 
-            if (!Engine.Rendering.Settings.RenderMesh2DBounds)
+            if (!Engine.Rendering.Settings.RenderMesh2DBounds || Engine.Rendering.State.IsShadowPass)
                 return;
             
             var region = AxisAlignedRegion;

@@ -1,5 +1,6 @@
 ﻿using MagicPhysX;
 using System.Numerics;
+using XREngine.Components;
 using XREngine.Scene;
 using XREngine.Scene.Transforms;
 using static MagicPhysX.NativeMethods;
@@ -10,6 +11,8 @@ namespace XREngine.Rendering.Physics.Physx
     {
         public abstract PxRigidActor* RigidActorPtr { get; }
         public override unsafe PxActor* ActorPtr => (PxActor*)RigidActorPtr;
+
+        public abstract XRComponent? GetOwningComponent();
 
         public static Dictionary<nint, PhysxRigidActor> AllRigidActors { get; } = [];
         public static PhysxRigidActor? Get(PxRigidActor* ptr)

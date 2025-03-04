@@ -446,15 +446,22 @@ namespace XREngine.Components
                     break;
                 case nameof(LeftHandConstraint):
                     if (LeftHandConstraint is not null && LeftHandOverlap is not null)
+                    {
                         LeftHandGrabbed?.Invoke(this, LeftHandOverlap);
+                        HandGrabbed?.Invoke(this, LeftHandOverlap, true);
+                    }
                     break;
                 case nameof(RightHandConstraint):
                     if (RightHandConstraint is not null && RightHandOverlap is not null)
+                    {
                         RightHandGrabbed?.Invoke(this, RightHandOverlap);
+                        HandGrabbed?.Invoke(this, RightHandOverlap, false);
+                    }
                     break;
             }
         }
 
+        public delegate void DelHandGrabbed(VRPlayerInputSet sender, PhysxDynamicRigidBody item, bool left);
         public delegate void DelLeftHandGrabbed(VRPlayerInputSet sender, PhysxDynamicRigidBody item);
         public delegate void DelRightHandGrabbed(VRPlayerInputSet sender, PhysxDynamicRigidBody item);
         public delegate void DelLeftHandReleased(VRPlayerInputSet sender, PhysxDynamicRigidBody item);
@@ -462,6 +469,7 @@ namespace XREngine.Components
         public delegate void DelLeftHandOverlapChanged(VRPlayerInputSet sender, PhysxDynamicRigidBody? previous, PhysxDynamicRigidBody? current);
         public delegate void DelRightHandOverlapChanged(VRPlayerInputSet sender, PhysxDynamicRigidBody? previous, PhysxDynamicRigidBody? current);
 
+        public event DelHandGrabbed? HandGrabbed;
         public event DelLeftHandGrabbed? LeftHandGrabbed;
         public event DelRightHandGrabbed? RightHandGrabbed;
         public event DelLeftHandReleased? LeftHandReleased;
@@ -496,7 +504,7 @@ namespace XREngine.Components
         private unsafe PhysxDynamicRigidBody? OverlapTest(TransformBase tfm, PhysxScene px)
         {
             var handPos = tfm.WorldTranslation;
-            var sphere = new IAbstractPhysicsGeometry.Sphere(GrabRadius);
+            var sphere = new IPhysicsGeometry.Sphere(GrabRadius);
             return px.OverlapAny(sphere, (handPos, Quaternion.Identity), out var hit, PxQueryFlags.Dynamic, null, null) &&
                 PhysxDynamicRigidBody.AllDynamic.TryGetValue((nint)hit.actor, out var a) &&
                 a is PhysxDynamicRigidBody rb

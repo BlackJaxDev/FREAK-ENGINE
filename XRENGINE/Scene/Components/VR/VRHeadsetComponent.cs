@@ -31,9 +31,9 @@ namespace XREngine.Data.Components.Scene
             _rightEyeTransform.Parent = Transform;
         }
 
-        private void Render(bool shadowPass)
+        private void Render()
         {
-            if (shadowPass)
+            if (Engine.Rendering.State.IsShadowPass)
                 return;
 
             Engine.Rendering.Debug.RenderFrustum(_leftEyeCamera.Value.WorldFrustum(), Colors.ColorF4.Red);

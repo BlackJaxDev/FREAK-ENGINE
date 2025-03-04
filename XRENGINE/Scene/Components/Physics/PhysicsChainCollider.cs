@@ -55,8 +55,8 @@ public class PhysicsChainCollider : PhysicsChainColliderBase, IRenderable
             float h = halfHeight - _radius;
             if (h <= 0)
             {
-                _center0 = Transform.TransformPoint(m_Center);
-                _collideType = m_Bound switch
+                _center0 = Transform.TransformPoint(_center);
+                _collideType = _bound switch
                 {
                     EBound.Outside => 0,
                     _ => 1,
@@ -64,9 +64,9 @@ public class PhysicsChainCollider : PhysicsChainColliderBase, IRenderable
             }
             else
             {
-                Vector3 c0 = m_Center;
-                Vector3 c1 = m_Center;
-                switch (m_Direction)
+                Vector3 c0 = _center;
+                Vector3 c1 = _center;
+                switch (_direction)
                 {
                     case Direction.X:
                         c0.X += h;
@@ -85,7 +85,7 @@ public class PhysicsChainCollider : PhysicsChainColliderBase, IRenderable
                 _center0 = Transform.TransformPoint(c0);
                 _center1 = Transform.TransformPoint(c1);
                 _centersDistance = (_center1 - _center0).Length();
-                _collideType = m_Bound == EBound.Outside ? 2 : 3;
+                _collideType = _bound == EBound.Outside ? 2 : 3;
             }
         }
         else
@@ -94,8 +94,8 @@ public class PhysicsChainCollider : PhysicsChainColliderBase, IRenderable
             if (halfHeight - r <= 0)
             {
                 _scaledRadius = r * scale;
-                _center0 = Transform.TransformPoint(m_Center);
-                _collideType = m_Bound == EBound.Outside ? 0 : 1;
+                _center0 = Transform.TransformPoint(_center);
+                _collideType = _bound == EBound.Outside ? 0 : 1;
             }
             else
             {
@@ -104,10 +104,10 @@ public class PhysicsChainCollider : PhysicsChainColliderBase, IRenderable
 
                 float h0 = halfHeight - _radius;
                 float h1 = halfHeight - _radius2;
-                Vector3 c0 = m_Center;
-                Vector3 c1 = m_Center;
+                Vector3 c0 = _center;
+                Vector3 c1 = _center;
 
-                switch (m_Direction)
+                switch (_direction)
                 {
                     case Direction.X:
                         c0.X += h0;
@@ -126,7 +126,7 @@ public class PhysicsChainCollider : PhysicsChainColliderBase, IRenderable
                 _center0 = Transform.TransformPoint(c0);
                 _center1 = Transform.TransformPoint(c1);
                 _centersDistance = (_center1 - _center0).Length();
-                _collideType = m_Bound == EBound.Outside ? 4 : 5;
+                _collideType = _bound == EBound.Outside ? 4 : 5;
             }
         }
     }
@@ -393,14 +393,14 @@ public class PhysicsChainCollider : PhysicsChainColliderBase, IRenderable
         return false;
     }
 
-    private void RenderGizmos(bool shadowPass)
+    private void RenderGizmos()
     {
-        if (!IsActive || shadowPass)
+        if (!IsActive || Engine.Rendering.State.IsShadowPass)
             return;
 
         Prepare();
 
-        ColorF4 color = m_Bound == EBound.Outside ? ColorF4.Yellow : ColorF4.Magenta;
+        ColorF4 color = _bound == EBound.Outside ? ColorF4.Yellow : ColorF4.Magenta;
         switch (_collideType)
         {
             case 0:

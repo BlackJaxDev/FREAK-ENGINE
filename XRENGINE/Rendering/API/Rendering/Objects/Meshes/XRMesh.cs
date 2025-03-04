@@ -1622,7 +1622,7 @@ namespace XREngine.Rendering
                     continue;
                 }
 
-                Matrix4x4 invBind = bone.OffsetMatrix.ToNumerics().Transposed();
+                Matrix4x4 invBind = bone.OffsetMatrix.Transposed();
                 invBindMatrices.Add(transform!, invBind);
 
                 int weightCount = bone.VertexWeightCount;

@@ -133,6 +133,8 @@ namespace XREngine
                 return true;
             }
 
+            private const bool Stereo = false;
+
             private static void InitRender(XRWindow window)
             {
                 window.RenderViewportsCallback += Render;
@@ -150,57 +152,47 @@ namespace XREngine
                     Time.Timer.FixedUpdateFrequency = hz / 3;
                 }
 
-                //Renderer.ResizeViewports(new Silk.NET.Maths.Vector2D<int>((int)rW * 2, (int)rH));
-                //VRStereoRenderTarget = new XRMaterialFrameBuffer(new XRMaterial(
-                //new[]
-                //{
-                //    VRStereoViewTexture = XRTexture2D.CreateFrameBufferTexture(
-                //        rW * 2u,
-                //        rH,
-                //        EPixelInternalFormat.Rgba,
-                //        EPixelFormat.Bgra,
-                //        EPixelType.UnsignedByte,
-                //        EFrameBufferAttachment.ColorAttachment0),
-                //},
-                //ShaderHelper.UnlitTextureFragForward()!));
+                var left = MakeFBOTexture(rW, rH);
+                var right = MakeFBOTexture(rW, rH);
 
-                VRLeftEyeRenderTarget = new XRMaterialFrameBuffer(new XRMaterial(
-                [
-                    VRLeftEyeViewTexture = XRTexture2D.CreateFrameBufferTexture(
-                        rW, rH,
-                        EPixelInternalFormat.Rgba8,
-                        EPixelFormat.Rgba,
-                        EPixelType.UnsignedByte,
-                        EFrameBufferAttachment.ColorAttachment0),
-                ], ShaderHelper.UnlitTextureFragForward()!));
-
-                VRRightEyeRenderTarget = new XRMaterialFrameBuffer(new XRMaterial(
-                [
-                    VRRightEyeViewTexture = XRTexture2D.CreateFrameBufferTexture(
-                        rW, rH,
-                        EPixelInternalFormat.Rgba8,
-                        EPixelFormat.Rgba,
-                        EPixelType.UnsignedByte,
-                        EFrameBufferAttachment.ColorAttachment0),
-                ], ShaderHelper.UnlitTextureFragForward()!));
-
-                VRLeftEyeViewTexture.Resizable = false;
-                VRLeftEyeViewTexture.SizedInternalFormat = ESizedInternalFormat.Rgba8;
-
-                VRRightEyeViewTexture.Resizable = false;
-                VRRightEyeViewTexture.SizedInternalFormat = ESizedInternalFormat.Rgba8;
-
-                var leftVP = LeftEyeViewport = new XRViewport(window) { Index = 0 };
-                var rightVP = RightEyeViewport = new XRViewport(window) { Index = 1 };
-                leftVP.AllowUIRender = false;
-                rightVP.AllowUIRender = false;
-                leftVP.SetFullScreen();
-                rightVP.SetFullScreen();
-                leftVP.SetInternalResolution((int)rW, (int)rH, false);
-                rightVP.SetInternalResolution((int)rW, (int)rH, false);
-                leftVP.Resize(rW, rH, false);
-                rightVP.Resize(rW, rH, false);
+                if (Stereo)
+                {
+                    VRStereoRenderTarget = new XRMaterialFrameBuffer(new XRMaterial(
+                    [
+                        VRStereoViewTextureArray = new XRTexture2DArray(left, right)
+                        {
+                            Resizable = false,
+                            SizedInternalFormat = ESizedInternalFormat.Rgba8,
+                        }
+                    ],
+                    ShaderHelper.UnlitTextureFragForward()!));
+                }
+                else
+                {
+                    VRLeftEyeRenderTarget = MakeFBO(rW, rH, VRLeftEyeViewTexture = left, LeftEyeViewport = new XRViewport(window) { Index = 0 });
+                    VRRightEyeRenderTarget = MakeFBO(rW, rH, VRRightEyeViewTexture = right, RightEyeViewport = new XRViewport(window) { Index = 1 });
+                }
             }
+
+            private static XRMaterialFrameBuffer MakeFBO(uint rW, uint rH, XRTexture2D tex, XRViewport vp)
+            {
+                var rt = new XRMaterialFrameBuffer(new XRMaterial([tex], ShaderHelper.UnlitTextureFragForward()!));
+                tex.Resizable = false;
+                tex.SizedInternalFormat = ESizedInternalFormat.Rgba8;
+                vp.AllowUIRender = false;
+                vp.SetFullScreen();
+                vp.SetInternalResolution((int)rW, (int)rH, false);
+                vp.Resize(rW, rH, false);
+                return rt;
+            }
+
+            private static XRTexture2D MakeFBOTexture(uint rW, uint rH)
+                => XRTexture2D.CreateFrameBufferTexture(
+                    rW, rH,
+                    EPixelInternalFormat.Rgba,
+                    EPixelFormat.Bgra,
+                    EPixelType.UnsignedByte,
+                    EFrameBufferAttachment.ColorAttachment0);
 
             /// <summary>
             /// This method initializes the VR system in client mode.
@@ -210,9 +202,7 @@ namespace XREngine
             public static bool IninitializeClient(
                 IActionManifest actionManifest,
                 VrManifest vrManifest)
-            {
-                return InitSteamVR(actionManifest, vrManifest);
-            }
+                => InitSteamVR(actionManifest, vrManifest);
 
             /// <summary>
             /// This method initializes the VR system in server mode.

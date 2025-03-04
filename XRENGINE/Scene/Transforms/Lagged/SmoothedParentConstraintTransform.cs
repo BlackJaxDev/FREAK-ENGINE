@@ -96,9 +96,18 @@ namespace XREngine.Components.Scene.Transforms
         }
 
         protected override Matrix4x4 CreateWorldMatrix()
-            => _currentMatrix;
+        {
+            //CalcCurrentMatrix();
+            return _currentMatrix;
+        }
 
         protected internal void Tick()
+        {
+            CalcCurrentMatrix();
+            MarkWorldModified();
+        }
+
+        private void CalcCurrentMatrix()
         {
             var currMatrix = _currentMatrix;
             var destMatrix = ParentWorldMatrix;
@@ -181,8 +190,6 @@ namespace XREngine.Components.Scene.Transforms
 
             //This, while it seems to work, doesn't, because distortion is introduced the farther the parent is from the child.
             //_currentMatrix = Matrix4x4.Lerp(_currentMatrix, ParentWorldMatrix, Engine.Delta * TranslationInterpolationSpeed);
-
-            MarkWorldModified();
         }
 
         /// <summary>

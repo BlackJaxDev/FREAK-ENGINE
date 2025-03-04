@@ -8,8 +8,8 @@ public class PhysicsChainColliderBase : XRComponent
         X, Y, Z
     }
 
-    public Direction m_Direction = Direction.Y;
-    public Vector3 m_Center = Vector3.Zero;
+    public Direction _direction = Direction.Y;
+    public Vector3 _center = Vector3.Zero;
 
     public enum EBound
     {
@@ -17,7 +17,7 @@ public class PhysicsChainColliderBase : XRComponent
         Inside
     }
 
-    public EBound m_Bound = EBound.Outside;
+    public EBound _bound = EBound.Outside;
 
     public int PrepareFrame { set; get; }
 

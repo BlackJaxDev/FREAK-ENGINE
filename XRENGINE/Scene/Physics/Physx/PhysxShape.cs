@@ -5,43 +5,60 @@ using XREngine.Data.Geometry;
 
 namespace XREngine.Rendering.Physics.Physx
 {
-    public unsafe abstract class PhysxShape : PhysxRefCounted, IAbstractPhysicsShape
+    public unsafe class PhysxShape : PhysxRefCounted, IAbstractPhysicsShape
     {
-        private readonly PhysxScene _scene;
-        private readonly unsafe PxShape* _shape;
+        private readonly unsafe PxShape* _shapePtr;
 
-        public PhysxShape(PhysxScene scene, PxShape* shape)
+        public PhysxShape(PxShape* shape)
         {
-            _scene = scene;
-            _shape = shape;
+            _shapePtr = shape;
+            All.Add((nint)shape, this);
+        }
+        public PhysxShape(IPhysicsGeometry geometry, PhysxMaterial material, PxShapeFlags flags, bool isExclusive = false)
+        {
+            using var geomStruct = geometry.GetPhysxStruct();
+            PxShape* shape = PhysxScene.PhysicsPtr->CreateShapeMut(geomStruct.ToStructPtr<PxGeometry>(), material.MaterialPtr, isExclusive, flags);
+
+            _shapePtr = shape;
             All.Add((nint)shape, this);
         }
 
-        public PxShape* ShapePtr => _shape;
-        public PhysxScene Scene => _scene;
+        public PxShape* ShapePtr => _shapePtr;
 
-        public override unsafe PxBase* BasePtr => (PxBase*)_shape;
-        public override unsafe PxRefCounted* RefCountedPtr => (PxRefCounted*)_shape;
+        public override unsafe PxBase* BasePtr => (PxBase*)_shapePtr;
+        public override unsafe PxRefCounted* RefCountedPtr => (PxRefCounted*)_shapePtr;
 
         public static Dictionary<nint, PhysxShape> All { get; } = [];
         public static PhysxShape? Get(PxShape* ptr)
             => All.TryGetValue((nint)ptr, out var shape) ? shape : null;
 
+        /// <summary>
+        /// If this shape is used for simulation.
+        /// </summary>
         public bool SimulationShape
         {
             get => Flags.HasFlag(PxShapeFlags.SimulationShape);
             set => SetFlag(PxShapeFlag.SimulationShape, value);
         }
+        /// <summary>
+        /// If this shape is used for scene queries.
+        /// </summary>
         public bool SceneQueryShape
         {
             get => Flags.HasFlag(PxShapeFlags.SceneQueryShape);
             set => SetFlag(PxShapeFlag.SceneQueryShape, value);
         }
+        /// <summary>
+        /// If this shape is a trigger.
+        /// </summary>
         public bool TriggerShape
         {
             get => Flags.HasFlag(PxShapeFlags.TriggerShape);
             set => SetFlag(PxShapeFlag.TriggerShape, value);
         }
+        /// <summary>
+        /// If this shape is used for visualization.
+        /// </summary>
         public bool Visualization
         {
             get => Flags.HasFlag(PxShapeFlags.Visualization);
@@ -188,14 +205,14 @@ namespace XREngine.Rendering.Physics.Physx
             }
         }
 
-        public unsafe bool Overlap(PhysxRigidActor actor, IAbstractPhysicsGeometry otherGeom, (Vector3 position, Quaternion rotation) otherGeomPose)
+        public unsafe bool Overlap(PhysxRigidActor actor, IPhysicsGeometry otherGeom, (Vector3 position, Quaternion rotation) otherGeomPose)
         {
             var tfm = PhysxScene.MakeTransform(otherGeomPose.position, otherGeomPose.rotation);
             var structObj = otherGeom.GetPhysxStruct();
             return ShapePtr->ExtOverlap(actor.RigidActorPtr, structObj.Address.As<PxGeometry>(), &tfm);
         }
 
-        public unsafe bool Sweep(PhysxRigidActor actor, Vector3 unitDir, float distance, IAbstractPhysicsGeometry otherGeom, (Vector3 position, Quaternion rotation) otherGeomPose, out PxSweepHit sweepHit, PxHitFlags hitFlags)
+        public unsafe bool Sweep(PhysxRigidActor actor, Vector3 unitDir, float distance, IPhysicsGeometry otherGeom, (Vector3 position, Quaternion rotation) otherGeomPose, out PxSweepHit sweepHit, PxHitFlags hitFlags)
         {
             var tfm = PhysxScene.MakeTransform(otherGeomPose.position, otherGeomPose.rotation);
             PxSweepHit h;

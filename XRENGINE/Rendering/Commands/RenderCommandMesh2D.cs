@@ -43,7 +43,7 @@ namespace XREngine.Data.Rendering
             MaterialOverride = materialOverride;
         }
 
-        public override void Render(bool shadowPass)
+        public override void Render()
             => Mesh?.Render(WorldMatrix, MaterialOverride);
     }
 }

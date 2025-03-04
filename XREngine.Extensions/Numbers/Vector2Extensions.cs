@@ -4,11 +4,10 @@ namespace Extensions
 {
     public static class Vector2Extensions
     {
-        public static Vector2 ToNumerics(this Assimp.Vector2D vector)
-            => new(vector.X, vector.Y);
-
-        public static Assimp.Vector2D ToAssimp(this Vector2 vector)
-            => new(vector.X, vector.Y);
+        //public static Vector2 ToNumerics(this Assimp.Vector2D vector)
+        //    => new(vector.X, vector.Y);
+        //public static Assimp.Vector2D ToAssimp(this Vector2 vector)
+        //    => new(vector.X, vector.Y);
 
         public static Vector2 Clamp(this Vector2 value, Vector2 min, Vector2 max) =>
             new(value.X.Clamp(min.X, max.X), value.Y.Clamp(min.Y, max.Y));

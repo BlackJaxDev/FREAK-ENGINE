@@ -1164,9 +1164,9 @@ namespace XREngine.Actors.Types
             MouseUp?.Invoke();
         }
 
-        private void Render(bool shadowPass)
+        private void Render()
         {
-            if (!_hiCam && !_hiSphere && !_hiAxis.Any)
+            if ((!_hiCam && !_hiSphere && !_hiAxis.Any) || Engine.Rendering.State.IsShadowPass)
                 return;
             
             Engine.Rendering.Debug.RenderPoint(_lastPointWorld, ColorF4.Black, false);

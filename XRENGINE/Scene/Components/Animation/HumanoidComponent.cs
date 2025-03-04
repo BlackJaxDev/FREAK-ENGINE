@@ -78,9 +78,9 @@ namespace XREngine.Scene.Components.Animation
             RenderedObjects = [RenderInfo3D.New(this, EDefaultRenderPass.OpaqueForward, Render)];
         }
 
-        private void Render(bool shadowPass)
+        private void Render()
         {
-            if (shadowPass)
+            if (Engine.Rendering.State.IsShadowPass)
                 return;
 
             foreach (var bone in GetHipToHeadChain())

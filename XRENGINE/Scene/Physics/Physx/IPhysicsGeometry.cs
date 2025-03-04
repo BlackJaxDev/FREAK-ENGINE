@@ -6,36 +6,37 @@ using static MagicPhysX.NativeMethods;
 
 namespace XREngine.Rendering.Physics.Physx
 {
-    public unsafe interface IAbstractPhysicsGeometry
+    public unsafe interface IPhysicsGeometry
     {
         DataSource GetPhysxStruct();
+        public PxGeometry* AsPtr() => GetPhysxStruct().Address.As<PxGeometry>();
 
-        public unsafe struct Sphere(float radius) : IAbstractPhysicsGeometry
+        public unsafe struct Sphere(float radius) : IPhysicsGeometry
         {
             public float Radius = radius;
 
             public readonly PxSphereGeometry GetGeometry() => PxSphereGeometry_new(Radius);
 
-            readonly DataSource IAbstractPhysicsGeometry.GetPhysxStruct() => DataSource.FromStruct(GetGeometry());
+            public readonly DataSource GetPhysxStruct() => DataSource.FromStruct(GetGeometry());
         }
-        public unsafe struct Box(Vector3 halfExtents) : IAbstractPhysicsGeometry
+        public unsafe struct Box(Vector3 halfExtents) : IPhysicsGeometry
         {
             public Vector3 HalfExtents = halfExtents;
 
             public readonly PxBoxGeometry GetGeometry() => PxBoxGeometry_new(HalfExtents.X, HalfExtents.Y, HalfExtents.Z);
 
-            readonly DataSource IAbstractPhysicsGeometry.GetPhysxStruct() => DataSource.FromStruct(GetGeometry());
+            public readonly DataSource GetPhysxStruct() => DataSource.FromStruct(GetGeometry());
         }
-        public unsafe struct Capsule(float radius, float halfHeight) : IAbstractPhysicsGeometry
+        public unsafe struct Capsule(float radius, float halfHeight) : IPhysicsGeometry
         {
             public float Radius = radius;
             public float HalfHeight = halfHeight;
 
             public readonly PxCapsuleGeometry GetGeometry() => PxCapsuleGeometry_new(Radius, HalfHeight);
 
-            readonly DataSource IAbstractPhysicsGeometry.GetPhysxStruct() => DataSource.FromStruct(GetGeometry());
+            public readonly DataSource GetPhysxStruct() => DataSource.FromStruct(GetGeometry());
         }
-        public unsafe struct ConvexMesh(PxConvexMesh* mesh, Vector3 scale, Quaternion rotation, bool tightBounds) : IAbstractPhysicsGeometry
+        public unsafe struct ConvexMesh(PxConvexMesh* mesh, Vector3 scale, Quaternion rotation, bool tightBounds) : IPhysicsGeometry
         {
             public PxConvexMesh* Mesh = mesh;
             public Vector3 Scale = scale;
@@ -51,9 +52,9 @@ namespace XREngine.Rendering.Physics.Physx
                 return PxConvexMeshGeometry_new(Mesh, &scaleRot, flags);
             }
 
-            readonly DataSource IAbstractPhysicsGeometry.GetPhysxStruct() => DataSource.FromStruct(GetGeometry());
+            public readonly DataSource GetPhysxStruct() => DataSource.FromStruct(GetGeometry());
         }
-        public unsafe struct TriangleMesh(PxTriangleMesh* mesh, Vector3 scale, Quaternion rotation, bool tightBounds, bool doubleSided) : IAbstractPhysicsGeometry
+        public unsafe struct TriangleMesh(PxTriangleMesh* mesh, Vector3 scale, Quaternion rotation, bool tightBounds, bool doubleSided) : IPhysicsGeometry
         {
             public PxTriangleMesh* Mesh = mesh;
             public Vector3 Scale = scale;
@@ -70,9 +71,9 @@ namespace XREngine.Rendering.Physics.Physx
                 return PxTriangleMeshGeometry_new(Mesh, &scaleRot, flags);
             }
 
-            readonly DataSource IAbstractPhysicsGeometry.GetPhysxStruct() => DataSource.FromStruct(GetGeometry());
+            public readonly DataSource GetPhysxStruct() => DataSource.FromStruct(GetGeometry());
         }
-        public unsafe struct HeightField(PxHeightField* field, float heightScale, float rowScale, float columnScale, bool tightBounds, bool doubleSided) : IAbstractPhysicsGeometry
+        public unsafe struct HeightField(PxHeightField* field, float heightScale, float rowScale, float columnScale, bool tightBounds, bool doubleSided) : IPhysicsGeometry
         {
             public PxHeightField* Field = field;
             public float HeightScale = heightScale;
@@ -87,15 +88,15 @@ namespace XREngine.Rendering.Physics.Physx
                 return PxHeightFieldGeometry_new(Field, flags, HeightScale, RowScale, ColumnScale);
             }
 
-            readonly DataSource IAbstractPhysicsGeometry.GetPhysxStruct() => DataSource.FromStruct(GetGeometry());
+            public readonly DataSource GetPhysxStruct() => DataSource.FromStruct(GetGeometry());
         }
-        public unsafe struct Plane() : IAbstractPhysicsGeometry
+        public unsafe struct Plane() : IPhysicsGeometry
         {
             public readonly PxPlaneGeometry GetGeometry() => PxPlaneGeometry_new();
 
-            readonly DataSource IAbstractPhysicsGeometry.GetPhysxStruct() => DataSource.FromStruct(GetGeometry());
+            public readonly DataSource GetPhysxStruct() => DataSource.FromStruct(GetGeometry());
         }
-        public unsafe struct ParticleSystem(PxParticleSolverType solver) : IAbstractPhysicsGeometry
+        public unsafe struct ParticleSystem(PxParticleSolverType solver) : IPhysicsGeometry
         {
             public PxParticleSolverType Solver = solver;
 
@@ -106,16 +107,16 @@ namespace XREngine.Rendering.Physics.Physx
                 return g;
             }
 
-            readonly DataSource IAbstractPhysicsGeometry.GetPhysxStruct() => DataSource.FromStruct(GetGeometry());
+            public readonly DataSource GetPhysxStruct() => DataSource.FromStruct(GetGeometry());
         }
-        public unsafe struct TetrahedronMesh(PxTetrahedronMesh* mesh) : IAbstractPhysicsGeometry
+        public unsafe struct TetrahedronMesh(PxTetrahedronMesh* mesh) : IPhysicsGeometry
         {
             public PxTetrahedronMesh* Mesh = mesh;
 
             public readonly PxTetrahedronMeshGeometry GetGeometry()
                 => PxTetrahedronMeshGeometry_new(Mesh);
 
-            readonly DataSource IAbstractPhysicsGeometry.GetPhysxStruct() => DataSource.FromStruct(GetGeometry());
+            public readonly DataSource GetPhysxStruct() => DataSource.FromStruct(GetGeometry());
         }
 
         public PxGeometry* PhysxGeometry
@@ -132,7 +133,7 @@ namespace XREngine.Rendering.Physics.Physx
 
         public bool PhysxQueryOverlap(
             (Vector3 position, Quaternion rotation) pose,
-            IAbstractPhysicsGeometry otherGeom,
+            IPhysicsGeometry otherGeom,
             (Vector3 position, Quaternion rotation) pose1,
             PxGeometryQueryFlags queryFlags,
             PxQueryThreadContext* threadContext)

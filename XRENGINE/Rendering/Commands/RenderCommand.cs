@@ -8,10 +8,10 @@ namespace XREngine.Rendering.Commands
         public RenderCommand() { }
         public RenderCommand(int renderPass) => RenderPass = renderPass;
 
-        public delegate void DelPreRender(RenderCommand command, XRCamera? camera, bool shadowPass);
+        public delegate void DelPreRender(RenderCommand command, XRCamera? camera);
         public event DelPreRender? OnCollectedForRender;
 
-        public delegate void DelSwapBuffers(RenderCommand command, bool shadowPass);
+        public delegate void DelSwapBuffers(RenderCommand command);
         public event DelSwapBuffers? OnSwapBuffers;
 
         private int _renderPass = (int)EDefaultRenderPass.OpaqueForward;
@@ -34,21 +34,20 @@ namespace XREngine.Rendering.Commands
         public abstract int CompareTo(RenderCommand? other);
         public int CompareTo(object? obj) => CompareTo(obj as RenderCommand);
 
-        public abstract void Render(bool shadowPass);
+        public abstract void Render();
 
         /// <summary>
         /// Called in the collect visible thread.
         /// </summary>
         /// <param name="camera"></param>
-        /// <param name="shadowPass"></param>
-        public virtual void CollectedForRender(XRCamera? camera, bool shadowPass)
-            => OnCollectedForRender?.Invoke(this, camera, shadowPass);
+        public virtual void CollectedForRender(XRCamera? camera)
+            => OnCollectedForRender?.Invoke(this, camera);
 
         /// <summary>
         /// Called when the engine is swapping buffers - both the collect and render threads are waiting.
         /// </summary>
         /// <param name="shadowPass"></param>
-        public virtual void SwapBuffers(bool shadowPass)
-            => OnSwapBuffers?.Invoke(this, shadowPass);
+        public virtual void SwapBuffers()
+            => OnSwapBuffers?.Invoke(this);
     }
 }

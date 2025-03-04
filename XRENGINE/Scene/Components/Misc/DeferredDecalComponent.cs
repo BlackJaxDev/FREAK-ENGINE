@@ -173,9 +173,9 @@ namespace XREngine.Components
             = new RenderCommandMesh3D(EDefaultRenderPass.DeferredDecals);
         public RenderCommandMethod3D DebugRenderCommand { get; }
 
-        private void RenderDebug(bool shadowPass)
+        private void RenderDebug()
         {
-            if (shadowPass)
+            if (Engine.Rendering.State.IsShadowPass)
                 return;
 
             Engine.Rendering.Debug.RenderBox(HalfExtents, Vector3.Zero, Transform.WorldMatrix, false, ColorF4.Red);

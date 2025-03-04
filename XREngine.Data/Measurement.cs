@@ -2,14 +2,14 @@
 
 namespace System
 {
-    public class FeetInches
+    public struct FeetInches
     {
         private float _inches = 0.0f;
 
         public int Feet { get; set; }
         public float Inches
         {
-            get => _inches;
+            readonly get => _inches;
             set
             {
                 _inches = value;
@@ -39,11 +39,11 @@ namespace System
             int ift = (int)Math.Floor(feet);
             return new FeetInches(ift, (feet - ift) * 12.0f);
         }
-        public float ToFeet()
+        public readonly float ToFeet()
             => Feet + Inches / 12.0f;
-        public float ToInches()
+        public readonly float ToInches()
             => Feet * 12.0f + Inches;
-        public float ToMeters()
+        public readonly float ToMeters()
             => ToFeet().FeetToMeters();
     }
 }

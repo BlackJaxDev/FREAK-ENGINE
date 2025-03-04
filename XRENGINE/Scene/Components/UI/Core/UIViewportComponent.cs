@@ -91,7 +91,7 @@ namespace XREngine.Rendering.UI
                 return;
 
             _collecting = true;
-            Viewport.CollectVisible(null, null, false);
+            Viewport.CollectVisible(null, null);
             _collecting = false;
         }
         public void SwapBuffers()
@@ -100,7 +100,7 @@ namespace XREngine.Rendering.UI
                 return;
 
             _swapping = true;
-            Viewport.SwapBuffers(false);
+            Viewport.SwapBuffers();
             _swapping = false;
         }
         public void Render()

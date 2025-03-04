@@ -4,11 +4,10 @@ namespace Extensions
 {
     public static class Vector3Extensions
     {
-        public static Vector3 ToNumerics(this Assimp.Vector3D vector)
-            => new(vector.X, vector.Y, vector.Z);
-
-        public static Assimp.Vector3D ToAssimp(this Vector3 vector)
-            => new(vector.X, vector.Y, vector.Z);
+        //public static Vector3 ToNumerics(this Assimp.Vector3D vector)
+        //    => new(vector.X, vector.Y, vector.Z);
+        //public static Assimp.Vector3D ToAssimp(this Vector3 vector)
+        //    => new(vector.X, vector.Y, vector.Z);
 
         public static Vector3 Clamp(this Vector3 value, Vector3 min, Vector3 max) =>
             new(value.X.Clamp(min.X, max.X), value.Y.Clamp(min.Y, max.Y), value.Z.Clamp(min.Z, max.Z));

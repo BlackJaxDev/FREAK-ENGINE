@@ -11,5 +11,6 @@ namespace XREngine
     {
         RenderInfo[] RenderedObjects { get; }
         float IRenderableBase.TransformDepth => (this as XRComponent)?.Transform?.Depth ?? 0;
+        protected bool IsShadowPass => Engine.Rendering.State.IsShadowPass;
     }
 }

@@ -4,19 +4,19 @@ namespace Extensions
 {
     public static class MatrixExtension
     {
-        public static Matrix4x4 ToNumerics(this Assimp.Matrix4x4 matrix)
-            => new(
-                matrix.A1, matrix.A2, matrix.A3, matrix.A4,
-                matrix.B1, matrix.B2, matrix.B3, matrix.B4,
-                matrix.C1, matrix.C2, matrix.C3, matrix.C4,
-                matrix.D1, matrix.D2, matrix.D3, matrix.D4);
+        //public static Matrix4x4 ToNumerics(this Assimp.Matrix4x4 matrix)
+        //    => new(
+        //        matrix.A1, matrix.A2, matrix.A3, matrix.A4,
+        //        matrix.B1, matrix.B2, matrix.B3, matrix.B4,
+        //        matrix.C1, matrix.C2, matrix.C3, matrix.C4,
+        //        matrix.D1, matrix.D2, matrix.D3, matrix.D4);
 
-        public static Assimp.Matrix4x4 ToAssimp(this Matrix4x4 matrix)
-            => new(
-                matrix.M11, matrix.M12, matrix.M13, matrix.M14,
-                matrix.M21, matrix.M22, matrix.M23, matrix.M24,
-                matrix.M31, matrix.M32, matrix.M33, matrix.M34,
-                matrix.M41, matrix.M42, matrix.M43, matrix.M44);
+        //public static Assimp.Matrix4x4 ToAssimp(this Matrix4x4 matrix)
+        //    => new(
+        //        matrix.M11, matrix.M12, matrix.M13, matrix.M14,
+        //        matrix.M21, matrix.M22, matrix.M23, matrix.M24,
+        //        matrix.M31, matrix.M32, matrix.M33, matrix.M34,
+        //        matrix.M41, matrix.M42, matrix.M43, matrix.M44);
 
         public static Matrix4x4 Inverted(this Matrix4x4 matrix)
             => Matrix4x4.Invert(matrix, out Matrix4x4 result) ? result : Matrix4x4.Identity;

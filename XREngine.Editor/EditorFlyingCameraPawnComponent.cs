@@ -52,9 +52,9 @@ public partial class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent
     //    }
     //}
 
-    private void RenderHighlight(bool shadowPass)
+    private void RenderHighlight()
     {
-        if (shadowPass)
+        if (Engine.Rendering.State.IsShadowPass)
             return;
 
         if (_hitTriangle is not null)
@@ -144,7 +144,7 @@ public partial class EditorFlyingCameraPawnComponent : FlyingCameraPawnComponent
     private readonly SortedDictionary<float, List<(XRComponent item, object? data)>> _lastPhysicsPickResults = [];
     private readonly SortedDictionary<float, List<(RenderInfo3D item, object? data)>> _lastOctreePickResults = [];
 
-    private void PostRender(bool shadowPass)
+    private void PostRender()
     {
         var rend = AbstractRenderer.Current;
         if (rend is null)

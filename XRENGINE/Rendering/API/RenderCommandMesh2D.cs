@@ -72,7 +72,7 @@ namespace XREngine.Rendering
             MaterialOverride = materialOverride;
         }
 
-        public override void Render(bool shadowPass)
+        public override void Render()
         {
             if (Mesh is null)
                 return;

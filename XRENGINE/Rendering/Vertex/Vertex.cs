@@ -144,16 +144,16 @@ namespace XREngine.Data.Rendering
 
         public static unsafe Vertex FromAssimp(Mesh mesh, int vertexIndex)
         {
-            Vector3D pos = mesh.Vertices[vertexIndex];
-            Vector3D? normal = (mesh.Normals?.TryGet(vertexIndex, out var temp1) ?? false) ? temp1 : null;
-            Vector3D? tangent = (mesh.Tangents?.TryGet(vertexIndex, out var temp2) ?? false) ? temp2 : null;
-            Vector3D? bitangent = (mesh.BiTangents?.TryGet(vertexIndex, out var temp3) ?? false) ? temp3 : null;
+            Vector3 pos = mesh.Vertices[vertexIndex];
+            Vector3? normal = (mesh.Normals?.TryGet(vertexIndex, out var temp1) ?? false) ? temp1 : null;
+            Vector3? tangent = (mesh.Tangents?.TryGet(vertexIndex, out var temp2) ?? false) ? temp2 : null;
+            Vector3? bitangent = (mesh.BiTangents?.TryGet(vertexIndex, out var temp3) ?? false) ? temp3 : null;
 
             //If two of the three vectors are zero, the normal is calculated from the cross product of the other two.
             if (normal == null)
             {
                 if (tangent != null && bitangent != null)
-                    normal = Vector3D.Cross(tangent.Value, bitangent.Value);
+                    normal = Vector3.Cross(tangent.Value, bitangent.Value);
                 //else if (tangent != null)
                 //    normal = Vector3.Cross(tangent.Value, pos);
                 //else if (bitangent != null)
@@ -162,7 +162,7 @@ namespace XREngine.Data.Rendering
             if (tangent == null)
             {
                 if (normal != null && bitangent != null)
-                    tangent = Vector3D.Cross(normal.Value, bitangent.Value);
+                    tangent = Vector3.Cross(normal.Value, bitangent.Value);
                 //else if (normal != null)
                 //    tangent = Vector3.Cross(normal.Value, pos);
                 //else if (bitangent != null)
@@ -181,9 +181,9 @@ namespace XREngine.Data.Rendering
 
             Vertex v = new()
             {
-                Position = pos.ToNumerics(),
-                Normal = normal?.ToNumerics(),
-                Tangent = tangent?.ToNumerics()
+                Position = pos,
+                Normal = normal,
+                Tangent = tangent
             };
 
             for (int i = 0; i < mesh.TextureCoordinateChannelCount; ++i)
@@ -192,7 +192,7 @@ namespace XREngine.Data.Rendering
                 if (channel is null || vertexIndex >= channel.Count)
                     break;
 
-                Vector3D uv = channel[vertexIndex];
+                Vector3 uv = channel[vertexIndex];
                 v.TextureCoordinateSets.Add(new Vector2(uv.X, uv.Y));
             }
 
@@ -202,7 +202,7 @@ namespace XREngine.Data.Rendering
                 if (channel is null || vertexIndex >= channel.Count)
                     break;
 
-                v.ColorSets.Add(channel[vertexIndex].ToNumerics());
+                v.ColorSets.Add(channel[vertexIndex]);
             }
 
             //Blendshapes
@@ -216,21 +216,21 @@ namespace XREngine.Data.Rendering
 
                     VertexData data = new()
                     {
-                        Position = blendshape.Vertices[vertexIndex].ToNumerics()
+                        Position = blendshape.Vertices[vertexIndex]
                     };
 
                     if (blendshape.Normals != null)
-                        data.Normal = blendshape.Normals[vertexIndex].ToNumerics();
+                        data.Normal = blendshape.Normals[vertexIndex];
 
                     if (blendshape.Tangents != null)
-                        data.Tangent = blendshape.Tangents[vertexIndex].ToNumerics();
+                        data.Tangent = blendshape.Tangents[vertexIndex];
 
                     for (int j = 0; j < blendshape.TextureCoordinateChannelCount; ++j)
                     {
                         if (blendshape.TextureCoordinateChannels[j] == null)
                             break;
 
-                        Vector3D uv = blendshape.TextureCoordinateChannels[j][vertexIndex];
+                        Vector3 uv = blendshape.TextureCoordinateChannels[j][vertexIndex];
                         data.TextureCoordinateSets.Add(new Vector2(uv.X, uv.Y));
                     }
                     for (int j = 0; j < blendshape.VertexColorChannelCount; ++j)
@@ -238,8 +238,8 @@ namespace XREngine.Data.Rendering
                         if (blendshape.VertexColorChannels[j] == null)
                             break;
 
-                        Color4D color = blendshape.VertexColorChannels[j][vertexIndex];
-                        data.ColorSets.Add(color.ToNumerics());
+                        Vector4 color = blendshape.VertexColorChannels[j][vertexIndex];
+                        data.ColorSets.Add(color);
                     }
 
                     v.Blendshapes.Add((blendshape.Name, data));

@@ -98,9 +98,9 @@ namespace XREngine.Components.Scene.Mesh
                 CurrentLOD = LODs.First;
         }
 
-        private void DoRenderBounds(bool shadowPass)
+        private void DoRenderBounds()
         {
-            if (shadowPass)
+            if (Engine.Rendering.State.IsShadowPass)
                 return;
 
             var box = (RenderInfo as IOctreeItem)?.WorldCullingVolume;

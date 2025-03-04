@@ -2,8 +2,7 @@
 using System.Drawing;
 using System.Numerics;
 using XREngine.Data;
-using XREngine.Physics;
-using XREngine.Physics.ShapeTracing;
+using XREngine.Rendering.Physics.Physx;
 using XREngine.Scene.Transforms;
 
 namespace XREngine.Components.Scene.Transforms
@@ -16,20 +15,20 @@ namespace XREngine.Components.Scene.Transforms
         public delegate void DelDistanceChange(float newLength);
         public event DelDistanceChange? CurrentDistanceChanged;
 
-        private readonly XRCollisionSphere _traceShape = XRCollisionSphere.New(0.3f);
         private float _currentLength = 0.0f;
-        private float _maxLength = 300.0f;
-        private XRCollisionObject[] _ignoreCast = [];
-        private float _zoomOutSpeed = 15.0f;
+        private float _maxLength = 3.0f;
+        private float _zoomOutSpeed = 10.0f;
+        private IPhysicsGeometry.Sphere _traceSphere = new(0.2f);
+        private bool _zoomOutAffectedByTimeDilation = true;
 
         /// <summary>
         /// How big the trace sphere is.
         /// Should be at least the size of the camera's near clip plane.
         /// </summary>
-        public float TraceRadius
+        public unsafe float TraceRadius
         {
-            get => _traceShape.Radius;
-            set => _traceShape.Radius = value;
+            get => _traceSphere.Radius;
+            set => SetField(ref _traceSphere.Radius, value);
         }
 
         /// <summary>
@@ -42,15 +41,6 @@ namespace XREngine.Components.Scene.Transforms
         }
 
         /// <summary>
-        /// All objects to ignore when casting the trace sphere.
-        /// </summary>
-        public XRCollisionObject[] IgnoreCast
-        {
-            get => _ignoreCast;
-            set => SetField(ref _ignoreCast, value);
-        }
-
-        /// <summary>
         /// How fast the boom zooms out when it's not obstructed.
         /// </summary>
         public float ZoomOutSpeed
@@ -59,14 +49,34 @@ namespace XREngine.Components.Scene.Transforms
             set => SetField(ref _zoomOutSpeed, value);
         }
 
-        protected override void RenderDebug(bool shadowPass)
+        /// <summary>
+        /// If true, the zoom out speed will be affected by time dilation.
+        /// </summary>
+        public bool ZoomOutAffectedByTimeDilation
         {
-            //base.RenderDebug(shadowPass);
+            get => _zoomOutAffectedByTimeDilation;
+            set => SetField(ref _zoomOutAffectedByTimeDilation, value);
+        }
 
-            if (shadowPass)
+        protected override unsafe void OnPropertyChanged<T>(string? propName, T prev, T field)
+        {
+            base.OnPropertyChanged(propName, prev, field);
+            switch (propName)
+            {
+                case nameof(MaxLength):
+                    _currentLength = _currentLength.Clamp(0.0f, MaxLength);
+                    break;
+            }
+        }
+
+        protected override void RenderDebug()
+        {
+            //base.RenderDebug();
+
+            if (Engine.Rendering.State.IsShadowPass)
                 return;
 
-            Engine.Rendering.Debug.RenderSphere(WorldTranslation, _traceShape.Radius, false, Color.Black);
+            Engine.Rendering.Debug.RenderSphere(WorldTranslation, TraceRadius, false, Color.Black);
             Engine.Rendering.Debug.RenderLine(ParentWorldMatrix.Translation, WorldTranslation, Color.Black);
         }
 
@@ -78,31 +88,39 @@ namespace XREngine.Components.Scene.Transforms
             base.OnSceneNodeActivated();
             RegisterTick(ETickGroup.PostPhysics, (int)ETickOrder.Scene, Tick);
         }
-        protected internal override void OnSceneNodeDeactivated()
-        {
-            base.OnSceneNodeDeactivated();
-            UnregisterTick(ETickGroup.PostPhysics, (int)ETickOrder.Scene, Tick);
-        }
+        //protected internal override void OnSceneNodeDeactivated()
+        //{
+        //    base.OnSceneNodeDeactivated();
+        //    UnregisterTick(ETickGroup.PostPhysics, (int)ETickOrder.Scene, Tick);
+        //}
+
+        private readonly SortedDictionary<float, List<(XRComponent? item, object? data)>> _traceOutput = [];
 
         private void Tick()
         {
-            Matrix4x4 startMatrix = ParentWorldMatrix;
-            var startPoint = startMatrix.Translation;
-            Matrix4x4 endMatrix = startMatrix * Matrix4x4.CreateTranslation(new Vector3(0.0f, 0.0f, MaxLength));
-            Vector3 testEnd = endMatrix.Translation;
+            float newLength;
+            lock (_traceOutput)
+            {
+                _traceOutput.Clear();
+                World?.PhysicsScene?.SweepSingle(
+                    _traceSphere,
+                    (ParentWorldMatrix.Translation, Quaternion.Identity),
+                    Vector3.Transform(Globals.Backward, Parent?.WorldRotation ?? Quaternion.Identity),
+                    MaxLength,
+                    _traceOutput);
+                if (_traceOutput.Count == 0)
+                    newLength = MaxLength;
+                else
+                    newLength = _traceOutput.Keys.First();
+            }
 
-            ShapeTraceClosest result = new(_traceShape, startMatrix, endMatrix, (ushort)ECollisionGroup.Camera, (ushort)ECollisionGroup.All, IgnoreCast);
-
-            bool hasHit = World?.PhysicsScene?.Trace(result) ?? false;
-            Vector3 newEndPoint = hasHit ? result.HitPointWorld : testEnd;
-            float newLength = (newEndPoint - startPoint).Length();
             if (newLength.EqualTo(_currentLength, 0.001f))
                 return;
             
             if (newLength < _currentLength)
                 _currentLength = newLength; //Moving closer to the character, meaning something is obscuring the view. Need to jump to the right position.
             else //Nothing is now obscuring the view, so we can lerp out quickly to give the appearance of a clean camera zoom out
-                _currentLength = Interp.Lerp(_currentLength, newLength, Engine.UndilatedDelta, ZoomOutSpeed);
+                _currentLength = Interp.Lerp(_currentLength, newLength, ZoomOutAffectedByTimeDilation ? Engine.Delta : Engine.UndilatedDelta, ZoomOutSpeed);
 
             MarkLocalModified();
             CurrentDistanceChanged?.Invoke(_currentLength);

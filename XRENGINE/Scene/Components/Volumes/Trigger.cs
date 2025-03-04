@@ -149,9 +149,9 @@ namespace XREngine.Components.Scene.Volumes
             }
         }
 
-        protected override void Render(bool shadowPass)
+        protected override void Render()
         {
-            base.Render(shadowPass);
+            base.Render();
 
             if (!TrackContacts)
                 return;

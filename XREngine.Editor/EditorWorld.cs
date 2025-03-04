@@ -1,4 +1,5 @@
 ﻿using Assimp;
+using MagicPhysX;
 using Silk.NET.Input;
 using Silk.NET.OpenAL;
 using System.Collections.Concurrent;
@@ -53,12 +54,13 @@ public static class EditorWorld
     public const bool AnimatedModel = true; //Imports a character model to be animated.
     public const bool AddEditorUI = false; //Adds the full editor UI to the camera. Probably don't use this one a character pawn.
     public const bool VRPawn = false; //Enables VR input and pawn.
-    public const bool CharacterPawn = false; //Enables the player to physically locomote in the world. Requires a physical floor.
-    public const bool ThirdPersonPawn = false; //If on desktop and character pawn is enabled, this will add a third person camera instead of first person.
+    public const bool CharacterPawn = true; //Enables the player to physically locomote in the world. Requires a physical floor.
+    public const bool ThirdPersonPawn = true; //If on desktop and character pawn is enabled, this will add a third person camera instead of first person.
     public const bool TestAnimation = false; //Adds test animations to the character pawn.
-    public const bool PhysicsChain = false; //Adds a jiggle physics chain to the character pawn.
+    public const bool PhysicsChain = true; //Adds a jiggle physics chain to the character pawn.
     public const bool TransformTool = true; //Adds the transform tool to the scene for testing dragging and rotating etc.
-    public const bool AllowEditingInVR = false; //Allows the user to edit the scene from desktop in VR.
+    public const bool AllowEditingInVR = true; //Allows the user to edit the scene from desktop in VR.
+    public const bool AddCameraVRPickup = true;
     public const bool IKTest = false; //Adds an simple IK test tree to the scene.
     public const bool Microphone = false; //Adds a microphone to the scene for testing audio capture.
 
@@ -84,9 +86,12 @@ public static class EditorWorld
         if (rootNode is null)
             return;
 
-        //rootNode.GetTransformAs<Transform>()!.Scale = new Vector3(0.0254f, 0.0254f, 0.0254f);
-
         var humanComp = rootNode.AddComponent<HumanoidComponent>()!;
+
+        //var headTfm = humanComp.Head?.Node?.GetTransformAs<Transform>();
+        //if (headTfm is not null)
+        //    headTfm.Scale = Vector3.Zero;
+
         if (VRPawn)
         {
             var rotationNode = rootNode.Parent!;
@@ -143,12 +148,13 @@ public static class EditorWorld
                 if (breast?.SceneNode is not null)
                 {
                     var phys = breast.SceneNode.AddComponent<PhysicsChainComponent>()!;
-                    phys._updateMode = PhysicsChainComponent.EUpdateMode.Normal;
-                    phys._updateRate = 60;
-                    phys._damping = 0.01f;
-                    phys._stiffness = 0.0f;
-                    phys._force = new Vector3(0.0f, 0.0f, 0.0f);
-                    phys._elasticity = 0.07f;
+                    phys.UpdateMode = PhysicsChainComponent.EUpdateMode.Normal;
+                    phys.UpdateRate = 60;
+                    phys.Damping = 0.1f;
+                    phys.Inert = 0.0f;
+                    phys.Stiffness = 0.1f;
+                    phys.Force = new Vector3(0.0f, 0.0f, 0.0f);
+                    phys.Elasticity = 0.1f;
                 }
             }
         }
@@ -201,12 +207,12 @@ public static class EditorWorld
             if (CharacterPawn)
             {
                 characterPawnModelParentNode = CreateCharacterVRPawn(rootNode, setUI, out _, out _, out _);
-                if (AllowEditingInVR)
+                if (AllowEditingInVR || AddCameraVRPickup)
                 {
                     SceneNode cameraNode = CreateCamera(rootNode, out var camComp);
-                    var pawn = CreateDesktopViewerPawn(cameraNode, isServer);
-                    if (setUI)
-                        CreateEditorUI(rootNode, camComp!, pawn);
+                    var pawn = CreateDesktopCamera(cameraNode, isServer, AllowEditingInVR && !AddCameraVRPickup, AddCameraVRPickup, false);
+                    //if (setUI)
+                    //    CreateEditorUI(rootNode, camComp!, pawn);
                 }
             }
             else
@@ -217,7 +223,7 @@ public static class EditorWorld
         else
         {
             SceneNode cameraNode = CreateCamera(rootNode, out var camComp);
-            var pawn = CreateDesktopViewerPawn(cameraNode, isServer);
+            var pawn = CreateDesktopCamera(cameraNode, isServer, true, false, true);
             if (setUI)
                 CreateEditorUI(rootNode, camComp!, pawn);
         }
@@ -303,6 +309,7 @@ public static class EditorWorld
         var vrInput = vrPlayspaceNode.AddComponent<VRPlayerInputSet>()!;
         vrInput.LeftHandOverlapChanged += OnLeftHandOverlapChanged;
         vrInput.RightHandOverlapChanged += OnRightHandOverlapChanged;
+        vrInput.HandGrabbed += VrInput_HandGrabbed;
         var movementComp = vrPlayspaceNode.AddComponent<CharacterMovement3DComponent>()!;
         InitMovement(movementComp);
 
@@ -323,6 +330,11 @@ public static class EditorWorld
 
         //local rotation node only yaws to match the view yaw, so use it as the parent for the avatar
         return localRotationNode;
+    }
+
+    private static void VrInput_HandGrabbed(VRPlayerInputSet sender, PhysxDynamicRigidBody item, bool left)
+    {
+
     }
 
     private static void ChangeHighlight(PhysxDynamicRigidBody? prev, PhysxDynamicRigidBody? current)
@@ -414,28 +426,53 @@ public static class EditorWorld
 
     #region Desktop
 
-    private static EditorFlyingCameraPawnComponent CreateDesktopViewerPawn(SceneNode cameraNode, bool isServer)
+    private static PawnComponent? CreateDesktopCamera(SceneNode cameraNode, bool isServer, bool flyable, bool addPhysicsBody, bool addListener)
     {
-        if (!(VRPawn && AllowEditingInVR))
+        if (addPhysicsBody)
+        {
+            IPhysicsGeometry.Sphere s = new(0.2f);
+            PhysxMaterial mat = new(0.5f, 0.5f, 0.5f);
+            PhysxShape shape = new(s, mat, PxShapeFlags.TriggerShape | PxShapeFlags.Visualization, true);
+            var cameraPickup = cameraNode.AddComponent<DynamicRigidBodyComponent>()!;
+            PhysxDynamicRigidBody body = new(shape, 1.0f);
+            cameraPickup.RigidBody = body;
+
+            body.Mass = 1.0f;
+            body.Flags = 0;
+            body.GravityEnabled = false;
+            body.SimulationEnabled = true;
+            body.DebugVisualize = true;
+        }
+
+        if (addListener)
         {
             var listener = cameraNode.AddComponent<AudioListenerComponent>("Desktop Flying Listener")!;
             listener.Gain = 1.0f;
             listener.DistanceModel = DistanceModel.InverseDistance;
             listener.DopplerFactor = 0.5f;
             listener.SpeedOfSound = 343.3f;
-
-            if (Microphone)
-            {
-                var microphone = cameraNode.AddComponent<MicrophoneComponent>()!;
-                microphone.Capture = true;//!isServer;
-                microphone.Receive = true;//isServer;
-            }
         }
 
-        var pawnComp = cameraNode.AddComponent<EditorFlyingCameraPawnComponent>();
-        pawnComp!.Name = "TestPawn";
-        pawnComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
+        if (!(VRPawn && AllowEditingInVR) && Microphone)
+        {
+            var microphone = cameraNode.AddComponent<MicrophoneComponent>()!;
+            microphone.Capture = true;//!isServer;
+            microphone.Receive = true;//isServer;
+        }
 
+        PawnComponent pawnComp;
+        if (flyable)
+        {
+            pawnComp = cameraNode.AddComponent<EditorFlyingCameraPawnComponent>()!;
+            pawnComp!.Name = "Desktop Camera Pawn (Flyable)";
+        }
+        else
+        {
+            pawnComp = cameraNode.AddComponent<PawnComponent>()!;
+            pawnComp!.Name = "Desktop Camera Pawn";
+        }
+
+        pawnComp.EnqueuePossessionByLocalPlayer(ELocalPlayerIndex.One);
         return pawnComp;
     }
 
@@ -454,16 +491,14 @@ public static class EditorWorld
         if (ThirdPersonPawn)
         {
             //Create camera boom with sphere shapecast
-            SceneNode cameraViewTransformNode = new(cameraOffsetNode) { Name = "TestCameraViewTransformNode" };
-            var cameraViewTransformTfm = cameraViewTransformNode.SetTransform<Transform>();
-            SceneNode cameraBoomNode = new(cameraViewTransformNode) { Name = "TestCameraBoomNode" };
-            var cameraBoomTfm = cameraBoomNode.SetTransform<BoomTransform>();
-            cameraParentNode = cameraBoomNode;
+            cameraParentNode = cameraOffsetNode.NewChildWithTransform<BoomTransform>(out var boomTfm, "3rd Person Camera Boom");
+            boomTfm.MaxLength = 10.0f;
+            boomTfm.ZoomOutSpeed = 5.0f;
         }
         else
             cameraParentNode = cameraOffsetNode;
 
-        SceneNode cameraNode = CreateCamera(cameraParentNode, out CameraComponent? camComp, false);
+        SceneNode cameraNode = CreateCamera(cameraParentNode, out CameraComponent? camComp, 15.0f, false);
 
         var listener = cameraNode.AddComponent<AudioListenerComponent>("Desktop Character Listener")!;
         listener.Gain = 1.0f;
@@ -475,7 +510,10 @@ public static class EditorWorld
         characterComp.CameraComponent = camComp;
 
         if (ThirdPersonPawn)
-            characterComp.ViewTransform = cameraParentNode.Parent.GetTransformAs<Transform>()!;
+        {
+            characterComp.ViewTransform = cameraNode.Transform;
+            characterComp.RotationTransform = cameraOffsetTfm;
+        }
 
         var movementComp = characterNode.AddComponent<CharacterMovement3DComponent>()!;
         InitMovement(movementComp);
@@ -485,21 +523,38 @@ public static class EditorWorld
         if (camComp is not null && setUI)
             CreateEditorUI(characterNode, camComp);
 
-        return characterNode;
+        var footNode = characterNode.NewChild("Foot Position Node");
+        var footTfm = footNode.SetTransform<Transform>();
+        footTfm.Translation = new Vector3(0.0f, -movementComp.HalfHeight, 0.0f);
+        footTfm.Scale = new Vector3(movementComp.StandingHeight);
+
+        return footNode;
     }
 
     #endregion
 
-    private static SceneNode CreateCamera(SceneNode parentNode, out CameraComponent? camComp, bool smoothed = true)
+    private static SceneNode CreateCamera(SceneNode parentNode, out CameraComponent? camComp, float? smoothed = 30.0f, bool localSmoothing = true)
     {
         var cameraNode = new SceneNode(parentNode, "TestCameraNode");
 
-        if (smoothed)
+        if (smoothed.HasValue)
         {
-            var laggedTransform = cameraNode.GetTransformAs<SmoothedTransform>(true)!;
-            laggedTransform.RotationSmoothingSpeed = 30.0f;
-            laggedTransform.TranslationSmoothingSpeed = 30.0f;
-            laggedTransform.ScaleSmoothingSpeed = 30.0f;
+            if (localSmoothing)
+            {
+                var laggedTransform = cameraNode.GetTransformAs<SmoothedTransform>(true)!;
+                float smooth = smoothed.Value;
+                laggedTransform.RotationSmoothingSpeed = smooth;
+                laggedTransform.TranslationSmoothingSpeed = smooth;
+                laggedTransform.ScaleSmoothingSpeed = smooth;
+            }
+            else
+            {
+                var laggedTransform = cameraNode.GetTransformAs<SmoothedParentConstraintTransform>(true)!;
+                float smooth = smoothed.Value;
+                laggedTransform.TranslationInterpolationSpeed = smooth;
+                laggedTransform.ScaleInterpolationSpeed = null;
+                laggedTransform.QuaternionInterpolationSpeed = null;
+            }
         }
 
         if (cameraNode.TryAddComponent(out camComp, "TestCamera"))
@@ -822,7 +877,7 @@ public static class EditorWorld
     //Spawns a ball with a random position, velocity and angular velocity.
     private static void AddBall(SceneNode rootNode, PhysxMaterial ballPhysMat, float ballRadius, Random random)
     {
-        var ballBody = new PhysxDynamicRigidBody(ballPhysMat, new IAbstractPhysicsGeometry.Sphere(ballRadius), 1.0f)
+        var ballBody = new PhysxDynamicRigidBody(ballPhysMat, new IPhysicsGeometry.Sphere(ballRadius), 1.0f)
         {
             Transform = (new Vector3(
                 random.NextSingle() * 100.0f,
@@ -940,7 +995,7 @@ public static class EditorWorld
 
         //TODO: skinned models don't propogate world matrix changed to the skinned matrix buffers per mesh
         if (AnimatedModel)
-            ModelImporter.ImportAsync(fbxPathDesktop, flags, null, MaterialFactory, characterParentNode, 1.0f, true).ContinueWith(OnFinishedAvatar);
+            ModelImporter.ImportAsync(fbxPathDesktop, flags, null, null, characterParentNode, 1.0f, false).ContinueWith(OnFinishedAvatar);
         if (StaticModel)
         {
             string path = Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "Sponza", "sponza.obj");
@@ -949,7 +1004,7 @@ public static class EditorWorld
             //var task2 = ModelImporter.ImportAsync(path2, flags, null, MaterialFactory, importedModelsNode, 1, false).ContinueWith(OnFinishedWorld);
 
             //string path = Path.Combine(Engine.Assets.EngineAssetsPath, "Models", "pkg_a_curtains", "NewSponza_Curtains_FBX_YUp.fbx");
-            var task1 = ModelImporter.ImportAsync(path, flags, null, MaterialFactory, importedModelsNode, 1, false).ContinueWith(OnFinishedWorld);
+            var task1 = ModelImporter.ImportAsync(path, flags, null, null, importedModelsNode, 1, false).ContinueWith(OnFinishedWorld);
 
             //await Task.WhenAll(task1, task2);
         }
@@ -1010,130 +1065,6 @@ public static class EditorWorld
             TransformTool3D.GetInstance(node.Transform, transformType);
         else
             node.Activated += Edit;
-    }
-
-    private static readonly ConcurrentDictionary<string, XRTexture2D> _textureCache = new();
-
-    public static XRMaterial MaterialFactory(string modelFilePath, string name, List<TextureSlot> textures, TextureFlags flags, ShadingMode mode, Dictionary<string, List<MaterialProperty>> properties)
-    {
-        //Random r = new();
-
-        XRTexture[] textureList = new XRTexture[textures.Count];
-        XRMaterial mat = new(textureList);
-        Task.Run(() => Parallel.For(0, textures.Count, i => LoadTexture(modelFilePath, textures, textureList, i))).ContinueWith(x =>
-        {
-            for (int i = 0; i < textureList.Length; i++)
-            {
-                XRTexture? tex = textureList[i];
-                if (tex is not null)
-                    mat.Textures[i] = tex;
-            }
-
-            bool transp = textures.Any(x => (x.Flags & 0x2) != 0 || x.TextureType == TextureType.Opacity);
-            bool normal = textures.Any(x => x.TextureType == TextureType.Normals);
-            if (textureList.Length > 0)
-            {
-                if (transp || textureList.Any(x => x is not null && x.HasAlphaChannel))
-                {
-                    transp = true;
-                    mat.Shaders.Add(ShaderHelper.UnlitTextureFragForward()!);
-                }
-                else
-                {
-                    mat.Shaders.Add(ShaderHelper.TextureFragDeferred()!);
-                    mat.Parameters =
-                    [
-                        new ShaderFloat(1.0f, "Opacity"),
-                        new ShaderFloat(1.0f, "Specular"),
-                        new ShaderFloat(0.9f, "Roughness"),
-                        new ShaderFloat(0.0f, "Metallic"),
-                        new ShaderFloat(1.0f, "IndexOfRefraction"),
-                    ];
-                }
-            }
-            else
-            {
-                //Show the material as magenta if no textures are present
-                mat.Shaders.Add(ShaderHelper.LitColorFragDeferred()!);
-                mat.Parameters =
-                [
-                    new ShaderVector3(ColorF3.Magenta, "BaseColor"),
-                    new ShaderFloat(1.0f, "Opacity"),
-                    new ShaderFloat(1.0f, "Specular"),
-                    new ShaderFloat(1.0f, "Roughness"),
-                    new ShaderFloat(0.0f, "Metallic"),
-                    new ShaderFloat(1.0f, "IndexOfRefraction"),
-                ];
-            }
-
-            mat.RenderPass = transp ? (int)EDefaultRenderPass.TransparentForward : (int)EDefaultRenderPass.OpaqueDeferredLit;
-            mat.Name = name;
-            mat.RenderOptions = new RenderingParameters()
-            {
-                CullMode = ECullMode.Back,
-                DepthTest = new DepthTest()
-                {
-                    UpdateDepth = true,
-                    Enabled = ERenderParamUsage.Enabled,
-                    Function = EComparison.Less,
-                },
-                //LineWidth = 5.0f,
-                BlendModeAllDrawBuffers = transp ? BlendMode.EnabledTransparent() : BlendMode.Disabled(),
-            };
-        });
-
-        return mat;
-    }
-
-    private static void LoadTexture(string modelFilePath, List<TextureSlot> textures, XRTexture[] textureList, int i)
-    {
-        string path = textures[i].FilePath;
-        if (string.IsNullOrWhiteSpace(path))
-            return;
-
-        path = path.Replace("/", "\\");
-        bool rooted = Path.IsPathRooted(path);
-        if (!rooted)
-        {
-            string? dir = Path.GetDirectoryName(modelFilePath);
-            if (dir is not null)
-                path = Path.Combine(dir, path);
-        }
-
-        XRTexture2D TextureFactory(string x)
-        {
-            var tex = Engine.Assets.Load<XRTexture2D>(path);
-            if (tex is null)
-            {
-                //Debug.Out($"Failed to load texture: {path}");
-                tex = new XRTexture2D()
-                {
-                    Name = Path.GetFileNameWithoutExtension(path),
-                    MagFilter = ETexMagFilter.Linear,
-                    MinFilter = ETexMinFilter.Linear,
-                    UWrap = ETexWrapMode.Repeat,
-                    VWrap = ETexWrapMode.Repeat,
-                    AlphaAsTransparency = true,
-                    AutoGenerateMipmaps = true,
-                    Resizable = true,
-                };
-            }
-            else
-            {
-                //Debug.Out($"Loaded texture: {path}");
-                tex.MagFilter = ETexMagFilter.Linear;
-                tex.MinFilter = ETexMinFilter.Linear;
-                tex.UWrap = ETexWrapMode.Repeat;
-                tex.VWrap = ETexWrapMode.Repeat;
-                tex.AlphaAsTransparency = true;
-                tex.AutoGenerateMipmaps = true;
-                tex.Resizable = false;
-                tex.SizedInternalFormat = ESizedInternalFormat.Rgba8;
-            }
-            return tex;
-        }
-
-        textureList[i] = _textureCache.GetOrAdd(path, TextureFactory);
     }
 
     #endregion

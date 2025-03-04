@@ -38,13 +38,17 @@ namespace XREngine.Scene
             Func<RenderInfo3D, Segment, (float? distance, object? data)> directTest) where T : IRenderable
             => RenderTree.Raycast<T>(worldSegment, items, directTest);
 
-        public override void CollectRenderedItems(RenderCommandCollection meshRenderCommands, XRCamera? camera, bool cullWithFrustum, Func<XRCamera>? cullingCameraOverride, bool shadowPass)
+        public override void CollectRenderedItems(
+            RenderCommandCollection meshRenderCommands,
+            XRCamera? camera,
+            bool cullWithFrustum,
+            Func<XRCamera>? cullingCameraOverride)
         {
             var cullingCamera = cullingCameraOverride?.Invoke() ?? camera;
             var collectionVolume = cullWithFrustum ? cullingCamera?.WorldFrustum() : null;
-            CollectRenderedItems(meshRenderCommands, collectionVolume, camera, shadowPass);
+            CollectRenderedItems(meshRenderCommands, collectionVolume, camera);
         }
-        public void CollectRenderedItems(RenderCommandCollection commands, IVolume? collectionVolume, XRCamera? camera, bool shadowPass)
+        public void CollectRenderedItems(RenderCommandCollection commands, IVolume? collectionVolume, XRCamera? camera)
         {
             bool IntersectionTest(RenderInfo3D item, IVolume? cullingVolume, bool containsOnly)
                 => item.AllowRender(cullingVolume, commands, camera, containsOnly);
@@ -52,7 +56,7 @@ namespace XREngine.Scene
             void AddRenderCommands(ITreeItem item)
             {
                 if (item is RenderInfo renderable)
-                    renderable.AddRenderCommands(commands, camera, shadowPass);
+                    renderable.AddRenderCommands(commands, camera);
             }
 
             RenderTree.CollectVisible(collectionVolume, false, AddRenderCommands, IntersectionTest);

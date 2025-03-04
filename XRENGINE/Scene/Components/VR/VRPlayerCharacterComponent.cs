@@ -20,7 +20,7 @@ namespace XREngine.Scene.Components.VR
 
         public RenderInfo[] RenderedObjects { get; } = [];
 
-        private void Render(bool shadowPass)
+        private void Render()
         {
             if (!IsCalibrating)
                 return;

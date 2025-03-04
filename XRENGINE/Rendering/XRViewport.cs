@@ -148,9 +148,9 @@ namespace XREngine.Rendering
         private void CollectVisibleInternal()
         {
             if (AutomaticallyCollectVisible)
-                CollectVisible(null, null, false);
+                CollectVisible(null, null);
         }
-        public void CollectVisible(XRWorldInstance? worldOverride, XRCamera? cameraOverride, bool shadowPass)
+        public void CollectVisible(XRWorldInstance? worldOverride, XRCamera? cameraOverride)
         {
             XRCamera? camera = cameraOverride ?? ActiveCamera;
             if (camera is null)
@@ -160,8 +160,7 @@ namespace XREngine.Rendering
                 _renderPipeline.MeshRenderCommands,
                 camera,
                 CameraComponent?.CullWithFrustum ?? true,
-                CameraComponent?.CullingCameraOverride,
-                shadowPass);
+                CameraComponent?.CullingCameraOverride);
 
             CollectVisibleScreenSpaceUI();
         }
@@ -188,11 +187,11 @@ namespace XREngine.Rendering
             if (camera is null)
                 return;
 
-            SwapBuffers(false);
+            SwapBuffers();
         }
-        public void SwapBuffers(bool shadowPass)
+        public void SwapBuffers()
         {
-            _renderPipeline.MeshRenderCommands.SwapBuffers(shadowPass);
+            _renderPipeline.MeshRenderCommands.SwapBuffers();
             SwapScreenSpaceUIBuffers();
         }
 
@@ -214,7 +213,12 @@ namespace XREngine.Rendering
         /// </summary>
         /// <param name="vp"></param>
         /// <param name="targetFbo"></param>
-        public void Render(XRFrameBuffer? targetFbo = null, XRWorldInstance? worldOverride = null, XRCamera? cameraOverride = null, bool shadowPass = false, XRMaterial? shadowPassMaterial = null)
+        public void Render(
+            XRFrameBuffer? targetFbo = null,
+            XRWorldInstance? worldOverride = null,
+            XRCamera? cameraOverride = null,
+            bool shadowPass = false,
+            XRMaterial? forcedMaterial = null)
         {
             XRCamera? camera = cameraOverride ?? ActiveCamera;
             if (camera is null)
@@ -233,7 +237,7 @@ namespace XREngine.Rendering
                 return;
             }
 
-            _renderPipeline.Render(world.VisualScene, camera, this, targetFbo, AllowUIRender ? CameraComponent?.GetUserInterfaceOverlay() : null, shadowPass, shadowPassMaterial);
+            _renderPipeline.Render(world.VisualScene, camera, this, targetFbo, AllowUIRender ? CameraComponent?.GetUserInterfaceOverlay() : null, shadowPass, forcedMaterial);
         }
 
         private CameraComponent? _cameraComponent = null;

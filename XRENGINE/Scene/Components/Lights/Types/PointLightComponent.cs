@@ -23,7 +23,7 @@ namespace XREngine.Components.Lights
                 return;
 
             foreach (var vp in _viewports)
-                vp.CollectVisible(null, null, true);
+                vp.CollectVisible(null, null);
         }
         public override void SwapBuffers()
         {
@@ -31,7 +31,7 @@ namespace XREngine.Components.Lights
                 return;
 
             foreach (var vp in _viewports)
-                vp.SwapBuffers(true);
+                vp.SwapBuffers();
         }
         public override void RenderShadowMap(bool collectVisibleNow = false)
         {

@@ -13,11 +13,11 @@ namespace XREngine.Rendering.Commands
         public RenderCommandMethod3D()
             : base((int)EDefaultRenderPass.OpaqueForward) { }
 
-        public delegate void DelRender(bool shadowPass);
+        public delegate void DelRender();
 
         public event DelRender? Rendered;
 
-        public override void Render(bool shadowPass)
-            => Rendered?.Invoke(shadowPass);
+        public override void Render()
+            => Rendered?.Invoke();
     }
 }

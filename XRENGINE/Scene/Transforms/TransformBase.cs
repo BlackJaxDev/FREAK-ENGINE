@@ -100,9 +100,9 @@ namespace XREngine.Scene.Transforms
             return [RenderInfo];
         }
 
-        protected virtual void RenderDebug(bool shadowPass)
+        protected virtual void RenderDebug()
         {
-            if (shadowPass)
+            if (Engine.Rendering.State.IsShadowPass)
                 return;
             
             var settings = Engine.Rendering.Settings;
@@ -300,11 +300,16 @@ namespace XREngine.Scene.Transforms
         /// </summary>
         public void RecalculateMatrices()
         {
-            _localMatrix.NeedsRecalc = false;
-            RecalcLocal();
-
-            _worldMatrix.NeedsRecalc = false;
-            RecalcWorld(false);
+            //if (_localMatrix.NeedsRecalc)
+            {
+                _localMatrix.NeedsRecalc = false;
+                RecalcLocal();
+            }
+            //if (_worldMatrix.NeedsRecalc)
+            {
+                _worldMatrix.NeedsRecalc = false;
+                RecalcWorld(false);
+            }
         }
 
         /// <summary>

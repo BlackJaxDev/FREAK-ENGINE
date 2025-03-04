@@ -485,7 +485,7 @@ namespace XREngine.Rendering
             SortedDictionary<float, List<(XRComponent item, object? data)>> orderedResults)
         {
             orderedResults.Clear();
-            PhysicsScene.Raycast(worldSegment, orderedResults);
+            PhysicsScene.RaycastSingle(worldSegment, orderedResults);
             return orderedResults.Count > 0;
         }
 

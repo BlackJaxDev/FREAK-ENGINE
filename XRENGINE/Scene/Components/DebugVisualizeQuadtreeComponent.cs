@@ -1,5 +1,4 @@
 ﻿using XREngine.Components;
-using XREngine.Data.Colors;
 using XREngine.Data.Trees;
 using XREngine.Rendering;
 using XREngine.Rendering.Commands;
@@ -21,15 +20,15 @@ namespace XREngine.Data.Components
 
         private static List<(QuadtreeNodeBase node, bool intersects)> _quadtreeNodesUpdating = [];
         private static List<(QuadtreeNodeBase node, bool intersects)> _quadtreeNodesRendering = [];
-        protected override void RenderInfo_SwapBuffersCallback(RenderInfo info, RenderCommand command, bool shadowPass)
+        protected override void RenderInfo_SwapBuffersCallback(RenderInfo info, RenderCommand command)
         {
-            base.RenderInfo_SwapBuffersCallback(info, command, shadowPass);
+            base.RenderInfo_SwapBuffersCallback(info, command);
             _quadtreeNodesRendering.Clear();
             (_quadtreeNodesUpdating, _quadtreeNodesRendering) = (_quadtreeNodesRendering, _quadtreeNodesUpdating);
         }
-        protected override void RenderInfo_PreRenderCallback(RenderInfo info, RenderCommand command, XRCamera? camera, bool shadowPass)
+        protected override void RenderInfo_PreRenderCallback(RenderInfo info, RenderCommand command, XRCamera? camera)
         {
-            base.RenderInfo_PreRenderCallback(info, command, camera, shadowPass);
+            base.RenderInfo_PreRenderCallback(info, command, camera);
             static void AddNodes((QuadtreeNodeBase node, bool intersects) d)
                 => _quadtreeNodesUpdating.Add(d);
             GetUICanvas()?.VisualScene2D.RenderTree?.CollectVisibleNodes(null, false, AddNodes);

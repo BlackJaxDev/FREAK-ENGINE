@@ -5,7 +5,7 @@ using static MagicPhysX.NativeMethods;
 
 namespace XREngine.Rendering.Physics.Physx
 {
-    public unsafe interface IPhysxGeometry : IAbstractPhysicsGeometry
+    public unsafe interface IPhysxGeometry : IPhysicsGeometry
     {
 
     }

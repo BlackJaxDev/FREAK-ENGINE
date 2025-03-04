@@ -24,13 +24,13 @@ namespace XREngine.Rendering.Info
         public override string ToString()
             => $"{Owner?.ToString() ?? "Unknown"}";
 
-        public delegate void DelPreRenderCallback(RenderInfo info, RenderCommand command, XRCamera? camera, bool shadowPass);
+        public delegate void DelPreRenderCallback(RenderInfo info, RenderCommand command, XRCamera? camera);
         /// <summary>
         /// This callback is called when the engine is collecting render commands for the render pass, and this render info is added.
         /// </summary>
         public event DelPreRenderCallback? CollectedForRenderCallback;
 
-        public delegate void DelSwapBuffersCallback(RenderInfo info, RenderCommand command, bool shadowPass);
+        public delegate void DelSwapBuffersCallback(RenderInfo info, RenderCommand command);
         /// <summary>
         /// This callback is called when the engine is swapping buffers - both the collect and render threads are currently in sync and waiting.
         /// </summary>
@@ -64,11 +64,11 @@ namespace XREngine.Rendering.Info
             item.OnSwapBuffers += SwapBuffers;
         }
 
-        private void SwapBuffers(RenderCommand command, bool swapBuffers)
-            => SwapBuffersCallback?.Invoke(this, command, swapBuffers);
+        private void SwapBuffers(RenderCommand command)
+            => SwapBuffersCallback?.Invoke(this, command);
 
-        private void CollectedForRender(RenderCommand command, XRCamera? camera, bool shadowPass)
-            => CollectedForRenderCallback?.Invoke(this, command, camera, shadowPass);
+        private void CollectedForRender(RenderCommand command, XRCamera? camera)
+            => CollectedForRenderCallback?.Invoke(this, command, camera);
 
         private EventList<RenderCommand> _renderCommands = [];
         public EventList<RenderCommand> RenderCommands
@@ -117,7 +117,7 @@ namespace XREngine.Rendering.Info
 
         IRenderableBase? ITreeItem.Owner => Owner;
 
-        public void AddRenderCommands(RenderCommandCollection passes, XRCamera? camera, bool shadowPass)
+        public void AddRenderCommands(RenderCommandCollection passes, XRCamera? camera)
         {
             if (!(PreAddRenderCommandsCallback?.Invoke(this, passes, camera) ?? true))
                 return;
@@ -128,7 +128,7 @@ namespace XREngine.Rendering.Info
                 if (!cmd.Enabled)
                     continue;
 
-                cmd.CollectedForRender(camera, shadowPass);
+                cmd.CollectedForRender(camera);
                 passes.Add(cmd);
             }
         }

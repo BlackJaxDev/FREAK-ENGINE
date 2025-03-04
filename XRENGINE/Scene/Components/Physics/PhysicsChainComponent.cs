@@ -16,11 +16,28 @@ using static XREngine.Engine;
 
 namespace XREngine.Components;
 
-public class PhysicsChainComponent : XRComponent, IRenderable
+public partial class PhysicsChainComponent : XRComponent, IRenderable
 {
-    public Transform? _root = null;
-    public List<Transform>? _roots = null;
-    public float _updateRate = 60.0f;
+    private Transform? _root = null;
+    public Transform? Root
+    {
+        get => _root;
+        set => SetField(ref _root, value);
+    }
+
+    private List<Transform>? _roots = null;
+    public List<Transform>? Roots
+    {
+        get => _roots;
+        set => SetField(ref _roots, value);
+    }
+
+    private float _updateRate = 60.0f;
+    public float UpdateRate
+    {
+        get => _updateRate;
+        set => SetField(ref _updateRate, value);
+    }
 
     public enum EUpdateMode
     {
@@ -30,41 +47,41 @@ public class PhysicsChainComponent : XRComponent, IRenderable
         Default
     }
 
-    public EUpdateMode _updateMode = EUpdateMode.Default;
+    private EUpdateMode _updateMode = EUpdateMode.Default;
+    public EUpdateMode UpdateMode
+    {
+        get => _updateMode;
+        set => SetField(ref _updateMode, value);
+    }
 
-    [Range(0, 1)]
-    public float _damping = 0.1f;
-    public AnimationCurve? _dampingDistrib = null;
+    private float _damping = 0.1f;
+    private AnimationCurve? _dampingDistrib = null;
 
-    [Range(0, 1)]
-    public float _elasticity = 0.1f;
-    public AnimationCurve? _elasticityDistrib = null;
+    private float _elasticity = 0.1f;
+    private AnimationCurve? _elasticityDistrib = null;
 
-    [Range(0, 1)]
-    public float _stiffness = 0.1f;
+    private float _stiffness = 0.1f;
     public AnimationCurve? _stiffnessDistrib = null;
 
-    [Range(0, 1)]
-    public float _inert = 0.0f;
-    public AnimationCurve? _inertDistrib = null;
+    private float _inert = 0.0f;
+    private AnimationCurve? _inertDistrib = null;
 
-    public float _friction = 0;
-    public AnimationCurve? _frictionDistrib = null;
+    private float _friction = 0.0f;
+    private AnimationCurve? _frictionDistrib = null;
 
-    public float _radius = 0.01f;
-    public AnimationCurve? _radiusDistrib = null;
+    private float _radius = 0.01f;
+    private AnimationCurve? _radiusDistrib = null;
 
-    public float _endLength = 0.0f;
+    private float _endLength = 0.0f;
 
-    public Vector3 _endOffset = new(0.0f, 0.0f, 0.0f);
-    public Vector3 _gravity = new(0.0f, 0.0f, 0.0f);
-    public Vector3 _force = Vector3.Zero;
+    private Vector3 _endOffset = Vector3.Zero;
+    private Vector3 _gravity = Vector3.Zero;
+    private Vector3 _force = Vector3.Zero;
 
-    [Range(0, 1)]
-    public float _blendWeight = 1.0f;
+    private float _blendWeight = 1.0f;
 
-    public List<PhysicsChainColliderBase>? _colliders = null;
-    public List<TransformBase>? _exclusions = null;
+    private List<PhysicsChainColliderBase>? _colliders = null;
+    private List<TransformBase>? _exclusions = null;
 
     public enum EFreezeAxis
     {
@@ -74,14 +91,13 @@ public class PhysicsChainComponent : XRComponent, IRenderable
         Z
     }
 
-    public EFreezeAxis _freezeAxis = EFreezeAxis.None;
+    private EFreezeAxis _freezeAxis = EFreezeAxis.None;
 
-    public bool _distantDisable = false;
-    public Transform? _referenceObject = null;
-    public float _distanceToObject = 20;
+    private bool _distantDisable = false;
+    private Transform? _referenceObject = null;
+    private float _distanceToObject = 20;
 
-    [HideInInspector]
-    public bool _multithread = true;
+    private bool _multithread = true;
 
     private Vector3 _objectMove;
     private Vector3 _objectPrevPosition;
@@ -92,42 +108,6 @@ public class PhysicsChainComponent : XRComponent, IRenderable
     private bool _distantDisabled = false;
     private int _preUpdateCount = 0;
 
-    private class Particle(Transform? transform, int parentIndex)
-    {
-        public Transform? _transform = transform;
-        public int _parentIndex = parentIndex;
-        public int _childCount;
-        public float _damping;
-        public float _elasticity;
-        public float _stiffness;
-        public float _inert;
-        public float _friction;
-        public float _radius = 0.01f;
-        public float _boneLength;
-        public bool _isCollide;
-
-        public Vector3 _position;
-        public Vector3 _prevPosition;
-        public Vector3 _endOffset;
-        public Vector3 _initLocalPosition;
-        public Quaternion _initLocalRotation;
-
-        public Vector3 _transformPosition;
-        public Vector3 _transformLocalPosition;
-        public Matrix4x4 _transformLocalToWorldMatrix;
-    }
-
-    class ParticleTree(Transform root)
-    {
-        public Transform _root = root;
-        public Vector3 _localGravity;
-        public Matrix4x4 _rootWorldToLocalMatrix = root.InverseWorldMatrix;
-        public float _boneTotalLength;
-        public List<Particle> _particles = [];
-
-        public Vector3 _restGravity;
-    }
-
     private readonly List<ParticleTree> _particleTrees = [];
 
     // prepare data
@@ -137,25 +117,155 @@ public class PhysicsChainComponent : XRComponent, IRenderable
     // multithread
     private bool _workAdded = false;
 
-    static List<PhysicsChainComponent> _pendingWorks = [];
-    static List<PhysicsChainComponent> _effectiveWorks = [];
-    static AutoResetEvent? _allWorksDoneEvent;
-    static int _remainWorkCount;
-    static Semaphore? _workQueueSemaphore;
-    static int _workQueueIndex;
+    private static readonly List<PhysicsChainComponent> _pendingWorks = [];
+    private static readonly List<PhysicsChainComponent> _effectiveWorks = [];
+    private static AutoResetEvent? _allWorksDoneEvent;
+    private static int _remainWorkCount;
+    private static Semaphore? _workQueueSemaphore;
+    private static int _workQueueIndex;
 
-    static int _updateCount;
-    static int _PrepareFrame;
+    private static int _updateCount;
+    private static int _prepareFrame;
 
     public PhysicsChainComponent()
     {
         RenderedObjects =
         [
-            RenderInfo3D.New(this, new RenderCommandMethod3D((int)EDefaultRenderPass.OpaqueForward, RenderGizmos))
+            RenderInfo3D.New(this, new RenderCommandMethod3D((int)EDefaultRenderPass.OpaqueForward, Render))
         ];
     }
 
     public RenderInfo[] RenderedObjects { get; }
+
+    [Range(0, 1)]
+    public float Damping
+    {
+        get => _damping;
+        set => SetField(ref _damping, value);
+    }
+    public AnimationCurve? DampingDistrib
+    {
+        get => _dampingDistrib;
+        set => SetField(ref _dampingDistrib, value);
+    }
+
+    [Range(0, 1)]
+    public float Elasticity
+    {
+        get => _elasticity;
+        set => SetField(ref _elasticity, value);
+    }
+    public AnimationCurve? ElasticityDistrib
+    {
+        get => _elasticityDistrib;
+        set => SetField(ref _elasticityDistrib, value);
+    }
+
+    [Range(0, 1)]
+    public float Stiffness
+    {
+        get => _stiffness;
+        set => SetField(ref _stiffness, value);
+    }
+    public AnimationCurve? StiffnessDistrib
+    {
+        get => _stiffnessDistrib;
+        set => SetField(ref _stiffnessDistrib, value);
+    }
+
+    [Range(0, 1)]
+    public float Inert
+    {
+        get => _inert;
+        set => SetField(ref _inert, value);
+    }
+    public AnimationCurve? InertDistrib
+    {
+        get => _inertDistrib;
+        set => SetField(ref _inertDistrib, value);
+    }
+
+    public float Friction
+    {
+        get => _friction;
+        set => SetField(ref _friction, value);
+    }
+    public AnimationCurve? FrictionDistrib
+    {
+        get => _frictionDistrib;
+        set => SetField(ref _frictionDistrib, value);
+    }
+    public float Radius
+    {
+        get => _radius;
+        set => SetField(ref _radius, value);
+    }
+    public AnimationCurve? RadiusDistrib
+    {
+        get => _radiusDistrib;
+        set => SetField(ref _radiusDistrib, value);
+    }
+    public float EndLength
+    {
+        get => _endLength;
+        set => SetField(ref _endLength, value);
+    }
+    public Vector3 EndOffset
+    {
+        get => _endOffset;
+        set => SetField(ref _endOffset, value);
+    }
+    public Vector3 Gravity
+    {
+        get => _gravity;
+        set => SetField(ref _gravity, value);
+    }
+    public Vector3 Force
+    {
+        get => _force;
+        set => SetField(ref _force, value);
+    }
+    [Range(0, 1)]
+    public float BlendWeight
+    {
+        get => _blendWeight;
+        set => SetField(ref _blendWeight, value);
+    }
+    public List<PhysicsChainColliderBase>? Colliders
+    {
+        get => _colliders;
+        set => SetField(ref _colliders, value);
+    }
+    public List<TransformBase>? Exclusions
+    {
+        get => _exclusions;
+        set => SetField(ref _exclusions, value);
+    }
+    public EFreezeAxis FreezeAxis
+    {
+        get => _freezeAxis;
+        set => SetField(ref _freezeAxis, value);
+    }
+    public bool DistantDisable
+    {
+        get => _distantDisable;
+        set => SetField(ref _distantDisable, value);
+    }
+    public Transform? ReferenceObject
+    {
+        get => _referenceObject;
+        set => SetField(ref _referenceObject, value);
+    }
+    public float DistanceToObject
+    {
+        get => _distanceToObject;
+        set => SetField(ref _distanceToObject, value);
+    }
+    public bool Multithread
+    {
+        get => _multithread;
+        set => SetField(ref _multithread, value);
+    }
 
     protected internal override void OnComponentActivated()
     {
@@ -163,27 +273,27 @@ public class PhysicsChainComponent : XRComponent, IRenderable
         RegisterTick(ETickGroup.PostPhysics, ETickOrder.Animation, FixedUpdate);
         RegisterTick(ETickGroup.Normal, ETickOrder.Animation, Update);
         RegisterTick(ETickGroup.Late, ETickOrder.Animation, LateUpdate);
-        OnEnable();
+        ResetParticlesPosition();
         OnValidate();
     }
     protected internal override void OnComponentDeactivated()
     {
         base.OnComponentDeactivated();
-        OnDisable();
+        InitTransforms();
     }
 
-    void FixedUpdate()
+    private void FixedUpdate()
     {
-        if (_updateMode == EUpdateMode.FixedUpdate)
+        if (UpdateMode == EUpdateMode.FixedUpdate)
             PreUpdate();
     }
 
-    void Update()
+    private void Update()
     {
-        if (_updateMode != EUpdateMode.FixedUpdate)
+        if (UpdateMode != EUpdateMode.FixedUpdate)
             PreUpdate();
         
-        if (_preUpdateCount > 0 && _multithread)
+        if (_preUpdateCount > 0 && Multithread)
         {
             AddPendingWork(this);
             _workAdded = true;
@@ -192,7 +302,7 @@ public class PhysicsChainComponent : XRComponent, IRenderable
         ++_updateCount;
     }
 
-    void LateUpdate()
+    private void LateUpdate()
     {
         if (_preUpdateCount == 0)
             return;
@@ -200,10 +310,10 @@ public class PhysicsChainComponent : XRComponent, IRenderable
         if (_updateCount > 0)
         {
             _updateCount = 0;
-            ++_PrepareFrame;
+            ++_prepareFrame;
         }
 
-        SetWeight(_blendWeight);
+        SetWeight(BlendWeight);
 
         if (_workAdded)
         {
@@ -224,10 +334,10 @@ public class PhysicsChainComponent : XRComponent, IRenderable
         _preUpdateCount = 0;
     }
 
-    void Prepare()
+    private void Prepare()
     {
         _deltaTime = Delta;
-        switch (_updateMode)
+        switch (UpdateMode)
         {
             case EUpdateMode.Undilated:
                 _deltaTime = UndilatedDelta;
@@ -244,44 +354,45 @@ public class PhysicsChainComponent : XRComponent, IRenderable
         for (int i = 0; i < _particleTrees.Count; ++i)
         {
             ParticleTree pt = _particleTrees[i];
-            pt._restGravity = pt._root.TransformDirection(pt._localGravity);
+            pt.Root.RecalculateMatrices();
+            pt.RestGravity = pt.Root.TransformVector(pt.LocalGravity);
 
-            for (int j = 0; j < pt._particles.Count; ++j)
+            for (int j = 0; j < pt.Particles.Count; ++j)
             {
-                Particle p = pt._particles[j];
-                if (p._transform is not null)
+                Particle p = pt.Particles[j];
+                if (p.Transform is not null)
                 {
-                    p._transformPosition = p._transform.WorldTranslation;
-                    p._transformLocalPosition = p._transform.LocalTranslation;
-                    p._transformLocalToWorldMatrix = p._transform.WorldMatrix;
+                    p.TransformPosition = p.Transform.WorldTranslation;
+                    p.TransformLocalPosition = p.Transform.LocalTranslation;
+                    p.TransformLocalToWorldMatrix = p.Transform.WorldMatrix;
                 }
             }
         }
 
         _effectiveColliders?.Clear();
 
-        if (_colliders != null)
+        if (Colliders is null)
+            return;
+        
+        for (int i = 0; i < Colliders.Count; ++i)
         {
-            for (int i = 0; i < _colliders.Count; ++i)
-            {
-                PhysicsChainColliderBase c = _colliders[i];
-                if (c != null && c.IsActive)
-                {
-                    (_effectiveColliders ??= []).Add(c);
-                    if (c.PrepareFrame != _PrepareFrame)
-                    {
-                        c.Prepare();
-                        c.PrepareFrame = _PrepareFrame;
-                    }
-                }
-            }
+            PhysicsChainColliderBase c = Colliders[i];
+            if (c is null || !c.IsActive)
+                continue;
+
+            (_effectiveColliders ??= []).Add(c);
+            if (c.PrepareFrame == _prepareFrame)
+                continue;
+            
+            c.Prepare();
+            c.PrepareFrame = _prepareFrame;
         }
     }
 
-    bool IsNeedUpdate()
-        => _weight > 0 && !(_distantDisable && _distantDisabled);
+    private bool IsNeedUpdate()
+        => _weight > 0 && !(DistantDisable && _distantDisabled);
 
-    void PreUpdate()
+    private void PreUpdate()
     {
         if (IsNeedUpdate())
             InitTransforms();
@@ -289,12 +400,12 @@ public class PhysicsChainComponent : XRComponent, IRenderable
         ++_preUpdateCount;
     }
 
-    void CheckDistance()
+    private void CheckDistance()
     {
-        if (!_distantDisable)
+        if (!DistantDisable)
             return;
 
-        TransformBase? rt = _referenceObject;
+        TransformBase? rt = ReferenceObject;
         if (rt is null)
         {
             XRCamera? c = State.MainPlayer.ControlledPawn?.CameraComponent?.Camera;
@@ -302,65 +413,55 @@ public class PhysicsChainComponent : XRComponent, IRenderable
                 rt = c.Transform;
         }
 
-        if (rt != null)
-        {
-            float d2 = (rt.WorldTranslation - Transform.LocalTranslation).LengthSquared();
-            bool disable = d2 > _distanceToObject * _distanceToObject;
-            if (disable != _distantDisabled)
-            {
-                if (!disable)
-                    ResetParticlesPosition();
-                _distantDisabled = disable;
-            }
-        }
-    }
+        if (rt is null)
+            return;
 
-    void OnEnable()
-    {
-        ResetParticlesPosition();
-    }
-
-    void OnDisable()
-    {
-        InitTransforms();
+        float d2 = (rt.WorldTranslation - Transform.LocalTranslation).LengthSquared();
+        bool disable = d2 > DistanceToObject * DistanceToObject;
+        if (disable == _distantDisabled)
+            return;
+        
+        if (!disable)
+            ResetParticlesPosition();
+        _distantDisabled = disable;
     }
 
     protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
     {
         base.OnPropertyChanged(propName, prev, field);
-        OnValidate();
+        //OnValidate();
     }
 
-    void OnValidate()
+    private void OnValidate()
     {
-        _updateRate = MathF.Max(_updateRate, 0);
-        _damping = _damping.Clamp(0, 1);
-        _elasticity = _elasticity.Clamp(0, 1);
-        _stiffness = _stiffness.Clamp(0, 1);
-        _inert = _inert.Clamp(0, 1);
-        _friction = _friction.Clamp(0, 1);
-        _radius = MathF.Max(_radius, 0);
+        UpdateRate = MathF.Max(UpdateRate, 0);
+        Damping = Damping.Clamp(0, 1);
+        Elasticity = Elasticity.Clamp(0, 1);
+        Stiffness = Stiffness.Clamp(0, 1);
+        Inert = Inert.Clamp(0, 1);
+        Friction = Friction.Clamp(0, 1);
+        Radius = MathF.Max(Radius, 0);
 
-        if (IsEditor && IsPlaying)
+        if (!IsEditor || !IsPlaying)
+            return;
+        
+        if (IsRootChanged())
         {
-            if (IsRootChanged())
-            {
-                InitTransforms();
-                SetupParticles();
-            }
-            else
-                UpdateParameters();
+            InitTransforms();
+            SetupParticles();
         }
+        else
+            UpdateParameters();
     }
 
-    bool IsRootChanged()
+    private bool IsRootChanged()
     {
         var roots = new List<Transform>();
-        if (_root != null)
-            roots.Add(_root);
+        if (Root != null)
+            roots.Add(Root);
         
-        if (_roots != null)
-            foreach (var root in _roots)
+        if (Roots != null)
+            foreach (var root in Roots)
                 if (root != null && !roots.Contains(root))
                     roots.Add(root);
 
@@ -371,20 +472,15 @@ public class PhysicsChainComponent : XRComponent, IRenderable
             return true;
 
         for (int i = 0; i < roots.Count; ++i)
-            if (roots[i] != _particleTrees[i]._root)
+            if (roots[i] != _particleTrees[i].Root)
                 return true;
         
         return false;
     }
 
-    void OnDidApplyAnimationProperties()
+    private void Render()
     {
-        UpdateParameters();
-    }
-
-    void RenderGizmos(bool shadowPass)
-    {
-        if (!IsActive || shadowPass)
+        if (!IsActive || Engine.Rendering.State.IsShadowPass)
             return;
 
         if (IsEditor && !IsPlaying && Transform.HasChanged)
@@ -394,23 +490,23 @@ public class PhysicsChainComponent : XRComponent, IRenderable
         }
 
         for (int i = 0; i < _particleTrees.Count; ++i)
-            DrawGizmos(_particleTrees[i]);
+            DrawTree(_particleTrees[i]);
     }
 
-    void DrawGizmos(ParticleTree pt)
+    private void DrawTree(ParticleTree pt)
     {
-        for (int i = 0; i < pt._particles.Count; ++i)
+        for (int i = 0; i < pt.Particles.Count; ++i)
         {
-            Particle p = pt._particles[i];
-            if (p._parentIndex >= 0)
+            Particle p = pt.Particles[i];
+            if (p.ParentIndex >= 0)
             {
-                Particle p0 = pt._particles[p._parentIndex];
-                Engine.Rendering.Debug.RenderLine(p._position, p0._position, ColorF4.Orange, false);
+                Particle p0 = pt.Particles[p.ParentIndex];
+                Engine.Rendering.Debug.RenderLine(p.Position, p0.Position, ColorF4.Orange, false);
             }
-            if (p._radius > 0)
+            if (p.Radius > 0)
             {
-                float radius = p._radius * _objectScale;
-                Engine.Rendering.Debug.RenderSphere(p._position, radius, false, ColorF4.Yellow, false);
+                float radius = p.Radius * _objectScale;
+                Engine.Rendering.Debug.RenderSphere(p.Position, radius, false, ColorF4.Yellow, false);
             }
         }
     }
@@ -425,13 +521,12 @@ public class PhysicsChainComponent : XRComponent, IRenderable
         else if (_weight == 0)
             ResetParticlesPosition();
 
-        _weight = _blendWeight = w;
+        _weight = BlendWeight = w;
     }
 
-    public float GetWeight()
-        => _weight;
+    public float Weight => _weight;
 
-    void UpdateParticles()
+    private void UpdateParticles()
     {
         if (_particleTrees.Count <= 0)
             return;
@@ -440,14 +535,14 @@ public class PhysicsChainComponent : XRComponent, IRenderable
         float timeVar = 1.0f;
         float dt = _deltaTime;
 
-        if (_updateMode == EUpdateMode.Default)
+        if (UpdateMode == EUpdateMode.Default)
         {
-            if (_updateRate > 0.0f)
-                timeVar = dt * _updateRate;
+            if (UpdateRate > 0.0f)
+                timeVar = dt * UpdateRate;
         }
-        else if (_updateRate > 0.0f)
+        else if (UpdateRate > 0.0f)
         {
-            float frameTime = 1.0f / _updateRate;
+            float frameTime = 1.0f / UpdateRate;
             _time += dt;
             loop = 0;
 
@@ -478,18 +573,18 @@ public class PhysicsChainComponent : XRComponent, IRenderable
     {
         _particleTrees.Clear();
 
-        if (_root != null)
-            AppendParticleTree(_root);
+        if (Root != null)
+            AppendParticleTree(Root);
         
-        if (_roots != null)
+        if (Roots != null)
         {
-            for (int i = 0; i < _roots.Count; ++i)
+            for (int i = 0; i < Roots.Count; ++i)
             {
-                Transform root = _roots[i];
+                Transform root = Roots[i];
                 if (root == null)
                     continue;
 
-                if (_particleTrees.Exists(x => x._root == root))
+                if (_particleTrees.Exists(x => x.Root == root))
                     continue;
 
                 AppendParticleTree(root);
@@ -506,13 +601,13 @@ public class PhysicsChainComponent : XRComponent, IRenderable
         for (int i = 0; i < _particleTrees.Count; ++i)
         {
             ParticleTree pt = _particleTrees[i];
-            AppendParticles(pt, pt._root, -1, 0);
+            AppendParticles(pt, pt.Root, -1, 0.0f);
         }
 
         UpdateParameters();
     }
 
-    void AppendParticleTree(Transform root)
+    private void AppendParticleTree(Transform root)
     {
         if (root is null)
             return;
@@ -520,118 +615,132 @@ public class PhysicsChainComponent : XRComponent, IRenderable
         _particleTrees.Add(new ParticleTree(root));
     }
 
-    void AppendParticles(ParticleTree pt, Transform? b, int parentIndex, float boneLength)
+    private void AppendParticles(ParticleTree tree, Transform? tfm, int parentIndex, float boneLength)
     {
-        var p = new Particle(b, parentIndex);
+        var ptcl = new Particle(tfm, parentIndex);
 
-        if (b != null)
+        if (tfm != null)
         {
-            p._position = p._prevPosition = b.WorldTranslation;
-            p._initLocalPosition = b.LocalTranslation;
-            p._initLocalRotation = b.LocalRotation;
+            ptcl.Position = ptcl.PrevPosition = tfm.WorldTranslation;
+            ptcl.InitLocalPosition = tfm.LocalTranslation;
+            ptcl.InitLocalRotation = tfm.LocalRotation;
         }
         else //end bone
         {
-            TransformBase? pb = pt._particles[parentIndex]._transform;
-            if (pb != null)
+            TransformBase? parent = tree.Particles[parentIndex].Transform;
+            if (parent != null)
             {
-                if (_endLength > 0)
+                parent.RecalculateMatrices();
+                if (EndLength > 0.0f)
                 {
-                    TransformBase? ppb = pb.Parent;
-                    p._endOffset = ppb != null
-                        ? pb.InverseTransformPoint((pb.WorldTranslation * 2 - ppb.WorldTranslation)) * _endLength
-                        : new Vector3(_endLength, 0, 0);
+                    TransformBase? parentParentTfm = parent.Parent;
+                    Vector3 endOffset;
+                    if (parentParentTfm != null)
+                    {
+                        parentParentTfm.RecalculateMatrices();
+                        endOffset = parent.InverseTransformPoint(parent.WorldTranslation * 2.0f - parentParentTfm.WorldTranslation) * EndLength;
+                    }
+                    else
+                        endOffset = new Vector3(EndLength, 0.0f, 0.0f);
+                    ptcl.EndOffset = endOffset;
                 }
                 else
-                    p._endOffset = pb.InverseTransformPoint(Transform.TransformDirection(_endOffset) + pb.WorldTranslation);
+                {
+                    Transform.RecalculateMatrices();
+                    ptcl.EndOffset = parent.InverseTransformPoint(Transform.TransformVector(EndOffset) + parent.WorldTranslation);
+                }
                 
-                p._position = p._prevPosition = pb.TransformPoint(p._endOffset);
+                ptcl.Position = ptcl.PrevPosition = parent.TransformPoint(ptcl.EndOffset);
             }
-            p._initLocalPosition = Vector3.Zero;
-            p._initLocalRotation = Quaternion.Identity;
+            ptcl.InitLocalPosition = Vector3.Zero;
+            ptcl.InitLocalRotation = Quaternion.Identity;
         }
 
-        if (parentIndex >= 0 && pt._particles[parentIndex]._transform is not null)
+        if (parentIndex >= 0 && tree.Particles[parentIndex].Transform is not null)
         {
-            boneLength += (pt._particles[parentIndex]._transform!.WorldTranslation - p._position).Length();
-            p._boneLength = boneLength;
-            pt._boneTotalLength = MathF.Max(pt._boneTotalLength, boneLength);
-            ++pt._particles[parentIndex]._childCount;
+            var parentPtcl = tree.Particles[parentIndex];
+            var parentTfm = parentPtcl.Transform!;
+            parentTfm.RecalculateMatrices();
+            var parentPtclPos = parentTfm.WorldTranslation;
+            boneLength += (parentPtclPos - ptcl.Position).Length();
+            ptcl.BoneLength = boneLength;
+            tree.BoneTotalLength = MathF.Max(tree.BoneTotalLength, boneLength);
+            ++tree.Particles[parentIndex].ChildCount;
         }
 
-        int index = pt._particles.Count;
-        pt._particles.Add(p);
+        int index = tree.Particles.Count;
+        tree.Particles.Add(ptcl);
 
-        if (b != null)
+        if (tfm != null)
         {
-            for (int i = 0; i < b.Children.Count; ++i)
+            for (int i = 0; i < tfm.Children.Count; ++i)
             {
-                TransformBase child = b.Children[i];
+                TransformBase child = tfm.Children[i];
 
                 bool exclude = false;
-                if (_exclusions != null)
-                    exclude = _exclusions.Contains(child);
+                if (Exclusions != null)
+                    exclude = Exclusions.Contains(child);
                 
                 if (!exclude)
-                    AppendParticles(pt, child as Transform, index, boneLength);
-                else if (_endLength > 0 || _endOffset != Vector3.Zero)
-                    AppendParticles(pt, null, index, boneLength);
+                    AppendParticles(tree, child as Transform, index, boneLength);
+                else if (EndLength > 0.0f || EndOffset != Vector3.Zero)
+                    AppendParticles(tree, null, index, boneLength);
             }
 
-            if (b.Children.Count == 0 && (_endLength > 0 || _endOffset != Vector3.Zero))
-                AppendParticles(pt, null, index, boneLength);
+            if (tfm.Children.Count == 0.0f && (EndLength > 0.0f || EndOffset != Vector3.Zero))
+                AppendParticles(tree, null, index, boneLength);
         }
     }
 
     public void UpdateParameters()
     {
-        SetWeight(_blendWeight);
+        SetWeight(BlendWeight);
         for (int i = 0; i < _particleTrees.Count; ++i)
             UpdateParameters(_particleTrees[i]);
     }
 
-    void UpdateParameters(ParticleTree pt)
+    private void UpdateParameters(ParticleTree pt)
     {
         // m_LocalGravity = m_Root.InverseTransformDirection(m_Gravity);
-        pt._localGravity = (Vector3.Transform(_gravity, pt._rootWorldToLocalMatrix) - pt._rootWorldToLocalMatrix.Translation).Normalized() * _gravity.Length();
+        pt.LocalGravity = (Vector3.Transform(Gravity, pt.RootWorldToLocalMatrix) - pt.RootWorldToLocalMatrix.Translation).Normalized() * Gravity.Length();
 
-        for (int i = 0; i < pt._particles.Count; ++i)
+        for (int i = 0; i < pt.Particles.Count; ++i)
         {
-            Particle p = pt._particles[i];
-            p._damping = _damping;
-            p._elasticity = _elasticity;
-            p._stiffness = _stiffness;
-            p._inert = _inert;
-            p._friction = _friction;
-            p._radius = _radius;
+            Particle p = pt.Particles[i];
+            p.Damping = Damping;
+            p.Elasticity = Elasticity;
+            p.Stiffness = Stiffness;
+            p.Inert = Inert;
+            p.Friction = Friction;
+            p.Radius = Radius;
 
-            if (pt._boneTotalLength > 0)
+            if (pt.BoneTotalLength > 0)
             {
-                float a = p._boneLength / pt._boneTotalLength;
-                if (_dampingDistrib != null && _dampingDistrib.Keyframes.Count > 0)
-                    p._damping *= _dampingDistrib.Evaluate(a);
-                if (_elasticityDistrib != null && _elasticityDistrib.Keyframes.Count > 0)
-                    p._elasticity *= _elasticityDistrib.Evaluate(a);
+                float a = p.BoneLength / pt.BoneTotalLength;
+                if (DampingDistrib != null && DampingDistrib.Keyframes.Count > 0)
+                    p.Damping *= DampingDistrib.Evaluate(a);
+                if (ElasticityDistrib != null && ElasticityDistrib.Keyframes.Count > 0)
+                    p.Elasticity *= ElasticityDistrib.Evaluate(a);
                 if (_stiffnessDistrib != null && _stiffnessDistrib.Keyframes.Count > 0)
-                    p._stiffness *= _stiffnessDistrib.Evaluate(a);
-                if (_inertDistrib != null && _inertDistrib.Keyframes.Count > 0)
-                    p._inert *= _inertDistrib.Evaluate(a);
-                if (_frictionDistrib != null && _frictionDistrib.Keyframes.Count > 0)
-                    p._friction *= _frictionDistrib.Evaluate(a);
-                if (_radiusDistrib != null && _radiusDistrib.Keyframes.Count > 0)
-                    p._radius *= _radiusDistrib.Evaluate(a);
+                    p.Stiffness *= _stiffnessDistrib.Evaluate(a);
+                if (InertDistrib != null && InertDistrib.Keyframes.Count > 0)
+                    p.Inert *= InertDistrib.Evaluate(a);
+                if (FrictionDistrib != null && FrictionDistrib.Keyframes.Count > 0)
+                    p.Friction *= FrictionDistrib.Evaluate(a);
+                if (RadiusDistrib != null && RadiusDistrib.Keyframes.Count > 0)
+                    p.Radius *= RadiusDistrib.Evaluate(a);
             }
 
-            p._damping = p._damping.Clamp(0, 1);
-            p._elasticity = p._elasticity.Clamp(0, 1);
-            p._stiffness = p._stiffness.Clamp(0, 1);
-            p._inert = p._inert.Clamp(0, 1);
-            p._friction = p._friction.Clamp(0, 1);
-            p._radius = MathF.Max(p._radius, 0);
+            p.Damping = p.Damping.Clamp(0, 1);
+            p.Elasticity = p.Elasticity.Clamp(0, 1);
+            p.Stiffness = p.Stiffness.Clamp(0, 1);
+            p.Inert = p.Inert.Clamp(0, 1);
+            p.Friction = p.Friction.Clamp(0, 1);
+            p.Radius = MathF.Max(p.Radius, 0);
         }
     }
 
-    void InitTransforms()
+    private void InitTransforms()
     {
         for (int i = 0; i < _particleTrees.Count; ++i)
             InitTransforms(_particleTrees[i]);
@@ -639,18 +748,18 @@ public class PhysicsChainComponent : XRComponent, IRenderable
 
     private static void InitTransforms(ParticleTree pt)
     {
-        for (int i = 0; i < pt._particles.Count; ++i)
+        for (int i = 0; i < pt.Particles.Count; ++i)
         {
-            Particle p = pt._particles[i];
-            if (p._transform is null)
+            Particle p = pt.Particles[i];
+            if (p.Transform is null)
                 continue;
             
-            p._transform.Translation = p._initLocalPosition;
-            p._transform.Rotation = p._initLocalRotation;
+            p.Transform.Translation = p.InitLocalPosition;
+            p.Transform.Rotation = p.InitLocalRotation;
         }
     }
 
-    void ResetParticlesPosition()
+    private void ResetParticlesPosition()
     {
         for (int i = 0; i < _particleTrees.Count; ++i)
             ResetParticlesPosition(_particleTrees[i]);
@@ -658,181 +767,184 @@ public class PhysicsChainComponent : XRComponent, IRenderable
         _objectPrevPosition = Transform.WorldTranslation;
     }
 
-    static void ResetParticlesPosition(ParticleTree pt)
+    private static void ResetParticlesPosition(ParticleTree pt)
     {
-        for (int i = 0; i < pt._particles.Count; ++i)
+        for (int i = 0; i < pt.Particles.Count; ++i)
         {
-            Particle p = pt._particles[i];
-            if (p._transform is not null)
-                p._position = p._prevPosition = p._transform.WorldTranslation;
+            Particle p = pt.Particles[i];
+            if (p.Transform is not null)
+                p.Position = p.PrevPosition = p.Transform.WorldTranslation;
             else // end bone
             {
-                Transform? pb = pt._particles[p._parentIndex]._transform;
+                Transform? pb = pt.Particles[p.ParentIndex].Transform;
                 if (pb is not null)
-                    p._position = p._prevPosition = pb.TransformPoint(p._endOffset);
+                {
+                    pb.RecalculateMatrices();
+                    p.Position = p.PrevPosition = pb.TransformPoint(p.EndOffset);
+                }
             }
-            p._isCollide = false;
+            p.IsColliding = false;
         }
     }
 
-    void UpdateParticles1(float timeVar, int loopIndex)
+    private void UpdateParticles1(float timeVar, int loopIndex)
     {
         for (int i = 0; i < _particleTrees.Count; ++i)
             UpdateParticles1(_particleTrees[i], timeVar, loopIndex);
     }
 
-    void UpdateParticles1(ParticleTree pt, float timeVar, int loopIndex)
+    private void UpdateParticles1(ParticleTree pt, float timeVar, int loopIndex)
     {
-        Vector3 force = _gravity;
-        Vector3 fdir = _gravity.Normalized();
-        Vector3 pf = fdir * MathF.Max(Vector3.Dot(pt._restGravity, fdir), 0); // project current gravity to rest gravity
+        Vector3 force = Gravity;
+        Vector3 fdir = Gravity.Normalized();
+        Vector3 pf = fdir * MathF.Max(Vector3.Dot(pt.RestGravity, fdir), 0); // project current gravity to rest gravity
         force -= pf; // remove projected gravity
-        force = (force + _force) * (_objectScale * timeVar);
+        force = (force + Force) * (_objectScale * timeVar);
 
         Vector3 objectMove = loopIndex == 0 ? _objectMove : Vector3.Zero; // only first loop consider object move
 
-        for (int i = 0; i < pt._particles.Count; ++i)
+        for (int i = 0; i < pt.Particles.Count; ++i)
         {
-            Particle p = pt._particles[i];
-            if (p._parentIndex >= 0)
+            Particle p = pt.Particles[i];
+            if (p.ParentIndex >= 0)
             {
                 // verlet integration
-                Vector3 v = p._position - p._prevPosition;
-                Vector3 rmove = objectMove * p._inert;
-                p._prevPosition = p._position + rmove;
-                float damping = p._damping;
-                if (p._isCollide)
+                Vector3 v = p.Position - p.PrevPosition;
+                Vector3 rmove = objectMove * p.Inert;
+                p.PrevPosition = p.Position + rmove;
+                float damping = p.Damping;
+                if (p.IsColliding)
                 {
-                    damping += p._friction;
+                    damping += p.Friction;
                     if (damping > 1)
                         damping = 1;
-                    p._isCollide = false;
+                    p.IsColliding = false;
                 }
-                p._position += v * (1 - damping) + force + rmove;
+                p.Position += v * (1 - damping) + force + rmove;
             }
             else
             {
-                p._prevPosition = p._position;
-                p._position = p._transformPosition;
+                p.PrevPosition = p.Position;
+                p.Position = p.TransformPosition;
             }
         }
     }
 
-    void UpdateParticles2(float timeVar)
+    private void UpdateParticles2(float timeVar)
     {
         for (int i = 0; i < _particleTrees.Count; ++i)
             UpdateParticles2(_particleTrees[i], timeVar);
     }
 
-    void UpdateParticles2(ParticleTree pt, float timeVar)
+    private void UpdateParticles2(ParticleTree pt, float timeVar)
     {
-        for (int i = 1; i < pt._particles.Count; ++i)
+        for (int i = 1; i < pt.Particles.Count; ++i)
         {
-            Particle p = pt._particles[i];
-            Particle p0 = pt._particles[p._parentIndex];
+            Particle p = pt.Particles[i];
+            Particle p0 = pt.Particles[p.ParentIndex];
 
-            float restLen = p._transform is not null
-                ? (p0._transformPosition - p._transformPosition).Length()
-                : (Vector3.Transform(p._endOffset, p0._transformLocalToWorldMatrix) - p0._transformLocalToWorldMatrix.Translation).Length();
+            float restLen = p.Transform is not null
+                ? (p0.TransformPosition - p.TransformPosition).Length()
+                : (Vector3.Transform(p.EndOffset, p0.TransformLocalToWorldMatrix) - p0.TransformLocalToWorldMatrix.Translation).Length();
 
             // keep shape
-            float stiffness = Interp.Lerp(1.0f, p._stiffness, _weight);
-            if (stiffness > 0 || p._elasticity > 0)
+            float stiffness = Interp.Lerp(1.0f, p.Stiffness, _weight);
+            if (stiffness > 0 || p.Elasticity > 0)
             {
-                Matrix4x4 m0 = p0._transformLocalToWorldMatrix;
-                m0.Translation = p0._position;
-                Vector3 restPos = p._transform is not null 
-                    ? Vector3.Transform(p._transformLocalPosition, m0)
-                    : Vector3.Transform(p._endOffset, m0);
-                Vector3 d = restPos - p._position;
-                p._position += d * (p._elasticity * timeVar);
+                Matrix4x4 m0 = p0.TransformLocalToWorldMatrix;
+                m0.Translation = p0.Position;
+                Vector3 restPos = p.Transform is not null 
+                    ? Vector3.Transform(p.TransformLocalPosition, m0)
+                    : Vector3.Transform(p.EndOffset, m0);
+                Vector3 d = restPos - p.Position;
+                p.Position += d * (p.Elasticity * timeVar);
 
                 if (stiffness > 0)
                 {
-                    d = restPos - p._position;
+                    d = restPos - p.Position;
                     float len = d.Length();
                     float maxlen = restLen * (1.0f - stiffness) * 2.0f;
                     if (len > maxlen && len > 0.0f)
-                        p._position += d * ((len - maxlen) / len);
+                        p.Position += d * ((len - maxlen) / len);
                 }
             }
 
             // collide
             if (_effectiveColliders != null)
             {
-                float particleRadius = p._radius * _objectScale;
+                float particleRadius = p.Radius * _objectScale;
                 for (int j = 0; j < _effectiveColliders.Count; ++j)
                 {
                     PhysicsChainColliderBase c = _effectiveColliders[j];
-                    p._isCollide |= c.Collide(ref p._position, particleRadius);
+                    p.IsColliding |= c.Collide(ref p._position, particleRadius);
                 }
             }
 
             // freeze axis, project to plane 
-            if (_freezeAxis != EFreezeAxis.None)
+            if (FreezeAxis != EFreezeAxis.None)
             {
-                Vector4 planeNormal = p0._transformLocalToWorldMatrix.GetColumn((int)_freezeAxis - 1).Normalized();
-                Plane movePlane = XRMath.CreatePlaneFromPointAndNormal(p0._position, planeNormal.XYZ());
-                p._position -= movePlane.Normal * GeoUtil.DistancePlanePoint(movePlane, p._position);
+                Vector4 planeNormal = p0.TransformLocalToWorldMatrix.GetColumn((int)FreezeAxis - 1).Normalized();
+                Plane movePlane = XRMath.CreatePlaneFromPointAndNormal(p0.Position, planeNormal.XYZ());
+                p.Position -= movePlane.Normal * GeoUtil.DistancePlanePoint(movePlane, p.Position);
             }
 
             // keep length
-            Vector3 dd = p0._position - p._position;
+            Vector3 dd = p0.Position - p.Position;
             float leng = dd.Length();
             if (leng > 0)
-                p._position += dd * ((leng - restLen) / leng);
+                p.Position += dd * ((leng - restLen) / leng);
         }
     }
 
-    void SkipUpdateParticles()
+    private void SkipUpdateParticles()
     {
         for (int i = 0; i < _particleTrees.Count; ++i)
             SkipUpdateParticles(_particleTrees[i]);
     }
 
-    // only update stiffness and keep bone length
-    void SkipUpdateParticles(ParticleTree pt)
+    //Only update stiffness and keep bone length
+    private void SkipUpdateParticles(ParticleTree pt)
     {
-        for (int i = 0; i < pt._particles.Count; ++i)
+        for (int i = 0; i < pt.Particles.Count; ++i)
         {
-            Particle p = pt._particles[i];
-            if (p._parentIndex >= 0)
+            Particle p = pt.Particles[i];
+            if (p.ParentIndex >= 0)
             {
-                p._prevPosition += _objectMove;
-                p._position += _objectMove;
+                p.PrevPosition += _objectMove;
+                p.Position += _objectMove;
 
-                Particle p0 = pt._particles[p._parentIndex];
+                Particle p0 = pt.Particles[p.ParentIndex];
 
-                float restLen = p._transform is not null
-                    ? (p0._transformPosition - p._transformPosition).Length()
-                    : Vector3.Transform(p._endOffset, p0._transformLocalToWorldMatrix).Length();
+                float restLen = p.Transform is not null
+                    ? (p0.TransformPosition - p.TransformPosition).Length()
+                    : Vector3.Transform(p.EndOffset, p0.TransformLocalToWorldMatrix).Length();
 
-                // keep shape
-                float stiffness = Interp.Lerp(1.0f, p._stiffness, _weight);
+                //Keep shape
+                float stiffness = Interp.Lerp(1.0f, p.Stiffness, _weight);
                 if (stiffness > 0)
                 {
-                    Matrix4x4 m0 = p0._transformLocalToWorldMatrix;
-                    m0.Translation = p0._position;
-                    Vector3 restPos = p._transform is not null 
-                        ? Vector3.Transform(p._transformLocalPosition, m0)
-                        : Vector3.Transform(p._endOffset, m0);
-                    Vector3 d = restPos - p._position;
+                    Matrix4x4 m0 = p0.TransformLocalToWorldMatrix;
+                    m0.Translation = p0.Position;
+                    Vector3 restPos = p.Transform is not null 
+                        ? Vector3.Transform(p.TransformLocalPosition, m0)
+                        : Vector3.Transform(p.EndOffset, m0);
+                    Vector3 d = restPos - p.Position;
                     float len = d.Length();
                     float maxlen = restLen * (1 - stiffness) * 2;
                     if (len > maxlen)
-                        p._position += d * ((len - maxlen) / len);
+                        p.Position += d * ((len - maxlen) / len);
                 }
 
                 // keep length
-                Vector3 dd = p0._position - p._position;
+                Vector3 dd = p0.Position - p.Position;
                 float leng = dd.Length();
                 if (leng > 0)
-                    p._position += dd * ((leng - restLen) / leng);
+                    p.Position += dd * ((leng - restLen) / leng);
             }
             else
             {
-                p._prevPosition = p._position;
-                p._position = p._transformPosition;
+                p.PrevPosition = p.Position;
+                p.Position = p.TransformPosition;
             }
         }
     }
@@ -848,40 +960,42 @@ public class PhysicsChainComponent : XRComponent, IRenderable
 
     private static void ApplyParticlesToTransforms(ParticleTree pt)
     {
-        for (int i = 1; i < pt._particles.Count; ++i)
+        for (int i = 1; i < pt.Particles.Count; ++i)
         {
-            Particle child = pt._particles[i];
-            Particle parent = pt._particles[child._parentIndex];
+            Particle child = pt.Particles[i];
+            Particle parent = pt.Particles[child.ParentIndex];
 
-            if (parent._childCount <= 1 && parent._transform is not null) // do not modify bone orientation if has more then one child
+            if (parent.ChildCount <= 1 && parent.Transform is not null) // do not modify bone orientation if has more then one child
             {
-                Vector3 localPos = child._transform is not null
-                    ? child._transform.LocalTranslation
-                    : child._endOffset;
+                Vector3 localPos = child.Transform is not null
+                    ? child.Transform.LocalTranslation
+                    : child.EndOffset;
 
-                Vector3 v0 = parent._transform.TransformDirection(localPos);
-                Vector3 v1 = child._position - parent._position;
+                parent.Transform.RecalculateMatrices();
+                Vector3 v0 = parent.Transform.TransformVector(localPos);
+                Vector3 v1 = child.Position - parent.Position;
                 Quaternion rot = XRMath.RotationBetweenVectors(v0, v1);
-                parent._transform.SetWorldRotation(rot * parent._transform.WorldRotation);
+                parent.Transform.Parent?.RecalculateMatrices();
+                parent.Transform.SetWorldRotation(rot * parent.Transform.WorldRotation);
             }
 
-            child._transform?.SetWorldTranslation(child._position);
+            child.Transform?.SetWorldTranslation(child.Position);
         }
     }
 
-    static void AddPendingWork(PhysicsChainComponent db)
+    private static void AddPendingWork(PhysicsChainComponent db)
         => _pendingWorks.Add(db);
 
-    static void AddWorkToQueue(PhysicsChainComponent db)
+    private static void AddWorkToQueue(PhysicsChainComponent db)
         => _workQueueSemaphore?.Release();
 
-    static PhysicsChainComponent GetWorkFromQueue()
+    private static PhysicsChainComponent GetWorkFromQueue()
     {
         int idx = Interlocked.Increment(ref _workQueueIndex);
         return _effectiveWorks[idx];
     }
 
-    static void ThreadProc()
+    private static void ThreadProc()
     {
         while (true)
         {
@@ -895,7 +1009,7 @@ public class PhysicsChainComponent : XRComponent, IRenderable
         }
     }
 
-    static void InitThreadPool()
+    private static void InitThreadPool()
     {
         _allWorksDoneEvent = new AutoResetEvent(false);
         _workQueueSemaphore = new Semaphore(0, int.MaxValue);
@@ -912,7 +1026,7 @@ public class PhysicsChainComponent : XRComponent, IRenderable
         }
     }
 
-    static void ExecuteWorks()
+    private static void ExecuteWorks()
     {
         if (_pendingWorks.Count <= 0)
             return;

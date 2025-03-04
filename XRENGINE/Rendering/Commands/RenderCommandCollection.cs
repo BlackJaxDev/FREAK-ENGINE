@@ -58,7 +58,7 @@ namespace XREngine.Rendering.Commands
             _numCommandsRecentlyAddedToUpdate = 0;
             return added;
         }
-        internal void Render(int pass, bool shadowPass)
+        internal void Render(int pass)
         {
             if (!_renderingPasses.TryGetValue(pass, out var list))
             {
@@ -66,16 +66,14 @@ namespace XREngine.Rendering.Commands
                 return;
             }
 
-            IsShadowPass = shadowPass;
-            list.ForEach(x => x.Render(shadowPass));
-            IsShadowPass = false;
+            list.ForEach(x => x.Render());
         }
-        public void SwapBuffers(bool shadowPass)
+        public void SwapBuffers()
         {
             static void Clear(ICollection<RenderCommand> x)
                 => x.Clear();
-            void Swap(ICollection<RenderCommand> x)
-                => x.ForEach(y => y.SwapBuffers(shadowPass));
+            static void Swap(ICollection<RenderCommand> x)
+                => x.ForEach(y => y.SwapBuffers());
             
             (_updatingPasses, _renderingPasses) = (_renderingPasses, _updatingPasses);
             _renderingPasses.Values.ForEach(Swap);

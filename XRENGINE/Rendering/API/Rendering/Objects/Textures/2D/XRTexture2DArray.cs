@@ -12,6 +12,11 @@ namespace XREngine.Rendering
         private bool _resizable = true;
         private ESizedInternalFormat _sizedInternalFormat = ESizedInternalFormat.Rgba8;
 
+        public XRTexture2DArray(params XRTexture2D[] textures)
+        {
+            Textures = textures;
+        }
+
         public override bool IsResizeable => Resizable;
 
         /// <summary>

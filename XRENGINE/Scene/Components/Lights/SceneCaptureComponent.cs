@@ -143,7 +143,7 @@ namespace XREngine.Components.Lights
         }
 
         private void CollectVisibleFace(int i)
-            => Viewports[i]?.CollectVisible(null, null, _shadowPass);
+            => Viewports[i]?.CollectVisible(null, null);
 
         public virtual void SwapBuffers()
         {
@@ -155,9 +155,7 @@ namespace XREngine.Components.Lights
         }
 
         private void SwapBuffersFace(int i)
-            => Viewports[i]?.SwapBuffers(_shadowPass);
-
-        private const bool _shadowPass = false;
+            => Viewports[i]?.SwapBuffers();
 
         /// <summary>
         /// Renders the scene to the ResultTexture cubemap.
@@ -205,7 +203,7 @@ namespace XREngine.Components.Lights
                 (_environmentTextureCubemap!, EFrameBufferAttachment.ColorAttachment0, 0, i),
                 (depthAttachment, EFrameBufferAttachment.DepthStencilAttachment, 0, depthLayers[i]));
 
-            Viewports[i]!.Render(RenderFBO, null, null, _shadowPass, null);
+            Viewports[i]!.Render(RenderFBO, null, null, false, null);
         }
 
         public void FullCapture(uint colorResolution, bool captureDepth)

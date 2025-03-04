@@ -110,10 +110,7 @@ namespace XREngine.Rendering.UI
         public RenderCommandMethod2D DebugRenderCommand => _debugRC;
 
         protected override RenderInfo[] GetDebugRenderInfo()
-            => [DebugRenderInfo2D = RenderInfo2D.New(this, 
-                _debugRC = new RenderCommandMethod2D(
-                    (int)EDefaultRenderPass.OnTopForward,
-                    () => RenderDebug(false)))];
+            => [DebugRenderInfo2D = RenderInfo2D.New(this, _debugRC = new RenderCommandMethod2D((int)EDefaultRenderPass.OnTopForward, RenderDebug))];
 
         protected override Matrix4x4 CreateLocalMatrix() => 
             Matrix4x4.CreateScale(Scale) * 
@@ -386,11 +383,11 @@ namespace XREngine.Rendering.UI
             }
         }
 
-        protected override void RenderDebug(bool shadowPass)
+        protected override void RenderDebug()
         {
-            base.RenderDebug(shadowPass);
+            base.RenderDebug();
 
-            if (!Engine.Rendering.Settings.RenderUITransformCoordinate)
+            if (!Engine.Rendering.Settings.RenderUITransformCoordinate || Engine.Rendering.State.IsShadowPass)
                 return;
             
             Vector3 endPoint = WorldTranslation + Engine.Rendering.Debug.UIPositionBias;

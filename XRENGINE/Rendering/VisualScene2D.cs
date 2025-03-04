@@ -35,7 +35,11 @@ namespace XREngine.Scene
             SortedDictionary<float, List<(IRenderable item, object? data)>> items)
             => RenderTree.Raycast(screenPoint, items);
 
-        public override void CollectRenderedItems(RenderCommandCollection meshRenderCommands, XRCamera? activeCamera, bool cullWithFrustum, Func<XRCamera>? cullingCameraOverride, bool shadowPass)
+        public override void CollectRenderedItems(
+            RenderCommandCollection meshRenderCommands,
+            XRCamera? activeCamera,
+            bool cullWithFrustum,
+            Func<XRCamera>? cullingCameraOverride)
         {
             var cullingCamera = cullingCameraOverride?.Invoke() ?? activeCamera;
             CollectRenderedItems(meshRenderCommands, cullWithFrustum ? cullingCamera?.GetOrthoCameraBounds() : null, activeCamera);
@@ -61,7 +65,7 @@ namespace XREngine.Scene
             void AddRenderCommands(ITreeItem item)
             {
                 if (item is RenderInfo renderable)
-                    renderable.AddRenderCommands(commands, camera, false);
+                    renderable.AddRenderCommands(commands, camera);
             }
             if (collectionVolume is null)
                 RenderTree.CollectAll(AddRenderCommands);

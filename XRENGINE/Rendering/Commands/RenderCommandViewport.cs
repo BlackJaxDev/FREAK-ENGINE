@@ -23,13 +23,13 @@ namespace XREngine.Data.Rendering
             Framebuffer = viewportFBO;
         }
 
-        public override void Render(bool shadowPass)
+        public override void Render()
         {
             //TODO: viewport renders all viewed items to the framebuffer,
             //But this method is called within the parent's rendering to its framebuffer.
             //Viewport.Render(Framebuffer);
             //FrameBuffer.CurrentlyBound?.Bind(EFramebufferTarget.DrawFramebuffer);
-            base.Render(shadowPass);
+            base.Render();
         }
     }
 }

@@ -9,6 +9,9 @@ namespace XREngine.Scene.Components.Physics
         public RigidBodyTransform RigidBodyTransform => SceneNode.GetTransformAs<RigidBodyTransform>(true)!;
 
         private IAbstractDynamicRigidBody? _rigidBody;
+        /// <summary>
+        /// The rigid body constructed for whatever physics engine to use.
+        /// </summary>
         public IAbstractDynamicRigidBody? RigidBody
         {
             get => _rigidBody;
@@ -36,8 +39,17 @@ namespace XREngine.Scene.Components.Physics
                 switch (propName)
                 {
                     case nameof(RigidBody):
-                        if (World is not null && RigidBody is not null && IsActive)
-                            World.PhysicsScene.RemoveActor(RigidBody);
+                        if (RigidBody is not null)
+                        {
+                            if (World is not null && IsActive)
+                                World.PhysicsScene.RemoveActor(RigidBody);
+
+                            if (RigidBody.OwningComponent == this)
+                                RigidBody.OwningComponent = null;
+
+                            if (RigidBodyTransform.RigidBody == RigidBody)
+                                RigidBodyTransform.RigidBody = null;
+                        }
                         break;
                 }
             }
@@ -49,9 +61,16 @@ namespace XREngine.Scene.Components.Physics
             switch (propName)
             {
                 case nameof(RigidBody):
-                    if (World is not null && RigidBody is not null && IsActive)
-                        World.PhysicsScene.AddActor(RigidBody);
-                    RigidBodyTransform.RigidBody = RigidBody;
+                    if (RigidBody is not null)
+                    {
+                        if (World is not null && IsActive)
+                            World.PhysicsScene.AddActor(RigidBody);
+
+                        //if (RigidBody.OwningComponent != this)
+                            RigidBody.OwningComponent = this;
+
+                        RigidBodyTransform.RigidBody = RigidBody;
+                    }
                     break;
             }
         }

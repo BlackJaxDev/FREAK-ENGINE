@@ -25,7 +25,7 @@ public class PhysicsChainPlaneCollider : PhysicsChainColliderBase, IRenderable
     public override void Prepare()
     {
         Vector3 normal = Globals.Up;
-        switch (m_Direction)
+        switch (_direction)
         {
             case Direction.X:
                 normal = Transform.WorldRight;
@@ -38,7 +38,7 @@ public class PhysicsChainPlaneCollider : PhysicsChainColliderBase, IRenderable
                 break;
         }
 
-        Vector3 p = Transform.TransformPoint(m_Center);
+        Vector3 p = Transform.TransformPoint(_center);
         _plane = XRMath.CreatePlaneFromPointAndNormal(p, normal);
     }
 
@@ -46,7 +46,7 @@ public class PhysicsChainPlaneCollider : PhysicsChainColliderBase, IRenderable
     {
         float d = GeoUtil.DistancePlanePoint(_plane, particlePosition);
 
-        if (m_Bound == EBound.Outside)
+        if (_bound == EBound.Outside)
         {
             if (d < 0)
             {
@@ -66,15 +66,15 @@ public class PhysicsChainPlaneCollider : PhysicsChainColliderBase, IRenderable
         return false;
     }
 
-    private void OnDrawGizmosSelected(bool shadowPass)
+    private void OnDrawGizmosSelected()
     {
-        if (!IsActive)
+        if (!IsActive || Engine.Rendering.State.IsShadowPass)
             return;
 
         Prepare();
 
-        ColorF4 color = m_Bound == EBound.Outside ? ColorF4.Yellow : ColorF4.Magenta;
-        Vector3 p = Transform.TransformPoint(m_Center);
+        ColorF4 color = _bound == EBound.Outside ? ColorF4.Yellow : ColorF4.Magenta;
+        Vector3 p = Transform.TransformPoint(_center);
         Engine.Rendering.Debug.RenderLine(p, p + _plane.Normal, color);
     }
 }

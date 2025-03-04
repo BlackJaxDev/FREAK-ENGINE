@@ -1,6 +1,8 @@
 ﻿using MagicPhysX;
 using System.Numerics;
+using XREngine.Components;
 using XREngine.Scene;
+using XREngine.Scene.Components.Physics;
 using static MagicPhysX.NativeMethods;
 
 namespace XREngine.Rendering.Physics.Physx
@@ -47,7 +49,7 @@ namespace XREngine.Rendering.Physics.Physx
         }
         public PhysxStaticRigidBody(
             PhysxMaterial material,
-            IAbstractPhysicsGeometry geometry,
+            IPhysicsGeometry geometry,
             Vector3? position = null,
             Quaternion? rotation = null,
             Vector3? shapeOffsetTranslation = null,
@@ -78,5 +80,48 @@ namespace XREngine.Rendering.Physics.Physx
 
         public override Vector3 LinearVelocity { get; } = Vector3.Zero;
         public override Vector3 AngularVelocity { get; } = Vector3.Zero;
+
+        private StaticRigidBodyComponent? _owningComponent;
+        public StaticRigidBodyComponent? OwningComponent
+        {
+            get => _owningComponent;
+            set => SetField(ref _owningComponent, value);
+        }
+
+        public override XRComponent? GetOwningComponent()
+            => OwningComponent;
+
+        protected override bool OnPropertyChanging<T>(string? propName, T field, T @new)
+        {
+            bool change = base.OnPropertyChanging(propName, field, @new);
+            if (change)
+            {
+                switch (propName)
+                {
+                    case nameof(OwningComponent):
+                        if (OwningComponent is not null)
+                        {
+                            if (OwningComponent.RigidBody == this)
+                                OwningComponent.RigidBody = null;
+                        }
+                        break;
+                }
+            }
+            return change;
+        }
+        protected override void OnPropertyChanged<T>(string? propName, T prev, T field)
+        {
+            base.OnPropertyChanged(propName, prev, field);
+            switch (propName)
+            {
+                case nameof(OwningComponent):
+                    if (OwningComponent is not null)
+                    {
+                        if (OwningComponent.RigidBody != this)
+                            OwningComponent.RigidBody = this;
+                    }
+                    break;
+            }
+        }
     }
 }

@@ -16,22 +16,22 @@ namespace XREngine.Data.Components
         private static List<(OctreeNodeBase node, bool intersects)> _octreeNodesUpdating = [];
         private static List<(OctreeNodeBase node, bool intersects)> _octreeNodesRendering = [];
 
-        protected override void RenderInfo_SwapBuffersCallback(RenderInfo info, RenderCommand command, bool shadowPass)
+        protected override void RenderInfo_SwapBuffersCallback(RenderInfo info, RenderCommand command)
         {
-            if (shadowPass)
+            if (Engine.Rendering.State.IsShadowPass)
                 return;
 
-            base.RenderInfo_SwapBuffersCallback(info, command, shadowPass);
+            base.RenderInfo_SwapBuffersCallback(info, command);
 
             _octreeNodesRendering.Clear();
             (_octreeNodesUpdating, _octreeNodesRendering) = (_octreeNodesRendering, _octreeNodesUpdating);
         }
-        protected override void RenderInfo_PreRenderCallback(RenderInfo info, RenderCommand command, XRCamera? camera, bool shadowPass)
+        protected override void RenderInfo_PreRenderCallback(RenderInfo info, RenderCommand command, XRCamera? camera)
         {
-            if (shadowPass)
+            if (Engine.Rendering.State.IsShadowPass)
                 return;
 
-            base.RenderInfo_PreRenderCallback(info, command, camera, shadowPass);
+            base.RenderInfo_PreRenderCallback(info, command, camera);
 
             static void AddNodes((OctreeNodeBase node, bool intersects) d)
                 => _octreeNodesUpdating.Add(d);
@@ -39,12 +39,12 @@ namespace XREngine.Data.Components
             World?.VisualScene?.RenderTree?.CollectVisibleNodes(camera?.WorldFrustum(), false, AddNodes);
         }
 
-        protected override void Render(bool shadowPass)
+        protected override void Render()
         {
-            if (shadowPass)
+            if (Engine.Rendering.State.IsShadowPass)
                 return;
 
-            base.Render(shadowPass);
+            base.Render();
 
             foreach ((OctreeNodeBase node, bool intersects) in _octreeNodesRendering)
                 Engine.Rendering.Debug.RenderAABB(

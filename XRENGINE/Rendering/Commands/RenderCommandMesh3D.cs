@@ -60,21 +60,21 @@ namespace XREngine.Data.Rendering
             MaterialOverride = materialOverride;
         }
 
-        public override void Render(bool shadowPass)
+        public override void Render()
             => _renderMesh?.Render(_renderWorldMatrixIsModelMatrix ? _renderWorldMatrix : Matrix4x4.Identity, _renderMaterialOverride, _renderInstances);
 
-        public override void CollectedForRender(XRCamera? camera, bool shadowPass)
+        public override void CollectedForRender(XRCamera? camera)
         {
-            base.CollectedForRender(camera, shadowPass);
+            base.CollectedForRender(camera);
             // Update render distance for proper sorting.
             // This is done in the collect visible thread - doesn't need to be thread safe.
             if (camera != null)
                 UpdateRenderDistance(_renderWorldMatrix.Translation, camera);
         }
 
-        public override void SwapBuffers(bool shadowPass)
+        public override void SwapBuffers()
         {
-            base.SwapBuffers(shadowPass);
+            base.SwapBuffers();
             _renderMesh = Mesh;
             _renderWorldMatrix = WorldMatrix;
             _renderMaterialOverride = MaterialOverride;

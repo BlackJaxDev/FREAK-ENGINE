@@ -62,8 +62,11 @@ namespace XREngine.Data.Components
             OnRigidBodyShapeUpdated();
         }
 
-        protected virtual void Render(bool shadowPass)
+        protected virtual void Render()
         {
+            if (Engine.Rendering.State.IsShadowPass)
+                return;
+
             Engine.Rendering.Debug.RenderShape(_shape, false, ColorF4.White);
         }
 

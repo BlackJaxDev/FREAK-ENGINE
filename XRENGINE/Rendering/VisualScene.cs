@@ -17,7 +17,11 @@ namespace XREngine.Scene
         /// If the volume is null, all renderables are collected.
         /// Typically, the collectionVolume is the camera's frustum.
         /// </summary>
-        public abstract void CollectRenderedItems(RenderCommandCollection meshRenderCommands, XRCamera? activeCamera, bool cullWithFrustum, Func<XRCamera>? cullingCameraOverride, bool shadowPass);
+        public abstract void CollectRenderedItems(
+            RenderCommandCollection meshRenderCommands,
+            XRCamera? activeCamera,
+            bool cullWithFrustum,
+            Func<XRCamera>? cullingCameraOverride);
 
         public virtual void DebugRender(XRCamera? camera, bool onlyContainingItems = false)
         {

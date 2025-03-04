@@ -32,9 +32,9 @@ namespace XREngine.Components
         private bool _slideOnSteepSlopes = true;
         private PhysxMaterial _material = new(0.9f, 0.9f, 0.1f);
         private float _radius = 0.1f;
-        private float _standingHeight = 0.5f;
-        private float _crouchedHeight = 0.2f;
-        private float _proneHeight = 0.1f;
+        private float _standingHeight = new FeetInches(5, 8.0f).ToMeters() - 0.344f * 2.0f;
+        private float _crouchedHeight = new FeetInches(3, 0.0f).ToMeters();
+        private float _proneHeight = new FeetInches(1, 0.0f).ToMeters();
         private bool _constrainedClimbing = false;
         private CapsuleController? _controller;
         private float _minMoveDistance = 0.001f;
@@ -50,9 +50,11 @@ namespace XREngine.Components
             set => SetField(ref _airMovementAcceleration, value);
         }
 
+        public float HalfHeight => CurrentHeight * 0.5f + Radius + ContactOffset;
+
         public Vector3 FootPosition
         {
-            get => Controller?.FootPosition ?? (Transform.WorldTranslation - UpDirection * (CurrentHeight + Radius + ContactOffset));
+            get => Controller?.FootPosition ?? (Position - UpDirection * HalfHeight);
             set
             {
                 if (Controller is not null)
