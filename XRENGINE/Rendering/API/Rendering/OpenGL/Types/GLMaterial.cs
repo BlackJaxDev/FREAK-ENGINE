@@ -75,9 +75,11 @@ namespace XREngine.Rendering.OpenGL
 
                 var reqs = Data.RenderOptions.RequiredEngineUniforms;
 
-                //Set engine uniforms
                 if (reqs.HasFlag(EUniformRequirements.Camera))
-                    Engine.Rendering.State.RenderingCamera?.SetUniforms(program.Data);
+                {
+                    Engine.Rendering.State.RenderingCamera?.SetUniforms(program.Data, true);
+                    Engine.Rendering.State.RenderingStereoRightEyeCamera?.SetUniforms(program.Data, false);
+                }
 
                 if (reqs.HasFlag(EUniformRequirements.Lights))
                 {

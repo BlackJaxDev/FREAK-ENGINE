@@ -23,6 +23,10 @@ public sealed partial class XRRenderPipelineInstance
         /// </summary>
         public XRCamera? SceneCamera { get; private set; }
         /// <summary>
+        /// The right eye camera for stereo rendering.
+        /// </summary>
+        public XRCamera? StereoRightEyeCamera { get; private set; }
+        /// <summary>
         /// The output FBO target for the render pass.
         /// May be null if rendering to the screen.
         /// </summary>
@@ -32,24 +36,42 @@ public sealed partial class XRRenderPipelineInstance
         /// Shadow passes do not need to execute all rendering commands.
         /// </summary>
         public bool ShadowPass { get; private set; } = false;
+        /// <summary>
+        /// If this pipeline is rendering a stereo pass.
+        /// Stereo passes will inject a geometry shader into each mesh pipeline, or expect the mesh to already have a vertex or geometry shader that supports it.
+        /// </summary>
+        public bool StereoPass { get; private set; } = false;
+        /// <summary>
+        /// If set, this material will be used to render all objects in the scene.
+        /// Typically used for shadow passes.
+        /// </summary>
         public XRMaterial? GlobalMaterialOverride { get; set; }
+        /// <summary>
+        /// The screen-space UI to render over the scene.
+        /// </summary>
         public UICanvasComponent? UserInterface { get; private set; }
+
+        //TODO: instead of bools for shadow and stereo passes, use an int for the pass type.
 
         public StateObject PushMainAttributes(
             XRViewport? viewport,
             VisualScene? scene,
             XRCamera? camera,
+            XRCamera? stereoRightEyeCamera,
             XRFrameBuffer? target,
             bool shadowPass,
-            XRMaterial? shadowMaterial,
+            bool stereoPass,
+            XRMaterial? globalMaterialOverride,
             UICanvasComponent? screenSpaceUI)
         {
             WindowViewport = viewport;
             Scene = scene;
             SceneCamera = camera;
+            StereoRightEyeCamera = stereoRightEyeCamera;
             OutputFBO = target;
             ShadowPass = shadowPass;
-            GlobalMaterialOverride = shadowMaterial;
+            StereoPass = stereoPass;
+            GlobalMaterialOverride = globalMaterialOverride;
             UserInterface = screenSpaceUI?.CanvasTransform?.DrawSpace == ECanvasDrawSpace.Screen ? screenSpaceUI : null;
 
             if (WindowViewport is not null)
@@ -78,8 +100,10 @@ public sealed partial class XRRenderPipelineInstance
             WindowViewport = null;
             Scene = null;
             SceneCamera = null;
+            StereoRightEyeCamera = null;
             OutputFBO = null;
             ShadowPass = false;
+            StereoPass = false;
             GlobalMaterialOverride = null;
             UserInterface = null;
         }
@@ -141,7 +165,6 @@ public sealed partial class XRRenderPipelineInstance
             if (_cropRegionStack.Count > 0)
                 AbstractRenderer.Current?.CropRenderArea(_cropRegionStack.Peek());
         }
-
 
         /// <summary>
         /// This material will be used to render all objects in the scene if set.

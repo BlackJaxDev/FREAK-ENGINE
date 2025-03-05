@@ -1,4 +1,5 @@
-﻿using Microsoft.VisualBasic;
+﻿using Assimp;
+using Microsoft.VisualBasic;
 using OpenVR.NET;
 using OpenVR.NET.Devices;
 using OpenVR.NET.Manifest;
@@ -12,10 +13,12 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Valve.VR;
+using XREngine.Components;
 using XREngine.Data.Rendering;
 using XREngine.Rendering;
 using XREngine.Rendering.Models.Materials;
 using XREngine.Rendering.OpenGL;
+using XREngine.Scene;
 using ETextureType = Valve.VR.ETextureType;
 
 namespace XREngine
@@ -89,7 +92,10 @@ namespace XREngine
 
             public static XRTexture2DArray? VRStereoViewTextureArray { get; private set; } = null;
             public static XRMaterialFrameBuffer? VRStereoRenderTarget { get; private set; } = null;
-            
+            public static XRTexture2DArrayView? StereoLeftViewTexture { get; private set; } = null;
+            public static XRTexture2DArrayView? StereoRightViewTexture { get; private set; } = null;
+            private static XRViewport? StereoViewport { get; set; } = null;
+
             public static XRTexture2D? VRLeftEyeViewTexture { get; private set; } = null;
             public static XRMaterialFrameBuffer? VRLeftEyeRenderTarget { get; private set; } = null;
 
@@ -133,7 +139,8 @@ namespace XREngine
                 return true;
             }
 
-            private const bool Stereo = false;
+            private const bool Stereo = true;
+            private const bool StereoUseTextureViews = true;
 
             private static void InitRender(XRWindow window)
             {
@@ -157,20 +164,37 @@ namespace XREngine
 
                 if (Stereo)
                 {
-                    VRStereoRenderTarget = new XRMaterialFrameBuffer(new XRMaterial(
-                    [
-                        VRStereoViewTextureArray = new XRTexture2DArray(left, right)
-                        {
-                            Resizable = false,
-                            SizedInternalFormat = ESizedInternalFormat.Rgba8,
-                        }
-                    ],
-                    ShaderHelper.UnlitTextureFragForward()!));
+                    SetViewportParameters(rW, rH, StereoViewport = new XRViewport(window));
+                    var arr = new XRTexture2DArray(left, right)
+                    {
+                        Resizable = false,
+                        SizedInternalFormat = ESizedInternalFormat.Rgb8,
+                        OVRMultiViewParameters = new XRTexture2DArray.OVRMultiView(0, 2u)
+                    };
+                    VRStereoViewTextureArray = arr;
+                    VRStereoRenderTarget = new XRMaterialFrameBuffer(new XRMaterial([arr], ShaderHelper.UnlitTextureFragForward()!));
+                    if (StereoUseTextureViews)
+                    {
+                        StereoLeftViewTexture = new XRTexture2DArrayView(arr, 0u, 1u, 0u, 1u, EPixelInternalFormat.Rgb8, false, false);
+                        StereoRightViewTexture = new XRTexture2DArrayView(arr, 0u, 1u, 1u, 1u, EPixelInternalFormat.Rgb8, false, false);
+                    }
                 }
                 else
                 {
                     VRLeftEyeRenderTarget = MakeFBO(rW, rH, VRLeftEyeViewTexture = left, LeftEyeViewport = new XRViewport(window) { Index = 0 });
                     VRRightEyeRenderTarget = MakeFBO(rW, rH, VRRightEyeViewTexture = right, RightEyeViewport = new XRViewport(window) { Index = 1 });
+
+                    if (ViewInformation.LeftEyeCamera is not null)
+                        LeftEyeViewport.Camera = ViewInformation.LeftEyeCamera;
+                    
+                    if (ViewInformation.RightEyeCamera is not null)
+                        RightEyeViewport.Camera = ViewInformation.RightEyeCamera;
+                    
+                    if (ViewInformation.World is not null)
+                    {
+                        LeftEyeViewport.WorldInstanceOverride = ViewInformation.World;
+                        RightEyeViewport.WorldInstanceOverride = ViewInformation.World;
+                    }
                 }
             }
 
@@ -178,19 +202,24 @@ namespace XREngine
             {
                 var rt = new XRMaterialFrameBuffer(new XRMaterial([tex], ShaderHelper.UnlitTextureFragForward()!));
                 tex.Resizable = false;
-                tex.SizedInternalFormat = ESizedInternalFormat.Rgba8;
+                tex.SizedInternalFormat = ESizedInternalFormat.Rgb8;
+                SetViewportParameters(rW, rH, vp);
+                return rt;
+            }
+
+            private static void SetViewportParameters(uint rW, uint rH, XRViewport vp)
+            {
                 vp.AllowUIRender = false;
                 vp.SetFullScreen();
                 vp.SetInternalResolution((int)rW, (int)rH, false);
                 vp.Resize(rW, rH, false);
-                return rt;
             }
 
             private static XRTexture2D MakeFBOTexture(uint rW, uint rH)
                 => XRTexture2D.CreateFrameBufferTexture(
                     rW, rH,
-                    EPixelInternalFormat.Rgba,
-                    EPixelFormat.Bgra,
+                    EPixelInternalFormat.Rgb,
+                    EPixelFormat.Bgr,
                     EPixelType.UnsignedByte,
                     EFrameBufferAttachment.ColorAttachment0);
 
@@ -257,8 +286,18 @@ namespace XREngine
                 //Update VR-related transforms
                 RecalcMatrixOnDraw?.Invoke();
 
-                //Render the scene to left and right eyes
-                //TODO: stereoscopic rendering, OR parallel buffer rendering (I believe that can be done in Vulkan only?)
+                if (Stereo)
+                    RenderSinglePass();
+                else
+                    RenderTwoPass();
+
+                if (Rendering.Settings.LogVRFrameTimes)
+                    ReadStats();
+            }
+
+            private static void RenderTwoPass()
+            {
+                //Render the scene to left and right eyes separately
                 LeftEyeViewport?.Render(VRLeftEyeRenderTarget);
                 RightEyeViewport?.Render(VRRightEyeRenderTarget);
 
@@ -267,56 +306,43 @@ namespace XREngine
                 nint? rightHandle = VRRightEyeViewTexture?.APIWrappers?.FirstOrDefault()?.GetHandle();
                 if (leftHandle is not null && rightHandle is not null)
                     SubmitRenders(leftHandle.Value, rightHandle.Value);
-
-                if (Rendering.Settings.LogVRFrameTimes)
-                    ReadStats();
             }
 
-            private static void ReadStats()
+            private static void RenderSinglePass()
             {
-                Compositor_FrameTiming currentFrame = new();
-                Compositor_FrameTiming previousFrame = new();
-                currentFrame.m_nSize = (uint)Marshal.SizeOf<Compositor_FrameTiming>();
-                previousFrame.m_nSize = (uint)Marshal.SizeOf<Compositor_FrameTiming>();
-                Valve.VR.OpenVR.Compositor.GetFrameTiming(ref currentFrame, 0);
-                Valve.VR.OpenVR.Compositor.GetFrameTiming(ref previousFrame, 1);
+                var world = ViewInformation.World;
+                var left = ViewInformation.LeftEyeCamera;
+                var right = ViewInformation.RightEyeCamera;
+                if (world is null || left is null || right is null)
+                    return;
 
-                uint currentFrameIndex = currentFrame.m_nFrameIndex;
-                uint amountOfFramesSinceLast = currentFrameIndex - LastFrameSampleIndex;
+                //Render the scene to left and right eyes stereoscopically
+                StereoViewport?.RenderPipelineInstance?.Render(
+                    world.VisualScene,
+                    left,
+                    right,
+                    null,
+                    VRStereoRenderTarget,
+                    null,
+                    false,
+                    true,
+                    null);
 
-                double gpuFrametimeMs = 0;
-                double cpuFrametimeMs = 0;
-                double totalFrametimeMs = 0;
-
-                for (uint i = 0; i < amountOfFramesSinceLast; i++)
+                //Submit the rendered frames to the headset
+                if (StereoUseTextureViews)
                 {
-                    Valve.VR.OpenVR.Compositor.GetFrameTiming(ref currentFrame, i);
-                    Valve.VR.OpenVR.Compositor.GetFrameTiming(ref previousFrame, i + 1);
-
-                    gpuFrametimeMs += currentFrame.m_flTotalRenderGpuMs;
-                    cpuFrametimeMs += currentFrame.m_flNewFrameReadyMs - currentFrame.m_flNewPosesReadyMs + currentFrame.m_flCompositorRenderCpuMs;
-                    totalFrametimeMs += (currentFrame.m_flSystemTimeInSeconds - previousFrame.m_flSystemTimeInSeconds) * 1000f;
+                    nint? leftHandle = StereoLeftViewTexture?.APIWrappers?.FirstOrDefault()?.GetHandle();
+                    nint? rightHandle = StereoRightViewTexture?.APIWrappers?.FirstOrDefault()?.GetHandle();
+                    if (leftHandle is not null && rightHandle is not null)
+                        SubmitRenders(leftHandle.Value, rightHandle.Value);
                 }
-
-                gpuFrametimeMs /= amountOfFramesSinceLast;
-                cpuFrametimeMs /= amountOfFramesSinceLast;
-                totalFrametimeMs /= amountOfFramesSinceLast;
-
-                LastFrameSampleIndex = currentFrameIndex;
-
-                GpuFrametime = (float)gpuFrametimeMs;
-                CpuFrametime = (float)cpuFrametimeMs;
-                TotalFrametime = (float)totalFrametimeMs;
-                Framerate = (int)(1.0f / totalFrametimeMs * 1000.0f);
-
-                Debug.Out($"VR: {Framerate}fps / GPU: {MathF.Round(GpuFrametime, 2, MidpointRounding.AwayFromZero)}ms / CPU: {MathF.Round(CpuFrametime, 2, MidpointRounding.AwayFromZero)}ms");
+                else
+                {
+                    nint? arrayHandle = VRStereoViewTextureArray?.APIWrappers?.FirstOrDefault()?.GetHandle();
+                    if (arrayHandle is not null)
+                        SubmitRender(arrayHandle.Value);
+                }
             }
-
-            public static float GpuFrametime { get; private set; } = 0;
-            public static float CpuFrametime { get; private set; } = 0;
-            public static float TotalFrametime { get; private set; } = 0;
-            public static float Framerate { get; private set; } = 0;
-            public static float MaxFrametime { get; private set; } = 0;
 
             public static XRViewport? LeftEyeViewport { get; private set; }
             public static XRViewport? RightEyeViewport { get; private set; }
@@ -333,21 +359,22 @@ namespace XREngine
                 vMin = 0.0f,
                 vMax = 1.0f,
             };
-            private static VRTextureBounds_t _leftEyeTexBounds = new()
-            {
-                uMin = 0.0f,
-                uMax = 0.5f,
-                vMin = 0.0f,
-                vMax = 1.0f,
-            };
 
-            private static VRTextureBounds_t _rightEyeTexBounds = new()
-            {
-                uMin = 0.5f,
-                uMax = 1.0f,
-                vMin = 0.0f,
-                vMax = 1.0f,
-            };
+            //private static VRTextureBounds_t _leftEyeTexBounds = new()
+            //{
+            //    uMin = 0.0f,
+            //    uMax = 0.5f,
+            //    vMin = 0.0f,
+            //    vMax = 1.0f,
+            //};
+
+            //private static VRTextureBounds_t _rightEyeTexBounds = new()
+            //{
+            //    uMin = 0.5f,
+            //    uMax = 1.0f,
+            //    vMin = 0.0f,
+            //    vMax = 1.0f,
+            //};
 
             private static Texture_t _eyeTex = new()
             {
@@ -379,15 +406,15 @@ namespace XREngine
                 IntPtr eyesHandle,
                 ETextureType apiType = ETextureType.OpenGL,
                 EColorSpace colorSpace = EColorSpace.Auto,
-                EVRSubmitFlags flags = EVRSubmitFlags.Submit_Default)
+                EVRSubmitFlags flags = EVRSubmitFlags.Submit_GlArrayTexture)
             {
                 _eyeTex.eColorSpace = colorSpace;
                 _eyeTex.handle = eyesHandle;
                 _eyeTex.eType = apiType;
 
                 var comp = Valve.VR.OpenVR.Compositor;
-                CheckError(comp.Submit(EVREye.Eye_Left, ref _eyeTex, ref _leftEyeTexBounds, flags));
-                CheckError(comp.Submit(EVREye.Eye_Right, ref _eyeTex, ref _rightEyeTexBounds, flags));
+                CheckError(comp.Submit(EVREye.Eye_Left, ref _eyeTex, ref _singleTexBounds, flags));
+                CheckError(comp.Submit(EVREye.Eye_Right, ref _eyeTex, ref _singleTexBounds, flags));
 
                 comp.PostPresentHandoff();
             }
@@ -444,6 +471,82 @@ namespace XREngine
 
             public static NamedPipeServerStream? PipeServer { get; private set; }
             public static NamedPipeClientStream? PipeClient { get; private set; }
+
+            private static (XRCamera? left, XRCamera? right, XRWorldInstance? world) _viewInformation = (null, null, null);
+            /// <summary>
+            /// The world instance to render in the VR headset, and the cameras for the left and right eyes.
+            /// </summary>
+            public static (XRCamera? LeftEyeCamera, XRCamera? RightEyeCamera, XRWorldInstance? World) ViewInformation
+            {
+                get => _viewInformation;
+                set
+                {
+                    _viewInformation = value;
+
+                    var leftEye = LeftEyeViewport;
+                    if (leftEye is not null)
+                    {
+                        leftEye.Camera = _viewInformation.left;
+                        leftEye.WorldInstanceOverride = _viewInformation.world;
+                    }
+
+                    var rightEye = RightEyeViewport;
+                    if (rightEye is not null)
+                    {
+                        rightEye.Camera = _viewInformation.right;
+                        rightEye.WorldInstanceOverride = _viewInformation.world;
+                    }
+                }
+            }
+
+            private static void ReadStats()
+            {
+                Compositor_FrameTiming currentFrame = new();
+                Compositor_FrameTiming previousFrame = new();
+                currentFrame.m_nSize = (uint)Marshal.SizeOf<Compositor_FrameTiming>();
+                previousFrame.m_nSize = (uint)Marshal.SizeOf<Compositor_FrameTiming>();
+                Valve.VR.OpenVR.Compositor.GetFrameTiming(ref currentFrame, 0);
+                Valve.VR.OpenVR.Compositor.GetFrameTiming(ref previousFrame, 1);
+
+                uint currentFrameIndex = currentFrame.m_nFrameIndex;
+                uint amountOfFramesSinceLast = currentFrameIndex - LastFrameSampleIndex;
+
+                double gpuFrametimeMs = 0;
+                double cpuFrametimeMs = 0;
+                double totalFrametimeMs = 0;
+
+                for (uint i = 0; i < amountOfFramesSinceLast; i++)
+                {
+                    Valve.VR.OpenVR.Compositor.GetFrameTiming(ref currentFrame, i);
+                    Valve.VR.OpenVR.Compositor.GetFrameTiming(ref previousFrame, i + 1);
+
+                    gpuFrametimeMs += currentFrame.m_flTotalRenderGpuMs;
+                    cpuFrametimeMs += currentFrame.m_flNewFrameReadyMs - currentFrame.m_flNewPosesReadyMs + currentFrame.m_flCompositorRenderCpuMs;
+                    totalFrametimeMs += (currentFrame.m_flSystemTimeInSeconds - previousFrame.m_flSystemTimeInSeconds) * 1000f;
+                }
+
+                gpuFrametimeMs /= amountOfFramesSinceLast;
+                cpuFrametimeMs /= amountOfFramesSinceLast;
+                totalFrametimeMs /= amountOfFramesSinceLast;
+
+                LastFrameSampleIndex = currentFrameIndex;
+
+                GpuFrametime = (float)gpuFrametimeMs;
+                CpuFrametime = (float)cpuFrametimeMs;
+                TotalFrametime = (float)totalFrametimeMs;
+                Framerate = (int)(1.0f / totalFrametimeMs * 1000.0f);
+
+                Debug.Out($"VR: {Framerate}fps / GPU: {MathF.Round(GpuFrametime, 2, MidpointRounding.AwayFromZero)}ms / CPU: {MathF.Round(CpuFrametime, 2, MidpointRounding.AwayFromZero)}ms");
+            }
+
+            public static float GpuFrametime { get; private set; } = 0;
+            public static float CpuFrametime { get; private set; } = 0;
+            public static float TotalFrametime { get; private set; } = 0;
+            public static float Framerate { get; private set; } = 0;
+            public static float MaxFrametime { get; private set; } = 0;
+
+            #region Separated Client
+
             public static void StartInputClient()
             {
                 PipeClient = new(".", "VRInputPipe", PipeDirection.Out, PipeOptions.Asynchronous);
@@ -655,6 +758,8 @@ namespace XREngine
                 renderer.SetMemoryObjectHandle(mem, (void*)memoryHandle);
                 renderer.SetSemaphoreHandle(sem, (void*)semaphoreHandle);
             }
+
+            #endregion
         }
     }
 }

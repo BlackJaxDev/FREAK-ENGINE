@@ -263,7 +263,7 @@ public class DefaultRenderPipeline : RenderPipeline
     XRTexture CreateDepthViewTexture()
         => new XRTexture2DView(
             GetTexture<XRTexture2D>(DepthStencilTextureName)!,
-            0, 1,
+            0u, 1u,
             EPixelInternalFormat.Depth24Stencil8,
             false, false)
         {
@@ -274,7 +274,7 @@ public class DefaultRenderPipeline : RenderPipeline
     XRTexture CreateStencilViewTexture()
         => new XRTexture2DView(
             GetTexture<XRTexture2D>(DepthStencilTextureName)!,
-            0, 1,
+            0u, 1u,
             EPixelInternalFormat.Depth24Stencil8,
             false, false)
         {

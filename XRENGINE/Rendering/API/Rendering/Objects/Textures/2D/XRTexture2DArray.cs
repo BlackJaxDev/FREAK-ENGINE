@@ -52,6 +52,19 @@ namespace XREngine.Rendering
 
         public Mipmap2D[]? Mipmaps => Textures.Length > 0 ? Textures[0].Mipmaps : null;
 
+        public class OVRMultiView(int offset, uint numViews)
+        {
+            public uint NumViews = numViews;
+            public int Offset = offset;
+        }
+
+        private OVRMultiView? _ovrMultiViewParameters;
+        public OVRMultiView? OVRMultiViewParameters
+        {
+            get => _ovrMultiViewParameters;
+            set => SetField(ref _ovrMultiViewParameters, value);
+        }
+
         public event Action? Resized = null;
 
         private void TextureResized()
@@ -100,16 +113,21 @@ namespace XREngine.Rendering
             using MagickImageCollection collection = new(filePath);
             Textures = new XRTexture2D[collection.Count];
             for (int i = 0; i < collection.Count; i++)
-            {
-                IMagickImage<float>? image = collection[i];
-                if (image is null)
-                    continue;
-
-                XRTexture2D texture = new(image as MagickImage);
-                Textures[i] = texture;
-            }
+                if (collection[i] is MagickImage mi)
+                    Textures[i] = new(mi);
             AutoGenerateMipmaps = true;
             return true;
         }
+
+        public delegate void DelAttachToFBO_OVRMultiView(XRFrameBuffer target, EFrameBufferAttachment attachment, int mipLevel, int offset, uint numViews);
+        public delegate void DelDetachFromFBO_OVRMultiView(XRFrameBuffer target, EFrameBufferAttachment attachment, int mipLevel, int offset, uint numViews);
+
+        public event DelAttachToFBO_OVRMultiView? AttachToFBORequested_OVRMultiView;
+        public event DelDetachFromFBO_OVRMultiView? DetachFromFBORequested_OVRMultiView;
+
+        public void AttachToFBO_OVRMultiView(XRFrameBuffer fbo, EFrameBufferAttachment attachment, int mipLevel, int offset, uint numViews)
+            => AttachToFBORequested_OVRMultiView?.Invoke(fbo, attachment, mipLevel, offset, numViews);
+        public void DetachFromFBO_OVRMultiView(XRFrameBuffer fbo, EFrameBufferAttachment attachment, int mipLevel, int offset, uint numViews)
+            => DetachFromFBORequested_OVRMultiView?.Invoke(fbo, attachment, mipLevel, offset, numViews);
     }
 }

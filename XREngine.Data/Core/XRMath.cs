@@ -1236,5 +1236,10 @@ namespace XREngine.Data.Core
             Approx(left.Y, right.Y) &&
             Approx(left.Z, right.Z) &&
             Approx(left.W, right.W);
+
+        //public static Vector3 PositionFromBarycentricUV(VertexTriangle triangle, Vector2 UV)
+        //    => (1.0f - UV.X - UV.Y) * triangle.Vertex0.Position + UV.X * triangle.Vertex1.Position + UV.Y * triangle.Vertex2.Position;
+        public static Vector3 PositionFromBarycentricUV(Vector3 v0, Vector3 v1, Vector3 v2, Vector2 uv)
+            => (1.0f - uv.X - uv.Y) * v0 + uv.X * v1 + uv.Y * v2;
     }
 }

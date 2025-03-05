@@ -2,7 +2,6 @@
 using MagicPhysX;
 using Silk.NET.Input;
 using Silk.NET.OpenAL;
-using System.Collections.Concurrent;
 using System.Numerics;
 using XREngine.Actors.Types;
 using XREngine.Animation;
@@ -30,7 +29,6 @@ using XREngine.Scene.Components.Physics;
 using XREngine.Scene.Components.VR;
 using XREngine.Scene.Transforms;
 using static XREngine.Scene.Transforms.RigidBodyTransform;
-using BlendMode = XREngine.Rendering.Models.Materials.BlendMode;
 using Quaternion = System.Numerics.Quaternion;
 
 namespace XREngine.Editor;
@@ -40,25 +38,25 @@ public static class EditorWorld
     //Unit testing toggles
     public const bool VisualizeOctree = false;
     public const bool VisualizeQuadtree = false;
-    public const bool Physics = true;
-    public const bool DirLight = true;
+    public const bool Physics = false;
+    public const bool DirLight = false;
     public const bool SpotLight = false;
     public const bool DirLight2 = false;
-    public const bool PointLight = false;
+    public const bool PointLight = true;
     public const bool SoundNode = false;
     public const bool LightProbe = true; //Adds a test light probe to the scene for PBR lighting.
     public const bool Skybox = true;
     public const bool Spline = false; //Adds a 3D spline to the scene.
     public const bool DeferredDecal = false; //Adds a deferred decal to the scene.
-    public const bool StaticModel = false; //Imports a scene model to be rendered.
-    public const bool AnimatedModel = true; //Imports a character model to be animated.
-    public const bool AddEditorUI = false; //Adds the full editor UI to the camera. Probably don't use this one a character pawn.
+    public const bool StaticModel = true; //Imports a scene model to be rendered.
+    public const bool AnimatedModel = false; //Imports a character model to be animated.
+    public const bool AddEditorUI = true; //Adds the full editor UI to the camera. Probably don't use this one a character pawn.
     public const bool VRPawn = false; //Enables VR input and pawn.
-    public const bool CharacterPawn = true; //Enables the player to physically locomote in the world. Requires a physical floor.
+    public const bool CharacterPawn = false; //Enables the player to physically locomote in the world. Requires a physical floor.
     public const bool ThirdPersonPawn = true; //If on desktop and character pawn is enabled, this will add a third person camera instead of first person.
     public const bool TestAnimation = false; //Adds test animations to the character pawn.
-    public const bool PhysicsChain = true; //Adds a jiggle physics chain to the character pawn.
-    public const bool TransformTool = true; //Adds the transform tool to the scene for testing dragging and rotating etc.
+    public const bool PhysicsChain = false; //Adds a jiggle physics chain to the character pawn.
+    public const bool TransformTool = false; //Adds the transform tool to the scene for testing dragging and rotating etc.
     public const bool AllowEditingInVR = true; //Allows the user to edit the scene from desktop in VR.
     public const bool AddCameraVRPickup = true;
     public const bool IKTest = false; //Adds an simple IK test tree to the scene.

@@ -7,7 +7,13 @@
         //Multiply together in the shader
         ModelMatrix,
 
-        //ViewMatrix, //Desktop
+        /// <summary>
+        /// The inverse of the camera's world space transformation.
+        /// </summary>
+        ViewMatrix, //Desktop
+        /// <summary>
+        /// The camera's normal world space transformation (called 'inverse view' because the non-inversed view matrix transforms the entire scene inversely to the camera).
+        /// </summary>
         InverseViewMatrix, //Desktop
         LeftEyeInverseViewMatrix, //Stereo
         RightEyeInverseViewMatrix, //Stereo

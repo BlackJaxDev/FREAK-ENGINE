@@ -1,5 +1,4 @@
-﻿using System.Collections.Concurrent;
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using XREngine.Data.Colors;
 using XREngine.Data.Core;
@@ -7,7 +6,6 @@ using XREngine.Data.Rendering;
 using XREngine.Rendering.Models.Materials;
 using XREngine.Rendering.Models.Materials.Shaders.Parameters;
 using XREngine.Rendering.Shaders.Generator;
-using static XREngine.Rendering.XRMaterial;
 using static XREngine.Rendering.XRMesh;
 
 namespace XREngine.Rendering
@@ -27,8 +25,10 @@ namespace XREngine.Rendering
         private XRMesh? _mesh;
         private XRMaterial? _material;
         private string? _vertexShaderSource;
+        private string? _ovrMultiViewVertexShaderSource;
 
         public string? GeneratedVertexShaderSource => _vertexShaderSource ??= GenerateVertexShaderSource<DefaultVertexShaderGenerator>();
+        public string? GeneratedOvrMultiViewVertexShaderSource => _ovrMultiViewVertexShaderSource ??= GenerateVertexShaderSource<OVRMultiViewVertexShaderGenerator>();
 
         public class SubMesh : XRBase
         {
@@ -216,7 +216,7 @@ namespace XREngine.Rendering
         /// </summary>
         public event DelSetUniforms? SettingUniforms;
 
-        public delegate void DelRenderRequested(Matrix4x4 worldMatrix, XRMaterial? materialOverride, uint instances, EMeshBillboardMode billboardMode, bool vrStereoPass);
+        public delegate void DelRenderRequested(Matrix4x4 worldMatrix, XRMaterial? materialOverride, uint instances, EMeshBillboardMode billboardMode);
         public delegate ShaderVar DelParameterRequested(int index);
 
         /// <summary>
@@ -227,16 +227,16 @@ namespace XREngine.Rendering
         /// <summary>
         /// Use this to render the mesh with an identity transform matrix.
         /// </summary>
-        public void Render(XRMaterial? materialOverride = null, uint instances = 1u, bool vrStereoPass = false)
-            => Render(Matrix4x4.Identity, materialOverride, instances, vrStereoPass);
+        public void Render(XRMaterial? materialOverride = null, uint instances = 1u)
+            => Render(Matrix4x4.Identity, materialOverride, instances);
 
         /// <summary>
         /// Use this to render the mesh.
         /// </summary>
         /// <param name="modelMatrix"></param>
         /// <param name="materialOverride"></param>
-        public void Render(Matrix4x4 modelMatrix, XRMaterial? materialOverride = null, uint instances = 1u, bool vrStereoPass = false)
-            => RenderRequested?.Invoke(modelMatrix, materialOverride, instances, Material?.BillboardMode ?? EMeshBillboardMode.None, vrStereoPass);
+        public void Render(Matrix4x4 modelMatrix, XRMaterial? materialOverride = null, uint instances = 1u)
+            => RenderRequested?.Invoke(modelMatrix, materialOverride, instances, Material?.BillboardMode ?? EMeshBillboardMode.None);
 
         public T? Parameter<T>(int index) where T : ShaderVar 
             => Material?.Parameter<T>(index);

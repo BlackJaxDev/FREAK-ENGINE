@@ -113,7 +113,7 @@ namespace XREngine.Components.Scene.Mesh
 
         private void SettingUniforms(XRRenderProgram vertexProgram, XRRenderProgram materialProgram)
         {
-            vertexProgram.Uniform(EEngineUniform.RootInvModelMatrix.ToString(), /*RootTransform?.InverseWorldMatrix ?? */Matrix4x4.Identity);
+            //vertexProgram.Uniform(EEngineUniform.RootInvModelMatrix.ToString(), /*RootTransform?.InverseWorldMatrix ?? */Matrix4x4.Identity);
         }
 
         private bool BeforeAdd(RenderInfo info, RenderCommandCollection passes, XRCamera? camera)

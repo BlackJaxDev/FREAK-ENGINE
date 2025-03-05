@@ -18,5 +18,6 @@ namespace XREngine.Rendering
             set => SetField(ref _array, value);
         }
         public override uint MaxDimension { get; } = 1u;
+        public override ETextureTarget TextureTarget => ETextureTarget.Texture1D;
     }
 }

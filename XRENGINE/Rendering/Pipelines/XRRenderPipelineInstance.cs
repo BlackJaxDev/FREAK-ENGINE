@@ -13,7 +13,11 @@ namespace XREngine.Rendering;
 /// </summary>
 public sealed partial class XRRenderPipelineInstance : XRBase
 {
-    //TODO: stereoscopic rendering output
+    public XRRenderPipelineInstance() { }
+    public XRRenderPipelineInstance(RenderPipeline pipeline)
+    {
+        Pipeline = pipeline;
+    }
 
     /// <summary>
     /// This collection contains mesh rendering commands pre-sorted for consuption by a render pass.
@@ -78,10 +82,12 @@ public sealed partial class XRRenderPipelineInstance : XRBase
     public void Render(
         VisualScene scene,
         XRCamera? camera,
+        XRCamera? stereoRightEyeCamera,
         XRViewport? viewport,
         XRFrameBuffer? targetFBO = null,
         UICanvasComponent? userInterface = null,
         bool shadowPass = false,
+        bool stereoPass = false,
         XRMaterial? shadowMaterial = null)
     {
         if (Pipeline is null)
@@ -92,7 +98,7 @@ public sealed partial class XRRenderPipelineInstance : XRBase
 
         using (PushRenderingPipeline(this))
         {
-            using (RenderState.PushMainAttributes(viewport, scene, camera, targetFBO, shadowPass, shadowMaterial, userInterface))
+            using (RenderState.PushMainAttributes(viewport, scene, camera, stereoRightEyeCamera, targetFBO, shadowPass, stereoPass, shadowMaterial, userInterface))
             {
                 Pipeline.CommandChain.Execute();
             }

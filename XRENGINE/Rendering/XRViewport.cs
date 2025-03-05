@@ -237,7 +237,16 @@ namespace XREngine.Rendering
                 return;
             }
 
-            _renderPipeline.Render(world.VisualScene, camera, this, targetFbo, AllowUIRender ? CameraComponent?.GetUserInterfaceOverlay() : null, shadowPass, forcedMaterial);
+            _renderPipeline.Render(
+                world.VisualScene,
+                camera,
+                null,
+                this,
+                targetFbo,
+                AllowUIRender ? CameraComponent?.GetUserInterfaceOverlay() : null,
+                shadowPass,
+                false,
+                forcedMaterial);
         }
 
         private CameraComponent? _cameraComponent = null;

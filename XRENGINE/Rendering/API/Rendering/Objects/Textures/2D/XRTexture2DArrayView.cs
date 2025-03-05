@@ -9,21 +9,37 @@ namespace XREngine.Rendering
         uint minLayer,
         uint numLayers,
         EPixelInternalFormat internalFormat,
-        bool view2D,
-        bool multisample) : XRTextureView<XRTexture2DArray>(viewedTexture, minLevel, numLevels, minLayer, numLayers, internalFormat)
+        bool array,
+        bool multisample) : XRTextureView<XRTexture2DArray>(viewedTexture, minLevel, numLevels, minLayer, numLayers, internalFormat), IFrameBufferAttachement
     {
-        private bool _view2D = view2D;
-        public bool View2D
+        public override uint MaxDimension { get; } = 2;
+
+        private bool _array = array;
+        public bool Array
         {
-            get => _view2D;
-            set => SetField(ref _view2D, value);
+            get => _array;
+            set => SetField(ref _array, value);
         }
+
         private bool _multisample = multisample;
         public bool Multisample
         {
             get => _multisample;
             set => SetField(ref _multisample, value);
         }
-        public override uint MaxDimension { get; } = 2u;
+
+        private EDepthStencilFmt _depthStencilFormat = EDepthStencilFmt.None;
+        public EDepthStencilFmt DepthStencilViewFormat
+        {
+            get => _depthStencilFormat;
+            set => SetField(ref _depthStencilFormat, value);
+        }
+
+        public uint Width => ViewedTexture.Width;
+        public uint Height => ViewedTexture.Height;
+
+        public override bool HasAlphaChannel => ViewedTexture.HasAlphaChannel;
+
+        public override ETextureTarget TextureTarget { get; } = ETextureTarget.Texture2D;
     }
 }

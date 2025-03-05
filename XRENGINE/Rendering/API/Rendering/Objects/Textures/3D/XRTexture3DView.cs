@@ -11,5 +11,6 @@ namespace XREngine.Rendering
         EPixelInternalFormat internalFormat) : XRTextureView<XRTexture3D>(viewedTexture, minLevel, numLevels, minLayer, numLayers, internalFormat)
     {
         public override uint MaxDimension { get; } = 3u;
+        public override ETextureTarget TextureTarget => ETextureTarget.Texture3D;
     }
 }

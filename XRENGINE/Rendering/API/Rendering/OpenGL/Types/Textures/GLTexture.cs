@@ -1,4 +1,5 @@
 ﻿using Silk.NET.OpenGL;
+using Silk.NET.OpenGL.Extensions.OVR;
 using XREngine.Data.Colors;
 using XREngine.Data.Core;
 using XREngine.Data.Rendering;
@@ -204,6 +205,23 @@ namespace XREngine.Rendering.OpenGL
             => Api.NamedFramebufferTexture(Renderer.GenericToAPI<GLFrameBuffer>(fbo)!.BindingId, ToGLEnum(attachment), BindingId, mipLevel);
         public void DetachFromFBO(XRFrameBuffer fbo, EFrameBufferAttachment attachment, int mipLevel = 0)
             => Api.NamedFramebufferTexture(Renderer.GenericToAPI<GLFrameBuffer>(fbo)!.BindingId, ToGLEnum(attachment), 0, mipLevel);
+
+        public void AttachToFBO_OVRMultiView(XRFrameBuffer fbo, EFrameBufferAttachment attachment, int mipLevel, int offset, uint numViews)
+            => Renderer.OVRMultiView?.NamedFramebufferTextureMultiview(
+                Renderer.GenericToAPI<GLFrameBuffer>(fbo)!.BindingId,
+                ToFrameBufferAttachement(attachment),
+                BindingId,
+                mipLevel,
+                offset,
+                numViews);
+        public void DetachFromFBO_OVRMultiView(XRFrameBuffer fbo, EFrameBufferAttachment attachment, int mipLevel, int offset, uint numViews)
+            => Renderer.OVRMultiView?.NamedFramebufferTextureMultiview(
+                Renderer.GenericToAPI<GLFrameBuffer>(fbo)!.BindingId,
+                ToFrameBufferAttachement(attachment),
+                0,
+                mipLevel,
+                offset,
+                numViews);
 
         public abstract void PushData();
         public string ResolveSamplerName(int textureIndex, string? samplerNameOverride)

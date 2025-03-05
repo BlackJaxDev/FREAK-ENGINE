@@ -25,7 +25,15 @@ namespace XREngine.Rendering.OpenGL
             if (apiViewed is null)
                 return;
 
-            Api.TextureView(BindingId, ToGLEnum(apiViewed.TextureTarget), apiViewed.BindingId, ToGLEnum(Data.InternalFormat), Data.MinLevel, Data.NumLevels, Data.MinLayer, Data.NumLayers);
+            Api.TextureView(
+                BindingId,
+                ToGLEnum(Data.TextureTarget),
+                apiViewed.BindingId,
+                ToGLEnum(Data.InternalFormat),
+                Data.MinLevel,
+                Data.NumLevels,
+                Data.MinLayer,
+                Data.NumLayers);
         }
 
         private IGLTexture? GetTexture()

@@ -440,14 +440,33 @@ namespace XREngine.Rendering
             set => SetField(ref _renderPipeline, value);
         }
 
-        public virtual void SetUniforms(XRRenderProgram program)
+        public virtual void SetUniforms(XRRenderProgram program, bool stereoLeftEye = true)
         {
-            program.Uniform(EEngineUniform.InverseViewMatrix.ToString(), Transform.WorldMatrix);
-            program.Uniform(EEngineUniform.ProjMatrix.ToString(), ProjectionMatrix);
+            bool stereoPass = Engine.Rendering.State.IsStereoPass;
+            if (stereoPass)
+            {
+                if (stereoLeftEye)
+                {
+                    program.Uniform(EEngineUniform.LeftEyeInverseViewMatrix.ToString(), Transform.WorldMatrix);
+                    program.Uniform(EEngineUniform.LeftEyeProjMatrix.ToString(), ProjectionMatrix);
+                }
+                else
+                {
+                    program.Uniform(EEngineUniform.RightEyeInverseViewMatrix.ToString(), Transform.WorldMatrix);
+                    program.Uniform(EEngineUniform.RightEyeProjMatrix.ToString(), ProjectionMatrix);
+                }
+            }
+            else
+            {
+                program.Uniform(EEngineUniform.InverseViewMatrix.ToString(), Transform.WorldMatrix);
+                program.Uniform(EEngineUniform.ProjMatrix.ToString(), ProjectionMatrix);
+            }
+
             program.Uniform(EEngineUniform.CameraPosition.ToString(), Transform.WorldTranslation);
             program.Uniform(EEngineUniform.CameraForward.ToString(), Transform.WorldForward);
             program.Uniform(EEngineUniform.CameraUp.ToString(), Transform.WorldUp);
             program.Uniform(EEngineUniform.CameraRight.ToString(), Transform.WorldRight);
+
             Parameters.SetUniforms(program);
         }
 

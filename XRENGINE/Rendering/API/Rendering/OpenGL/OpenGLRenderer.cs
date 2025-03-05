@@ -1,6 +1,7 @@
 ﻿using Extensions;
 using ImageMagick;
 using Silk.NET.OpenGL;
+using Silk.NET.OpenGL.Extensions.OVR;
 using Silk.NET.OpenGLES.Extensions.EXT;
 using System.Numerics;
 using XREngine.Data.Colors;
@@ -14,6 +15,7 @@ namespace XREngine.Rendering.OpenGL
 {
     public partial class OpenGLRenderer : AbstractRenderer<GL>
     {
+        public OvrMultiview? OVRMultiView { get; }
         public Silk.NET.OpenGLES.GL ESApi { get; }
         public ExtMemoryObject? EXTMemoryObject { get; }
         public ExtSemaphore? EXTSemaphore { get; }
@@ -37,6 +39,8 @@ namespace XREngine.Rendering.OpenGL
         public OpenGLRenderer(XRWindow window, bool shouldLinkWindow = true) : base(window, shouldLinkWindow)
         {
             var api = Api;
+            OVRMultiView = api.TryGetExtension(out OvrMultiview ext7) ? ext7 : null;
+
             ESApi = Silk.NET.OpenGLES.GL.GetApi(Window.GLContext);
             EXTMemoryObject = ESApi.TryGetExtension<ExtMemoryObject>(out var ext) ? ext : null;
             EXTSemaphore = ESApi.TryGetExtension<ExtSemaphore>(out var ext2) ? ext2 : null;
@@ -236,29 +240,29 @@ namespace XREngine.Rendering.OpenGL
                 //Texture 1D
                 //XRTexture1D data => new GLTexture1D(this, data),
                 //XRTexture1DArray data => new GLTexture1DArray(this, data),
-                XRTexture1DView data => new GLTextureView(this, data),
-                XRTexture1DArrayView data => new GLTextureView(this, data),
+                XRTextureViewBase data => new GLTextureView(this, data),
+                //XRTexture1DArrayView data => new GLTextureView(this, data),
 
                 //Texture 2D
                 XRTexture2D data => new GLTexture2D(this, data),
                 XRTexture2DArray data => new GLTexture2DArray(this, data),
-                XRTexture2DView data => new GLTextureView(this, data),
-                XRTexture2DArrayView data => new GLTextureView(this, data),
+                //XRTexture2DView data => new GLTextureView(this, data),
+                //XRTexture2DArrayView data => new GLTextureView(this, data),
 
                 //Texture 3D
                 XRTexture3D data => new GLTexture3D(this, data),
                 //XRTexture3DArray data => new GLTexture3DArray(this, data),
-                XRTexture3DView data => new GLTextureView(this, data),
+                //XRTexture3DView data => new GLTextureView(this, data),
 
                 //Texture Cube
                 XRTextureCube data => new GLTextureCube(this, data),
                 //XRTextureCubeArray data => new GLTextureCubeArray(this, data),
-                XRTextureCubeView data => new GLTextureView(this, data),
+                //XRTextureCubeView data => new GLTextureView(this, data),
 
                 //Texture Buffer
                 //XRTextureBuffer data => new GLTextureBuffer(this, data),
                 //XRTextureBufferArray data => new GLTextureBufferArray(this, data),
-                XRTextureBufferView data => new GLTextureView(this, data),
+                //XRTextureBufferView data => new GLTextureView(this, data),
 
                 //Feedback
                 XRRenderQuery data => new GLRenderQuery(this, data),

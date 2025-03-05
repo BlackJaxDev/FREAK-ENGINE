@@ -11,5 +11,6 @@ namespace XREngine.Rendering
         EPixelInternalFormat internalFormat) : XRTextureView<XRTextureBuffer>(viewedTexture, minLevel, numLevels, minLayer, numLayers, internalFormat)
     {
         public override uint MaxDimension { get; } = 0;
+        public override ETextureTarget TextureTarget => ETextureTarget.TextureBuffer;
     }
 }

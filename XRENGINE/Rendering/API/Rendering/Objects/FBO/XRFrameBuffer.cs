@@ -307,19 +307,25 @@ namespace XREngine.Rendering
             var (Target, Attachment, MipLevel, LayerIndex) = targets[i];
             switch (Target)
             {
-                case XRTexture texture:
+                default:
                     {
+                        if (Target is not XRTexture texture)
+                            break;
                         texture.Bind();
-                        if (texture is XRTextureCube cuberef && LayerIndex >= 0 && LayerIndex < 6)
-                            cuberef.AttachFaceToFBO(this, Attachment, ECubemapFace.PosX + LayerIndex, MipLevel);
-                        else
-                            texture.AttachToFBO(this, Attachment, MipLevel);
-
+                        texture.AttachToFBO(this, Attachment, MipLevel);
                         break;
                     }
                 case XRRenderBuffer buf:
                     buf.Bind();
                     buf.AttachToFBO(this, Attachment);
+                    break;
+                case XRTextureCube cuberef when LayerIndex >= 0 && LayerIndex < 6:
+                    cuberef.Bind();
+                    cuberef.AttachFaceToFBO(this, Attachment, ECubemapFace.PosX + LayerIndex, MipLevel);
+                    break;
+                case XRTexture2DArray arrayref when arrayref.OVRMultiViewParameters is XRTexture2DArray.OVRMultiView ovr:
+                    arrayref.Bind();
+                    arrayref.AttachToFBO_OVRMultiView(this, Attachment, MipLevel, ovr.Offset, ovr.NumViews);
                     break;
             }
         }
@@ -332,17 +338,25 @@ namespace XREngine.Rendering
             var (Target, Attachment, MipLevel, LayerIndex) = Targets[i];
             switch (Target)
             {
-                case XRTexture texture:
+                default:
                     {
-                        if (texture is XRTextureCube cuberef && LayerIndex >= 0 && LayerIndex < 6)
-                            cuberef.DetachFaceFromFBO(this, Attachment, ECubemapFace.PosX + LayerIndex, MipLevel);
-                        else
-                            texture.DetachFromFBO(this, Attachment, MipLevel);
+                        if (Target is not XRTexture texture)
+                            break;
+                        texture.Bind();
+                        texture.DetachFromFBO(this, Attachment, MipLevel);
                         break;
                     }
                 case XRRenderBuffer buf:
                     buf.Bind();
                     buf.DetachFromFBO(this, Attachment);
+                    break;
+                case XRTextureCube cuberef when LayerIndex >= 0 && LayerIndex < 6:
+                    cuberef.Bind();
+                    cuberef.DetachFaceFromFBO(this, Attachment, ECubemapFace.PosX + LayerIndex, MipLevel);
+                    break;
+                case XRTexture2DArray arrayref when arrayref.OVRMultiViewParameters is XRTexture2DArray.OVRMultiView ovr:
+                    arrayref.Bind();
+                    arrayref.DetachFromFBO_OVRMultiView(this, Attachment, MipLevel, ovr.Offset, ovr.NumViews);
                     break;
             }
         }

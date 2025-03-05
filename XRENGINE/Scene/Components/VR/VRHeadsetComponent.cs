@@ -83,20 +83,7 @@ namespace XREngine.Data.Components.Scene
         protected internal override void OnComponentActivated()
         {
             base.OnComponentActivated();
-
-            XRViewport? leftEye = Engine.VRState.LeftEyeViewport;
-            XRViewport? rightEye = Engine.VRState.RightEyeViewport;
-
-            if (leftEye is null || rightEye is null)
-            {
-                Debug.LogWarning("VRHeadsetComponent requires the game to initialize with VR.");
-                return;
-            }
-
-            leftEye.Camera = LeftEyeCamera;
-            leftEye.WorldInstanceOverride = World;
-            rightEye.Camera = RightEyeCamera;
-            rightEye.WorldInstanceOverride = World;
+            Engine.VRState.ViewInformation = (LeftEyeCamera, RightEyeCamera, World);
         }
     }
 }

@@ -111,6 +111,8 @@ namespace XREngine.Rendering.OpenGL
         {
             base.UnlinkData();
 
+            Data.AttachToFBORequested_OVRMultiView -= AttachToFBO_OVRMultiView;
+            Data.DetachFromFBORequested_OVRMultiView -= DetachFromFBO_OVRMultiView;
             Data.Resized -= DataResized;
             Mipmaps = [];
         }
@@ -118,6 +120,8 @@ namespace XREngine.Rendering.OpenGL
         {
             base.LinkData();
 
+            Data.AttachToFBORequested_OVRMultiView += AttachToFBO_OVRMultiView;
+            Data.DetachFromFBORequested_OVRMultiView += DetachFromFBO_OVRMultiView;
             Data.Resized += DataResized;
             UpdateMipmaps();
         }

@@ -426,6 +426,46 @@ namespace XREngine.Rendering.OpenGL
                     _ => GLEnum.Texture2D
                 };
 
+            public static FramebufferAttachment ToFrameBufferAttachement(EFrameBufferAttachment attachment)
+                => attachment switch
+                {
+                    EFrameBufferAttachment.ColorAttachment0 => FramebufferAttachment.ColorAttachment0,
+                    EFrameBufferAttachment.ColorAttachment1 => FramebufferAttachment.ColorAttachment1,
+                    EFrameBufferAttachment.ColorAttachment2 => FramebufferAttachment.ColorAttachment2,
+                    EFrameBufferAttachment.ColorAttachment3 => FramebufferAttachment.ColorAttachment3,
+                    EFrameBufferAttachment.ColorAttachment4 => FramebufferAttachment.ColorAttachment4,
+                    EFrameBufferAttachment.ColorAttachment5 => FramebufferAttachment.ColorAttachment5,
+                    EFrameBufferAttachment.ColorAttachment6 => FramebufferAttachment.ColorAttachment6,
+                    EFrameBufferAttachment.ColorAttachment7 => FramebufferAttachment.ColorAttachment7,
+                    EFrameBufferAttachment.ColorAttachment8 => FramebufferAttachment.ColorAttachment8,
+                    EFrameBufferAttachment.ColorAttachment9 => FramebufferAttachment.ColorAttachment9,
+                    EFrameBufferAttachment.ColorAttachment10 => FramebufferAttachment.ColorAttachment10,
+                    EFrameBufferAttachment.ColorAttachment11 => FramebufferAttachment.ColorAttachment11,
+                    EFrameBufferAttachment.ColorAttachment12 => FramebufferAttachment.ColorAttachment12,
+                    EFrameBufferAttachment.ColorAttachment13 => FramebufferAttachment.ColorAttachment13,
+                    EFrameBufferAttachment.ColorAttachment14 => FramebufferAttachment.ColorAttachment14,
+                    EFrameBufferAttachment.ColorAttachment15 => FramebufferAttachment.ColorAttachment15,
+                    EFrameBufferAttachment.ColorAttachment16 => FramebufferAttachment.ColorAttachment16,
+                    EFrameBufferAttachment.ColorAttachment17 => FramebufferAttachment.ColorAttachment17,
+                    EFrameBufferAttachment.ColorAttachment18 => FramebufferAttachment.ColorAttachment18,
+                    EFrameBufferAttachment.ColorAttachment19 => FramebufferAttachment.ColorAttachment19,
+                    EFrameBufferAttachment.ColorAttachment20 => FramebufferAttachment.ColorAttachment20,
+                    EFrameBufferAttachment.ColorAttachment21 => FramebufferAttachment.ColorAttachment21,
+                    EFrameBufferAttachment.ColorAttachment22 => FramebufferAttachment.ColorAttachment22,
+                    EFrameBufferAttachment.ColorAttachment23 => FramebufferAttachment.ColorAttachment23,
+                    EFrameBufferAttachment.ColorAttachment24 => FramebufferAttachment.ColorAttachment24,
+                    EFrameBufferAttachment.ColorAttachment25 => FramebufferAttachment.ColorAttachment25,
+                    EFrameBufferAttachment.ColorAttachment26 => FramebufferAttachment.ColorAttachment26,
+                    EFrameBufferAttachment.ColorAttachment27 => FramebufferAttachment.ColorAttachment27,
+                    EFrameBufferAttachment.ColorAttachment28 => FramebufferAttachment.ColorAttachment28,
+                    EFrameBufferAttachment.ColorAttachment29 => FramebufferAttachment.ColorAttachment29,
+                    EFrameBufferAttachment.ColorAttachment30 => FramebufferAttachment.ColorAttachment30,
+                    EFrameBufferAttachment.ColorAttachment31 => FramebufferAttachment.ColorAttachment31,
+                    EFrameBufferAttachment.DepthAttachment => FramebufferAttachment.DepthAttachment,
+                    EFrameBufferAttachment.StencilAttachment => FramebufferAttachment.StencilAttachment,
+                    EFrameBufferAttachment.DepthStencilAttachment => FramebufferAttachment.DepthStencilAttachment,
+                    _ => FramebufferAttachment.ColorAttachment0
+                };
 
             public static GLEnum ToGLEnum(EFrameBufferAttachment attachment)
                 => attachment switch

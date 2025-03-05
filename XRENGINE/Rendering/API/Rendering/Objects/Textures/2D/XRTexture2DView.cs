@@ -36,5 +36,7 @@ namespace XREngine.Rendering
         public uint Height => ViewedTexture.Height;
 
         public override bool HasAlphaChannel => ViewedTexture.HasAlphaChannel;
+
+        public override ETextureTarget TextureTarget { get; } = ETextureTarget.Texture2D;
     }
 }

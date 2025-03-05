@@ -25,5 +25,6 @@ namespace XREngine.Rendering
             set => SetField(ref _view2D, value);
         }
         public override uint MaxDimension { get; } = 2u;
+        public override ETextureTarget TextureTarget => ETextureTarget.TextureCubeMap;
     }
 }

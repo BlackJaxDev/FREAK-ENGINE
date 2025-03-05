@@ -54,6 +54,10 @@ namespace XREngine.Rendering.OpenGL
             /// The main vertex shader for this mesh. Used when shader pipelines are enabled.
             /// </summary>
             private GLRenderProgram? _separatedVertexProgram;
+            /// <summary>
+            /// The vertex shader used for rendering with OVR_multiview.
+            /// </summary>
+            private GLRenderProgram? _separatedOVRMultiViewVertexProgram;
 
             public GLDataBuffer? TriangleIndicesBuffer
             {
@@ -199,8 +203,7 @@ namespace XREngine.Rendering.OpenGL
                 Matrix4x4 modelMatrix,
                 XRMaterial? materialOverride,
                 uint instances,
-                EMeshBillboardMode billboardMode,
-                bool vrStereoPass)
+                EMeshBillboardMode billboardMode)
             {
                 if (Data is null || !Renderer.Active)
                     return;
@@ -229,7 +232,7 @@ namespace XREngine.Rendering.OpenGL
                     //TODO: only push this data if changed
                     Data.Mesh?.BlendshapeWeights?.PushSubData();
 
-                    SetMeshUniforms(modelMatrix, vertexProgram!, materialOverride?.BillboardMode ?? billboardMode, vrStereoPass);
+                    SetMeshUniforms(modelMatrix, vertexProgram!, materialOverride?.BillboardMode ?? billboardMode);
                     material.SetUniforms(materialProgram);
                     OnSettingUniforms(vertexProgram!, materialProgram!);
                     Renderer.RenderMesh(this, false, instances);
@@ -320,9 +323,26 @@ namespace XREngine.Rendering.OpenGL
                 return true;
             }
 
-            private static void SetMeshUniforms(Matrix4x4 modelMatrix, GLRenderProgram vertexProgram, EMeshBillboardMode billboardMode, bool vrStereoPass)
+            private static void SetMeshUniforms(Matrix4x4 modelMatrix, GLRenderProgram vertexProgram, EMeshBillboardMode billboardMode)
             {
-                XRCamera? camera = Engine.Rendering.State.RenderingCamera;
+                bool stereoPass = Engine.Rendering.State.IsStereoPass;
+                if (stereoPass)
+                {
+                    PassCameraUniforms(vertexProgram, Engine.Rendering.State.RenderingCamera, EEngineUniform.LeftEyeInverseViewMatrix, EEngineUniform.LeftEyeProjMatrix);
+                    PassCameraUniforms(vertexProgram, Engine.Rendering.State.RenderingStereoRightEyeCamera, EEngineUniform.RightEyeInverseViewMatrix, EEngineUniform.RightEyeProjMatrix);
+                }
+                else
+                {
+                    PassCameraUniforms(vertexProgram, Engine.Rendering.State.RenderingCamera, EEngineUniform.InverseViewMatrix, EEngineUniform.ProjMatrix);
+                }
+
+                vertexProgram.Uniform(EEngineUniform.ModelMatrix, modelMatrix);
+                vertexProgram.Uniform(EEngineUniform.VRMode, stereoPass);
+                vertexProgram.Uniform(EEngineUniform.BillboardMode, (int)billboardMode);
+            }
+
+            private static void PassCameraUniforms(GLRenderProgram vertexProgram, XRCamera? camera, EEngineUniform invView, EEngineUniform proj)
+            {
                 Matrix4x4 inverseViewMatrix;
                 Matrix4x4 projMatrix;
 
@@ -338,16 +358,13 @@ namespace XREngine.Rendering.OpenGL
                     inverseViewMatrix = Matrix4x4.Identity;
                     projMatrix = Matrix4x4.Identity;
                 }
+                vertexProgram.Uniform(invView, inverseViewMatrix);
+                vertexProgram.Uniform(proj, projMatrix);
 
-                vertexProgram.Uniform(EEngineUniform.ModelMatrix, modelMatrix);
-                vertexProgram.Uniform(EEngineUniform.InverseViewMatrix, inverseViewMatrix);
-                vertexProgram.Uniform(EEngineUniform.ProjMatrix, projMatrix);
                 //vertexProgram.Uniform(EEngineUniform.CameraPosition, inverseViewMatrix.Translation);
                 //vertexProgram.Uniform(EEngineUniform.CameraForward, inverseViewMatrix.Forward());
                 //vertexProgram.Uniform(EEngineUniform.CameraUp, inverseViewMatrix.Up());
                 //vertexProgram.Uniform(EEngineUniform.CameraRight, inverseViewMatrix.Right());
-                vertexProgram.Uniform(EEngineUniform.VRMode, vrStereoPass);
-                vertexProgram.Uniform(EEngineUniform.BillboardMode, (int)billboardMode);
             }
 
             private void OnSettingUniforms(GLRenderProgram vertexProgram, GLRenderProgram materialProgram)
@@ -371,6 +388,8 @@ namespace XREngine.Rendering.OpenGL
                 material ??= Renderer.GenericToAPI<GLMaterial>(Engine.Rendering.State.CurrentRenderingPipeline!.InvalidMaterial);
 
                 bool useDefaultVertexShader = material?.Data?.VertexShaders?.Count == 0;
+
+                //TODO: link ovr multiview vertex shader
 
                 //Determine how we're combining the material and vertex shader here
                 GLRenderProgram vertexProgram;

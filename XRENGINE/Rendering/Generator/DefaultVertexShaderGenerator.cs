@@ -4,6 +4,11 @@ using XREngine.Rendering.Models.Materials;
 
 namespace XREngine.Rendering.Shaders.Generator
 {
+    public class OVRMultiViewVertexShaderGenerator(XRMesh mesh) : DefaultVertexShaderGenerator(mesh)
+    {
+        public override bool UseOVRMultiView => true;
+    }
+
     /// <summary>
     /// Generates a typical vertex shader for use with most models.
     /// </summary>
@@ -26,6 +31,8 @@ namespace XREngine.Rendering.Shaders.Generator
         public const string FinalNormalName = "finalNormal";
         public const string FinalTangentName = "finalTangent";
         public const string FinalBinormalName = "finalBinormal";
+
+        public virtual bool UseOVRMultiView => false;
 
         /// <summary>
         /// Adjoint is a faster way to calculate the inverse of a matrix when the matrix is orthogonal.
@@ -59,6 +66,7 @@ namespace XREngine.Rendering.Shaders.Generator
         public override string Generate()
         {
             WriteVersion();
+            WriteExtensions();
             Line();
             WriteInputs();
             WriteAdjointMethod();
@@ -80,8 +88,17 @@ namespace XREngine.Rendering.Shaders.Generator
             return End();
         }
 
+        private void WriteExtensions()
+        {
+            if (UseOVRMultiView)
+                Line("#extension GL_OVR_multiview2 : require");
+        }
+
         private void WriteInputs()
         {
+            if (UseOVRMultiView)
+                Line("layout(num_views = 2) in;");
+
             //Write header in fields (from buffers)
             WriteBuffers();
             Line();
@@ -178,8 +195,19 @@ namespace XREngine.Rendering.Shaders.Generator
         {
             WriteUniform(EShaderVarType._mat4, EEngineUniform.ModelMatrix.ToString());
 
-            WriteUniform(EShaderVarType._mat4, EEngineUniform.InverseViewMatrix.ToString());
-            WriteUniform(EShaderVarType._mat4, EEngineUniform.ProjMatrix.ToString());
+            if (UseOVRMultiView)
+            {
+                WriteUniform(EShaderVarType._mat4, EEngineUniform.LeftEyeInverseViewMatrix.ToString());
+                WriteUniform(EShaderVarType._mat4, EEngineUniform.RightEyeInverseViewMatrix.ToString());
+                WriteUniform(EShaderVarType._mat4, EEngineUniform.LeftEyeProjMatrix.ToString());
+                WriteUniform(EShaderVarType._mat4, EEngineUniform.RightEyeProjMatrix.ToString());
+            }
+            else
+            {
+                WriteUniform(EShaderVarType._mat4, EEngineUniform.InverseViewMatrix.ToString());
+                WriteUniform(EShaderVarType._mat4, EEngineUniform.ProjMatrix.ToString());
+            }
+
             //WriteUniform(EShaderVarType._vec3, EEngineUniform.CameraPosition.ToString());
             //WriteUniform(EShaderVarType._vec3, EEngineUniform.CameraForward.ToString());
             //WriteUniform(EShaderVarType._vec3, EEngineUniform.CameraUp.ToString());
@@ -188,10 +216,11 @@ namespace XREngine.Rendering.Shaders.Generator
             if (Mesh.SupportsBillboarding)
                 WriteUniform(EShaderVarType._int, EEngineUniform.BillboardMode.ToString());
 
-            WriteUniform(EShaderVarType._bool, EEngineUniform.VRMode.ToString());
+            if (!UseOVRMultiView) //Include toggle for manual stereo VR calculations in shader if not using OVR multi-view
+                WriteUniform(EShaderVarType._bool, EEngineUniform.VRMode.ToString());
             
-            if (Mesh.HasSkinning && Engine.Rendering.Settings.AllowSkinning)
-                WriteUniform(EShaderVarType._mat4, EEngineUniform.RootInvModelMatrix.ToString());
+            //if (Mesh.HasSkinning && Engine.Rendering.Settings.AllowSkinning)
+            //    WriteUniform(EShaderVarType._mat4, EEngineUniform.RootInvModelMatrix.ToString());
         }
 
         /// <summary>
@@ -372,7 +401,7 @@ namespace XREngine.Rendering.Shaders.Generator
                 {
                     Line($"int boneIndex = int({ECommonBufferType.BoneMatrixOffset}[i]);");
                     Line($"float weight = {ECommonBufferType.BoneMatrixCount}[i];");
-                    Line($"mat4 boneMatrix = {ECommonBufferType.BoneInvBindMatrices}[boneIndex] * {ECommonBufferType.BoneMatrices}[boneIndex] * {EEngineUniform.RootInvModelMatrix};");
+                    Line($"mat4 boneMatrix = {ECommonBufferType.BoneInvBindMatrices}[boneIndex] * {ECommonBufferType.BoneMatrices}[boneIndex];"); // * {EEngineUniform.RootInvModelMatrix}
                     Line($"{FinalPositionName} += (boneMatrix * vec4({BasePositionName}, 1.0f)) * weight;");
                     Line("mat3 boneMatrix3 = adjoint(boneMatrix);");
                     Line($"{FinalNormalName} += (boneMatrix3 * {BaseNormalName}) * weight;");
@@ -387,7 +416,7 @@ namespace XREngine.Rendering.Shaders.Generator
                     Line($"int index = int({ECommonBufferType.BoneMatrixOffset}) + i;");
                     Line($"int boneIndex = int({ECommonBufferType.BoneMatrixIndices}[index]);");
                     Line($"float weight = {ECommonBufferType.BoneMatrixWeights}[index];");
-                    Line($"mat4 boneMatrix = {ECommonBufferType.BoneInvBindMatrices}[boneIndex] * {ECommonBufferType.BoneMatrices}[boneIndex] * {EEngineUniform.RootInvModelMatrix};");
+                    Line($"mat4 boneMatrix = {ECommonBufferType.BoneInvBindMatrices}[boneIndex] * {ECommonBufferType.BoneMatrices}[boneIndex];"); // * {EEngineUniform.RootInvModelMatrix}
                     Line($"{FinalPositionName} += (boneMatrix * vec4({BasePositionName}, 1.0f)) * weight;");
                     Line("mat3 boneMatrix3 = adjoint(boneMatrix);");
                     Line($"{FinalNormalName} += (boneMatrix3 * {BaseNormalName}) * weight;");
@@ -467,6 +496,13 @@ namespace XREngine.Rendering.Shaders.Generator
         private void ResolvePosition(string localInputPosName)
         {
             Line($"{FragPosLocalName} = {localInputPosName}.xyz;");
+
+            if (UseOVRMultiView)
+            {
+                Line("bool leftEye = gl_ViewID_OVR == 0;");
+                Line($"mat4 {EEngineUniform.InverseViewMatrix} = leftEye ? {EEngineUniform.LeftEyeInverseViewMatrix} : {EEngineUniform.RightEyeInverseViewMatrix};");
+                Line($"mat4 {EEngineUniform.ProjMatrix} = leftEye ? {EEngineUniform.LeftEyeProjMatrix} : {EEngineUniform.RightEyeProjMatrix};");
+            }
 
             const string finalPosName = "outPos";
 
@@ -572,8 +608,10 @@ namespace XREngine.Rendering.Shaders.Generator
             void NoPerspDivide()
                 => Line($"{FragPosName} = {finalPositionName}.xyz;");
 
-            //No perspective divide in VR shaders - done in geometry shader
-            IfElse(EEngineUniform.VRMode.ToString(), NoPerspDivide, PerspDivide);
+            if (UseOVRMultiView)
+                PerspDivide();
+            else //No perspective divide in VR shaders - done in geometry shader
+                IfElse(EEngineUniform.VRMode.ToString(), NoPerspDivide, PerspDivide);
         }
 
         /// <summary>
@@ -586,20 +624,37 @@ namespace XREngine.Rendering.Shaders.Generator
         /// <summary>
         /// Creates the projection * view matrix.
         /// </summary>
-        private void DeclareVP()
+        private void DeclareVP(/*bool stereoLeft*/)
         {
-            Line($"mat4 {ViewMatrixName} = inverse({EEngineUniform.InverseViewMatrix});");
-            Line($"mat4 {ViewProjMatrixName} = {EEngineUniform.ProjMatrix} * {ViewMatrixName};");
+            //if (UseOVRMultiView)
+            //{
+            //    Line($"mat4 {ViewMatrixName} = inverse({(stereoLeft ? EEngineUniform.LeftEyeInverseViewMatrix : EEngineUniform.RightEyeInverseViewMatrix)});");
+            //    Line($"mat4 {ViewProjMatrixName} = {(stereoLeft ? EEngineUniform.LeftEyeProjMatrix : EEngineUniform.RightEyeProjMatrix)} * {ViewMatrixName};");
+            //}
+            //else
+            //{
+                Line($"mat4 {ViewMatrixName} = inverse({EEngineUniform.InverseViewMatrix});");
+                Line($"mat4 {ViewProjMatrixName} = {EEngineUniform.ProjMatrix} * {ViewMatrixName};");
+            //}
         }
 
         /// <summary>
         /// Creates the projection * view * model matrix.
         /// </summary>
-        private void DeclareMVP()
+        private void DeclareMVP(/*bool stereoLeft*/)
         {
-            Line($"mat4 {ViewMatrixName} = inverse({EEngineUniform.InverseViewMatrix});");
-            Line($"mat4 {ModelViewMatrixName} = {ViewMatrixName} * {EEngineUniform.ModelMatrix};");
-            Line($"mat4 {ModelViewProjMatrixName} = {EEngineUniform.ProjMatrix} * {ModelViewMatrixName};");
+            //if (UseOVRMultiView)
+            //{
+            //    Line($"mat4 {ViewMatrixName} = inverse({(stereoLeft ? EEngineUniform.LeftEyeInverseViewMatrix : EEngineUniform.RightEyeInverseViewMatrix)});");
+            //    Line($"mat4 {ModelViewMatrixName} = {ViewMatrixName} * {EEngineUniform.ModelMatrix};");
+            //    Line($"mat4 {ModelViewProjMatrixName} = {(stereoLeft ? EEngineUniform.LeftEyeProjMatrix : EEngineUniform.RightEyeProjMatrix)} * {ModelViewMatrixName};");
+            //}
+            //else
+            //{
+                Line($"mat4 {ViewMatrixName} = inverse({EEngineUniform.InverseViewMatrix});");
+                Line($"mat4 {ModelViewMatrixName} = {ViewMatrixName} * {EEngineUniform.ModelMatrix};");
+                Line($"mat4 {ModelViewProjMatrixName} = {EEngineUniform.ProjMatrix} * {ModelViewMatrixName};");
+            //}
         }
     }
 }

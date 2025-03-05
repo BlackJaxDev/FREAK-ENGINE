@@ -71,6 +71,8 @@ namespace XREngine.Rendering
             set => SetField(ref _lodBias, value);
         }
 
+        public abstract ETextureTarget TextureTarget { get; }
+
         public abstract XRTexture GetViewedTexture();
         public event Action? ViewedTextureChanged;
         protected void OnViewedTextureChanged()

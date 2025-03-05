@@ -86,6 +86,7 @@
     <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.22.0" />
     <PackageReference Include="Silk.NET.OpenGL.Extensions.INTEL" Version="2.22.0" />
     <PackageReference Include="Silk.NET.OpenGL.Extensions.KHR" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.OpenGL.Extensions.OVR" Version="2.22.0" />
     <PackageReference Include="Silk.NET.OpenGLES.Extensions.EXT" Version="2.22.0" />
     <PackageReference Include="Silk.NET.OpenXR" Version="2.22.0" />
     <PackageReference Include="Silk.NET.OpenXR.Extensions.EXT" Version="2.22.0" />

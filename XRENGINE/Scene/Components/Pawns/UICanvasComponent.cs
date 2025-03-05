@@ -103,7 +103,15 @@ namespace XREngine.Components
         public UIInputComponent? GetInputComponent() => GetSiblingComponent<UIInputComponent>();
 
         public void Render(XRViewport? viewport, XRFrameBuffer? outputFBO)
-            => _renderPipeline.Render(VisualScene2D, Camera2D, viewport, outputFBO, null, false);
+            => _renderPipeline.Render(
+                VisualScene2D,
+                Camera2D,
+                null,
+                viewport,
+                outputFBO,
+                null,
+                false,
+                false);
 
         public void SwapBuffersScreenSpace()
         {

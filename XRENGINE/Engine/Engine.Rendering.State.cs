@@ -26,6 +26,7 @@ namespace XREngine
                 public static XRViewport? RenderingViewport => RenderingPipelineState?.WindowViewport;
                 public static VisualScene? RenderingScene => RenderingPipelineState?.Scene;
                 public static XRCamera? RenderingCamera => RenderingCameraOverride ?? RenderingPipelineState?.RenderingCamera;
+                public static XRCamera? RenderingStereoRightEyeCamera => RenderingPipelineState?.StereoRightEyeCamera;
                 public static XRFrameBuffer? RenderingTargetOutputFBO => RenderingPipelineState?.OutputFBO;
 
                 public static XRMaterial? OverrideMaterial => RenderingPipelineState?.OverrideMaterial;
@@ -67,7 +68,16 @@ namespace XREngine
                 /// </summary>
                 public static XRRenderPipelineInstance.RenderingState? RenderingPipelineState => CurrentRenderingPipeline?.RenderState;
 
+                /// <summary>
+                /// If true, the current render is a shadow pass - only what's needed for shadows is rendered.
+                /// </summary>
                 public static bool IsShadowPass => RenderingPipelineState?.ShadowPass ?? false;
+                /// <summary>
+                /// If true, the current render is a stereo pass - all meshes are rendered twice to layers 0 and 1 with a geometry shader.
+                /// </summary>
+                public static bool IsStereoPass => RenderingPipelineState?.StereoPass ?? false;
+
+                public static bool HasOvrMultiViewExtension { get; set; } = false;
 
                 //public static XRRenderPipelineInstance? CurrentCollectingVisiblePipeline => CollectingVisiblePipelineStack.Count > 0 ? CollectingVisiblePipelineStack.Peek() : null;
                 //public static XRRenderPipelineInstance.RenderingState? CollectingVisiblePipelineState => CurrentCollectingVisiblePipeline?.RenderState;
